@@ -1,0 +1,46 @@
+.TestChengyusTest {
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+    margin: 0 auto;
+    padding: 30px 0;
+    color: #E6E0AE;
+}
+
+.TestChengyusTest ul {
+    list-style: none;
+    padding: 0;
+}
+
+.CharCard {
+    width: 70%;
+    background-color: #E6E0AE;
+    box-shadow: 0 1px 4px black;
+    color: rgb(46, 66, 66);
+    border-radius: 5px;
+    min-height: 110px;
+    margin: 0 auto 10px auto;
+    padding: 10px 5px;
+    font-size: 1.6em;
+}
+
+.CharHolder {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.CharHolder div {
+    display: inline-block;
+    padding: 2px;
+    border-radius: 5px;
+}
+
+.CharHolder div:hover {
+    background-color: rgb(197, 197, 106);
+    cursor: pointer;
+}
+
+.CharCard p {
+    margin: 0;
+}

@@ -1,0 +1,24 @@
+.ProgressBar {
+    width: 90%;
+    background-color: darkgray;
+    height: 18px;
+    margin: 0 auto;
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    text-align: center;
+}
+
+.InnerBar {
+    height: 55%;
+    width: 100%;
+    border-radius: inherit;
+    background-color: indianred;
+}
+
+.InnerInner {
+    height: 100%;
+    background-color: darkgrey;
+    float: right;
+}

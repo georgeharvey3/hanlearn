@@ -1,0 +1,32 @@
+.Modal {
+    position: fixed;
+    z-index: 500;
+    background-color: rgb(46, 66, 66);
+    width: 70%;
+    border: 1px solid black;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.19);
+    padding: 16px;
+    left: 15%;
+    top: 10%;
+    box-sizing: border-box;
+    transition: all .3s ease-out;
+    color: #E6E0AE;
+}
+
+@media (min-width: 600px) {
+    .Modal {
+        width: 500px;
+        left: calc(50% - 250px);
+    }
+}
+
+.Close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background-color: transparent;
+    border: none;
+    color: #E6E0AE;
+    font-size: 2rem;
+    cursor: pointer;
+}

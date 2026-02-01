@@ -1,0 +1,123 @@
+.MainBanner {
+  width: 90%;
+  display: flex;
+  justify-content: space-evenly;
+  padding: 24px 12px;
+  padding-top: 60px;
+  box-sizing: border-box;
+  margin: 0 auto;
+  font-size: 1.1em;
+}
+
+.MainBanner img {
+  width: 100%;
+}
+
+.MainBanner section {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  color: #e6e0ae;
+}
+
+.Image {
+  background-image: url("../../../assets/images/main-image.jpeg");
+  width: 100%;
+  background-size: cover;
+  height: 650px;
+  display: flex;
+  align-items: center;
+  border: 2px solid black;
+}
+
+.Image div {
+  background-color: rgba(0, 0, 0, 0.7);
+  margin: 0 auto;
+  padding: 10px;
+  border-radius: 5px;
+  color: #e6e0ae;
+  width: 50%;
+}
+
+.Logo {
+  background-color: #e6e0ae;
+  border-radius: 50%;
+}
+
+.MainBanner h2,
+p {
+  width: 100%;
+}
+
+.MainBanner h2 {
+  font-size: 2.2em;
+}
+
+.MainBanner p {
+  font-size: 1.5em;
+}
+
+.Buttons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 24px 0;
+  margin-bottom: 72px;
+}
+
+@media (max-width: 1475px) {
+  .Image div {
+    width: 80%;
+  }
+}
+
+@media (max-width: 1000px) {
+  .MainBanner {
+    width: 95%;
+  }
+
+  .Image {
+    height: 550px;
+  }
+}
+
+@media (min-width: 856px) {
+  .MainBanner {
+    padding-top: 36px;
+  }
+}
+
+@media (max-width: 599px) {
+  .MainBanner {
+    font-size: 1em;
+  }
+}
+
+@media (max-width: 499px) {
+  .MainBanner {
+    width: 100%;
+    padding-bottom: 0;
+    padding-top: 24px;
+  }
+  .MainBanner .DesktopOnly {
+    display: none;
+  }
+  .Image {
+    height: 300px;
+    border: none;
+  }
+  .Image div {
+    width: 90%;
+    color: #e6e0ae;
+    text-align: left;
+  }
+  .Image h2 {
+    font-size: 1.5em;
+  }
+  .Image p {
+    font-size: 1.1em;
+  }
+}

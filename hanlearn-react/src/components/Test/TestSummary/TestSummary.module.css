@@ -1,0 +1,29 @@
+.HomeButton {
+    justify-content: flex-end;
+    position: absolute;
+    text-align: left;
+    right: 10px;
+    background-color: #E6E0AE;
+    padding: 5px;
+    border-radius: 5px;
+    height: 24px;
+    width: 24px;
+    box-shadow: 0px 2px 0px #918c63;
+    box-sizing: content-box;
+    border: none;
+}
+
+.HomeButton img {
+    height: 24px;
+    width: 24px;
+}
+
+.HomeButton:active {
+    box-shadow: 0px 0px;
+    transform: translateY(3px) 
+}
+
+.HomeButton:hover {
+    background-color: #f8f4cc;
+    cursor: pointer;
+}

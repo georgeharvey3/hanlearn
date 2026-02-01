@@ -1,0 +1,60 @@
+.ToggleContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.ToggleContainer label {
+  font-size: 14px;
+}
+
+.Toggle {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 19px;
+}
+
+.Toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.Slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: white !important;
+  transition: 0.4s;
+  border-radius: 19px !important;
+}
+
+.Slider:before {
+  position: absolute;
+  content: "";
+  height: 13px;
+  width: 13px;
+  bottom: 3px;
+  left: 3px;
+  background-color: #aa381e;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+
+.Toggle input:checked + .Slider {
+  background-color: #e6e0ae !important;
+}
+
+.Toggle input:focus + .Slider {
+  box-shadow: 0 0 1px #e6e0ae !important;
+}
+
+.Toggle input:checked + .Slider:before {
+  transform: translateX(15px);
+}

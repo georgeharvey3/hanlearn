@@ -1,0 +1,9 @@
+@media (min-height: 750px) {
+  .TableBoxHolder {
+    min-height: 400px;
+  }
+}
+
+.TableBoxHolder h3 {
+  color: #e6e0ae;
+}

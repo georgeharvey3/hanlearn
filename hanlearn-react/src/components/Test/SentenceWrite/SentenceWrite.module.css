@@ -1,0 +1,75 @@
+.SentenceWrite {
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  margin: 0 auto;
+  padding: 30px 0;
+  color: #e6e0ae;
+}
+
+.SentenceWrite p {
+  font-size: 1.1em;
+}
+
+.SentenceWrite h2 {
+  font-weight: 300;
+  font-size: 1.5em;
+}
+
+.SentenceWrite h3 {
+  font-weight: 300;
+  font-size: 1.5em;
+  margin: 5px auto;
+}
+
+.SentenceWrite input {
+  border-radius: 25px;
+  width: 80%;
+  max-width: 300px;
+  height: 36px;
+  border: none;
+  box-shadow: 0 1px 4px black;
+  text-align: center;
+  margin: 5px auto 0px auto;
+  font-size: 16px;
+}
+
+.QuestionCard {
+  width: 70%;
+  background-color: #e6e0ae;
+  box-shadow: 0 1px 4px black;
+  color: #aa381e;
+  border-radius: 5px;
+  min-height: 100px;
+  margin: 0 auto 10px auto;
+  padding: 20px 5px;
+  font-size: 1.6em;
+}
+
+.WordList {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 500px;
+  list-style: none;
+  justify-content: space-evenly;
+  align-items: center;
+  margin: 20px auto;
+  padding: 0;
+  gap: 5px;
+}
+
+.WordList li {
+  background-color: #e6e0ae;
+  color: #aa381e;
+  border-radius: 5px;
+  padding: 8px;
+  font-size: 1.5em;
+  box-shadow: 0 1px 4px black;
+  transition: 0.5s;
+  margin: 5px 0;
+}
+
+.Highlighted {
+  color: #62ff97;
+  display: inline-block;
+}

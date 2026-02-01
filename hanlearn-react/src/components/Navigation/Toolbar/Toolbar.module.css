@@ -1,0 +1,48 @@
+.Toolbar {
+    height: 56px;
+    width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    background-color: #E6E0AE;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px 0 10px;
+    box-sizing: border-box;
+    z-index: 90;
+    border-bottom: 1px solid black;
+}
+
+.Toolbar nav {
+    height: 100%;
+}
+
+.Toolbar h2 {
+    color: #AA381E
+}
+
+.Toolbar h3 {
+    color: #AA381E
+}
+
+.Logo {
+    height: 100%;
+    display: flex;
+}
+
+.Logo:hover {
+    cursor: pointer;
+}
+
+@media (max-width: 499px) {
+    .DesktopOnly {
+        display: none;
+    }
+}
+
+@media (min-width: 500px) {
+    .PhoneOnly {
+        display: none;
+    }
+}

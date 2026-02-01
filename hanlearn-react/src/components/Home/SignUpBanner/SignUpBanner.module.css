@@ -1,0 +1,28 @@
+.SignUpBanner {
+    width: 95%;
+    height: auto;
+    border-radius: 10px;
+    background-color: #E6E0AE;
+    margin: 10px auto;
+    margin-bottom: 34px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+    color: #AA381E;
+    text-align: center;
+    font-size: 1.4em;
+    box-shadow: rgba(0, 0, 0, 0.19) 0px 10px 20px, rgba(0, 0, 0, 0.23) 0px 6px 6px;
+}
+
+@media (max-width: 499px) {
+    .SignUpBanner{
+        font-size: 1.1em;
+    }
+} 
+
+.SignUpBanner h3, p {
+    margin: 10px 0;
+}

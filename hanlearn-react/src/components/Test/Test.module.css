@@ -1,0 +1,64 @@
+.Test {
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  margin: 0 auto;
+  padding: 30px 0;
+  color: #e6e0ae;
+}
+
+.Test span {
+  background-color: #e6e0ae;
+  color: #aa381e;
+  box-shadow: 0 1px 4px black;
+  border-radius: 5px;
+  padding: 2px;
+}
+
+.Result {
+  min-height: 30px;
+}
+
+.QuestionCard {
+  width: 90%;
+  background-color: #e6e0ae;
+  box-shadow: 0 1px 4px black;
+  color: #aa381e;
+  border-radius: 5px;
+  min-height: 100px;
+  height: 160px;
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 20px 5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.QuestionCard h2 {
+  overflow-wrap: normal;
+}
+
+.PinyinToggle {
+  background-color: transparent;
+  text-decoration: underline;
+  border: none;
+  font-family: inherit;
+}
+
+.PinyinToggle:hover {
+  cursor: pointer;
+}
+
+.InputDiv {
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+@media (max-height: 825px) {
+  .InputDiv {
+    height: auto;
+  }
+}

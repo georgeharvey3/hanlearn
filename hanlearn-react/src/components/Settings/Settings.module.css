@@ -1,0 +1,60 @@
+.Settings {
+  width: 300px;
+  display: inline-block;
+  padding: 10px;
+  color: #aa381e;
+}
+
+.SliderBox {
+  width: 60%;
+  margin: 10px auto;
+}
+
+.Slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 3px;
+  outline: none;
+  border-radius: 3px;
+  color: black;
+  background: black;
+}
+
+.Slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #aa381e;
+  cursor: pointer;
+}
+
+.CheckGrid {
+  display: grid;
+  grid-template-columns: 1fr 3fr;
+  justify-items: start;
+  column-gap: 10px;
+  padding: 10px 0;
+}
+
+.CheckGrid2 {
+  display: flex;
+  flex-direction: column;
+  align-items: left;
+  padding: 10px 20px 10px 52px;
+}
+
+.CheckGrid2 label {
+  width: 140px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.CheckGrid2 input {
+  margin-right: 10px;
+}
+
+.CheckGrid input {
+  justify-self: end;
+}
