@@ -8,25 +8,25 @@ HanLearn is a Chinese language learning application with spaced repetition for v
 
 ## Development Commands
 
-### Frontend (hanlearn-react/)
+### Frontend (web-client/)
 ```bash
-cd hanlearn-react
+cd web-client
 npm install        # Install dependencies
 npm start          # Start development server on http://localhost:3000
 npm test           # Run tests in watch mode
 npm run build      # Production build
 ```
 
-### Backend (hanlearn-python/)
+### Backend (api/)
 ```bash
-cd hanlearn-python
+cd api
 pip install -r requirements.txt    # Install dependencies
 python wsgi.py                      # Run Flask development server
 # OR with gunicorn:
 gunicorn wsgi:app
 ```
 
-The React app proxies API requests to `http://localhost:5000` (configured in [hanlearn-react/package.json](hanlearn-react/package.json)).
+The React app proxies API requests to `http://localhost:5000` (configured in [web-client/package.json](web-client/package.json)).
 
 ## Architecture
 
@@ -34,12 +34,12 @@ The React app proxies API requests to `http://localhost:5000` (configured in [ha
 
 The Flask application uses the **application factory pattern** with blueprints:
 
-- **App Factory**: [hanlearn-python/app/__init__.py](hanlearn-python/app/__init__.py) - `create_app()` initializes Flask, SQLAlchemy, and registers blueprints
+- **App Factory**: [api/app/__init__.py](api/app/__init__.py) - `create_app()` initializes Flask, SQLAlchemy, and registers blueprints
 - **Blueprints**:
   - `main` - Core word operations, testing, sentences, translations
   - `auth` - User registration and login
-- **Database**: SQLite with SQLAlchemy ORM ([hanlearn-python/app/models.py](hanlearn-python/app/models.py))
-- **Authentication**: JWT tokens with `@token_required` decorator ([hanlearn-python/app/decorators.py](hanlearn-python/app/decorators.py))
+- **Database**: SQLite with SQLAlchemy ORM ([api/app/models.py](api/app/models.py))
+- **Authentication**: JWT tokens with `@token_required` decorator ([api/app/decorators.py](api/app/decorators.py))
 
 #### Database Models
 
@@ -52,7 +52,7 @@ Three core models with relationships:
   - `due_date`: Next review date based on spaced repetition algorithm
   - `ammended_meaning`: User-customized definition override
 
-The spaced repetition system in [hanlearn-python/app/main/views.py](hanlearn-python/app/main/views.py) adjusts `bank` levels and calculates new `due_date` values based on test performance.
+The spaced repetition system in [api/app/main/views.py](api/app/main/views.py) adjusts `bank` levels and calculates new `due_date` values based on test performance.
 
 #### Key API Endpoints
 
@@ -78,12 +78,12 @@ The spaced repetition system in [hanlearn-python/app/main/views.py](hanlearn-pyt
 
 The frontend uses **Redux with thunk middleware** for async operations and state management:
 
-- **Store Configuration**: [hanlearn-react/src/index.js](hanlearn-react/src/index.js) - Combines three reducers
+- **Store Configuration**: [web-client/src/index.js](web-client/src/index.js) - Combines three reducers
 - **Reducers**:
   - `addWords` - Word bank state and operations
   - `auth` - Authentication state (token, userId, expiresAt)
   - `settings` - Speech synthesis/recognition settings
-- **Actions**: [hanlearn-react/src/store/actions/](hanlearn-react/src/store/actions/) - Redux thunks for API calls
+- **Actions**: [web-client/src/store/actions/](web-client/src/store/actions/) - Redux thunks for API calls
 
 #### Main Containers (Pages)
 
@@ -96,7 +96,7 @@ The frontend uses **Redux with thunk middleware** for async operations and state
 
 #### Speech Integration
 
-The app initializes Web Speech API on startup ([hanlearn-react/src/App.js](hanlearn-react/src/App.js)):
+The app initializes Web Speech API on startup ([web-client/src/App.js](web-client/src/App.js)):
 - **Speech Recognition** (`webkitSpeechRecognition`): For pronunciation practice
 - **Speech Synthesis** (`SpeechSynthesisUtterance`): Text-to-speech for Chinese characters
 - Detects and stores Chinese voices (zh-CN preferred) in Redux settings
@@ -105,8 +105,8 @@ The app initializes Web Speech API on startup ([hanlearn-react/src/App.js](hanle
 
 - **Layout**: Main layout wrapper with navigation
 - **Navigation**: Toolbar and side drawer with responsive design
-- **UI Components**: Reusable components in [hanlearn-react/src/components/UI/](hanlearn-react/src/components/UI/) (Table, Modal, Buttons, Input, Spinner, Toggle)
-- **Test Logic**: Shared testing logic in [hanlearn-react/src/components/Test/Logic/](hanlearn-react/src/components/Test/Logic/)
+- **UI Components**: Reusable components in [web-client/src/components/UI/](web-client/src/components/UI/) (Table, Modal, Buttons, Input, Spinner, Toggle)
+- **Test Logic**: Shared testing logic in [web-client/src/components/Test/Logic/](web-client/src/components/Test/Logic/)
 
 ### Data Flow
 
