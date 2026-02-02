@@ -1,4 +1,4 @@
-import React, { Component, ChangeEvent, FormEvent } from 'react';
+import React, { ChangeEvent, FormEvent, useMemo, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { Redirect } from 'react-router-dom';
 
@@ -54,8 +54,14 @@ const mapDispatchToProps = {
 const connector = connect(mapStateToProps, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 
-class Register extends Component<PropsFromRedux, RegisterState> {
-  state: RegisterState = {
+const Register: React.FC<PropsFromRedux> = ({
+  loading,
+  error,
+  isAuthenticated,
+  newSignUp,
+  onRegister,
+}) => {
+  const [state, setState] = useState<RegisterState>({
     controls: {
       email: {
         elementType: 'input',
@@ -101,9 +107,9 @@ class Register extends Component<PropsFromRedux, RegisterState> {
       },
     },
     formIsValid: false,
-  };
+  });
 
-  checkValidity = (value: string, rules: ValidationRules | null): boolean => {
+  const checkValidity = (value: string, rules: ValidationRules | null): boolean => {
     let isValid = true;
     if (!rules) {
       return true;
@@ -134,101 +140,107 @@ class Register extends Component<PropsFromRedux, RegisterState> {
     return isValid;
   };
 
-  inputChangedHandler = (event: ChangeEvent<HTMLInputElement>, controlName: string): void => {
-    const updatedControlsForm = {
-      ...this.state.controls,
-      [controlName]: {
-        ...this.state.controls[controlName],
-        value: event.target.value,
-        valid: this.checkValidity(event.target.value, this.state.controls[controlName].validation),
-        touched: true,
-      },
-    };
+  const inputChangedHandler = (event: ChangeEvent<HTMLInputElement>, controlName: string): void => {
+    setState((prevState) => {
+      const updatedControlsForm = {
+        ...prevState.controls,
+        [controlName]: {
+          ...prevState.controls[controlName],
+          value: event.target.value,
+          valid: checkValidity(
+            event.target.value,
+            prevState.controls[controlName].validation
+          ),
+          touched: true,
+        },
+      };
 
-    let formIsValid = false;
-    for (const inputIdentifier in updatedControlsForm) {
-      formIsValid = updatedControlsForm[inputIdentifier].valid;
-      if (!formIsValid) {
-        break;
+      let formIsValid = false;
+      for (const inputIdentifier in updatedControlsForm) {
+        formIsValid = updatedControlsForm[inputIdentifier].valid;
+        if (!formIsValid) {
+          break;
+        }
       }
-    }
 
-    this.setState({
-      controls: updatedControlsForm,
-      formIsValid: formIsValid,
+      return {
+        controls: updatedControlsForm,
+        formIsValid: formIsValid,
+      };
     });
   };
 
-  submitHandler = (event: FormEvent<HTMLFormElement>): void => {
+  const submitHandler = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    this.props.onRegister(
-      this.state.controls.email.value,
-      this.state.controls.username.value,
-      this.state.controls.password.value
+    onRegister(
+      state.controls.email.value,
+      state.controls.username.value,
+      state.controls.password.value
     );
   };
 
-  render(): React.ReactNode {
-    const formElementsArray: { id: string; config: FormControl }[] = [];
-    for (const key in this.state.controls) {
-      formElementsArray.push({
+  const formElementsArray = useMemo(() => {
+    const elements: { id: string; config: FormControl }[] = [];
+    for (const key in state.controls) {
+      elements.push({
         id: key,
-        config: this.state.controls[key],
+        config: state.controls[key],
       });
     }
+    return elements;
+  }, [state.controls]);
 
-    const formElements = formElementsArray.map((formElement) => {
-      return (
-        <FormInput
-          key={formElement.id}
-          elementType={formElement.config.elementType}
-          elementConfig={formElement.config.elementConfig}
-          value={formElement.config.value}
-          invalid={!formElement.config.valid}
-          shouldValidate={formElement.config.validation}
-          touched={formElement.config.touched}
-          changed={(event: ChangeEvent<HTMLInputElement>) =>
-            this.inputChangedHandler(event, formElement.id)
-          }
-        />
-      );
-    });
-
-    let form: React.ReactNode = (
-      <form onSubmit={this.submitHandler}>
-        {formElements}
-        <br />
-        <Button disabled={!this.state.formIsValid}>Register</Button>
-      </form>
-    );
-
-    if (this.props.loading) {
-      form = <Spinner />;
-    }
-
-    let errorMessage: React.ReactNode = null;
-
-    if (this.props.error) {
-      errorMessage = <p>{(this.props.error as { message?: string }).message}</p>;
-    }
-
-    let authRedirect: React.ReactNode = null;
-
-    if (this.props.isAuthenticated) {
-      authRedirect = <Redirect to="/" />;
-    } else if (this.props.newSignUp) {
-      authRedirect = <Redirect to="/auth" />;
-    }
-
+  const formElements = formElementsArray.map((formElement) => {
     return (
-      <div className={classes.Auth}>
-        <h1>Sign Up</h1>
-        {authRedirect}
-        {errorMessage}
-        {form}
-      </div>
+      <FormInput
+        key={formElement.id}
+        elementType={formElement.config.elementType}
+        elementConfig={formElement.config.elementConfig}
+        value={formElement.config.value}
+        invalid={!formElement.config.valid}
+        shouldValidate={formElement.config.validation}
+        touched={formElement.config.touched}
+        changed={(event: ChangeEvent<HTMLInputElement>) =>
+          inputChangedHandler(event, formElement.id)
+        }
+      />
     );
+  });
+
+  let form: React.ReactNode = (
+    <form onSubmit={submitHandler}>
+      {formElements}
+      <br />
+      <Button disabled={!state.formIsValid}>Register</Button>
+    </form>
+  );
+
+  if (loading) {
+    form = <Spinner />;
   }
-}
+
+  let errorMessage: React.ReactNode = null;
+
+  if (error) {
+    errorMessage = <p>{(error as { message?: string }).message}</p>;
+  }
+
+  let authRedirect: React.ReactNode = null;
+
+  if (isAuthenticated) {
+    authRedirect = <Redirect to="/" />;
+  } else if (newSignUp) {
+    authRedirect = <Redirect to="/auth" />;
+  }
+
+  return (
+    <div className={classes.Auth}>
+      <h1>Sign Up</h1>
+      {authRedirect}
+      {errorMessage}
+      {form}
+    </div>
+  );
+};
 
 export default connector(Register);

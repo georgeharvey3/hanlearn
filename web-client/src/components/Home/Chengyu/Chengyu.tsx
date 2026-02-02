@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import classes from './Chengyu.module.css';
 
@@ -11,26 +11,15 @@ interface CharResult {
   meanings: string[];
 }
 
-interface ChengyuState {
-  finished: boolean;
-  incorrect: number[];
-  chengyu: string;
-  options: string[];
-  correct: string;
-  components: CharResult[];
-}
+const Chengyu: React.FC = () => {
+  const [finished, setFinished] = useState(false);
+  const [incorrect, setIncorrect] = useState<number[]>([]);
+  const [chengyu, setChengyu] = useState('');
+  const [options, setOptions] = useState<string[]>([]);
+  const [correct, setCorrect] = useState('');
+  const [components, setComponents] = useState<CharResult[]>([]);
 
-class Chengyu extends Component<{}, ChengyuState> {
-  state: ChengyuState = {
-    finished: false,
-    incorrect: [],
-    chengyu: '',
-    options: [],
-    correct: '',
-    components: [],
-  };
-
-  componentDidMount = (): void => {
+  useEffect(() => {
     fetch('/api/get-chengyu')
       .then((response) =>
         response
@@ -42,12 +31,10 @@ class Chengyu extends Component<{}, ChengyuState> {
               correct: string;
               char_results: CharResult[];
             }) => {
-              this.setState({
-                chengyu: data.chengyu,
-                options: data.options,
-                correct: data.correct,
-                components: data.char_results,
-              });
+              setChengyu(data.chengyu);
+              setOptions(data.options);
+              setCorrect(data.correct);
+              setComponents(data.char_results);
             }
           )
           .catch((error) => {
@@ -57,107 +44,100 @@ class Chengyu extends Component<{}, ChengyuState> {
       .catch((error) => {
         console.log(error);
       });
-  };
+  }, []);
 
-  optionClicked = (_event: React.MouseEvent, index: number): void => {
-    if (this.state.options[index] !== this.state.correct) {
-      this.setState((prevState) => {
-        return {
-          incorrect: prevState.incorrect.concat(index),
-        };
-      });
+  const optionClicked = (_event: React.MouseEvent, index: number): void => {
+    if (options[index] !== correct) {
+      setIncorrect((prev) => prev.concat(index));
     } else {
-      this.setState({
-        finished: true,
-      });
+      setFinished(true);
     }
   };
 
-  render(): React.ReactNode {
-    let components: React.ReactNode = null;
+  let details: React.ReactNode = null;
 
-    if (this.state.finished) {
-      components = (
-        <ul style={{ margin: '0px' }}>
-          {this.state.components.map((c, index) => {
-            let trad = '';
-            const differentTrads: string[] = [];
+  if (finished) {
+    details = (
+      <ul style={{ margin: '0px' }}>
+        {components.map((c, index) => {
+          let trad = '';
+          const differentTrads: string[] = [];
 
-            for (let i = 0; i < c.trads.length; i++) {
-              if (c.trads[i] !== c.char) {
-                differentTrads.push(c.trads[i]);
-              }
+          for (let i = 0; i < c.trads.length; i++) {
+            if (c.trads[i] !== c.char) {
+              differentTrads.push(c.trads[i]);
             }
+          }
 
-            if (differentTrads.length > 0) {
-              trad = ' (' + differentTrads.join('/') + ')';
-            }
+          if (differentTrads.length > 0) {
+            trad = ' (' + differentTrads.join('/') + ')';
+          }
 
-            return (
-              <Aux key={index}>
-                <li
+          return (
+            <Aux key={index}>
+              <li
+                style={{
+                  maxHeight: '1000px',
+                  opacity: 1,
+                  backgroundColor: 'transparent',
+                  color: '#AA381E',
+                }}
+              >
+                <h5
                   style={{
-                    maxHeight: '1000px',
-                    opacity: 1,
-                    backgroundColor: 'transparent',
-                    color: '#AA381E',
+                    fontSize: '1.5em',
+                    margin: '3px auto',
+                    fontWeight: 'normal',
                   }}
                 >
-                  <h5
-                    style={{
-                      fontSize: '1.5em',
-                      margin: '3px auto',
-                      fontWeight: 'normal',
-                    }}
-                  >
-                    {c.char}
-                    {trad}
-                  </h5>{' '}
-                  ({c.pinyins.join('/')}): {c.meanings.join(', ')}
-                </li>
-                <br />
-              </Aux>
-            );
-          })}
-        </ul>
-      );
-    }
-    return (
-      <div className={classes.Chengyu}>
-        <h3>Chengyu Of The Day</h3>
-        <h2>{this.state.chengyu}</h2>
-        <p>Choose the correct translation:</p>
-        <ul>
-          {this.state.options.map((op, index) => {
-            let classNames = [classes.show];
-
-            if (this.state.finished) {
-              if (op !== this.state.correct) {
-                classNames = [];
-              } else {
-                classNames = [classes.show, classes.Correct];
-              }
-            }
-
-            if (this.state.incorrect.includes(index)) {
-              classNames.push(classes.Incorrect);
-            }
-
-            return (
-              <li
-                className={classNames.join(' ')}
-                key={index}
-                onClick={(event) => this.optionClicked(event, index)}
-              >
-                {op}
+                  {c.char}
+                  {trad}
+                </h5>{' '}
+                ({c.pinyins.join('/')}): {c.meanings.join(', ')}
               </li>
-            );
-          })}
-        </ul>
-        {components}
-      </div>
+              <br />
+            </Aux>
+          );
+        })}
+      </ul>
     );
   }
-}
+
+  return (
+    <div className={classes.Chengyu}>
+      <h3>Chengyu Of The Day</h3>
+      <h2>{chengyu}</h2>
+      <p>Choose the correct translation:</p>
+      <ul>
+        {options.map((op, index) => {
+          let classNames = [classes.show];
+
+          if (finished) {
+            if (op !== correct) {
+              classNames = [];
+            } else {
+              classNames = [classes.show, classes.Correct];
+            }
+          }
+
+          if (incorrect.includes(index)) {
+            classNames.push(classes.Incorrect);
+          }
+
+          return (
+            <li
+              className={classNames.join(' ')}
+              key={index}
+              onClick={(event) => optionClicked(event, index)}
+            >
+              {op}
+            </li>
+          );
+        })}
+      </ul>
+      {details}
+    </div>
+  );
+};
 
 export default Chengyu;

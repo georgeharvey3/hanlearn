@@ -1,4 +1,4 @@
-import React, { Component, KeyboardEvent, FocusEvent } from 'react';
+import React, { FocusEvent, KeyboardEvent, useEffect, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 
 import Aux from '../../../../hoc/Aux';
@@ -11,13 +11,6 @@ interface CharData {
   simp: string;
   pinyins: string[];
   meanings: string[];
-}
-
-interface NewWordState {
-  charData: CharData | null;
-  charSet: 'simp' | 'trad';
-  errorMessage: string;
-  useSound: boolean;
 }
 
 const mapStateToProps = (state: RootState) => {
@@ -42,137 +35,116 @@ interface OwnProps {
 
 type Props = PropsFromRedux & OwnProps;
 
-class NewWord extends Component<Props, NewWordState> {
-  state: NewWordState = {
-    charData: null,
-    charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
-    errorMessage: '',
-    useSound:
-      localStorage.getItem('useSound') === 'false' || !this.props.synthAvailable
-        ? false
-        : true,
-  };
+const NewWord: React.FC<Props> = ({
+  synthAvailable,
+  voice,
+  lang,
+  word,
+  isDemo,
+  isAddedWord,
+  originalMeaning,
+  meaningKeyPressed,
+  meaningBlurred,
+}) => {
+  const [charData, setCharData] = useState<CharData | null>(null);
+  const [charSet] = useState<'simp' | 'trad'>(
+    (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp'
+  );
+  const [, setErrorMessage] = useState('');
+  const [useSound] = useState(
+    localStorage.getItem('useSound') === 'false' || !synthAvailable ? false : true
+  );
 
-  componentDidMount = (): void => {
-    if (this.state.useSound) {
-      this.onSpeakPinyin(this.props.word[this.state.charSet]);
-    }
-  };
-
-  componentDidUpdate(prevProps: Props): void {
-    if (prevProps.word.id !== this.props.word.id) {
-      if (this.state.useSound) {
-        this.onSpeakPinyin(this.props.word[this.state.charSet]);
-      }
-      this.setState({
-        charData: null,
-      });
-    }
-  }
-
-  onSpeakPinyin = (word: string): void => {
+  const onSpeakPinyin = (pinyinWord: string): void => {
     const synth = window.speechSynthesis;
-    const utterThis = new SpeechSynthesisUtterance(word);
-    utterThis.lang = this.props.lang || 'zh-CN';
-    if (this.props.voice) {
-      utterThis.voice = this.props.voice;
+    const utterThis = new SpeechSynthesisUtterance(pinyinWord);
+    utterThis.lang = lang || 'zh-CN';
+    if (voice) {
+      utterThis.voice = voice;
     }
     utterThis.onerror = (e) => {
       if (e.error === 'synthesis-failed') {
-        this.setState({
-          errorMessage: 'Error playing pinyin',
-        });
+        setErrorMessage('Error playing pinyin');
       }
     };
     synth.cancel();
     synth.speak(utterThis);
   };
 
-  onDisplayMeaning = (char: string): void => {
+  const onDisplayMeaning = (char: string): void => {
     fetch(`/api/lookup-chengyu-char/${char}`).then((response) => {
       if (response.ok) {
         response.json().then((data: CharData) => {
-          this.setState({
-            charData: data,
-          });
+          setCharData(data);
         });
       } else {
-        this.setState({
-          errorMessage: 'Error looking up character',
-        });
+        setErrorMessage('Error looking up character');
       }
     });
   };
 
-  onCharacterClick = (char: string): void => {
-    this.onDisplayMeaning(char);
-    if (
-      this.state.useSound ||
-      (this.props.isDemo && this.props.synthAvailable)
-    ) {
-      this.onSpeakPinyin(char);
+  const onCharacterClick = (char: string): void => {
+    onDisplayMeaning(char);
+    if (useSound || (isDemo && synthAvailable)) {
+      onSpeakPinyin(char);
     }
   };
 
-  render(): React.ReactNode {
-    const chars = this.props.word[this.state.charSet].split('');
-
-    let charInfo: React.ReactNode = null;
-
-    if (this.state.charData !== null) {
-      charInfo = (
-        <Aux>
-          <p style={{ fontSize: '3em' }}>{this.state.charData.simp}</p>
-          <p style={{ fontSize: '1.5em' }}>
-            ({this.state.charData.pinyins.join('/')})
-          </p>
-          <p style={{ fontSize: '1.1em' }}>
-            {this.state.charData.meanings.join(' / ')}
-          </p>
-        </Aux>
-      );
+  useEffect(() => {
+    if (useSound) {
+      onSpeakPinyin(word[charSet]);
     }
+    setCharData(null);
+  }, [charSet, useSound, word]);
 
-    return (
-      <div className={classes.NewWordWrapper}>
-        <div className={classes.CharCard}>
-          <div className={classes.CharHolder}>
-            {chars.map((char, index) => {
-              return (
-                <div key={index}>
-                  <p
-                    className={classes.Char}
-                    onClick={() => this.onCharacterClick(char)}
-                  >
-                    {char}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-          <p style={{ fontSize: '0.6em' }}>({this.props.word.pinyin})</p>
-          {this.props.isAddedWord ? (
-            <p
-              style={{ fontSize: '0.7em', marginTop: '5px' }}
-              contentEditable
-              suppressContentEditableWarning
-              data-new-word-meaning
-              onKeyPress={this.props.meaningKeyPressed}
-              onBlur={this.props.meaningBlurred}
-              data-orig={this.props.originalMeaning}
-            >
-              {this.props.word.meaning}
-            </p>
-          ) : (
-            <p style={{ fontSize: '0.7em', marginTop: '5px' }}>
-              {this.props.word.meaning}
-            </p>
-          )}
-        </div>
-        <div style={{ minHeight: '250px' }}>{charInfo}</div>
-      </div>
+  const chars = word[charSet].split('');
+
+  let charInfo: React.ReactNode = null;
+
+  if (charData !== null) {
+    charInfo = (
+      <Aux>
+        <p style={{ fontSize: '3em' }}>{charData.simp}</p>
+        <p style={{ fontSize: '1.5em' }}>({charData.pinyins.join('/')})</p>
+        <p style={{ fontSize: '1.1em' }}>{charData.meanings.join(' / ')}</p>
+      </Aux>
     );
   }
-}
+
+  return (
+    <div className={classes.NewWordWrapper}>
+      <div className={classes.CharCard}>
+        <div className={classes.CharHolder}>
+          {chars.map((char, index) => {
+            return (
+              <div key={index}>
+                <p className={classes.Char} onClick={() => onCharacterClick(char)}>
+                  {char}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+        <p style={{ fontSize: '0.6em' }}>({word.pinyin})</p>
+        {isAddedWord ? (
+          <p
+            style={{ fontSize: '0.7em', marginTop: '5px' }}
+            contentEditable
+            suppressContentEditableWarning
+            data-new-word-meaning
+            onKeyPress={meaningKeyPressed}
+            onBlur={meaningBlurred}
+            data-orig={originalMeaning}
+          >
+            {word.meaning}
+          </p>
+        ) : (
+          <p style={{ fontSize: '0.7em', marginTop: '5px' }}>{word.meaning}</p>
+        )}
+      </div>
+      <div style={{ minHeight: '250px' }}>{charInfo}</div>
+    </div>
+  );
+};
 
 export default connector(NewWord);

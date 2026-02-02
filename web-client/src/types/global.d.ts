@@ -2,7 +2,7 @@
 
 // Extend Window interface for webkit speech recognition
 interface Window {
-  webkitSpeechRecognition: typeof SpeechRecognition;
+  webkitSpeechRecognition: new () => SpeechRecognition;
   HanziWriter: {
     create(
       target: string | HTMLElement,

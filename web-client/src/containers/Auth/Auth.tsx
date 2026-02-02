@@ -1,4 +1,4 @@
-import React, { Component, ChangeEvent, FormEvent } from 'react';
+import React, { ChangeEvent, FormEvent, useMemo, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { Redirect } from 'react-router-dom';
 
@@ -51,8 +51,8 @@ const mapDispatchToProps = {
 const connector = connect(mapStateToProps, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 
-class Auth extends Component<PropsFromRedux, AuthState> {
-  state: AuthState = {
+const Auth: React.FC<PropsFromRedux> = ({ loading, error, isAuthenticated, onAuth }) => {
+  const [state, setState] = useState<AuthState>({
     controls: {
       email: {
         elementType: 'input',
@@ -77,9 +77,9 @@ class Auth extends Component<PropsFromRedux, AuthState> {
         touched: false,
       },
     },
-  };
+  });
 
-  checkValidity = (value: string, rules: ValidationRules | null): boolean => {
+  const checkValidity = (value: string, rules: ValidationRules | null): boolean => {
     let isValid = true;
     if (!rules) {
       return true;
@@ -110,86 +110,92 @@ class Auth extends Component<PropsFromRedux, AuthState> {
     return isValid;
   };
 
-  inputChangedHandler = (event: ChangeEvent<HTMLInputElement>, controlName: string): void => {
-    const updatedControlsForm = {
-      ...this.state.controls,
-      [controlName]: {
-        ...this.state.controls[controlName],
-        value: event.target.value,
-        valid: this.checkValidity(event.target.value, this.state.controls[controlName].validation),
-        touched: true,
-      },
-    };
+  const inputChangedHandler = (event: ChangeEvent<HTMLInputElement>, controlName: string): void => {
+    setState((prevState) => {
+      const updatedControlsForm = {
+        ...prevState.controls,
+        [controlName]: {
+          ...prevState.controls[controlName],
+          value: event.target.value,
+          valid: checkValidity(
+            event.target.value,
+            prevState.controls[controlName].validation
+          ),
+          touched: true,
+        },
+      };
 
-    this.setState({
-      controls: updatedControlsForm,
+      return {
+        controls: updatedControlsForm,
+      };
     });
   };
 
-  submitHandler = (event: FormEvent<HTMLFormElement>): void => {
+  const submitHandler = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    this.props.onAuth(this.state.controls.email.value, this.state.controls.password.value);
+    onAuth(state.controls.email.value, state.controls.password.value);
   };
 
-  render(): React.ReactNode {
-    const formElementsArray: { id: string; config: FormControl }[] = [];
-    for (const key in this.state.controls) {
-      formElementsArray.push({
+  const formElementsArray = useMemo(() => {
+    const elements: { id: string; config: FormControl }[] = [];
+    for (const key in state.controls) {
+      elements.push({
         id: key,
-        config: this.state.controls[key],
+        config: state.controls[key],
       });
     }
+    return elements;
+  }, [state.controls]);
 
-    const formElements = formElementsArray.map((formElement) => {
-      return (
-        <FormInput
-          key={formElement.id}
-          elementType={formElement.config.elementType}
-          elementConfig={formElement.config.elementConfig}
-          value={formElement.config.value}
-          invalid={!formElement.config.valid}
-          shouldValidate={formElement.config.validation}
-          touched={formElement.config.touched}
-          changed={(event: ChangeEvent<HTMLInputElement>) =>
-            this.inputChangedHandler(event, formElement.id)
-          }
-        />
-      );
-    });
-
-    let form: React.ReactNode = (
-      <form onSubmit={this.submitHandler}>
-        {formElements}
-        <br />
-        <Button>Log In</Button>
-      </form>
-    );
-
-    if (this.props.loading) {
-      form = <Spinner />;
-    }
-
-    let errorMessage: React.ReactNode = null;
-
-    if (this.props.error) {
-      errorMessage = <p>{this.props.error}</p>;
-    }
-
-    let authRedirect: React.ReactNode = null;
-
-    if (this.props.isAuthenticated) {
-      authRedirect = <Redirect to="/" />;
-    }
-
+  const formElements = formElementsArray.map((formElement) => {
     return (
-      <div className={classes.Auth}>
-        <h1>Log In</h1>
-        {authRedirect}
-        {errorMessage}
-        {form}
-      </div>
+      <FormInput
+        key={formElement.id}
+        elementType={formElement.config.elementType}
+        elementConfig={formElement.config.elementConfig}
+        value={formElement.config.value}
+        invalid={!formElement.config.valid}
+        shouldValidate={formElement.config.validation}
+        touched={formElement.config.touched}
+        changed={(event: ChangeEvent<HTMLInputElement>) =>
+          inputChangedHandler(event, formElement.id)
+        }
+      />
     );
+  });
+
+  let form: React.ReactNode = (
+    <form onSubmit={submitHandler}>
+      {formElements}
+      <br />
+      <Button>Log In</Button>
+    </form>
+  );
+
+  if (loading) {
+    form = <Spinner />;
   }
-}
+
+  let errorMessage: React.ReactNode = null;
+
+  if (error) {
+    errorMessage = <p>{error}</p>;
+  }
+
+  let authRedirect: React.ReactNode = null;
+
+  if (isAuthenticated) {
+    authRedirect = <Redirect to="/" />;
+  }
+
+  return (
+    <div className={classes.Auth}>
+      <h1>Log In</h1>
+      {authRedirect}
+      {errorMessage}
+      {form}
+    </div>
+  );
+};
 
 export default connector(Auth);

@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Route, Switch, withRouter, RouteComponentProps } from 'react-router-dom';
 import './App.css';
 import { connect, ConnectedProps } from 'react-redux';
@@ -26,40 +26,29 @@ const connector = connect(null, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 type Props = PropsFromRedux & RouteComponentProps;
 
-class App extends Component<Props> {
-  constructor(props: Props) {
-    super(props);
-    this.props.onTryAutoLogin();
-    window.speechSynthesis.getVoices();
+const App: React.FC<Props> = ({
+  onTryAutoLogin,
+  onSetSpeechAvailable,
+  onSetSynthAvailable,
+  onSetVoice,
+  onSetLang,
+}) => {
+  const setSpeech = useCallback((): Promise<SpeechSynthesisVoice[]> => {
+    return new Promise(function (resolve) {
+      const synth = window.speechSynthesis;
+      let id: NodeJS.Timeout;
 
-    try {
-      const speechTest = new window.webkitSpeechRecognition();
-      if (speechTest !== null) {
-        this.props.onSetSpeechAvailable(true);
-      } else {
-        this.props.onSetSpeechAvailable(false);
-      }
-    } catch (err) {
-      this.props.onSetSpeechAvailable(false);
-    }
+      id = setInterval(() => {
+        if (synth.getVoices().length !== 0) {
+          resolve(synth.getVoices());
+          clearInterval(id);
+        }
+      }, 10);
+    });
+  }, []);
 
-    try {
-      const utterThis = new SpeechSynthesisUtterance('');
-      if (utterThis !== null) {
-        this.loadVoices();
-        window.speechSynthesis.addEventListener('voiceschanged', () => {
-          this.loadVoices();
-        });
-      } else {
-        this.props.onSetSynthAvailable(false);
-      }
-    } catch (err) {
-      this.props.onSetSynthAvailable(false);
-    }
-  }
-
-  loadVoices(): void {
-    this.setSpeech().then((voices) => {
+  const loadVoices = useCallback((): void => {
+    setSpeech().then((voices) => {
       let chineseVoicezh: SpeechSynthesisVoice | undefined;
       let chineseVoicezhCN: SpeechSynthesisVoice | undefined;
 
@@ -77,48 +66,71 @@ class App extends Component<Props> {
           lang = 'zh';
         }
 
-        this.props.onSetVoice(voice);
-        this.props.onSetLang(lang);
-        this.props.onSetSynthAvailable(true);
+        onSetVoice(voice);
+        onSetLang(lang);
+        onSetSynthAvailable(true);
       } else {
-        this.props.onSetSynthAvailable(false);
+        onSetSynthAvailable(false);
       }
     });
-  }
+  }, [onSetLang, onSetSynthAvailable, onSetVoice, setSpeech]);
 
-  setSpeech(): Promise<SpeechSynthesisVoice[]> {
-    return new Promise(function (resolve) {
-      const synth = window.speechSynthesis;
-      let id: NodeJS.Timeout;
+  useEffect(() => {
+    onTryAutoLogin();
+    window.speechSynthesis.getVoices();
 
-      id = setInterval(() => {
-        if (synth.getVoices().length !== 0) {
-          resolve(synth.getVoices());
-          clearInterval(id);
-        }
-      }, 10);
-    });
-  }
+    try {
+      const speechTest = new window.webkitSpeechRecognition();
+      if (speechTest !== null) {
+        onSetSpeechAvailable(true);
+      } else {
+        onSetSpeechAvailable(false);
+      }
+    } catch (err) {
+      onSetSpeechAvailable(false);
+    }
 
-  render(): React.ReactNode {
-    return (
-      <div className="App">
-        <Layout>
-          <Switch>
-            <Route path="/" exact component={Home} />
-            <Route path="/add-words" component={AddWords} />
-            <Route path="/test-words" component={TestWords} />
-            <Route path="/test-chengyus" component={TestChengyus} />
-            <Route path="/auth" component={Auth} />
-            <Route path="/register" component={Register} />
-            <Route path="/logout" component={Logout} />
-            <Route path="/settings" component={SettingsPage} />
-            <Route path="/tryout" render={() => <TestWords isDemo />} />
-          </Switch>
-        </Layout>
-      </div>
-    );
-  }
-}
+    let voicesHandler: (() => void) | null = null;
+
+    try {
+      const utterThis = new SpeechSynthesisUtterance('');
+      if (utterThis !== null) {
+        loadVoices();
+        voicesHandler = () => {
+          loadVoices();
+        };
+        window.speechSynthesis.addEventListener('voiceschanged', voicesHandler);
+      } else {
+        onSetSynthAvailable(false);
+      }
+    } catch (err) {
+      onSetSynthAvailable(false);
+    }
+
+    return () => {
+      if (voicesHandler) {
+        window.speechSynthesis.removeEventListener('voiceschanged', voicesHandler);
+      }
+    };
+  }, [loadVoices, onSetSpeechAvailable, onSetSynthAvailable, onTryAutoLogin]);
+
+  return (
+    <div className="App">
+      <Layout>
+        <Switch>
+          <Route path="/" exact component={Home} />
+          <Route path="/add-words" component={AddWords} />
+          <Route path="/test-words" component={TestWords} />
+          <Route path="/test-chengyus" component={TestChengyus} />
+          <Route path="/auth" component={Auth} />
+          <Route path="/register" component={Register} />
+          <Route path="/logout" component={Logout} />
+          <Route path="/settings" component={SettingsPage} />
+          <Route path="/tryout" render={() => <TestWords isDemo />} />
+        </Switch>
+      </Layout>
+    </div>
+  );
+};
 
 export default withRouter(connector(App));

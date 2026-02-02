@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { RouteComponentProps, withRouter } from 'react-router-dom';
 
@@ -16,11 +16,6 @@ import sentenceCap from '../../assets/images/homepage/sentence.png';
 
 import * as actions from '../../store/actions/index';
 import { RootState } from '../../types/store';
-
-interface HomeState {
-  numDue: number;
-  numTot: number;
-}
 
 interface WordsResponse {
   words: { length: number }[];
@@ -40,108 +35,105 @@ const connector = connect(mapStateToProps, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 type Props = PropsFromRedux & RouteComponentProps;
 
-class Home extends Component<Props, HomeState> {
-  state: HomeState = {
-    numDue: 0,
-    numTot: 0,
-  };
+const Home: React.FC<Props> = ({
+  isAuthenticated,
+  token,
+  onInitWords,
+  history,
+}) => {
+  const [numDue, setNumDue] = useState(0);
+  const [numTot, setNumTot] = useState(0);
 
-  componentDidMount = (): void => {
-    if (this.props.isAuthenticated && this.props.token) {
-      this.getDueWords();
-      this.getUserWords();
-      this.props.onInitWords(this.props.token);
-    }
-  };
-
-  onClickSignUp = (): void => {
-    this.props.history.push('/register');
-  };
-
-  onTryOutClicked = (): void => {
-    this.props.history.push('/tryout');
-  };
-
-  onTestClicked = (): void => {
-    this.props.history.push('/test-words');
-  };
-
-  getDueWords = (): void => {
+  const getDueWords = useCallback((): void => {
     fetch('/api/get-due-user-words', {
       headers: {
-        'x-access-token': this.props.token || '',
+        'x-access-token': token || '',
       },
     }).then((response) =>
       response
         .json()
         .then((data: WordsResponse) => {
-          this.setState({
-            numDue: data.words.length,
-          });
+          setNumDue(data.words.length);
         })
         .catch((error) => {
           console.log('Could not fetch words: ', error);
         })
     );
-  };
+  }, [token]);
 
-  getUserWords = (): void => {
+  const getUserWords = useCallback((): void => {
     fetch('/api/get-user-words', {
       headers: {
-        'x-access-token': this.props.token || '',
+        'x-access-token': token || '',
       },
     }).then((response) =>
       response
         .json()
         .then((data: WordsResponse) => {
-          this.setState({
-            numTot: data.words.length,
-          });
+          setNumTot(data.words.length);
         })
         .catch((error) => {
           console.log('Could not fetch words: ', error);
         })
     );
+  }, [token]);
+
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      getDueWords();
+      getUserWords();
+      onInitWords(token);
+    }
+  }, [getDueWords, getUserWords, isAuthenticated, onInitWords, token]);
+
+  const onClickSignUp = (): void => {
+    history.push('/register');
   };
 
-  render(): React.ReactNode {
-    let firstBanner: React.ReactNode = (
-      <SignUpBanner signUpClicked={this.onClickSignUp} tryOutClicked={this.onTryOutClicked} />
-    );
+  const onTryOutClicked = (): void => {
+    history.push('/tryout');
+  };
 
-    if (this.props.isAuthenticated) {
-      firstBanner = (
-        <AccountSummary
-          numDue={this.state.numDue}
-          numTot={this.state.numTot}
-          testClicked={this.onTestClicked}
-        />
-      );
-    }
+  const onTestClicked = (): void => {
+    history.push('/test-words');
+  };
 
-    return (
-      <Aux>
-        <MainBanner />
-        {firstBanner}
-        <Chengyu />
-        <ExpBanner priority="left" img={addCap} heading={'Build your word bank'}>
-          Simply search for the Chinese word you want to add and we'll give you the pinyin
-          pronunctiation and the meaning. Don't like the translation? Feel free to add your own!
-        </ExpBanner>
-        <ExpBanner priority="right" img={testCap} heading={'Start learning!'}>
-          During the test, you will be asked to complete various pairwise combinations between the
-          character(s), pinyin and meaning of each word. When you feel comfortable with a word you
-          can eliminate it from your bank.
-        </ExpBanner>
-        <ExpBanner priority="left" img={sentenceCap} heading={'Create sentences'}>
-          Once you have tested a word correctly, you can cement your understanding by using it in a
-          sentence. Research shows this is one of the best ways to commit vocabulary to long term
-          memory.
-        </ExpBanner>
-        <Footer />
-      </Aux>
+  let firstBanner: React.ReactNode = (
+    <SignUpBanner signUpClicked={onClickSignUp} tryOutClicked={onTryOutClicked} />
+  );
+
+  if (isAuthenticated) {
+    firstBanner = (
+      <AccountSummary
+        numDue={numDue}
+        numTot={numTot}
+        testClicked={onTestClicked}
+      />
     );
   }
-}
+
+  return (
+    <Aux>
+      <MainBanner />
+      {firstBanner}
+      <Chengyu />
+      <ExpBanner priority="left" img={addCap} heading={'Build your word bank'}>
+        Simply search for the Chinese word you want to add and we'll give you the pinyin
+        pronunctiation and the meaning. Don't like the translation? Feel free to add your own!
+      </ExpBanner>
+      <ExpBanner priority="right" img={testCap} heading={'Start learning!'}>
+        During the test, you will be asked to complete various pairwise combinations between the
+        character(s), pinyin and meaning of each word. When you feel comfortable with a word you
+        can eliminate it from your bank.
+      </ExpBanner>
+      <ExpBanner priority="left" img={sentenceCap} heading={'Create sentences'}>
+        Once you have tested a word correctly, you can cement your understanding by using it in a
+        sentence. Research shows this is one of the best ways to commit vocabulary to long term
+        memory.
+      </ExpBanner>
+      <Footer />
+    </Aux>
+  );
+};
 
 export default withRouter(connector(Home));

@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React from 'react';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 
 import Aux from '../../../hoc/Aux';
@@ -16,48 +16,43 @@ interface TestSummaryProps extends RouteComponentProps {
   continueClicked?: () => void;
 }
 
-class TestSummary extends Component<TestSummaryProps> {
-  addWordsPressed = (): void => {
-    this.props.history.push('/add-words');
+const TestSummary: React.FC<TestSummaryProps> = ({
+  history,
+  scores,
+  continueAvailable,
+  continueClicked,
+}) => {
+  const homePressed = (): void => {
+    history.push('/');
   };
 
-  testAgainPressed = (): void => {
-    window.location.reload();
-  };
+  const scoreRows = scores?.map((row, index) => {
+    return <TableRow key={index}>{[row.char, row.score]}</TableRow>;
+  });
 
-  homePressed = (): void => {
-    this.props.history.push('/');
-  };
+  let continueButton: React.ReactNode = null;
 
-  render(): React.ReactNode {
-    const scoreRows = this.props.scores?.map((row, index) => {
-      return <TableRow key={index}>{[row.char, row.score]}</TableRow>;
-    });
-
-    let continueButton: React.ReactNode = null;
-
-    if (this.props.continueAvailable) {
-      continueButton = (
-        <Button
-          clicked={this.props.continueClicked}
-          style={{ width: '180px', height: 'auto', margin: '0 0 20px 0' }}
-        >
-          Continue To Sentence Stage
-        </Button>
-      );
-    }
-
-    return (
-      <Aux>
-        <button className={classes.HomeButton} onClick={this.homePressed}>
-          <img alt="home" src={HomePic} />
-        </button>
-        <h3>Test Summary</h3>
-        <Table headings={['Word', 'Score']}>{scoreRows}</Table>
-        {continueButton}
-      </Aux>
+  if (continueAvailable) {
+    continueButton = (
+      <Button
+        clicked={continueClicked}
+        style={{ width: '180px', height: 'auto', margin: '0 0 20px 0' }}
+      >
+        Continue To Sentence Stage
+      </Button>
     );
   }
-}
+
+  return (
+    <Aux>
+      <button className={classes.HomeButton} onClick={homePressed}>
+        <img alt="home" src={HomePic} />
+      </button>
+      <h3>Test Summary</h3>
+      <Table headings={['Word', 'Score']}>{scoreRows}</Table>
+      {continueButton}
+    </Aux>
+  );
+};
 
 export default withRouter(TestSummary);

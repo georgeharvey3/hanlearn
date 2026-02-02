@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { useEffect } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { Redirect } from 'react-router-dom';
 
@@ -11,14 +11,12 @@ const mapDispatchToProps = {
 const connector = connect(null, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 
-class Logout extends Component<PropsFromRedux> {
-  componentDidMount(): void {
-    this.props.onLogout();
-  }
+const Logout: React.FC<PropsFromRedux> = ({ onLogout }) => {
+  useEffect(() => {
+    onLogout();
+  }, [onLogout]);
 
-  render(): React.ReactNode {
-    return <Redirect to="/" />;
-  }
-}
+  return <Redirect to="/" />;
+};
 
 export default connector(Logout);

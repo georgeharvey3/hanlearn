@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 
 import Aux from '../../hoc/Aux';
@@ -42,201 +42,177 @@ interface OwnProps {
 
 type Props = PropsFromRedux & OwnProps;
 
-class TestChengyusTest extends Component<Props, TestChengyusTestState> {
-  state: TestChengyusTestState = {
+const TestChengyusTest: React.FC<Props> = ({
+  words,
+  isDemo,
+  startTest,
+  synthAvailable,
+  voice,
+  lang,
+}) => {
+  const [state, setState] = useState<TestChengyusTestState>(() => ({
     wordIndex: 0,
     charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
     charData: null,
     errorMessage: '',
     showChengyuMeaning: false,
     useSound:
-      localStorage.getItem('useSound') === 'false' || !this.props.synthAvailable
-        ? false
-        : true,
-  };
+      localStorage.getItem('useSound') === 'false' || !synthAvailable ? false : true,
+  }));
 
-  componentDidMount = (): void => {
-    document.addEventListener('keydown', this.onKeyDown);
-    if (this.state.useSound) {
-      this.onSpeakPinyin(this.props.words[0][this.state.charSet]);
-    }
-  };
-
-  componentDidUpdate = (_: Props, prevState: TestChengyusTestState): void => {
-    if (this.state.wordIndex !== prevState.wordIndex) {
-      if (this.state.useSound) {
-        this.onSpeakPinyin(
-          this.props.words[this.state.wordIndex][this.state.charSet]
-        );
+  const onSpeakPinyin = useCallback(
+    (word: string): void => {
+      const synth = window.speechSynthesis;
+      const utterThis = new SpeechSynthesisUtterance(word);
+      utterThis.lang = lang || 'zh-CN';
+      if (voice) {
+        utterThis.voice = voice;
       }
-    }
-  };
-
-  componentWillUnmount = (): void => {
-    document.removeEventListener('keydown', this.onKeyDown);
-  };
-
-  onSpeakPinyin = (word: string): void => {
-    const synth = window.speechSynthesis;
-    const utterThis = new SpeechSynthesisUtterance(word);
-    utterThis.lang = this.props.lang || 'zh-CN';
-    if (this.props.voice) {
-      utterThis.voice = this.props.voice;
-    }
-    utterThis.onerror = (e) => {
-      if (e.error === 'synthesis-failed') {
-        this.setState({
-          errorMessage: 'Error playing pinyin',
-        });
-      }
-    };
-    synth.cancel();
-    synth.speak(utterThis);
-  };
-
-  onChangeWord = (direction: number): void => {
-    this.setState((prevState) => {
-      return {
-        wordIndex: prevState.wordIndex + direction,
-        charData: null,
-        showChengyuMeaning: false,
+      utterThis.onerror = (e) => {
+        if (e.error === 'synthesis-failed') {
+          setState((prev) => ({ ...prev, errorMessage: 'Error playing pinyin' }));
+        }
       };
-    });
-  };
+      synth.cancel();
+      synth.speak(utterThis);
+    },
+    [lang, voice]
+  );
 
-  onDisplayMeaning = (char: string): void => {
+  const onDisplayMeaning = (char: string): void => {
     fetch(`/api/lookup-chengyu-char/${char}`).then((response) => {
       if (response.ok) {
         response.json().then((data: CharData) => {
-          this.setState({
-            charData: data,
-          });
+          setState((prev) => ({ ...prev, charData: data }));
         });
       } else {
-        this.setState({
-          errorMessage: 'Error looking up character',
-        });
+        setState((prev) => ({ ...prev, errorMessage: 'Error looking up character' }));
       }
     });
   };
 
-  onKeyDown = (event: KeyboardEvent): void => {
-    if (event.key === 'ArrowLeft') {
-      if (this.state.wordIndex > 0) {
-        this.onChangeWord(-1);
-      }
-    }
-
-    if (event.key === 'ArrowRight') {
-      if (this.state.wordIndex < this.props.words.length - 1) {
-        this.onChangeWord(1);
-      } else {
-        this.props.startTest?.();
-      }
-    }
-
-    if (event.key === ' ') {
-      this.onToggleAnswer();
-    }
+  const onChangeWord = (direction: number): void => {
+    setState((prevState) => ({
+      ...prevState,
+      wordIndex: prevState.wordIndex + direction,
+      charData: null,
+      showChengyuMeaning: false,
+    }));
   };
 
-  onCharacterClick = (char: string): void => {
-    this.onDisplayMeaning(char);
-    if (
-      this.state.useSound ||
-      (this.props.isDemo && this.props.synthAvailable)
-    ) {
-      this.onSpeakPinyin(char);
-    }
-  };
-
-  onToggleAnswer = (): void => {
-    this.setState((prevState) => ({
+  const onToggleAnswer = (): void => {
+    setState((prevState) => ({
+      ...prevState,
       showChengyuMeaning: !prevState.showChengyuMeaning,
     }));
   };
 
-  render(): React.ReactNode {
-    const chars = this.props.words[this.state.wordIndex][
-      this.state.charSet
-    ].split('');
+  const onKeyDown = useCallback(
+    (event: KeyboardEvent): void => {
+      if (event.key === 'ArrowLeft') {
+        if (state.wordIndex > 0) {
+          onChangeWord(-1);
+        }
+      }
 
-    let charInfo: React.ReactNode = null;
+      if (event.key === 'ArrowRight') {
+        if (state.wordIndex < words.length - 1) {
+          onChangeWord(1);
+        } else {
+          startTest?.();
+        }
+      }
 
-    if (this.state.charData !== null) {
-      charInfo = (
-        <Aux>
-          <p style={{ fontSize: '3em' }}>{this.state.charData.simp}</p>
-          <p style={{ fontSize: '1.5em' }}>
-            ({this.state.charData.pinyins.join('/')})
-          </p>
-          <p style={{ fontSize: '1.1em' }}>
-            {this.state.charData.meanings.join(' / ')}
-          </p>
-        </Aux>
-      );
+      if (event.key === ' ') {
+        onToggleAnswer();
+      }
+    },
+    [onChangeWord, onToggleAnswer, startTest, state.wordIndex, words.length]
+  );
+
+  const onCharacterClick = (char: string): void => {
+    onDisplayMeaning(char);
+    if (state.useSound || (isDemo && synthAvailable)) {
+      onSpeakPinyin(char);
     }
+  };
 
-    return (
-      <div className={classes.TestChengyusTest}>
-        <h4>Click on a character to see information</h4>
-        <div className={classes.CharCard}>
-          <div className={classes.CharHolder}>
-            {chars.map((char, index) => {
-              return (
-                <div key={index}>
-                  <p
-                    className={classes.Char}
-                    onClick={() => this.onCharacterClick(char)}
-                  >
-                    {char}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-          {this.state.showChengyuMeaning ? (
-            <Aux>
-              <p style={{ fontSize: '0.6em' }}>
-                ({this.props.words[this.state.wordIndex].pinyin})
-              </p>
-              <p style={{ fontSize: '1.1em' }}>
-                {this.props.words[this.state.wordIndex].meaning}
-              </p>
-            </Aux>
-          ) : null}
-        </div>
-        <a
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: '#E6E0AE' }}
-          href={`https://baike.baidu.com/item/${this.props.words[this.state.wordIndex].simp}`}
-        >
-          Lookup chengyu information
-        </a>
-        <div style={{ minHeight: '250px' }}>{charInfo}</div>
-        <Button
-          style={{ width: '230px', margin: '0 auto' }}
-          clicked={this.onToggleAnswer}
-        >
-          {this.state.showChengyuMeaning ? 'Hide' : 'Show'} Answer
-        </Button>
-        <br />
-        <Button
-          clicked={() => this.onChangeWord(-1)}
-          disabled={this.state.wordIndex < 1}
-        >
-          Previous
-        </Button>
-        <Button
-          clicked={() => this.onChangeWord(1)}
-          disabled={this.state.wordIndex === this.props.words.length - 1}
-        >
-          Next
-        </Button>
-      </div>
+  useEffect(() => {
+    document.addEventListener('keydown', onKeyDown);
+    if (state.useSound) {
+      onSpeakPinyin(words[0][state.charSet]);
+    }
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [onKeyDown, onSpeakPinyin, state.charSet, state.useSound, words]);
+
+  useEffect(() => {
+    if (state.useSound) {
+      onSpeakPinyin(words[state.wordIndex][state.charSet]);
+    }
+  }, [onSpeakPinyin, state.charSet, state.useSound, state.wordIndex, words]);
+
+  const chars = words[state.wordIndex][state.charSet].split('');
+
+  let charInfo: React.ReactNode = null;
+
+  if (state.charData !== null) {
+    charInfo = (
+      <Aux>
+        <p style={{ fontSize: '3em' }}>{state.charData.simp}</p>
+        <p style={{ fontSize: '1.5em' }}>({state.charData.pinyins.join('/')})</p>
+        <p style={{ fontSize: '1.1em' }}>{state.charData.meanings.join(' / ')}</p>
+      </Aux>
     );
   }
-}
+
+  return (
+    <div className={classes.TestChengyusTest}>
+      <h4>Click on a character to see information</h4>
+      <div className={classes.CharCard}>
+        <div className={classes.CharHolder}>
+          {chars.map((char, index) => {
+            return (
+              <div key={index}>
+                <p className={classes.Char} onClick={() => onCharacterClick(char)}>
+                  {char}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+        {state.showChengyuMeaning ? (
+          <Aux>
+            <p style={{ fontSize: '0.6em' }}>({words[state.wordIndex].pinyin})</p>
+            <p style={{ fontSize: '1.1em' }}>{words[state.wordIndex].meaning}</p>
+          </Aux>
+        ) : null}
+      </div>
+      <a
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ color: '#E6E0AE' }}
+        href={`https://baike.baidu.com/item/${words[state.wordIndex].simp}`}
+      >
+        Lookup chengyu information
+      </a>
+      <div style={{ minHeight: '250px' }}>{charInfo}</div>
+      <Button style={{ width: '230px', margin: '0 auto' }} clicked={onToggleAnswer}>
+        {state.showChengyuMeaning ? 'Hide' : 'Show'} Answer
+      </Button>
+      <br />
+      <Button clicked={() => onChangeWord(-1)} disabled={state.wordIndex < 1}>
+        Previous
+      </Button>
+      <Button
+        clicked={() => onChangeWord(1)}
+        disabled={state.wordIndex === words.length - 1}
+      >
+        Next
+      </Button>
+    </div>
+  );
+};
 
 export default connector(TestChengyusTest);

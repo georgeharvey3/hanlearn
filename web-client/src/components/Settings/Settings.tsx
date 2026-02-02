@@ -1,4 +1,4 @@
-import React, { Component, ChangeEvent } from 'react';
+import React, { ChangeEvent, useCallback, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 
 import classes from './Settings.module.css';
@@ -31,9 +31,11 @@ const mapStateToProps = (state: RootState) => {
 const connector = connect(mapStateToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 
-class Settings extends Component<PropsFromRedux, SettingsState> {
-  constructor(props: PropsFromRedux) {
-    super(props);
+const Settings: React.FC<PropsFromRedux> = ({
+  speechAvailable,
+  synthAvailable,
+}) => {
+  const [state, setState] = useState<SettingsState>(() => {
     const localCharSet = localStorage.getItem('charSet');
     const localNumWords = localStorage.getItem('numWords');
     const useChineseSpeechRecognition = localStorage.getItem(
@@ -52,7 +54,7 @@ class Settings extends Component<PropsFromRedux, SettingsState> {
     const priority = localStorage.getItem('priority');
     const onlyPriority = localStorage.getItem('onlyPriority');
 
-    this.state = {
+    return {
       charSet: localCharSet || 'simp',
       numWords: localNumWords ? parseInt(localNumWords) : 5,
       useChineseSpeechRecognition:
@@ -69,250 +71,265 @@ class Settings extends Component<PropsFromRedux, SettingsState> {
       priority: priority || 'none',
       onlyPriority: onlyPriority === 'true' ? true : false,
     };
-    this.onRadioChange = this.onRadioChange.bind(this);
-  }
+  });
 
-  onRadioChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    this.setState({
-      [e.target.name]: e.target.value,
-    } as Pick<SettingsState, keyof SettingsState>);
-    localStorage.setItem(e.target.name, e.target.value);
+  const onRadioChange = useCallback((e: ChangeEvent<HTMLInputElement>): void => {
+    const { name, value } = e.target;
+    setState((prev) => {
+      const nextState: SettingsState = {
+        ...prev,
+        [name]: value,
+      } as SettingsState;
 
-    if (e.target.name === 'priority' && e.target.value === 'none') {
-      this.setState({
-        onlyPriority: false,
-      });
+      if (name === 'priority' && value === 'none') {
+        nextState.onlyPriority = false;
+      }
+
+      return nextState;
+    });
+    localStorage.setItem(name, value);
+
+    if (name === 'priority' && value === 'none') {
       localStorage.setItem('onlyPriority', 'false');
     }
-  };
+  }, []);
 
-  onSliderChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    this.setState({
+  const onSliderChange = useCallback((e: ChangeEvent<HTMLInputElement>): void => {
+    setState((prev) => ({
+      ...prev,
       numWords: parseInt(e.target.value),
-    });
+    }));
     localStorage.setItem('numWords', e.target.value);
-  };
+  }, []);
 
-  onCheckChange = (e: ChangeEvent<HTMLInputElement>): void => {
+  const onCheckChange = useCallback((e: ChangeEvent<HTMLInputElement>): void => {
     const key = e.target.value as keyof SettingsState;
-    this.setState({
-      [key]: !this.state[key],
-    } as Pick<SettingsState, keyof SettingsState>);
-    localStorage.setItem(e.target.value, String(e.target.checked));
+    const checked = e.target.checked;
 
-    if (e.target.value === 'useEnglishSpeechRecognition' && e.target.checked) {
-      this.setState({
-        useFlashcards: false,
-      });
+    setState((prev) => {
+      const nextState: SettingsState = {
+        ...prev,
+        [key]: !Boolean(prev[key]),
+      } as SettingsState;
+
+      if (key === 'useEnglishSpeechRecognition' && checked) {
+        nextState.useFlashcards = false;
+      }
+
+      if (key === 'useFlashcards' && checked) {
+        nextState.useEnglishSpeechRecognition = false;
+      }
+
+      if (key === 'useHandwriting' && !checked) {
+        nextState.priority = 'none';
+        nextState.onlyPriority = false;
+      }
+
+      return nextState;
+    });
+
+    localStorage.setItem(e.target.value, String(checked));
+
+    if (e.target.value === 'useEnglishSpeechRecognition' && checked) {
       localStorage.setItem('useFlashcards', 'false');
     }
 
-    if (e.target.value === 'useFlashcards' && e.target.checked) {
-      this.setState({
-        useEnglishSpeechRecognition: false,
-      });
+    if (e.target.value === 'useFlashcards' && checked) {
       localStorage.setItem('useEnglishSpeechRecognition', 'false');
     }
 
-    if (e.target.value === 'useHandwriting' && !e.target.checked) {
-      this.setState({
-        priority: 'none',
-        onlyPriority: false,
-      });
+    if (e.target.value === 'useHandwriting' && !checked) {
       localStorage.setItem('priority', 'none');
       localStorage.setItem('onlyPriority', 'false');
     }
-  };
+  }, []);
 
-  render(): React.ReactNode {
-    return (
-      <div className={classes.Settings}>
-        <h3>Character Set</h3>
-        <label>
-          Simplified
-          <input
-            type="radio"
-            name="charSet"
-            checked={this.state.charSet === 'simp'}
-            value="simp"
-            onChange={this.onRadioChange}
-          />
-        </label>
-        <label>
-          Traditional
-          <input
-            type="radio"
-            name="charSet"
-            checked={this.state.charSet === 'trad'}
-            value="trad"
-            onChange={this.onRadioChange}
-          />
-        </label>
-        <hr />
-        <h3>Characters per test:</h3>
-        <div className={classes.SliderBox}>
-          <p>{this.state.numWords}</p>
-          <input
-            type="range"
-            min="1"
-            max="20"
-            value={this.state.numWords}
-            className={classes.Slider}
-            id="slider"
-            onChange={this.onSliderChange}
-          />
-        </div>
-        <hr />
-        <p>Test Settings</p>
-        <div className={classes.CheckGrid}>
-          <input
-            type="checkbox"
-            value="useSound"
-            checked={this.state.useSound && this.props.synthAvailable}
-            onChange={this.onCheckChange}
-            disabled={!this.props.synthAvailable}
-          />
-          <label>Sound</label>
-          <input
-            type="checkbox"
-            value="useChineseSpeechRecognition"
-            checked={
-              this.state.useChineseSpeechRecognition &&
-              this.props.speechAvailable
-            }
-            onChange={this.onCheckChange}
-            disabled={!this.props.speechAvailable}
-          />
-          <label>Chinese speech recognition</label>
-          <input
-            type="checkbox"
-            value="useEnglishSpeechRecognition"
-            checked={
-              this.state.useEnglishSpeechRecognition &&
-              this.props.speechAvailable
-            }
-            onChange={this.onCheckChange}
-            disabled={!this.props.speechAvailable}
-          />
-          <label>English speech recognition</label>
-          <input
-            type="checkbox"
-            value="useFlashcards"
-            checked={this.state.useFlashcards}
-            onChange={this.onCheckChange}
-          />
-          <label>Meaning flashcards</label>
-          <input
-            type="checkbox"
-            value="useHandwriting"
-            checked={this.state.useHandwriting}
-            onChange={this.onCheckChange}
-          />
-          <label>Handwriting input</label>
-        </div>
-        <hr />
-        <p>Priority</p>
-        <div className={classes.CheckGrid2}>
-          <label htmlFor="none">
-            <input
-              id="none"
-              type="radio"
-              name="priority"
-              value="none"
-              checked={this.state.priority === 'none'}
-              onChange={this.onRadioChange}
-            />
-            None
-          </label>
-          <label htmlFor="MP">
-            <input
-              id="MP"
-              type="radio"
-              name="priority"
-              value="MP"
-              checked={this.state.priority === 'MP'}
-              onChange={this.onRadioChange}
-            />
-            Listening
-          </label>
-          <label htmlFor="PM">
-            <input
-              id="PM"
-              type="radio"
-              name="priority"
-              value="PM"
-              checked={this.state.priority === 'PM'}
-              onChange={this.onRadioChange}
-            />
-            Speaking
-          </label>
-          <label htmlFor="MC">
-            <input
-              id="MC"
-              type="radio"
-              name="priority"
-              value="MC"
-              checked={this.state.priority === 'MC'}
-              onChange={this.onRadioChange}
-            />
-            Reading
-          </label>
-          <label htmlFor="MC">
-            <input
-              id="CM"
-              type="radio"
-              name="priority"
-              value="CM"
-              checked={this.state.priority === 'CM'}
-              onChange={this.onRadioChange}
-              disabled={!this.state.useHandwriting}
-            />
-            Writing
-          </label>
-          <label>
-            <input
-              id="only-priority"
-              type="checkbox"
-              value="onlyPriority"
-              checked={
-                this.state.onlyPriority && this.state.priority !== 'none'
-              }
-              disabled={this.state.priority === 'none'}
-              onChange={this.onCheckChange}
-            />
-            Only Priority
-          </label>
-        </div>
-        <hr />
-        <p>Stages</p>
-        <div className={classes.CheckGrid}>
-          <input
-            type="checkbox"
-            value="newWords"
-            checked={this.state.newWords}
-            onChange={this.onCheckChange}
-            disabled={!this.props.synthAvailable}
-          />
-          <label>New Words</label>
-          <input
-            type="checkbox"
-            value="sentenceRead"
-            checked={this.state.sentenceRead}
-            onChange={this.onCheckChange}
-            disabled={!this.props.speechAvailable}
-          />
-          <label>Translate Sentences</label>
-          <input
-            type="checkbox"
-            value="sentenceWrite"
-            checked={this.state.sentenceWrite}
-            onChange={this.onCheckChange}
-          />
-          <label>Make Sentences</label>
-        </div>
+  return (
+    <div className={classes.Settings}>
+      <h3>Character Set</h3>
+      <label>
+        Simplified
+        <input
+          type="radio"
+          name="charSet"
+          checked={state.charSet === 'simp'}
+          value="simp"
+          onChange={onRadioChange}
+        />
+      </label>
+      <label>
+        Traditional
+        <input
+          type="radio"
+          name="charSet"
+          checked={state.charSet === 'trad'}
+          value="trad"
+          onChange={onRadioChange}
+        />
+      </label>
+      <hr />
+      <h3>Characters per test:</h3>
+      <div className={classes.SliderBox}>
+        <p>{state.numWords}</p>
+        <input
+          type="range"
+          min="1"
+          max="20"
+          value={state.numWords}
+          className={classes.Slider}
+          id="slider"
+          onChange={onSliderChange}
+        />
       </div>
-    );
-  }
-}
+      <hr />
+      <p>Test Settings</p>
+      <div className={classes.CheckGrid}>
+        <input
+          type="checkbox"
+          value="useSound"
+          checked={state.useSound && synthAvailable}
+          onChange={onCheckChange}
+          disabled={!synthAvailable}
+        />
+        <label>Sound</label>
+        <input
+          type="checkbox"
+          value="useChineseSpeechRecognition"
+          checked={state.useChineseSpeechRecognition && speechAvailable}
+          onChange={onCheckChange}
+          disabled={!speechAvailable}
+        />
+        <label>Chinese speech recognition</label>
+        <input
+          type="checkbox"
+          value="useEnglishSpeechRecognition"
+          checked={state.useEnglishSpeechRecognition && speechAvailable}
+          onChange={onCheckChange}
+          disabled={!speechAvailable}
+        />
+        <label>English speech recognition</label>
+        <input
+          type="checkbox"
+          value="useAutoRecord"
+          checked={state.useAutoRecord}
+          onChange={onCheckChange}
+        />
+        <label>Automatic recording</label>
+        <input
+          type="checkbox"
+          value="useFlashcards"
+          checked={state.useFlashcards}
+          onChange={onCheckChange}
+        />
+        <label>Meaning flashcards</label>
+        <input
+          type="checkbox"
+          value="useHandwriting"
+          checked={state.useHandwriting}
+          onChange={onCheckChange}
+        />
+        <label>Handwriting input</label>
+      </div>
+      <hr />
+      <p>Priority</p>
+      <div className={classes.CheckGrid2}>
+        <label htmlFor="none">
+          <input
+            id="none"
+            type="radio"
+            name="priority"
+            value="none"
+            checked={state.priority === 'none'}
+            onChange={onRadioChange}
+          />
+          None
+        </label>
+        <label htmlFor="MP">
+          <input
+            id="MP"
+            type="radio"
+            name="priority"
+            value="MP"
+            checked={state.priority === 'MP'}
+            onChange={onRadioChange}
+          />
+          Listening
+        </label>
+        <label htmlFor="PM">
+          <input
+            id="PM"
+            type="radio"
+            name="priority"
+            value="PM"
+            checked={state.priority === 'PM'}
+            onChange={onRadioChange}
+          />
+          Speaking
+        </label>
+        <label htmlFor="MC">
+          <input
+            id="MC"
+            type="radio"
+            name="priority"
+            value="MC"
+            checked={state.priority === 'MC'}
+            onChange={onRadioChange}
+          />
+          Reading
+        </label>
+        <label htmlFor="MC">
+          <input
+            id="CM"
+            type="radio"
+            name="priority"
+            value="CM"
+            checked={state.priority === 'CM'}
+            onChange={onRadioChange}
+            disabled={!state.useHandwriting}
+          />
+          Writing
+        </label>
+        <label>
+          <input
+            id="only-priority"
+            type="checkbox"
+            value="onlyPriority"
+            checked={state.onlyPriority && state.priority !== 'none'}
+            disabled={state.priority === 'none'}
+            onChange={onCheckChange}
+          />
+          Only Priority
+        </label>
+      </div>
+      <hr />
+      <p>Stages</p>
+      <div className={classes.CheckGrid}>
+        <input
+          type="checkbox"
+          value="newWords"
+          checked={state.newWords}
+          onChange={onCheckChange}
+          disabled={!synthAvailable}
+        />
+        <label>New Words</label>
+        <input
+          type="checkbox"
+          value="sentenceRead"
+          checked={state.sentenceRead}
+          onChange={onCheckChange}
+          disabled={!speechAvailable}
+        />
+        <label>Translate Sentences</label>
+        <input
+          type="checkbox"
+          value="sentenceWrite"
+          checked={state.sentenceWrite}
+          onChange={onCheckChange}
+        />
+        <label>Make Sentences</label>
+      </div>
+    </div>
+  );
+};
 
 export default connector(Settings);

@@ -1,4 +1,4 @@
-import React, { Component, ChangeEvent, KeyboardEvent } from 'react';
+import React, { ChangeEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 import { Howl } from 'howler';
@@ -62,17 +62,21 @@ interface OwnProps {
 
 type Props = PropsFromRedux & OwnProps & RouteComponentProps;
 
-class SentenceWrite extends Component<Props, SentenceWriteState> {
-  state: SentenceWriteState = {
+const SentenceWrite: React.FC<Props> = ({
+  speechAvailable,
+  synthAvailable,
+  words,
+  history,
+}) => {
+  const [state, setState] = useState<SentenceWriteState>(() => ({
     currentWord: null,
     wordIndex: 0,
     charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
     useChineseSpeechRecognition:
-      localStorage.getItem('useChineseSpeechRecognition') === 'false' || !this.props.speechAvailable
+      localStorage.getItem('useChineseSpeechRecognition') === 'false' || !speechAvailable
         ? false
         : true,
-    useSound:
-      localStorage.getItem('useSound') === 'false' || !this.props.synthAvailable ? false : true,
+    useSound: localStorage.getItem('useSound') === 'false' || !synthAvailable ? false : true,
     finished: false,
     sentence: null,
     chineseSentence: null,
@@ -86,110 +90,99 @@ class SentenceWrite extends Component<Props, SentenceWriteState> {
     translatedEnglish: '',
     lastEnteredEnglish: '',
     englishTranslationLoading: false,
-  };
+  }));
 
-  componentDidMount = (): void => {
-    document.addEventListener('keyup', this.onKeyUp);
-  };
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
-  componentWillUnmount = (): void => {
-    document.removeEventListener('keyup', this.onKeyUp);
-  };
+  const updateState = useCallback((partial: Partial<SentenceWriteState>) => {
+    setState((prev) => ({ ...prev, ...partial }));
+  }, []);
 
-  onKeyUp = (event: globalThis.KeyboardEvent): void => {
-    const sourceElement = (event.target as HTMLElement).tagName.toLowerCase();
-    const finished = this.state.usedWords.length === this.props.words.length;
+  const onHomeClicked = useCallback((): void => {
+    history.push('/');
+  }, [history]);
 
-    if (event.key === ' ') {
-      if (finished) {
-        event.preventDefault();
-        this.onHomeClicked();
-      } else if (sourceElement !== 'input') {
-        this.onListenPinyin();
-      }
-    }
+  const onListenPinyin = useCallback((): void => {
+    const recognition = new window.webkitSpeechRecognition();
+    recognition.lang = 'zh-CN';
 
-    if (event.ctrlKey && event.key === 'm') {
-      if (!finished) this.onListenPinyin();
-    }
+    updateState({ error: false, errorMessage: '' });
 
-    if (event.ctrlKey && event.key === 'b') {
+    let result: string | undefined;
+
+    recognition.addEventListener('result', (event: SpeechRecognitionEvent) => {
+      result = event.results[0][0].transcript;
+      updateState({ entered: result, message: '' });
       document.getElementById('answerInput')?.focus();
-    }
-
-    if (event.key === 'ArrowUp' && this.state.sentence !== null) {
-      this.onYesClicked();
-    }
-
-    if (event.key === 'ArrowDown' && this.state.sentence !== null) {
-      this.onNoClicked();
-    }
-  };
-
-  onInputKeyPress = (event: KeyboardEvent<HTMLInputElement>): void => {
-    if (event.key !== 'Enter') return;
-    const sentence = (event.target as HTMLInputElement).value;
-
-    let containsWord = false;
-    this.props.words.forEach((word) => {
-      if (sentence.includes(word[this.state.charSet])) containsWord = true;
     });
 
-    if (containsWord) {
-      this.setState({ error: false, errorMessage: '', message: 'Translating...' });
-      document.getElementById('answerInput')?.blur();
-      this.translateSentence(sentence);
-    } else {
-      this.setState({ error: true, errorMessage: 'Sentence does not contain word!' });
-    }
-  };
+    recognition.addEventListener('end', () => {
+      if (!result) updateState({ message: "Couldn't hear anything..." });
+    });
 
-  translateSentence = (sentence: string): void => {
-    const apiKey = '95b7061f-d806-ef5b-3fd1-c3ea287ce9fb:fx';
-    fetch(
-      `https://api-free.deepl.com/v2/translate?auth_key=${apiKey}&text=${sentence}&target_lang=EN`
-    )
-      .then((res) =>
-        res.json().then((data: { translations: { text: string }[] }) => {
-          this.setState({
-            sentence: data.translations[0].text,
-            chineseSentence: sentence,
-            message: 'Translation:',
-          });
-        })
+    recognition.addEventListener('audiostart', () => {
+      updateState({ message: 'Listening...' });
+    });
+
+    recognition.start();
+  }, [updateState]);
+
+  const translateSentence = useCallback(
+    (sentence: string): void => {
+      const apiKey = '95b7061f-d806-ef5b-3fd1-c3ea287ce9fb:fx';
+      fetch(
+        `https://api-free.deepl.com/v2/translate?auth_key=${apiKey}&text=${sentence}&target_lang=EN`
       )
-      .catch((e) => console.error(e));
-  };
+        .then((res) =>
+          res.json().then((data: { translations: { text: string }[] }) => {
+            updateState({
+              sentence: data.translations[0].text,
+              chineseSentence: sentence,
+              message: 'Translation:',
+            });
+          })
+        )
+        .catch((e) => console.error(e));
+    },
+    [updateState]
+  );
 
-  translateEnglishWord = (sentence: string): void => {
-    const apiKey = '95b7061f-d806-ef5b-3fd1-c3ea287ce9fb:fx';
-    fetch(
-      `https://api-free.deepl.com/v2/translate?auth_key=${apiKey}&text=${sentence}&target_lang=ZH`
-    )
-      .then((res) =>
-        res.json().then((data: { translations: { text: string }[] }) => {
-          this.setState({
-            translatedEnglish: data.translations[0].text,
-            englishTranslationLoading: false,
-          });
-        })
+  const translateEnglishWord = useCallback(
+    (sentence: string): void => {
+      const apiKey = '95b7061f-d806-ef5b-3fd1-c3ea287ce9fb:fx';
+      fetch(
+        `https://api-free.deepl.com/v2/translate?auth_key=${apiKey}&text=${sentence}&target_lang=ZH`
       )
-      .catch((e) => console.error(e));
-  };
+        .then((res) =>
+          res.json().then((data: { translations: { text: string }[] }) => {
+            updateState({
+              translatedEnglish: data.translations[0].text,
+              englishTranslationLoading: false,
+            });
+          })
+        )
+        .catch((e) => console.error(e));
+    },
+    [updateState]
+  );
 
-  onNoClicked = (): void => {
-    if (this.state.useSound) fail.play();
-    this.setState({ sentence: null, chineseSentence: null, entered: '', message: 'Try again' });
-  };
+  const onNoClicked = useCallback((): void => {
+    if (stateRef.current.useSound) fail.play();
+    updateState({ sentence: null, chineseSentence: null, entered: '', message: 'Try again' });
+  }, [updateState]);
 
-  onYesClicked = (): void => {
-    if (this.state.useSound) beep.play();
+  const onYesClicked = useCallback((): void => {
+    if (stateRef.current.useSound) beep.play();
 
-    const foundWords = this.props.words.filter((word) =>
-      this.state.chineseSentence?.includes(word[this.state.charSet])
+    const foundWords = words.filter((word) =>
+      stateRef.current.chineseSentence?.includes(word[stateRef.current.charSet])
     );
 
-    this.setState((prevState) => ({
+    setState((prevState) => ({
+      ...prevState,
       sentence: null,
       chineseSentence: null,
       entered: '',
@@ -199,56 +192,85 @@ class SentenceWrite extends Component<Props, SentenceWriteState> {
       sentences: prevState.sentences.concat(prevState.chineseSentence || ''),
       usedWords: prevState.usedWords.concat(foundWords),
     }));
-  };
+  }, [words]);
 
-  onInputChanged = (event: ChangeEvent<HTMLInputElement>): void => {
-    this.setState({ entered: event.target.value, error: false, errorMessage: '' });
-  };
+  const onKeyUp = useCallback(
+    (event: globalThis.KeyboardEvent): void => {
+      const sourceElement = (event.target as HTMLElement).tagName.toLowerCase();
+      const finished = stateRef.current.usedWords.length === words.length;
 
-  onEnglishInputChanged = (event: ChangeEvent<HTMLInputElement>): void => {
-    this.setState({ enteredEnglish: event.target.value });
-  };
+      if (event.key === ' ') {
+        if (finished) {
+          event.preventDefault();
+          onHomeClicked();
+        } else if (sourceElement !== 'input') {
+          onListenPinyin();
+        }
+      }
 
-  onEnglishInputKeyPress = (event: KeyboardEvent<HTMLInputElement>): void => {
+      if (event.ctrlKey && event.key === 'm') {
+        if (!finished) onListenPinyin();
+      }
+
+      if (event.ctrlKey && event.key === 'b') {
+        document.getElementById('answerInput')?.focus();
+      }
+
+      if (event.key === 'ArrowUp' && stateRef.current.sentence !== null) {
+        onYesClicked();
+      }
+
+      if (event.key === 'ArrowDown' && stateRef.current.sentence !== null) {
+        onNoClicked();
+      }
+    },
+    [onHomeClicked, onListenPinyin, onNoClicked, onYesClicked, words.length]
+  );
+
+  useEffect(() => {
+    document.addEventListener('keyup', onKeyUp);
+    return () => {
+      document.removeEventListener('keyup', onKeyUp);
+    };
+  }, [onKeyUp]);
+
+  const onInputKeyPress = (event: KeyboardEvent<HTMLInputElement>): void => {
     if (event.key !== 'Enter') return;
-    this.setState({ englishTranslationLoading: true });
-    this.translateEnglishWord(this.state.enteredEnglish);
-  };
+    const sentence = (event.target as HTMLInputElement).value;
 
-  onListenPinyin = (): void => {
-    const recognition = new window.webkitSpeechRecognition();
-    recognition.lang = 'zh-CN';
-
-    this.setState({ error: false, errorMessage: '' });
-
-    let result: string | undefined;
-
-    recognition.addEventListener('result', (event: SpeechRecognitionEvent) => {
-      result = event.results[0][0].transcript;
-      this.setState({ entered: result, message: '' });
-      document.getElementById('answerInput')?.focus();
+    let containsWord = false;
+    words.forEach((word) => {
+      if (sentence.includes(word[stateRef.current.charSet])) containsWord = true;
     });
 
-    recognition.addEventListener('end', () => {
-      if (!result) this.setState({ message: "Couldn't hear anything..." });
-    });
-
-    recognition.addEventListener('audiostart', () => {
-      this.setState({ message: 'Listening...' });
-    });
-
-    recognition.start();
+    if (containsWord) {
+      updateState({ error: false, errorMessage: '', message: 'Translating...' });
+      document.getElementById('answerInput')?.blur();
+      translateSentence(sentence);
+    } else {
+      updateState({ error: true, errorMessage: 'Sentence does not contain word!' });
+    }
   };
 
-  onHomeClicked = (): void => {
-    this.props.history.push('/');
+  const onInputChanged = (event: ChangeEvent<HTMLInputElement>): void => {
+    updateState({ entered: event.target.value, error: false, errorMessage: '' });
   };
 
-  findHighlights = (
+  const onEnglishInputChanged = (event: ChangeEvent<HTMLInputElement>): void => {
+    updateState({ enteredEnglish: event.target.value });
+  };
+
+  const onEnglishInputKeyPress = (event: KeyboardEvent<HTMLInputElement>): void => {
+    if (event.key !== 'Enter') return;
+    updateState({ englishTranslationLoading: true });
+    translateEnglishWord(stateRef.current.enteredEnglish);
+  };
+
+  const findHighlights = (
     string: string,
-    words: string[]
+    wordsToHighlight: string[]
   ): { type: 'high' | 'low'; light: [number, number] }[] => {
-    const filteredWords = words.filter((word) => string.includes(word));
+    const filteredWords = wordsToHighlight.filter((word) => string.includes(word));
     const orderedWords = [...filteredWords].sort(
       (a, b) => string.indexOf(a) - string.indexOf(b)
     );
@@ -257,140 +279,147 @@ class SentenceWrite extends Component<Props, SentenceWriteState> {
       (acc: { type: 'high' | 'low'; light: [number, number] }[], word, index, arr) => {
         const previousWord = index > 0 ? arr[index - 1] : null;
         const previousStart = previousWord ? string.indexOf(previousWord) : null;
-        const previousHighlight: [number, number] | null = previousStart !== null && previousWord
-          ? [previousStart, previousStart + previousWord.length]
-          : null;
-        const start = previousHighlight ? previousHighlight[1] : 0;
+        const previousHighlight: [number, number] | null =
+          previousStart !== null && previousWord
+            ? [previousStart, previousStart + previousWord.length]
+            : null;
 
-        const thisStart = string.indexOf(word);
-        const thisHighlight: [number, number] = [thisStart, thisStart + word.length];
+        const wordStart = string.indexOf(word);
+        const wordHighlight: [number, number] = [wordStart, wordStart + word.length];
 
-        let addition: { type: 'high' | 'low'; light: [number, number] }[] = [
-          { type: 'low', light: [start, thisStart] },
-          { type: 'high', light: thisHighlight },
-        ];
-
-        if (index === arr.length - 1) {
-          addition = [...addition, { type: 'low', light: [thisHighlight[1], string.length] }];
+        if (previousHighlight === null) {
+          const low = [0, wordStart] as [number, number];
+          acc.push({ type: 'low', light: low });
+          acc.push({ type: 'high', light: wordHighlight });
+          return acc;
         }
 
-        return [...acc, ...addition];
-      },
-      []
+        const low = [previousHighlight[1], wordStart] as [number, number];
+        acc.push({ type: 'low', light: low });
+        acc.push({ type: 'high', light: wordHighlight });
+        return acc;
+      }, []
     );
 
-    return highlights.filter((h) => h.light[1] - h.light[0] > 0);
+    if (highlights.length > 0) {
+      const last = highlights[highlights.length - 1].light;
+      highlights.push({ type: 'low', light: [last[1], string.length] });
+    }
+
+    return highlights;
   };
 
-  createElement = (string: string, words: string[], index: number): React.ReactNode => {
-    const highlights = this.findHighlights(string, words);
-    const elements = highlights.map((highlight, i) => {
-      const text = string.slice(highlight.light[0], highlight.light[1]);
-      const className = highlight.type === 'high' ? classes.Highlighted : classes.Lowlighted;
-      return highlight.type === 'high' ? (
-        <span key={i} className={className}>
-          {text}
-        </span>
-      ) : (
-        text
+  const getWordToTest = (): Word | null => {
+    if (state.usedWords.length === words.length) return null;
+    for (let i = 0; i < words.length; i++) {
+      if (!state.usedWords.includes(words[i])) {
+        return words[i];
+      }
+    }
+    return null;
+  };
+
+  const getChineseSentence = (word: Word): string => {
+    return word[state.charSet];
+  };
+
+  const currentWord = getWordToTest();
+
+  let content: React.ReactNode = (
+    <Aux>
+      <h2>Write a sentence using:</h2>
+      <h1>{currentWord ? getChineseSentence(currentWord) : ''}</h1>
+      <input
+        id="answerInput"
+        className={classes.SentenceInput}
+        autoComplete="off"
+        onChange={onInputChanged}
+        onKeyPress={onInputKeyPress}
+        value={state.entered}
+      />
+      <br />
+      {state.useChineseSpeechRecognition ? (
+        <Aux>
+          <p>{state.message}</p>
+          <PictureButton colour="yellow" src={micPic} clicked={onListenPinyin} />
+        </Aux>
+      ) : null}
+      <p>{state.errorMessage}</p>
+      <h4>Translation</h4>
+      <input
+        className={classes.SentenceInput}
+        autoComplete="off"
+        onChange={onEnglishInputChanged}
+        onKeyPress={onEnglishInputKeyPress}
+        value={state.enteredEnglish}
+      />
+      {state.englishTranslationLoading ? <p>Translating...</p> : null}
+      {state.translatedEnglish !== '' ? <p>{state.translatedEnglish}</p> : null}
+    </Aux>
+  );
+
+  let buttons: React.ReactNode = null;
+
+  if (state.sentence) {
+    const buttonStyle = {
+      display: 'inline-block',
+      width: '50px',
+      height: '50px',
+      margin: '10px 20px',
+    };
+
+    content = (
+      <Aux>
+        <h2>{state.message}</h2>
+        <p>{state.sentence}</p>
+      </Aux>
+    );
+
+    buttons = (
+      <div>
+        <PictureButton style={buttonStyle} clicked={onYesClicked} src={likePic} />
+        <PictureButton style={buttonStyle} clicked={onNoClicked} src={dislikePic} />
+      </div>
+    );
+  }
+
+  if (state.usedWords.length === words.length) {
+    const headings = ['Sentence', 'Pinyin', 'Translation'];
+    const highlights = findHighlights(state.sentences.join(' '), words.map((w) => w[state.charSet]));
+
+    const rows = state.sentences.map((sentence, index) => {
+      return (
+        <TableRow key={index}>
+          {[sentence, pinyin(sentence).join(' '), state.translatedEnglish]}
+        </TableRow>
       );
     });
 
-    return <p key={index}>{elements}</p>;
-  };
-
-  render(): React.ReactNode {
-    let sentence: React.ReactNode = null;
-    const sentenceText = this.state.sentence === null ? null : <h3>"{this.state.sentence}"</h3>;
-
-    if (this.state.usedWords.length < this.props.words.length) {
-      const micButton = this.props.speechAvailable ? (
-        <PictureButton colour="yellow" src={micPic} clicked={this.onListenPinyin} />
-      ) : null;
-
-      const unusedWords = this.props.words.filter((word) => !this.state.usedWords.includes(word));
-      const words = unusedWords.map((word) => (
-        <li key={word[this.state.charSet]}>{word[this.state.charSet]}</li>
-      ));
-
-      sentence = (
-        <div>
-          <h2>Create a sentence using...</h2>
-          <ul className={classes.WordList}>{words}</ul>
-          <input
-            autoComplete="off"
-            onKeyPress={this.onInputKeyPress}
-            value={this.state.entered}
-            onChange={this.onInputChanged}
-            id="answerInput"
-          />
-          {micButton}
-          <p>{this.state.message}</p>
-          {sentenceText}
-        </div>
-      );
-    }
-
-    let buttons: React.ReactNode = null;
-    let errorMessage: React.ReactNode = null;
-
-    if (this.state.error) {
-      errorMessage = <p>{this.state.errorMessage}</p>;
-    }
-
-    if (this.state.sentence !== null) {
-      const buttonStyle = { display: 'inline-block', width: '50px', height: '50px', margin: '10px 20px' };
-      buttons = (
-        <div>
-          <PictureButton style={buttonStyle} clicked={this.onYesClicked} src={likePic} />
-          <PictureButton style={buttonStyle} clicked={this.onNoClicked} src={dislikePic} />
-        </div>
-      );
-    }
-
-    let englishTranslatedMessage: React.ReactNode = null;
-
-    if (this.state.englishTranslationLoading) {
-      englishTranslatedMessage = <h4>Translating...</h4>;
-    } else if (this.state.translatedEnglish) {
-      const asPinyin = pinyin(this.state.translatedEnglish, { style: pinyin.STYLE_TONE2 });
-      englishTranslatedMessage = (
-        <Aux>
-          <h4>Translation:</h4>
-          <p>{this.state.translatedEnglish}</p>
-          <p>{asPinyin.map((p) => p.join('')).join(' ')}</p>
-        </Aux>
-      );
-    }
-
     return (
-      <Aux>
-        <div className={classes.SentenceWrite}>
-          {sentence}
-          {errorMessage}
-          {buttons}
-          <h3>English Translator:</h3>
-          <input
-            value={this.state.enteredEnglish}
-            onChange={this.onEnglishInputChanged}
-            onKeyPress={this.onEnglishInputKeyPress}
-          />
-          {englishTranslatedMessage}
+      <Modal show>
+        <h2>Finished!</h2>
+        <Table headings={headings}>{rows}</Table>
+        <div className={classes.Highlights}>
+          {highlights.map((light, index) => (
+            <span
+              key={index}
+              className={light.type === 'high' ? classes.HighHighlight : classes.LowHighlight}
+            >
+              {state.sentences.join(' ').slice(light.light[0], light.light[1])}
+            </span>
+          ))}
         </div>
-        <Modal show={this.state.usedWords.length === this.props.words.length}>
-          <h3>Finished!</h3>
-          <Table headings={['Your sentences:']}>
-            {this.state.sentences.map((sent, index) => {
-              const words = this.props.words.map((word) => word[this.state.charSet]);
-              const elem = this.createElement(sent, words, index);
-              return <TableRow key={index}>{[elem]}</TableRow>;
-            })}
-          </Table>
-          <Button clicked={this.onHomeClicked}>Home</Button>
-        </Modal>
-      </Aux>
+        <Button clicked={onHomeClicked}>Home</Button>
+      </Modal>
     );
   }
-}
+
+  return (
+    <div className={classes.SentenceWrite}>
+      {content}
+      {buttons}
+    </div>
+  );
+};
 
 export default withRouter(connector(SentenceWrite));

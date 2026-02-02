@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 import Button from '../../UI/Buttons/Button/Button';
 import NewWord from './NewWord/NewWord';
@@ -12,78 +12,60 @@ interface NewWordsProps {
   startTest?: () => void;
 }
 
-interface NewWordsState {
-  wordIndex: number;
-}
+const NewWords: React.FC<NewWordsProps> = ({ words, isDemo, startTest }) => {
+  const [wordIndex, setWordIndex] = useState(0);
 
-class NewWords extends Component<NewWordsProps, NewWordsState> {
-  state: NewWordsState = {
-    wordIndex: 0,
-  };
+  const onChangeWord = useCallback((direction: number): void => {
+    setWordIndex((prevState) => prevState + direction);
+  }, []);
 
-  componentDidMount = (): void => {
-    document.addEventListener('keydown', this.onKeyDown);
-  };
-
-  componentWillUnmount = (): void => {
-    document.removeEventListener('keydown', this.onKeyDown);
-  };
-
-  onChangeWord = (direction: number): void => {
-    this.setState((prevState) => {
-      return {
-        wordIndex: prevState.wordIndex + direction,
-      };
-    });
-  };
-
-  onKeyDown = (event: KeyboardEvent): void => {
-    if (event.key === 'ArrowLeft') {
-      if (this.state.wordIndex > 0) {
-        this.onChangeWord(-1);
+  const onKeyDown = useCallback(
+    (event: KeyboardEvent): void => {
+      if (event.key === 'ArrowLeft') {
+        if (wordIndex > 0) {
+          onChangeWord(-1);
+        }
       }
-    }
 
-    if (event.key === 'ArrowRight') {
-      if (this.state.wordIndex < this.props.words.length - 1) {
-        this.onChangeWord(1);
-      } else {
-        this.props.startTest?.();
+      if (event.key === 'ArrowRight') {
+        if (wordIndex < words.length - 1) {
+          onChangeWord(1);
+        } else {
+          startTest?.();
+        }
       }
-    }
-  };
+    },
+    [onChangeWord, startTest, wordIndex, words.length]
+  );
 
-  render(): React.ReactNode {
-    return (
-      <div className={classes.NewWords}>
-        <h2>New Words</h2>
-        <h4>Click on a character to see information</h4>
-        <NewWord
-          word={this.props.words[this.state.wordIndex]}
-          isDemo={this.props.isDemo}
-        ></NewWord>
-        <Button
-          clicked={() => this.onChangeWord(-1)}
-          disabled={this.state.wordIndex < 1}
-        >
-          Previous Word
-        </Button>
-        <Button
-          clicked={() => {
-            if (this.state.wordIndex < this.props.words.length - 1) {
-              this.onChangeWord(1);
-            } else {
-              this.props.startTest?.();
-            }
-          }}
-        >
-          {this.state.wordIndex < this.props.words.length - 1
-            ? 'Next Word'
-            : 'Start Test'}
-        </Button>
-      </div>
-    );
-  }
-}
+  useEffect(() => {
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [onKeyDown]);
+
+  return (
+    <div className={classes.NewWords}>
+      <h2>New Words</h2>
+      <h4>Click on a character to see information</h4>
+      <NewWord word={words[wordIndex]} isDemo={isDemo}></NewWord>
+      <Button clicked={() => onChangeWord(-1)} disabled={wordIndex < 1}>
+        Previous Word
+      </Button>
+      <Button
+        clicked={() => {
+          if (wordIndex < words.length - 1) {
+            onChangeWord(1);
+          } else {
+            startTest?.();
+          }
+        }}
+      >
+        {wordIndex < words.length - 1 ? 'Next Word' : 'Start Test'}
+      </Button>
+    </div>
+  );
+};
 
 export default NewWords;

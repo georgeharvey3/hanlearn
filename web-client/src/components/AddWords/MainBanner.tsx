@@ -1,4 +1,4 @@
-import React, { Component, ChangeEvent } from 'react';
+import React, { ChangeEvent, useCallback, useEffect, useState } from 'react';
 
 import classes from './MainBanner.module.css';
 
@@ -14,91 +14,85 @@ interface MainBannerProps {
   inputChanged?: (e: ChangeEvent<HTMLInputElement>) => void;
 }
 
-interface MainBannerState {
-  text: string;
-}
+const MainBanner: React.FC<MainBannerProps> = ({
+  submitDisabled,
+  submitClicked,
+  loading,
+  newWord,
+  inputChanged,
+}) => {
+  const [text, setText] = useState('Add words to your bank...');
 
-class MainBanner extends Component<MainBannerProps, MainBannerState> {
-  state: MainBannerState = {
-    text: 'Add words to your bank...',
-  };
-
-  componentDidMount = (): void => {
-    document.addEventListener('keyup', this.onKeyUp);
-  };
-
-  componentWillUnmount = (): void => {
-    document.removeEventListener('keyup', this.onKeyUp);
-  };
-
-  onFocusInput = (): void => {
-    this.setState({ text: 'Enter a Chinese word...' });
-  };
-
-  onBlurInput = (): void => {
-    this.setState({ text: 'Add words to your bank...' });
-  };
-
-  onKeyUp = (event: KeyboardEvent): void => {
+  const onKeyUp = useCallback((event: KeyboardEvent): void => {
     if (event.ctrlKey && event.key === 'b') {
       document.getElementById('addInput')?.focus();
     }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('keyup', onKeyUp);
+    return () => {
+      document.removeEventListener('keyup', onKeyUp);
+    };
+  }, [onKeyUp]);
+
+  const onFocusInput = (): void => {
+    setText('Enter a Chinese word...');
   };
 
-  render(): React.ReactNode {
-    let button: React.ReactNode = (
-      <Button
-        disabled={this.props.submitDisabled}
-        clicked={this.props.submitClicked}
-      >
-        Submit
-      </Button>
-    );
+  const onBlurInput = (): void => {
+    setText('Add words to your bank...');
+  };
 
-    if (this.props.loading) {
-      button = <Spinner />;
-    }
+  let button: React.ReactNode = (
+    <Button disabled={submitDisabled} clicked={submitClicked}>
+      Submit
+    </Button>
+  );
 
-    return (
-      <div className={classes.MainBanner}>
-        <h2>{this.state.text}</h2>
-        <form>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              width: '400px',
-              margin: '0 auto',
-              height: '60px',
-            }}
-          >
-            <Input
-              id="addInput"
-              value={this.props.newWord}
-              changed={this.props.inputChanged}
-              focussed={this.onFocusInput}
-              blurred={this.onBlurInput}
-            />
-            <div style={{ display: 'inline-block' }}>
-              <div
-                style={{
-                  overflow: 'hidden',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  height: '60px',
-                  width: '100px',
-                }}
-              >
-                {button}
-              </div>
+  if (loading) {
+    button = <Spinner />;
+  }
+
+  return (
+    <div className={classes.MainBanner}>
+      <h2>{text}</h2>
+      <form>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: '400px',
+            margin: '0 auto',
+            height: '60px',
+          }}
+        >
+          <Input
+            id="addInput"
+            value={newWord}
+            changed={inputChanged}
+            focussed={onFocusInput}
+            blurred={onBlurInput}
+          />
+          <div style={{ display: 'inline-block' }}>
+            <div
+              style={{
+                overflow: 'hidden',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: '60px',
+                width: '100px',
+              }}
+            >
+              {button}
             </div>
           </div>
-        </form>
-      </div>
-    );
-  }
-}
+        </div>
+      </form>
+    </div>
+  );
+};
 
 export default MainBanner;

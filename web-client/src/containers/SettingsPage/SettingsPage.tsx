@@ -1,20 +1,18 @@
-import React, { Component } from 'react';
+import React from 'react';
 
 import Settings from '../../components/Settings/Settings';
 
 import classes from './SettingsPage.module.css';
 
-class SettingsPage extends Component {
-  render(): React.ReactNode {
-    return (
-      <div className={classes.SettingsPage}>
-        <h2>Settings</h2>
-        <div className={classes.Settings}>
-          <Settings />
-        </div>
+const SettingsPage: React.FC = () => {
+  return (
+    <div className={classes.SettingsPage}>
+      <h2>Settings</h2>
+      <div className={classes.Settings}>
+        <Settings />
       </div>
-    );
-  }
-}
+    </div>
+  );
+};
 
 export default SettingsPage;

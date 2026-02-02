@@ -1,4 +1,4 @@
-import React, { Component, ChangeEvent, KeyboardEvent, FocusEvent } from 'react';
+import React, { ChangeEvent, FocusEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { RouteComponentProps, withRouter, Redirect } from 'react-router-dom';
 
@@ -59,13 +59,22 @@ const connector = connect(mapStateToProps, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 type Props = PropsFromRedux & OwnProps & RouteComponentProps;
 
-class AddWords extends Component<Props, AddWordsState> {
-  constructor(props: Props) {
-    super(props);
-
+const AddWords: React.FC<Props> = ({
+  words,
+  error,
+  loading,
+  token,
+  onInitWords,
+  onPostWord,
+  onPostCustomWord,
+  onDeleteWord,
+  onPostMeaningUpdate,
+  history,
+  isDemo,
+}) => {
+  const [state, setState] = useState<AddWordsState>(() => {
     const charSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp';
-
-    this.state = {
+    return {
       newWord: '',
       errorMessage: '',
       showErrorMessage: false,
@@ -83,85 +92,93 @@ class AddWords extends Component<Props, AddWordsState> {
       showChengyus: false,
       showNewWordModal: false,
     };
-  }
+  });
 
-  componentDidMount = (): void => {
-    if (this.props.token !== null) {
-      this.props.onInitWords(this.props.token);
+  const prevJustAddedId = useRef<number | null | undefined>(undefined);
+
+  const updateState = useCallback((partial: Partial<AddWordsState>) => {
+    setState((prev) => ({ ...prev, ...partial }));
+  }, []);
+
+  const dismissModal = useCallback((): void => {
+    updateState({ showErrorMessage: false, newWord: '' });
+  }, [updateState]);
+
+  const dismissClashTable = useCallback((): void => {
+    updateState({ showClashTable: false, newWord: '' });
+  }, [updateState]);
+
+  const dismissMeaningInput = useCallback((): void => {
+    updateState({ showMeaningInput: false, newWord: '' });
+    const mainInput = document.querySelector('#addInput') as HTMLInputElement | null;
+
+    if (mainInput) {
+      mainInput.focus();
     }
-    document.addEventListener('keyup', this.onKeyUp);
-  };
+  }, [updateState]);
 
-  componentWillUnmount = (): void => {
-    document.removeEventListener('keyup', this.onKeyUp);
-  };
-
-  componentDidUpdate = (_: Props, prevState: AddWordsState): void => {
-    if (prevState.justAdded?.id !== this.state.justAdded?.id) {
-      this.setState({
-        showNewWordModal: true,
-      });
-    }
-  };
-
-  onKeyUp = (event: globalThis.KeyboardEvent): void => {
-    if (event.key === 'Escape') {
-      if (this.state.showErrorMessage) {
-        this.dismissModal();
-      }
-
-      if (this.state.showClashTable) {
-        this.dismissClashTable();
-      }
-
-      if (this.state.showMeaningInput) {
-        this.dismissMeaningInput();
-      }
-
-      if (this.state.showNewWordModal) {
-        this.dismissNewWordModal();
-      }
-    }
-  };
-
-  onInputChangedHandler = (event: ChangeEvent<HTMLInputElement>): void => {
-    this.setState({ newWord: event.target.value });
-  };
-
-  onShowChengyusClicked = (): void => {
-    this.setState((prevState) => ({
-      showChengyus: !prevState.showChengyus,
-    }));
-  };
-
-  dismissModal = (): void => {
-    this.setState({
-      showErrorMessage: false,
-      newWord: '',
-    });
-  };
-
-  dismissClashTable = (): void => {
-    this.setState({
-      showClashTable: false,
-      newWord: '',
-    });
-  };
-
-  dismissNewWordModal = (): void => {
-    this.setState({
-      showNewWordModal: false,
-    });
+  const dismissNewWordModal = useCallback((): void => {
+    updateState({ showNewWordModal: false });
     const input = document.querySelector('#addInput') as HTMLInputElement | null;
     if (input) {
       input.focus();
     }
+  }, [updateState]);
+
+  const onKeyUp = useCallback(
+    (event: globalThis.KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        if (state.showErrorMessage) {
+          dismissModal();
+        }
+
+        if (state.showClashTable) {
+          dismissClashTable();
+        }
+
+        if (state.showMeaningInput) {
+          dismissMeaningInput();
+        }
+
+        if (state.showNewWordModal) {
+          dismissNewWordModal();
+        }
+      }
+    },
+    [dismissClashTable, dismissMeaningInput, dismissModal, dismissNewWordModal, state.showClashTable, state.showErrorMessage, state.showMeaningInput, state.showNewWordModal]
+  );
+
+  useEffect(() => {
+    if (token !== null) {
+      onInitWords(token);
+    }
+    document.addEventListener('keyup', onKeyUp);
+    return () => {
+      document.removeEventListener('keyup', onKeyUp);
+    };
+  }, [onInitWords, onKeyUp, token]);
+
+  useEffect(() => {
+    if (prevJustAddedId.current !== state.justAdded?.id) {
+      if (state.justAdded) {
+        updateState({ showNewWordModal: true });
+      }
+    }
+    prevJustAddedId.current = state.justAdded?.id;
+  }, [state.justAdded, updateState]);
+
+  const onInputChangedHandler = (event: ChangeEvent<HTMLInputElement>): void => {
+    updateState({ newWord: event.target.value });
   };
 
-  handleSearchResult = (res: Word[], searchedWord: string): void => {
+  const onShowChengyusClicked = (): void => {
+    setState((prevState) => ({ ...prevState, showChengyus: !prevState.showChengyus }));
+  };
+
+  const handleSearchResult = (res: Word[], searchedWord: string): void => {
     if (res.length === 0) {
       (document.getElementById('addInput') as HTMLInputElement | null)?.blur();
-      this.setState({
+      updateState({
         errorMessage: `The word ${searchedWord} could not be found`,
         showMeaningInput: true,
       });
@@ -177,48 +194,46 @@ class AddWords extends Component<Props, AddWordsState> {
     }
     if (res.length === 1) {
       const word = res[0];
-      for (let i = 0; i < this.props.words.length; i++) {
-        if (this.props.words[i].id === word.id) {
-          this.setState({
+      for (let i = 0; i < words.length; i++) {
+        if (words[i].id === word.id) {
+          updateState({
             errorMessage: `The word ${searchedWord} is already in your bank`,
             showErrorMessage: true,
           });
           return;
         }
       }
-      this.props.onPostWord(this.props.token!, word);
-      this.setState({ newWord: '', justAdded: word });
+      onPostWord(token!, word);
+      updateState({ newWord: '', justAdded: word });
     }
 
     if (res.length > 1) {
-      this.setState({
-        clashChar: res[0][this.state.charSet],
+      updateState({
+        clashChar: res[0][state.charSet],
         clashWords: res,
         showClashTable: true,
       });
     }
   };
 
-  searchForWord = (e: React.FormEvent): void => {
+  const searchForWord = (e: React.FormEvent): void => {
     e.preventDefault();
-    if (this.state.newWord === '') {
+    if (state.newWord === '') {
       return;
     }
 
-    this.setState({
-      loading: true,
-    });
-    fetch(`/api/get-word/${this.state.newWord}/${this.state.charSet}`).then((response) => {
+    updateState({ loading: true });
+    fetch(`/api/get-word/${state.newWord}/${state.charSet}`).then((response) => {
       if (response.ok) {
         response.json().then((data: { words: Word[] }) => {
-          this.setState({
+          updateState({
             loading: false,
             addError: false,
           });
-          this.handleSearchResult(data.words, this.state.newWord);
+          handleSearchResult(data.words, state.newWord);
         });
       } else {
-        this.setState({
+        updateState({
           loading: false,
           addError: true,
           newWord: '',
@@ -227,7 +242,7 @@ class AddWords extends Component<Props, AddWordsState> {
     });
   };
 
-  onMeaningKeyPress = (e: KeyboardEvent<HTMLTableCellElement>, wordID: number): void => {
+  const onMeaningKeyPress = (e: KeyboardEvent<HTMLTableCellElement>, wordID: number): void => {
     if (e.key !== 'Enter') {
       return;
     }
@@ -243,28 +258,28 @@ class AddWords extends Component<Props, AddWordsState> {
     }
 
     (e.target as HTMLElement).dataset.orig = newMeaning;
-    this.props.onPostMeaningUpdate(this.props.token!, wordID, newMeaning);
+    onPostMeaningUpdate(token!, wordID, newMeaning);
     (e.target as HTMLElement).blur();
   };
 
-  onBlurMeaning = (e: FocusEvent<HTMLTableCellElement>): void => {
+  const onBlurMeaning = (e: FocusEvent<HTMLTableCellElement>): void => {
     (e.target as HTMLElement).textContent = (e.target as HTMLElement).dataset.orig || '';
   };
 
-  onTestHandler = (): void => {
-    const anyDue = this.props.words.some((word) => new Date(word.due_date || '') <= new Date());
-    const anyWords = this.props.words.length > 0;
+  const onTestHandler = (): void => {
+    const anyDue = words.some((word) => new Date(word.due_date || '') <= new Date());
+    const anyWords = words.length > 0;
 
     if (anyDue) {
-      this.props.history.push('/test-words');
+      history.push('/test-words');
     } else {
       if (!anyWords) {
-        this.setState({
+        updateState({
           showErrorMessage: true,
           errorMessage: "You don't have any words yet!",
         });
       } else {
-        this.setState({
+        updateState({
           showErrorMessage: true,
           errorMessage: 'You are up to date!',
         });
@@ -272,7 +287,7 @@ class AddWords extends Component<Props, AddWordsState> {
     }
   };
 
-  convertDateString = (initial: string): string => {
+  const convertDateString = (initial: string): string => {
     const year = initial.slice(0, 4);
     const month = initial.slice(5, 7);
     const day = initial.slice(8);
@@ -280,37 +295,28 @@ class AddWords extends Component<Props, AddWordsState> {
     return [day, month, year].join('/');
   };
 
-  toggleWords = (): void => {
-    this.setState((prevState) => ({ showWords: !prevState.showWords }));
+  const toggleWords = (): void => {
+    setState((prevState) => ({ ...prevState, showWords: !prevState.showWords }));
   };
 
-  dismissMeaningInput = (): void => {
-    this.setState(() => ({ showMeaningInput: false, newWord: '' }));
-    const mainInput = document.querySelector('#addInput') as HTMLInputElement | null;
-
-    if (mainInput) {
-      mainInput.focus();
-    }
+  const meaningChanged = (event: ChangeEvent<HTMLInputElement>): void => {
+    updateState({ meaning: event.target.value });
   };
 
-  meaningChanged = (event: ChangeEvent<HTMLInputElement>): void => {
-    this.setState(() => ({ meaning: event.target.value }));
-  };
-
-  meaningKeyPressed = (event: KeyboardEvent<HTMLInputElement>): void => {
+  const meaningKeyPressed = (event: KeyboardEvent<HTMLInputElement>): void => {
     if (event.key === 'Enter') {
-      this.meaningSubmitClicked();
+      meaningSubmitClicked();
     }
   };
 
-  meaningSubmitClicked = (): void => {
+  const meaningSubmitClicked = (): void => {
     const customWord = {
-      simp: this.state.newWord,
-      meaning: this.state.meaning,
+      simp: state.newWord,
+      meaning: state.meaning,
     } as Word;
 
-    this.props.onPostCustomWord(this.props.token!, customWord);
-    this.setState({
+    onPostCustomWord(token!, customWord);
+    updateState({
       showMeaningInput: false,
       meaning: '',
       newWord: '',
@@ -323,7 +329,7 @@ class AddWords extends Component<Props, AddWordsState> {
     }
   };
 
-  onUpdateMeaningClicked = (): void => {
+  const onUpdateMeaningClicked = (): void => {
     const meaningElement = document.querySelector('[data-new-word-meaning]') as HTMLElement | null;
 
     if (!meaningElement) {
@@ -333,167 +339,163 @@ class AddWords extends Component<Props, AddWordsState> {
     meaningElement.focus();
   };
 
-  render(): React.ReactNode {
-    if (this.props.token === null) {
-      return <Redirect to="/" />;
-    }
+  if (token === null) {
+    return <Redirect to="/" />;
+  }
 
-    let table: React.ReactNode = this.props.loading ? <Spinner /> : null;
+  let table: React.ReactNode = loading ? <Spinner /> : null;
 
-    const allWords = this.props.words;
-    let tableWords: Word[];
+  const allWords = words;
+  let tableWords: Word[];
 
-    if (this.state.showChengyus) {
-      tableWords = allWords.filter((word) => word.simp.length >= 4);
-    } else {
-      tableWords = allWords.filter((word) => word.simp.length < 4);
-    }
+  if (state.showChengyus) {
+    tableWords = allWords.filter((word) => word.simp.length >= 4);
+  } else {
+    tableWords = allWords.filter((word) => word.simp.length < 4);
+  }
 
-    if (tableWords) {
-      const tableRows = tableWords.map((row, index) => {
-        return (
-          <tr key={index}>
-            <td>{row[this.state.charSet]}</td>
-            <td>{row.pinyin}</td>
-            <td
-              contentEditable={true}
-              suppressContentEditableWarning={true}
-              onKeyPress={(e: KeyboardEvent<HTMLTableCellElement>) =>
-                this.onMeaningKeyPress(e, row.id)
-              }
-              onBlur={this.onBlurMeaning}
-              data-orig={row.meaning}
-            >
-              {row.meaning}
-            </td>
-            <td className="Disappear">{this.convertDateString(row.due_date || '')}</td>
-            <td>
-              <Remove clicked={() => this.props.onDeleteWord(this.props.token!, row.id)} />
-            </td>
-          </tr>
-        );
-      });
-
-      table = (
-        <Aux>
-          <Button clicked={this.onShowChengyusClicked}>
-            {this.state.showChengyus ? 'Show words' : 'Show chengyus'}
-          </Button>
-          <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due Date (D/M/Y)', 'Remove']}>
-            {tableRows}
-          </Table>
-        </Aux>
-      );
-    }
-
-    if (!this.state.showWords) {
-      table = null;
-    }
-
-    if (this.props.error) {
-      table = (
-        <p style={{ fontSize: '20px', color: '#E6E0AE' }}>Error: Could not fetch words</p>
-      );
-    }
-
-    if (this.state.addError) {
-      table = (
-        <p style={{ fontSize: '20px', color: '#E6E0AE' }}>Error: Could not search for word</p>
-      );
-    }
-
-    let clashTableRows: React.ReactNode = null;
-
-    if (this.state.clashWords.length > 0) {
-      clashTableRows = this.state.clashWords.map((word, index) => {
-        return (
-          <tr
-            key={index}
-            className="Hoverable"
-            style={{ cursor: 'pointer' }}
-            onClick={() => {
-              this.handleSearchResult([word], word[this.state.charSet]);
-              this.setState({
-                clashChar: '',
-                clashWords: [],
-                showClashTable: false,
-              });
-            }}
+  if (tableWords) {
+    const tableRows = tableWords.map((row, index) => {
+      return (
+        <tr key={index}>
+          <td>{row[state.charSet]}</td>
+          <td>{row.pinyin}</td>
+          <td
+            contentEditable={true}
+            suppressContentEditableWarning={true}
+            onKeyPress={(e: KeyboardEvent<HTMLTableCellElement>) =>
+              onMeaningKeyPress(e, row.id)
+            }
+            onBlur={onBlurMeaning}
+            data-orig={row.meaning}
           >
-            <td>{word.pinyin}</td>
-            <td>{word.meaning}</td>
-          </tr>
-        );
-      });
-    }
+            {row.meaning}
+          </td>
+          <td className="Disappear">{convertDateString(row.due_date || '')}</td>
+          <td>
+            <Remove clicked={() => onDeleteWord(token!, row.id)} />
+          </td>
+        </tr>
+      );
+    });
 
-    const buttonText = this.state.showWords ? 'Hide Table' : 'Show Table';
-
-    return (
+    table = (
       <Aux>
-        {this.state.justAdded !== null ? (
-          <Modal show={this.state.showNewWordModal} modalClosed={this.dismissNewWordModal}>
-            <h2>Just added</h2>
-            <NewWord
-              word={this.state.justAdded}
-              isDemo={this.props.isDemo}
-              isAddedWord={true}
-              meaningKeyPressed={(e: KeyboardEvent<HTMLParagraphElement>) =>
-                this.onMeaningKeyPress(
-                  e as unknown as KeyboardEvent<HTMLTableCellElement>,
-                  this.state.justAdded!.id
-                )
-              }
-              meaningBlurred={
-                this.onBlurMeaning as unknown as (e: FocusEvent<HTMLParagraphElement>) => void
-              }
-              originalMeaning={this.state.justAdded.meaning}
-            />
-            <Button
-              clicked={() => {
-                this.props.onDeleteWord(this.props.token!, this.state.justAdded!.id);
-                this.setState({ justAdded: null });
-              }}
-            >
-              Remove Word
-            </Button>
-            <Button clicked={this.onUpdateMeaningClicked}>Update Meaning</Button>
-          </Modal>
-        ) : null}
-        <Modal show={this.state.showClashTable} modalClosed={this.dismissClashTable}>
-          <h2>Select entry for {this.state.clashChar}</h2>
-          <Table headings={['Pinyin', 'Meaning']}>{clashTableRows}</Table>
-        </Modal>
-        <Modal show={this.state.showMeaningInput} modalClosed={this.dismissMeaningInput}>
-          <h3>Word not found - Enter meaning...</h3>
-          <Input
-            id="meaning"
-            value={this.state.meaning}
-            changed={this.meaningChanged}
-            keyPressed={this.meaningKeyPressed}
-          />
-          <Button disabled={this.state.meaningInputDisabled} clicked={this.meaningSubmitClicked}>
-            Submit
-          </Button>
-        </Modal>
-        <Modal show={this.state.showErrorMessage} modalClosed={this.dismissModal}>
-          <p>{this.state.errorMessage}</p>
-        </Modal>
-        <MainBanner
-          submitDisabled={this.state.newWord.length === 0}
-          inputChanged={this.onInputChangedHandler}
-          newWord={this.state.newWord}
-          submitClicked={this.searchForWord}
-          loading={this.state.loading}
-        />
-        <div className={classes.TableBoxHolder}>{table}</div>
-        <Button disabled={this.props.words.length === 0} clicked={this.onTestHandler}>
-          Test
+        <Button clicked={onShowChengyusClicked}>
+          {state.showChengyus ? 'Show words' : 'Show chengyus'}
         </Button>
-        <Button clicked={this.toggleWords}>{buttonText}</Button>
+        <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due Date (D/M/Y)', 'Remove']}>
+          {tableRows}
+        </Table>
       </Aux>
     );
   }
-}
+
+  if (!state.showWords) {
+    table = null;
+  }
+
+  if (error) {
+    table = <p style={{ fontSize: '20px', color: '#E6E0AE' }}>Error: Could not fetch words</p>;
+  }
+
+  if (state.addError) {
+    table = (
+      <p style={{ fontSize: '20px', color: '#E6E0AE' }}>Error: Could not search for word</p>
+    );
+  }
+
+  let clashTableRows: React.ReactNode = null;
+
+  if (state.clashWords.length > 0) {
+    clashTableRows = state.clashWords.map((word, index) => {
+      return (
+        <tr
+          key={index}
+          className="Hoverable"
+          style={{ cursor: 'pointer' }}
+          onClick={() => {
+            handleSearchResult([word], word[state.charSet]);
+            updateState({
+              clashChar: '',
+              clashWords: [],
+              showClashTable: false,
+            });
+          }}
+        >
+          <td>{word.pinyin}</td>
+          <td>{word.meaning}</td>
+        </tr>
+      );
+    });
+  }
+
+  const buttonText = state.showWords ? 'Hide Table' : 'Show Table';
+
+  return (
+    <Aux>
+      {state.justAdded !== null ? (
+        <Modal show={state.showNewWordModal} modalClosed={dismissNewWordModal}>
+          <h2>Just added</h2>
+          <NewWord
+            word={state.justAdded}
+            isDemo={isDemo}
+            isAddedWord={true}
+            meaningKeyPressed={(e: KeyboardEvent<HTMLParagraphElement>) =>
+              onMeaningKeyPress(
+                e as unknown as KeyboardEvent<HTMLTableCellElement>,
+                state.justAdded!.id
+              )
+            }
+            meaningBlurred={
+              onBlurMeaning as unknown as (e: FocusEvent<HTMLParagraphElement>) => void
+            }
+            originalMeaning={state.justAdded.meaning}
+          />
+          <Button
+            clicked={() => {
+              onDeleteWord(token!, state.justAdded!.id);
+              updateState({ justAdded: null });
+            }}
+          >
+            Remove Word
+          </Button>
+          <Button clicked={onUpdateMeaningClicked}>Update Meaning</Button>
+        </Modal>
+      ) : null}
+      <Modal show={state.showClashTable} modalClosed={dismissClashTable}>
+        <h2>Select entry for {state.clashChar}</h2>
+        <Table headings={['Pinyin', 'Meaning']}>{clashTableRows}</Table>
+      </Modal>
+      <Modal show={state.showMeaningInput} modalClosed={dismissMeaningInput}>
+        <h3>Word not found - Enter meaning...</h3>
+        <Input
+          id="meaning"
+          value={state.meaning}
+          changed={meaningChanged}
+          keyPressed={meaningKeyPressed}
+        />
+        <Button disabled={state.meaningInputDisabled} clicked={meaningSubmitClicked}>
+          Submit
+        </Button>
+      </Modal>
+      <Modal show={state.showErrorMessage} modalClosed={dismissModal}>
+        <p>{state.errorMessage}</p>
+      </Modal>
+      <MainBanner
+        submitDisabled={state.newWord.length === 0}
+        inputChanged={onInputChangedHandler}
+        newWord={state.newWord}
+        submitClicked={searchForWord}
+        loading={state.loading}
+      />
+      <div className={classes.TableBoxHolder}>{table}</div>
+      <Button disabled={words.length === 0} clicked={onTestHandler}>
+        Test
+      </Button>
+      <Button clicked={toggleWords}>{buttonText}</Button>
+    </Aux>
+  );
+};
 
 export default withRouter(connector(AddWords));

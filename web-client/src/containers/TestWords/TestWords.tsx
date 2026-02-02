@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { RouteComponentProps, withRouter, Redirect } from 'react-router-dom';
 
@@ -52,8 +52,14 @@ const connector = connect(mapStateToProps, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 type Props = PropsFromRedux & OwnProps & RouteComponentProps;
 
-class TestWords extends Component<Props, TestWordsState> {
-  state: TestWordsState = {
+const TestWords: React.FC<Props> = ({
+  words,
+  token,
+  isDemo,
+  onInitWords,
+  history,
+}) => {
+  const [state, setState] = useState<TestWordsState>({
     sentenceWords: startingWords,
     stage: (STAGE_OVERRIDE as Stage) || 'new',
     numWords: parseInt(localStorage.getItem('numWords') || '5', 10),
@@ -62,29 +68,21 @@ class TestWords extends Component<Props, TestWordsState> {
     newWordsEnabled: localStorage.getItem('newWords') === 'false' ? false : true,
     sentenceReadEnabled: localStorage.getItem('sentenceRead') === 'false' ? false : true,
     sentenceWriteEnabled: localStorage.getItem('sentenceWrite') === 'false' ? false : true,
-  };
+  });
 
-  componentDidMount(): void {
-    if (!this.props.isDemo && this.props.token !== null) {
-      this.props.onInitWords(this.props.token);
-    }
+  const prevWordsLength = useRef(words.length);
 
-    if (!STAGE_OVERRIDE) {
-      this.setSelectedWords();
-    }
+  const selectTestWords = useCallback((): Word[] => {
+    const allWords = words.slice();
+    const nonChengyus = allWords.filter((word) => word.simp.length < 4);
+    const actualNumWords =
+      nonChengyus.length >= state.numWords ? state.numWords : nonChengyus.length;
+    return testLogic.chooseTestSet(nonChengyus, actualNumWords);
+  }, [state.numWords, words]);
 
-    window.speechSynthesis.getVoices();
-  }
-
-  componentDidUpdate(prevProps: Props): void {
-    if (prevProps.words.length === 0 && this.props.words.length > 0) {
-      this.setSelectedWords();
-    }
-  }
-
-  setSelectedWords = (): void => {
-    if (this.props.isDemo) {
-      const words: Word[] = [
+  const setSelectedWords = useCallback((): void => {
+    if (isDemo) {
+      const demoWords: Word[] = [
         {
           id: 0,
           simp: '你好',
@@ -95,136 +93,138 @@ class TestWords extends Component<Props, TestWordsState> {
           bank: 1,
         },
       ];
-      this.setState({
-        newWords: words,
-        selectedWords: words,
-      });
+      setState((prev) => ({
+        ...prev,
+        newWords: demoWords,
+        selectedWords: demoWords,
+      }));
       return;
     }
-    const selectedWords = this.selectTestWords();
 
+    const selectedWords = selectTestWords();
     const newWords = selectedWords.filter((word) => word.bank === 1);
 
-    if (newWords.length === 0 || !this.state.newWordsEnabled) {
-      this.setState({
+    if (newWords.length === 0 || !state.newWordsEnabled) {
+      setState((prev) => ({
+        ...prev,
         stage: 'vocab',
         newWords: newWords,
         selectedWords: selectedWords,
-      });
+      }));
     } else {
-      this.setState({
+      setState((prev) => ({
+        ...prev,
         stage: 'new',
         newWords: newWords,
         selectedWords: selectedWords,
-      });
+      }));
     }
+  }, [isDemo, selectTestWords, state.newWordsEnabled]);
+
+  useEffect(() => {
+    if (!isDemo && token !== null) {
+      onInitWords(token);
+    }
+
+    if (!STAGE_OVERRIDE) {
+      setSelectedWords();
+    }
+
+    window.speechSynthesis.getVoices();
+  }, [isDemo, onInitWords, setSelectedWords, token]);
+
+  useEffect(() => {
+    if (prevWordsLength.current === 0 && words.length > 0) {
+      setSelectedWords();
+    }
+    prevWordsLength.current = words.length;
+  }, [setSelectedWords, words.length]);
+
+  const onClickAddWords = (): void => {
+    history.push('/add-words');
   };
 
-  onClickAddWords = (): void => {
-    this.props.history.push('/add-words');
+  const onStartVocab = (): void => {
+    setState((prev) => ({ ...prev, stage: 'vocab' }));
   };
 
-  onStartVocab = (): void => {
-    this.setState({
-      stage: 'vocab',
-    });
-  };
-
-  onStartSentenceRead = (sentenceWords: Word[]): void => {
-    if (this.state.sentenceReadEnabled) {
-      this.setState({
+  const onStartSentenceRead = (sentenceWords: Word[]): void => {
+    if (state.sentenceReadEnabled) {
+      setState((prev) => ({
+        ...prev,
         sentenceWords: sentenceWords,
         stage: 'read',
-      });
+      }));
     } else {
-      this.setState({
+      setState((prev) => ({
+        ...prev,
         sentenceWords: sentenceWords,
         stage: 'write',
-      });
+      }));
     }
   };
 
-  onStartSentenceWrite = (): void => {
-    if (this.state.sentenceWriteEnabled) {
-      this.setState({
-        stage: 'write',
-      });
+  const onStartSentenceWrite = (): void => {
+    if (state.sentenceWriteEnabled) {
+      setState((prev) => ({ ...prev, stage: 'write' }));
     }
   };
 
-  selectTestWords = (): Word[] => {
-    const allWords = this.props.words.slice();
-
-    const nonChengyus = allWords.filter((word) => word.simp.length < 4);
-
-    const actualNumWords =
-      nonChengyus.length >= this.state.numWords ? this.state.numWords : nonChengyus.length;
-    const selectedWords = testLogic.chooseTestSet(nonChengyus, actualNumWords);
-
-    return selectedWords;
-  };
-
-  render(): React.ReactNode {
-    if (this.props.token === null && !this.props.isDemo) {
-      return <Redirect to="/" />;
-    }
-
-    let content: React.ReactNode = null;
-
-    if (this.state.selectedWords.length > 0) {
-      switch (this.state.stage) {
-        case 'new':
-          content = (
-            <NewWords
-              words={this.state.newWords}
-              startTest={this.onStartVocab}
-              isDemo={this.props.isDemo}
-            />
-          );
-          break;
-        case 'vocab':
-          content = (
-            <Test
-              isDemo={this.props.isDemo}
-              words={this.state.selectedWords}
-              startSentenceRead={(sentenceWords: Word[]) => this.onStartSentenceRead(sentenceWords)}
-              finalStage={!this.state.sentenceReadEnabled && !this.state.sentenceWriteEnabled}
-            />
-          );
-
-          break;
-        case 'read':
-          content = (
-            <SentenceRead
-              words={this.state.sentenceWords}
-              startSentenceWrite={this.onStartSentenceWrite}
-              sentenceWriteEnabled={this.state.sentenceWriteEnabled}
-            />
-          );
-          break;
-        case 'write':
-          content = <SentenceWrite words={this.state.sentenceWords} />;
-          break;
-        default:
-          content = (
-            <Test
-              words={this.state.selectedWords}
-              startSentenceRead={(sentenceWords: Word[]) => this.onStartSentenceRead(sentenceWords)}
-              finalStage={!this.state.sentenceReadEnabled && !this.state.sentenceWriteEnabled}
-            />
-          );
-      }
-    } else {
-      content = (
-        <Modal show>
-          <p>You have no words to test!</p>
-          <Button clicked={this.onClickAddWords}>Add Words</Button>
-        </Modal>
-      );
-    }
-
-    return content;
+  if (token === null && !isDemo) {
+    return <Redirect to="/" />;
   }
-}
+
+  let content: React.ReactNode = null;
+
+  if (state.selectedWords.length > 0) {
+    switch (state.stage) {
+      case 'new':
+        content = (
+          <NewWords words={state.newWords} startTest={onStartVocab} isDemo={isDemo} />
+        );
+        break;
+      case 'vocab':
+        content = (
+          <Test
+            isDemo={isDemo}
+            words={state.selectedWords}
+            startSentenceRead={(sentenceWords: Word[]) => onStartSentenceRead(sentenceWords)}
+            finalStage={!state.sentenceReadEnabled && !state.sentenceWriteEnabled}
+          />
+        );
+
+        break;
+      case 'read':
+        content = (
+          <SentenceRead
+            words={state.sentenceWords}
+            startSentenceWrite={onStartSentenceWrite}
+            sentenceWriteEnabled={state.sentenceWriteEnabled}
+          />
+        );
+        break;
+      case 'write':
+        content = <SentenceWrite words={state.sentenceWords} />;
+        break;
+      default:
+        content = (
+          <Test
+            words={state.selectedWords}
+            startSentenceRead={(sentenceWords: Word[]) => onStartSentenceRead(sentenceWords)}
+            finalStage={!state.sentenceReadEnabled && !state.sentenceWriteEnabled}
+          />
+        );
+    }
+  } else {
+    content = (
+      <Modal show>
+        <p>You have no words to test!</p>
+        <Button clicked={onClickAddWords}>Add Words</Button>
+      </Modal>
+    );
+  }
+
+  return content;
+};
 
 export default withRouter(connector(TestWords));
