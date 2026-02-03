@@ -16,6 +16,7 @@ import classes from './AddWords.module.css';
 import NewWord from '../../components/Test/NewWords/NewWord/NewWord';
 import { RootState } from '../../types/store';
 import { Word } from '../../types/models';
+import * as wordService from '../../services/wordService';
 
 interface AddWordsState {
   newWord: string;
@@ -44,7 +45,7 @@ const mapStateToProps = (state: RootState) => ({
   words: state.addWords.words,
   error: state.addWords.error,
   loading: state.addWords.loading,
-  token: state.auth.token,
+  userId: state.auth.userId,
 });
 
 const mapDispatchToProps = {
@@ -63,7 +64,7 @@ const AddWords: React.FC<Props> = ({
   words,
   error,
   loading,
-  token,
+  userId,
   onInitWords,
   onPostWord,
   onPostCustomWord,
@@ -149,14 +150,14 @@ const AddWords: React.FC<Props> = ({
   );
 
   useEffect(() => {
-    if (token !== null) {
-      onInitWords(token);
+    if (userId !== null) {
+      onInitWords();
     }
     document.addEventListener('keyup', onKeyUp);
     return () => {
       document.removeEventListener('keyup', onKeyUp);
     };
-  }, [onInitWords, onKeyUp, token]);
+  }, [onInitWords, onKeyUp, userId]);
 
   useEffect(() => {
     if (prevJustAddedId.current !== state.justAdded?.id) {
@@ -203,7 +204,7 @@ const AddWords: React.FC<Props> = ({
           return;
         }
       }
-      onPostWord(token!, word);
+      onPostWord(word);
       updateState({ newWord: '', justAdded: word });
     }
 
@@ -216,30 +217,28 @@ const AddWords: React.FC<Props> = ({
     }
   };
 
-  const searchForWord = (e: React.FormEvent): void => {
+  const searchForWord = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (state.newWord === '') {
       return;
     }
 
     updateState({ loading: true });
-    fetch(`/api/get-word/${state.newWord}/${state.charSet}`).then((response) => {
-      if (response.ok) {
-        response.json().then((data: { words: Word[] }) => {
-          updateState({
-            loading: false,
-            addError: false,
-          });
-          handleSearchResult(data.words, state.newWord);
-        });
-      } else {
-        updateState({
-          loading: false,
-          addError: true,
-          newWord: '',
-        });
-      }
-    });
+    try {
+      const words = await wordService.searchWord(state.newWord, state.charSet);
+      updateState({
+        loading: false,
+        addError: false,
+      });
+      handleSearchResult(words, state.newWord);
+    } catch (error) {
+      console.error('Failed to search for word:', error);
+      updateState({
+        loading: false,
+        addError: true,
+        newWord: '',
+      });
+    }
   };
 
   const onMeaningKeyPress = (e: KeyboardEvent<HTMLTableCellElement>, wordID: number): void => {
@@ -258,7 +257,7 @@ const AddWords: React.FC<Props> = ({
     }
 
     (e.target as HTMLElement).dataset.orig = newMeaning;
-    onPostMeaningUpdate(token!, wordID, newMeaning);
+    onPostMeaningUpdate(wordID, newMeaning);
     (e.target as HTMLElement).blur();
   };
 
@@ -315,7 +314,7 @@ const AddWords: React.FC<Props> = ({
       meaning: state.meaning,
     } as Word;
 
-    onPostCustomWord(token!, customWord);
+    onPostCustomWord(customWord);
     updateState({
       showMeaningInput: false,
       meaning: '',
@@ -339,7 +338,7 @@ const AddWords: React.FC<Props> = ({
     meaningElement.focus();
   };
 
-  if (token === null) {
+  if (userId === null) {
     return <Redirect to="/" />;
   }
 
@@ -373,7 +372,7 @@ const AddWords: React.FC<Props> = ({
           </td>
           <td className="Disappear">{convertDateString(row.due_date || '')}</td>
           <td>
-            <Remove clicked={() => onDeleteWord(token!, row.id)} />
+            <Remove clicked={() => onDeleteWord(row.id)} />
           </td>
         </tr>
       );

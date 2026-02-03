@@ -67,12 +67,12 @@ const mapStateToProps = (state: RootState) => ({
   synthAvailable: state.settings.synthAvailable,
   voice: state.settings.voice,
   lang: state.settings.lang,
-  token: state.auth.token,
+  userId: state.auth.userId,
   addedWords: state.addWords.words,
 });
 
 const mapDispatchToProps = (dispatch: AppDispatch) => ({
-  onPostWord: (token: string, word: Word) => dispatch(wordActions.postWord(token, word)),
+  onPostWord: (word: Word) => dispatch(wordActions.postWord(word)),
 });
 
 const connector = connect(mapStateToProps, mapDispatchToProps);
@@ -91,7 +91,7 @@ const SentenceRead: React.FC<Props> = ({
   synthAvailable,
   voice,
   lang,
-  token,
+  userId,
   addedWords,
   onPostWord,
   words,
@@ -387,7 +387,7 @@ const SentenceRead: React.FC<Props> = ({
               {addedWords.filter((addedWord) => addedWord.id === word.id).length > 0 ? (
                 <Button disabled>Added!</Button>
               ) : (
-                <Button clicked={() => onPostWord(token || '', word as Word)}>
+                <Button clicked={() => onPostWord(word as Word)}>
                   Add to bank
                 </Button>
               )}

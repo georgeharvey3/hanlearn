@@ -9,6 +9,7 @@ import {
   UpdateMeaningAction,
   AppThunk,
 } from '../../types/actions';
+import * as wordService from '../../services/wordService';
 
 export const addWord = (word: Word): AddWordAction => {
   return {
@@ -44,130 +45,6 @@ export const fetchWordsFailed = (): FetchWordsFailedAction => {
   };
 };
 
-export const initWords = (token: string): AppThunk => {
-  return (dispatch) => {
-    fetch('/api/get-user-words', {
-      headers: {
-        'x-access-token': token,
-      },
-    })
-      .then((response) =>
-        response
-          .json()
-          .then((data: { words: Word[] }) => {
-            dispatch(setWords(data.words));
-          })
-          .catch(() => {
-            dispatch(fetchWordsFailed());
-          })
-      )
-      .catch(() => {
-        dispatch(fetchWordsFailed());
-      });
-  };
-};
-
-export const postWord = (token: string, word: Word): AppThunk => {
-  return (dispatch) => {
-    fetch('/api/add-word', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'x-access-token': token,
-      },
-      body: JSON.stringify(word),
-    }).then((response) =>
-      response.json().then(() => {
-        dispatch(addWord(word));
-      })
-    );
-  };
-};
-
-interface CustomWordResponse {
-  message: string;
-  data: {
-    simp: string;
-    trad: string;
-    pinyin: string;
-    meaning: string;
-  };
-}
-
-export const postCustomWord = (
-  token: string,
-  word: { simp: string; meaning: string }
-): AppThunk => {
-  return (dispatch) => {
-    fetch('/api/add-custom-word', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'x-access-token': token,
-      },
-      body: JSON.stringify(word),
-    }).then((response) =>
-      response.json().then((data: CustomWordResponse) => {
-        if (data.message === 'OK') {
-          dispatch(
-            addCustomWord({
-              id: 0, // Will be assigned by backend
-              simp: data.data.simp,
-              trad: data.data.trad,
-              pinyin: data.data.pinyin,
-              meaning: data.data.meaning,
-            })
-          );
-        }
-      })
-    );
-  };
-};
-
-export const deleteWord = (token: string, wordID: number): AppThunk => {
-  return (dispatch) => {
-    fetch('/api/remove-word', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'x-access-token': token,
-      },
-      body: JSON.stringify(wordID),
-    }).then((response) =>
-      response.json().then(() => {
-        dispatch(removeWord(wordID));
-      })
-    );
-  };
-};
-
-export const postUpdateMeaning = (
-  token: string,
-  wordID: number,
-  newMeaning: string
-): AppThunk => {
-  return (dispatch) => {
-    fetch('/api/update-word-meaning', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'x-access-token': token,
-      },
-      body: JSON.stringify({ word_id: wordID, new_meaning: newMeaning }),
-    }).then((response) => {
-      if (response.status !== 201) {
-        console.log(`Problem. Status Code: ${response.status}`);
-        return;
-      }
-      dispatch(updateMeaning(wordID, newMeaning));
-    });
-  };
-};
-
 export const updateMeaning = (
   wordID: number,
   newMeaning: string
@@ -176,5 +53,122 @@ export const updateMeaning = (
     type: actionTypes.UPDATE_MEANING,
     wordID: wordID,
     newMeaning: newMeaning,
+  };
+};
+
+/**
+ * Fetch all words in the user's word bank from Firestore
+ */
+export const initWords = (): AppThunk => {
+  return async (dispatch, getState) => {
+    const { auth } = getState();
+    if (!auth.userId) {
+      dispatch(fetchWordsFailed());
+      return;
+    }
+
+    try {
+      const words = await wordService.getUserWords(auth.userId);
+      dispatch(setWords(words));
+    } catch (error) {
+      console.error('Failed to fetch words:', error);
+      dispatch(fetchWordsFailed());
+    }
+  };
+};
+
+/**
+ * Add a word to the user's word bank in Firestore
+ */
+export const postWord = (word: Word): AppThunk => {
+  return async (dispatch, getState) => {
+    const { auth } = getState();
+    if (!auth.userId) return;
+
+    try {
+      await wordService.addWordToBank(auth.userId, word);
+      dispatch(addWord(word));
+    } catch (error) {
+      console.error('Failed to add word:', error);
+    }
+  };
+};
+
+/**
+ * Add a custom word (not in dictionary) to Firestore
+ */
+export const postCustomWord = (
+  word: { simp: string; meaning: string }
+): AppThunk => {
+  return async (dispatch, getState) => {
+    const { auth } = getState();
+    if (!auth.userId) return;
+
+    try {
+      const newWord = await wordService.addCustomWord(
+        auth.userId,
+        word.simp,
+        word.meaning
+      );
+      dispatch(addCustomWord(newWord));
+    } catch (error) {
+      console.error('Failed to add custom word:', error);
+    }
+  };
+};
+
+/**
+ * Remove a word from the user's word bank in Firestore
+ */
+export const deleteWord = (wordID: number): AppThunk => {
+  return async (dispatch, getState) => {
+    const { auth } = getState();
+    if (!auth.userId) return;
+
+    try {
+      await wordService.removeWordFromBank(auth.userId, wordID);
+      dispatch(removeWord(wordID));
+    } catch (error) {
+      console.error('Failed to delete word:', error);
+    }
+  };
+};
+
+/**
+ * Update the meaning for a word in Firestore
+ */
+export const postUpdateMeaning = (
+  wordID: number,
+  newMeaning: string
+): AppThunk => {
+  return async (dispatch, getState) => {
+    const { auth } = getState();
+    if (!auth.userId) return;
+
+    try {
+      await wordService.updateWordMeaning(auth.userId, wordID, newMeaning);
+      dispatch(updateMeaning(wordID, newMeaning));
+    } catch (error) {
+      console.error('Failed to update meaning:', error);
+    }
+  };
+};
+
+/**
+ * Submit test results and update word banks in Firestore
+ */
+export const finishTest = (
+  scores: { word_id: number; score: number }[]
+): AppThunk => {
+  return async (dispatch, getState) => {
+    const { auth } = getState();
+    if (!auth.userId) return;
+
+    try {
+      const newDates = await wordService.finishTest(auth.userId, scores);
+      console.log('Test finished, new dates:', newDates);
+    } catch (error) {
+      console.error('Failed to finish test:', error);
+    }
   };
 };

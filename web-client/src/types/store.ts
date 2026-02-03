@@ -8,11 +8,11 @@ export interface AddWordsState {
 }
 
 export interface AuthState {
-  token: string | null;
   userId: string | null;
   loading: boolean;
   error: string | null;
   newSignUp: boolean;
+  initialized: boolean;
 }
 
 export interface SettingsState {

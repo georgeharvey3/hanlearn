@@ -3,11 +3,11 @@ import { AuthState } from '../../types/store';
 import { AuthAction } from '../../types/actions';
 
 const initialState: AuthState = {
-  token: null,
   userId: null,
   loading: false,
   error: null,
   newSignUp: false,
+  initialized: false,
 };
 
 const reducer = (state = initialState, action: AuthAction): AuthState => {
@@ -21,10 +21,10 @@ const reducer = (state = initialState, action: AuthAction): AuthState => {
     case actionTypes.AUTH_SUCCESS:
       return {
         ...state,
-        token: action.token,
         userId: action.userId,
         error: null,
         loading: false,
+        initialized: true,
       };
     case actionTypes.AUTH_FAIL:
       return {
@@ -35,8 +35,13 @@ const reducer = (state = initialState, action: AuthAction): AuthState => {
     case actionTypes.AUTH_LOGOUT:
       return {
         ...state,
-        token: null,
         userId: null,
+        initialized: true,
+      };
+    case actionTypes.AUTH_INITIALIZED:
+      return {
+        ...state,
+        initialized: true,
       };
     case actionTypes.REGISTER_SUCCESS:
       return {

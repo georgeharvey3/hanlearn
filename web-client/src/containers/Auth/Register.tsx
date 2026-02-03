@@ -43,7 +43,7 @@ interface RegisterState {
 const mapStateToProps = (state: RootState) => ({
   loading: state.auth.loading,
   error: state.auth.error,
-  isAuthenticated: state.auth.token !== null,
+  isAuthenticated: state.auth.userId !== null,
   newSignUp: state.auth.newSignUp,
 });
 
@@ -141,14 +141,15 @@ const Register: React.FC<PropsFromRedux> = ({
   };
 
   const inputChangedHandler = (event: ChangeEvent<HTMLInputElement>, controlName: string): void => {
+    const value = event.target.value;
     setState((prevState) => {
       const updatedControlsForm = {
         ...prevState.controls,
         [controlName]: {
           ...prevState.controls[controlName],
-          value: event.target.value,
+          value: value,
           valid: checkValidity(
-            event.target.value,
+            value,
             prevState.controls[controlName].validation
           ),
           touched: true,
@@ -222,7 +223,7 @@ const Register: React.FC<PropsFromRedux> = ({
   let errorMessage: React.ReactNode = null;
 
   if (error) {
-    errorMessage = <p>{(error as { message?: string }).message}</p>;
+    errorMessage = <p>{error}</p>;
   }
 
   let authRedirect: React.ReactNode = null;

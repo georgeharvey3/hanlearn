@@ -16,14 +16,11 @@ import sentenceCap from '../../assets/images/homepage/sentence.png';
 
 import * as actions from '../../store/actions/index';
 import { RootState } from '../../types/store';
-
-interface WordsResponse {
-  words: { length: number }[];
-}
+import * as wordService from '../../services/wordService';
 
 const mapStateToProps = (state: RootState) => ({
-  isAuthenticated: state.auth.token !== null,
-  token: state.auth.token,
+  isAuthenticated: state.auth.userId !== null,
+  userId: state.auth.userId,
   lang: state.settings.lang,
 });
 
@@ -37,54 +34,40 @@ type Props = PropsFromRedux & RouteComponentProps;
 
 const Home: React.FC<Props> = ({
   isAuthenticated,
-  token,
+  userId,
   onInitWords,
   history,
 }) => {
   const [numDue, setNumDue] = useState(0);
   const [numTot, setNumTot] = useState(0);
 
-  const getDueWords = useCallback((): void => {
-    fetch('/api/get-due-user-words', {
-      headers: {
-        'x-access-token': token || '',
-      },
-    }).then((response) =>
-      response
-        .json()
-        .then((data: WordsResponse) => {
-          setNumDue(data.words.length);
-        })
-        .catch((error) => {
-          console.log('Could not fetch words: ', error);
-        })
-    );
-  }, [token]);
+  const getDueWords = useCallback(async (): Promise<void> => {
+    if (!userId) return;
+    try {
+      const dueWords = await wordService.getDueUserWords(userId);
+      setNumDue(dueWords.length);
+    } catch (error) {
+      console.error('Failed to get due words:', error);
+    }
+  }, [userId]);
 
-  const getUserWords = useCallback((): void => {
-    fetch('/api/get-user-words', {
-      headers: {
-        'x-access-token': token || '',
-      },
-    }).then((response) =>
-      response
-        .json()
-        .then((data: WordsResponse) => {
-          setNumTot(data.words.length);
-        })
-        .catch((error) => {
-          console.log('Could not fetch words: ', error);
-        })
-    );
-  }, [token]);
+  const getUserWords = useCallback(async (): Promise<void> => {
+    if (!userId) return;
+    try {
+      const words = await wordService.getUserWords(userId);
+      setNumTot(words.length);
+    } catch (error) {
+      console.error('Failed to get user words:', error);
+    }
+  }, [userId]);
 
   useEffect(() => {
-    if (isAuthenticated && token) {
+    if (isAuthenticated && userId) {
       getDueWords();
       getUserWords();
-      onInitWords(token);
+      onInitWords();
     }
-  }, [getDueWords, getUserWords, isAuthenticated, onInitWords, token]);
+  }, [getDueWords, getUserWords, isAuthenticated, onInitWords, userId]);
 
   const onClickSignUp = (): void => {
     history.push('/register');

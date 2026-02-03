@@ -21,8 +21,16 @@ import failSound from '../../../assets/sounds/failure1.wav';
 
 import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../../../firebase/config';
 
 import pinyin from 'pinyin';
+
+// Cloud Function for translation (API key stored server-side)
+const translateWithDeepL = httpsCallable<
+  { text: string; targetLang: string },
+  { translations: { text: string }[] }
+>(functions, 'translateWithDeepL');
 
 const beep = new Howl({ src: [successSound], volume: 0.5 });
 const fail = new Howl({ src: [failSound], volume: 0.7 });
@@ -131,40 +139,33 @@ const SentenceWrite: React.FC<Props> = ({
   }, [updateState]);
 
   const translateSentence = useCallback(
-    (sentence: string): void => {
-      const apiKey = '95b7061f-d806-ef5b-3fd1-c3ea287ce9fb:fx';
-      fetch(
-        `https://api-free.deepl.com/v2/translate?auth_key=${apiKey}&text=${sentence}&target_lang=EN`
-      )
-        .then((res) =>
-          res.json().then((data: { translations: { text: string }[] }) => {
-            updateState({
-              sentence: data.translations[0].text,
-              chineseSentence: sentence,
-              message: 'Translation:',
-            });
-          })
-        )
-        .catch((e) => console.error(e));
+    async (sentence: string): Promise<void> => {
+      try {
+        const result = await translateWithDeepL({ text: sentence, targetLang: 'EN' });
+        updateState({
+          sentence: result.data.translations[0].text,
+          chineseSentence: sentence,
+          message: 'Translation:',
+        });
+      } catch (error) {
+        console.error('Translation error:', error);
+      }
     },
     [updateState]
   );
 
   const translateEnglishWord = useCallback(
-    (sentence: string): void => {
-      const apiKey = '95b7061f-d806-ef5b-3fd1-c3ea287ce9fb:fx';
-      fetch(
-        `https://api-free.deepl.com/v2/translate?auth_key=${apiKey}&text=${sentence}&target_lang=ZH`
-      )
-        .then((res) =>
-          res.json().then((data: { translations: { text: string }[] }) => {
-            updateState({
-              translatedEnglish: data.translations[0].text,
-              englishTranslationLoading: false,
-            });
-          })
-        )
-        .catch((e) => console.error(e));
+    async (sentence: string): Promise<void> => {
+      try {
+        const result = await translateWithDeepL({ text: sentence, targetLang: 'ZH' });
+        updateState({
+          translatedEnglish: result.data.translations[0].text,
+          englishTranslationLoading: false,
+        });
+      } catch (error) {
+        console.error('Translation error:', error);
+        updateState({ englishTranslationLoading: false });
+      }
     },
     [updateState]
   );

@@ -27,6 +27,8 @@ import failSound from '../../assets/sounds/failure1.wav';
 
 import { RootState } from '../../types/store';
 import { Word, TestPerm, WordScore } from '../../types/models';
+import * as actions from '../../store/actions/index';
+import { AppDispatch } from '../../types/actions';
 
 import pinyin from 'pinyin';
 
@@ -95,7 +97,7 @@ interface TestState {
 
 const mapStateToProps = (state: RootState) => {
   return {
-    token: state.auth.token,
+    userId: state.auth.userId,
     speechAvailable: state.settings.speechAvailable,
     synthAvailable: state.settings.synthAvailable,
     voice: state.settings.voice,
@@ -103,7 +105,12 @@ const mapStateToProps = (state: RootState) => {
   };
 };
 
-const connector = connect(mapStateToProps);
+const mapDispatchToProps = (dispatch: AppDispatch) => ({
+  onFinishTest: (scores: { word_id: number; score: number }[]) =>
+    dispatch(actions.finishTest(scores)),
+});
+
+const connector = connect(mapStateToProps, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 
 interface OwnProps {
@@ -202,20 +209,10 @@ const Test: React.FC<Props> = (props) => {
 
   const onSendScores = useCallback(
     (testResults: { word_id: number; score: number }[]): void => {
-      fetch('/api/finish-test', {
-        method: 'POST',
-        credentials: 'include',
-        body: JSON.stringify({ scores: testResults }),
-        cache: 'no-cache',
-        headers: new Headers({
-          'content-type': 'application/json',
-          'x-access-token': props.token || '',
-        }),
-      }).catch((error) => {
-        console.log('Fetch error: ' + error);
-      });
+      if (props.isDemo) return;
+      props.onFinishTest(testResults);
     },
-    [props.token]
+    [props.isDemo, props.onFinishTest]
   );
 
   const onHomeClicked = useCallback((): void => {

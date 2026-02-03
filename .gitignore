@@ -1,1 +1,44 @@
+# Dependencies
 **/node_modules
+
+# Build outputs
+web-client/dist
+web-client/build
+web-client/public/dictionary.json
+functions/lib
+
+# Environment files
+.env
+.env.local
+.env.*.local
+web-client/.env
+
+# Firebase
+.firebase
+*.log
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Migration (sensitive data)
+migration/service-account.json
+migration/*.json
+!migration/package.json
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.Python
+env/
+venv/

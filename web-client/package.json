@@ -6,6 +6,7 @@
     "@testing-library/jest-dom": "^4.2.4",
     "@testing-library/react": "^9.5.0",
     "@testing-library/user-event": "^7.2.1",
+    "firebase": "^10.7.0",
     "howler": "^2.2.0",
     "pinyin": "^2.9.1",
     "react": "^16.13.1",
@@ -18,12 +19,13 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:dict": "node ../migration/build-dictionary.js",
+    "build:all": "npm run build:dict && npm run build",
     "preview": "vite preview"
   },
   "eslintConfig": {
     "extends": "react-app"
   },
-  "proxy": "http://localhost:5000",
   "browserslist": {
     "production": [
       ">0.2%",

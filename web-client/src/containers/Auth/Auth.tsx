@@ -41,7 +41,7 @@ interface AuthState {
 const mapStateToProps = (state: RootState) => ({
   loading: state.auth.loading,
   error: state.auth.error,
-  isAuthenticated: state.auth.token !== null,
+  isAuthenticated: state.auth.userId !== null,
 });
 
 const mapDispatchToProps = {
@@ -111,14 +111,15 @@ const Auth: React.FC<PropsFromRedux> = ({ loading, error, isAuthenticated, onAut
   };
 
   const inputChangedHandler = (event: ChangeEvent<HTMLInputElement>, controlName: string): void => {
+    const value = event.target.value;
     setState((prevState) => {
       const updatedControlsForm = {
         ...prevState.controls,
         [controlName]: {
           ...prevState.controls[controlName],
-          value: event.target.value,
+          value: value,
           valid: checkValidity(
-            event.target.value,
+            value,
             prevState.controls[controlName].validation
           ),
           touched: true,

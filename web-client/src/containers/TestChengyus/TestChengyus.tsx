@@ -23,7 +23,7 @@ interface OwnProps {
 
 const mapStateToProps = (state: RootState) => ({
   words: state.addWords.words,
-  token: state.auth.token,
+  userId: state.auth.userId,
 });
 
 const mapDispatchToProps = {
@@ -36,7 +36,7 @@ type Props = PropsFromRedux & OwnProps & RouteComponentProps;
 
 const TestChengyus: React.FC<Props> = ({
   words,
-  token,
+  userId,
   isDemo,
   onInitWords,
   history,
@@ -65,13 +65,13 @@ const TestChengyus: React.FC<Props> = ({
   }, [selectTestWords]);
 
   useEffect(() => {
-    if (token !== null) {
-      onInitWords(token);
+    if (userId !== null) {
+      onInitWords();
     }
 
     setSelectedWords();
     window.speechSynthesis.getVoices();
-  }, [onInitWords, setSelectedWords, token]);
+  }, [onInitWords, setSelectedWords, userId]);
 
   useEffect(() => {
     if (words.length > 0) {
@@ -83,7 +83,7 @@ const TestChengyus: React.FC<Props> = ({
     history.push('/add-words');
   };
 
-  if (token === null && !isDemo) {
+  if (userId === null && !isDemo) {
     return <Redirect to="/" />;
   }
 

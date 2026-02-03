@@ -1,0 +1,16 @@
+{
+  "name": "hanlearn-migration",
+  "version": "1.0.0",
+  "description": "Migration scripts for HanLearn Firebase migration",
+  "scripts": {
+    "import": "npx ts-node import_firestore.ts"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0"
+  }
+}

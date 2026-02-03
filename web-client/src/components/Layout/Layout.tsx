@@ -14,7 +14,7 @@ interface LayoutState {
 
 const mapStateToProps = (state: RootState) => {
   return {
-    isAuthenticated: state.auth.token !== null,
+    isAuthenticated: state.auth.userId !== null,
   };
 };
 

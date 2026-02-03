@@ -1,0 +1,15 @@
+{
+  "name": "hanlearn-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run emulators\" \"npm run dev:client\"",
+    "dev:client": "npm --prefix web-client run dev",
+    "emulators": "firebase emulators:start",
+    "build": "npm --prefix web-client run build:all",
+    "deploy": "npm run build && firebase deploy --only hosting"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

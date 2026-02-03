@@ -4,9 +4,17 @@ import {
   AuthSuccessAction,
   AuthFailAction,
   AuthLogoutAction,
+  AuthInitializedAction,
   RegisterSuccessAction,
   AppThunk,
 } from '../../types/actions';
+import {
+  loginUser,
+  registerUser,
+  logoutUser,
+  subscribeToAuthChanges,
+} from '../../firebase/auth';
+import { FirebaseError } from 'firebase/app';
 
 export const authStart = (): AuthStartAction => {
   return {
@@ -14,13 +22,9 @@ export const authStart = (): AuthStartAction => {
   };
 };
 
-export const authSuccess = (
-  userId: string,
-  token: string
-): AuthSuccessAction => {
+export const authSuccess = (userId: string): AuthSuccessAction => {
   return {
     type: actionTypes.AUTH_SUCCESS,
-    token: token,
     userId: userId,
   };
 };
@@ -38,74 +42,70 @@ export const authFail = (error: string): AuthFailAction => {
   };
 };
 
-export const logout = (): AuthLogoutAction => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('expiresAt');
-  localStorage.removeItem('userId');
+export const authInitialized = (): AuthInitializedAction => {
   return {
-    type: actionTypes.AUTH_LOGOUT,
+    type: actionTypes.AUTH_INITIALIZED,
   };
 };
 
-export const checkAuthTimeOut = (expirationTime: number): AppThunk => {
-  return (dispatch) => {
-    setTimeout(() => {
-      dispatch(logout());
-    }, expirationTime);
+export const logout = (): AppThunk => {
+  return async (dispatch) => {
+    try {
+      await logoutUser();
+      dispatch({
+        type: actionTypes.AUTH_LOGOUT,
+      } as AuthLogoutAction);
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still dispatch logout even if Firebase call fails
+      dispatch({
+        type: actionTypes.AUTH_LOGOUT,
+      } as AuthLogoutAction);
+    }
   };
 };
 
-interface LoginResponse {
-  token: string;
-  expires_at: string;
-  user_id: string;
-}
-
-interface ErrorResponse {
-  message: string;
-}
+/**
+ * Convert Firebase error codes to user-friendly messages
+ */
+const getErrorMessage = (error: FirebaseError): string => {
+  switch (error.code) {
+    case 'auth/email-already-in-use':
+      return 'This email is already registered';
+    case 'auth/invalid-email':
+      return 'Invalid email address';
+    case 'auth/operation-not-allowed':
+      return 'Email/password accounts are not enabled';
+    case 'auth/weak-password':
+      return 'Password is too weak';
+    case 'auth/user-disabled':
+      return 'This account has been disabled';
+    case 'auth/user-not-found':
+      return 'No account found with this email';
+    case 'auth/wrong-password':
+      return 'Invalid password';
+    case 'auth/invalid-credential':
+      return 'Invalid email or password';
+    case 'auth/too-many-requests':
+      return 'Too many failed attempts. Please try again later';
+    default:
+      return error.message || 'An error occurred';
+  }
+};
 
 export const auth = (email: string, password: string): AppThunk => {
-  return (dispatch) => {
+  return async (dispatch) => {
     dispatch(authStart());
-    fetch('/api/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        email: email,
-        password: password,
-      }),
-    })
-      .then((response) => {
-        if (response.ok) {
-          response.json().then((data: LoginResponse) => {
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('expiresAt', data.expires_at);
-            localStorage.setItem('userId', data.user_id);
-            dispatch(authSuccess(data.user_id, data.token));
-            dispatch(
-              checkAuthTimeOut(
-                new Date(data.expires_at).getTime() - new Date().getTime()
-              )
-            );
-          });
-        } else {
-          response
-            .json()
-            .then((data: ErrorResponse) => {
-              dispatch(authFail(data.message));
-            })
-            .catch(() => {
-              dispatch(authFail(response.statusText));
-            });
-        }
-      })
-      .catch((err: Error) => {
-        dispatch(authFail(err.message));
-      });
+    try {
+      const user = await loginUser(email, password);
+      dispatch(authSuccess(user.uid));
+    } catch (error) {
+      if (error instanceof Error && 'code' in error) {
+        dispatch(authFail(getErrorMessage(error as FirebaseError)));
+      } else {
+        dispatch(authFail('Login failed'));
+      }
+    }
   };
 };
 
@@ -114,59 +114,44 @@ export const register = (
   username: string,
   password: string
 ): AppThunk => {
-  return (dispatch) => {
+  return async (dispatch) => {
     dispatch(authStart());
-    fetch('/api/create-user', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        email: email,
-        username: username,
-        password: password,
-      }),
-    })
-      .then((response) => {
-        if (response.ok) {
-          dispatch(registerSuccess());
-        } else {
-          response
-            .json()
-            .then((data: ErrorResponse) => {
-              dispatch(authFail(data.message));
-            })
-            .catch(() => {
-              dispatch(authFail(response.statusText));
-            });
-        }
-      })
-      .catch((err: Error) => {
-        dispatch(authFail(err.message));
-      });
+    try {
+      await registerUser(email, password, username);
+      dispatch(registerSuccess());
+    } catch (error) {
+      if (error instanceof Error && 'code' in error) {
+        dispatch(authFail(getErrorMessage(error as FirebaseError)));
+      } else {
+        dispatch(authFail('Registration failed'));
+      }
+    }
   };
 };
 
+/**
+ * Initialize auth state listener.
+ * This should be called once when the app starts.
+ * Firebase will automatically restore the session if the user was previously logged in.
+ */
+export const initAuthListener = (): AppThunk => {
+  return (dispatch) => {
+    subscribeToAuthChanges((user) => {
+      if (user) {
+        dispatch(authSuccess(user.uid));
+      } else {
+        dispatch(authInitialized());
+      }
+    });
+  };
+};
+
+/**
+ * @deprecated Use initAuthListener instead.
+ * Kept for backwards compatibility during migration.
+ */
 export const authCheckState = (): AppThunk => {
   return (dispatch) => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      dispatch(logout());
-    } else {
-      const expiresAtStr = localStorage.getItem('expiresAt');
-      const expirationDate = expiresAtStr ? new Date(expiresAtStr) : new Date();
-      if (expirationDate > new Date()) {
-        const userId = localStorage.getItem('userId');
-        if (userId) {
-          dispatch(authSuccess(userId, token));
-          dispatch(
-            checkAuthTimeOut(expirationDate.getTime() - new Date().getTime())
-          );
-        }
-      } else {
-        dispatch(logout());
-      }
-    }
+    dispatch(initAuthListener());
   };
 };

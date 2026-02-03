@@ -41,7 +41,7 @@ interface OwnProps {
 
 const mapStateToProps = (state: RootState) => ({
   words: state.addWords.words,
-  token: state.auth.token,
+  userId: state.auth.userId,
 });
 
 const mapDispatchToProps = {
@@ -54,7 +54,7 @@ type Props = PropsFromRedux & OwnProps & RouteComponentProps;
 
 const TestWords: React.FC<Props> = ({
   words,
-  token,
+  userId,
   isDemo,
   onInitWords,
   history,
@@ -122,8 +122,8 @@ const TestWords: React.FC<Props> = ({
   }, [isDemo, selectTestWords, state.newWordsEnabled]);
 
   useEffect(() => {
-    if (!isDemo && token !== null) {
-      onInitWords(token);
+    if (!isDemo && userId !== null) {
+      onInitWords();
     }
 
     if (!STAGE_OVERRIDE) {
@@ -131,7 +131,7 @@ const TestWords: React.FC<Props> = ({
     }
 
     window.speechSynthesis.getVoices();
-  }, [isDemo, onInitWords, setSelectedWords, token]);
+  }, [isDemo, onInitWords, setSelectedWords, userId]);
 
   useEffect(() => {
     if (prevWordsLength.current === 0 && words.length > 0) {
@@ -170,7 +170,7 @@ const TestWords: React.FC<Props> = ({
     }
   };
 
-  if (token === null && !isDemo) {
+  if (userId === null && !isDemo) {
     return <Redirect to="/" />;
   }
 

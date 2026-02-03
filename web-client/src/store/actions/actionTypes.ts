@@ -13,6 +13,7 @@ export const AUTH_START = 'AUTH_START' as const;
 export const AUTH_SUCCESS = 'AUTH_SUCCESS' as const;
 export const AUTH_FAIL = 'AUTH_FAIL' as const;
 export const AUTH_LOGOUT = 'AUTH_LOGOUT' as const;
+export const AUTH_INITIALIZED = 'AUTH_INITIALIZED' as const;
 
 export const REGISTER_SUCCESS = 'REGISTER_SUCCESS' as const;
 

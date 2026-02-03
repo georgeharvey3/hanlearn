@@ -19,6 +19,7 @@ export const ActionTypes = {
   AUTH_SUCCESS: 'AUTH_SUCCESS',
   AUTH_FAIL: 'AUTH_FAIL',
   AUTH_LOGOUT: 'AUTH_LOGOUT',
+  AUTH_INITIALIZED: 'AUTH_INITIALIZED',
   REGISTER_SUCCESS: 'REGISTER_SUCCESS',
   SET_SPEECH_AVAILABLE: 'SET_SPEECH_AVAILABLE',
   SET_SYNTH_AVAILABLE: 'SET_SYNTH_AVAILABLE',
@@ -74,7 +75,6 @@ export interface AuthStartAction {
 
 export interface AuthSuccessAction {
   type: typeof ActionTypes.AUTH_SUCCESS;
-  token: string;
   userId: string;
 }
 
@@ -85,6 +85,10 @@ export interface AuthFailAction {
 
 export interface AuthLogoutAction {
   type: typeof ActionTypes.AUTH_LOGOUT;
+}
+
+export interface AuthInitializedAction {
+  type: typeof ActionTypes.AUTH_INITIALIZED;
 }
 
 export interface RegisterSuccessAction {
@@ -128,6 +132,7 @@ export type AuthAction =
   | AuthSuccessAction
   | AuthFailAction
   | AuthLogoutAction
+  | AuthInitializedAction
   | RegisterSuccessAction;
 
 export type SettingsAction =
