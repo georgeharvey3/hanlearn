@@ -24,6 +24,7 @@ interface OwnProps {
 const mapStateToProps = (state: RootState) => ({
   words: state.addWords.words,
   userId: state.auth.userId,
+  authInitialized: state.auth.initialized,
 });
 
 const mapDispatchToProps = {
@@ -37,6 +38,7 @@ type Props = PropsFromRedux & OwnProps & RouteComponentProps;
 const TestChengyus: React.FC<Props> = ({
   words,
   userId,
+  authInitialized,
   isDemo,
   onInitWords,
   history,
@@ -83,6 +85,10 @@ const TestChengyus: React.FC<Props> = ({
     history.push('/add-words');
   };
 
+  // Wait for auth to initialize before redirecting
+  if (!authInitialized && !isDemo) {
+    return null;
+  }
   if (userId === null && !isDemo) {
     return <Redirect to="/" />;
   }

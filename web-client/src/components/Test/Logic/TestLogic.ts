@@ -20,6 +20,25 @@ export const chooseTestSet = (allWords: Word[], numWords: number): Word[] => {
   return selectedWords;
 };
 
+/**
+ * Choose random words for practice mode, ignoring due dates
+ */
+export const chooseRandomTestSet = (allWords: Word[], numWords: number): Word[] => {
+  let actualNumWords = numWords;
+  if (actualNumWords > allWords.length) {
+    actualNumWords = allWords.length;
+  }
+  const remainingWords = [...allWords];
+  const selectedWords: Word[] = [];
+  for (let i = 0; i < actualNumWords; i++) {
+    const index = Math.floor(Math.random() * remainingWords.length);
+    const selectedWord = remainingWords[index];
+    selectedWords.push(selectedWord);
+    remainingWords.splice(index, 1);
+  }
+  return selectedWords;
+};
+
 export const setPermList = (
   testSet: Word[],
   includeHandwriting: boolean,

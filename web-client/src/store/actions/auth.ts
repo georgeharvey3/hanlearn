@@ -117,7 +117,8 @@ export const register = (
   return async (dispatch) => {
     dispatch(authStart());
     try {
-      await registerUser(email, password, username);
+      const user = await registerUser(email, password, username);
+      dispatch(authSuccess(user.uid));
       dispatch(registerSuccess());
     } catch (error) {
       if (error instanceof Error && 'code' in error) {

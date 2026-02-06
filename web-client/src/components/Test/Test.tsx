@@ -118,6 +118,8 @@ interface OwnProps {
   isDemo?: boolean;
   finalStage?: boolean;
   startSentenceRead?: (words: Word[]) => void;
+  devTestFinished?: boolean; // For testing TestSummary directly
+  practiceMode?: boolean; // Practice mode ignores due dates and doesn't update them
 }
 
 type Props = PropsFromRedux & OwnProps & RouteComponentProps;
@@ -129,6 +131,16 @@ const createInitialState = (props: Props): TestState => {
   const charSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp';
   const priority = localStorage.getItem('priority') || 'none';
   const onlyPriority = localStorage.getItem('onlyPriority') === 'true';
+
+  // Dev mode: create sample scores for TestSummary testing
+  const devScoreList: WordScore[] = props.devTestFinished
+    ? props.words.map((word) => ({
+        char: word[charSet],
+        score: ['Very Strong', 'Strong', 'Average', 'Weak', 'Very Weak'][
+          Math.floor(Math.random() * 5)
+        ] as WordScore['score'],
+      }))
+    : [];
 
   return {
     testSet: [],
@@ -148,8 +160,8 @@ const createInitialState = (props: Props): TestState => {
     progressBar: 0,
     initNumPerms: 0,
     idkList: [],
-    scoreList: [],
-    testFinished: false,
+    scoreList: devScoreList,
+    testFinished: props.devTestFinished ?? false,
     showInput: false,
     showInputChars: [],
     drawnCharacters: [],
@@ -365,7 +377,7 @@ const Test: React.FC<Props> = (props) => {
       });
     });
 
-    if (!props.isDemo) {
+    if (!props.isDemo && !props.practiceMode) {
       onSendScores(sendScores);
     }
 

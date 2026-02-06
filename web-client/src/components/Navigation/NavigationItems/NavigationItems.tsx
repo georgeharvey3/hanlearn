@@ -27,7 +27,6 @@ const NavigationItems: React.FC<NavigationItemsProps> = (props) => {
         <NavigationItem link="/">Home</NavigationItem>
         <NavigationItem link="/add-words">Add</NavigationItem>
         <NavigationItem link="/test-words">Test</NavigationItem>
-        <NavigationItem link="/test-chengyus">Test Chengyus</NavigationItem>
         <Dropdown />
         <NavigationItem link="/logout">Logout</NavigationItem>
       </ul>

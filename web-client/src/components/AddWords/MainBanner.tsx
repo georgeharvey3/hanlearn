@@ -8,7 +8,7 @@ import Spinner from '../UI/Spinner/Spinner';
 
 interface MainBannerProps {
   submitDisabled?: boolean;
-  submitClicked?: () => void;
+  submitClicked?: (e: React.FormEvent) => void;
   loading?: boolean;
   newWord?: string;
   inputChanged?: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -45,7 +45,7 @@ const MainBanner: React.FC<MainBannerProps> = ({
   };
 
   let button: React.ReactNode = (
-    <Button disabled={submitDisabled} clicked={submitClicked}>
+    <Button disabled={submitDisabled}>
       Submit
     </Button>
   );
@@ -54,10 +54,17 @@ const MainBanner: React.FC<MainBannerProps> = ({
     button = <Spinner />;
   }
 
+  const handleSubmit = (e: React.FormEvent): void => {
+    e.preventDefault();
+    if (submitClicked) {
+      submitClicked(e);
+    }
+  };
+
   return (
     <div className={classes.MainBanner}>
       <h2>{text}</h2>
-      <form>
+      <form onSubmit={handleSubmit}>
         <div
           style={{
             display: 'flex',

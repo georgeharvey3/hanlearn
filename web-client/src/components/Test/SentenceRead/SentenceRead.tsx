@@ -2,6 +2,7 @@ import React, { ChangeEvent, KeyboardEvent, useCallback, useEffect, useRef, useS
 import { connect, ConnectedProps } from 'react-redux';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 import { Howl } from 'howler';
+import { httpsCallable } from 'firebase/functions';
 
 import Button from '../../UI/Buttons/Button/Button';
 import Input from '../../UI/Input/Input';
@@ -23,6 +24,7 @@ import * as wordActions from '../../../store/actions/index';
 import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
 import { AppDispatch } from '../../../types/actions';
+import { functions } from '../../../firebase/config';
 
 const beep = new Howl({ src: [successSound], volume: 0.5 });
 const fail = new Howl({ src: [failSound], volume: 0.7 });
@@ -47,6 +49,12 @@ interface Sentence {
   };
 }
 
+// Cloud Function for fetching sentences
+const getSentencesFromCloud = httpsCallable<
+  { word: string },
+  { sentences: Sentence[] }
+>(functions, 'getSentences');
+
 interface SentenceReadState {
   sentences: Sentence[];
   charSet: 'simp' | 'trad';
@@ -67,7 +75,6 @@ const mapStateToProps = (state: RootState) => ({
   synthAvailable: state.settings.synthAvailable,
   voice: state.settings.voice,
   lang: state.settings.lang,
-  userId: state.auth.userId,
   addedWords: state.addWords.words,
 });
 
@@ -80,7 +87,6 @@ type PropsFromRedux = ConnectedProps<typeof connector>;
 
 interface OwnProps {
   words: Word[];
-  isDemo?: boolean;
   sentenceWriteEnabled?: boolean;
   startSentenceWrite?: () => void;
 }
@@ -91,11 +97,9 @@ const SentenceRead: React.FC<Props> = ({
   synthAvailable,
   voice,
   lang,
-  userId,
   addedWords,
   onPostWord,
   words,
-  isDemo,
   sentenceWriteEnabled,
   startSentenceWrite,
   history,
@@ -117,6 +121,8 @@ const SentenceRead: React.FC<Props> = ({
   });
 
   const stateRef = useRef(state);
+  const hasInitialized = useRef(false);
+
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
@@ -127,15 +133,12 @@ const SentenceRead: React.FC<Props> = ({
 
   const initialiseSettings = useCallback((): void => {
     const useSound =
-      synthAvailable &&
-      (!(localStorage.getItem('useSound') === 'false') || Boolean(isDemo));
+      synthAvailable && localStorage.getItem('useSound') !== 'false';
     const useEnglishSpeechRecognition =
-      synthAvailable &&
-      (!(localStorage.getItem('useEnglishSpeechRecognition') === 'false') ||
-        Boolean(isDemo));
+      synthAvailable && localStorage.getItem('useEnglishSpeechRecognition') !== 'false';
 
     updateState({ useSound, useEnglishSpeechRecognition });
-  }, [isDemo, synthAvailable, updateState]);
+  }, [synthAvailable, updateState]);
 
   const onSpeakPinyin = useCallback(
     (sentence: string): void => {
@@ -186,31 +189,51 @@ const SentenceRead: React.FC<Props> = ({
     }
   }, [history, sentenceWriteEnabled, startSentenceWrite]);
 
-  const getSentences = useCallback((): void => {
+  const getSentences = useCallback(async (): Promise<void> => {
     updateState({ loading: true });
     const currentWord = words[stateRef.current.wordIndex][stateRef.current.charSet];
-    fetch(`/api/get-sentences/${currentWord}`)
-      .then((response) =>
-        response.json().then((data: { sentences: Sentence[] }) => {
-          const shortSentences = data.sentences.filter(
-            (sentence) => sentence.chinese.sentence.length <= 18
-          );
 
-          if (shortSentences.length) {
-            updateState({ sentences: shortSentences, loading: false });
-            if (stateRef.current.useSound) {
-              onSpeakPinyin(shortSentences[stateRef.current.sentenceIndex].chinese.sentence);
-            }
-          } else {
-            if (stateRef.current.wordIndex >= words.length - 1) {
-              onEndStage();
-            } else {
-              setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
-            }
-          }
-        })
-      )
-      .catch((error) => console.log(error));
+    try {
+      const result = await getSentencesFromCloud({ word: currentWord });
+      const data = result.data;
+
+      // Filter to sentences with reasonable length (not too long to display)
+      const shortSentences = data.sentences.filter(
+        (sentence) => sentence.chinese.sentence.length <= 30
+      );
+
+      if (shortSentences.length) {
+        updateState({ sentences: shortSentences, loading: false });
+        if (stateRef.current.useSound) {
+          onSpeakPinyin(shortSentences[stateRef.current.sentenceIndex].chinese.sentence);
+        }
+      } else if (data.sentences.length) {
+        // If no short sentences, use the shortest available
+        const sorted = [...data.sentences].sort(
+          (a, b) => a.chinese.sentence.length - b.chinese.sentence.length
+        );
+        updateState({ sentences: sorted.slice(0, 5), loading: false });
+        if (stateRef.current.useSound) {
+          onSpeakPinyin(sorted[0].chinese.sentence);
+        }
+      } else {
+        // No sentences found for this word, try next word
+        console.warn(`No sentences found for word: ${currentWord}`);
+        if (stateRef.current.wordIndex >= words.length - 1) {
+          onEndStage();
+        } else {
+          setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching sentences:', error);
+      // On error, try next word instead of getting stuck
+      if (stateRef.current.wordIndex >= words.length - 1) {
+        onEndStage();
+      } else {
+        setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
+      }
+    }
   }, [onEndStage, onSpeakPinyin, updateState, words]);
 
   const onChangeSentence = (direction: number): void => {
@@ -319,8 +342,11 @@ const SentenceRead: React.FC<Props> = ({
   };
 
   useEffect(() => {
-    getSentences();
-    initialiseSettings();
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      getSentences();
+      initialiseSettings();
+    }
     document.addEventListener('keyup', onKeyUp);
     document.addEventListener('click', closePopup);
     return () => {

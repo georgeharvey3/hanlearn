@@ -33,7 +33,6 @@ interface AddWordsState {
   meaning: string;
   meaningInputDisabled: boolean;
   showMeaningInput: boolean;
-  showChengyus: boolean;
   showNewWordModal: boolean;
 }
 
@@ -46,6 +45,7 @@ const mapStateToProps = (state: RootState) => ({
   error: state.addWords.error,
   loading: state.addWords.loading,
   userId: state.auth.userId,
+  authInitialized: state.auth.initialized,
 });
 
 const mapDispatchToProps = {
@@ -65,6 +65,7 @@ const AddWords: React.FC<Props> = ({
   error,
   loading,
   userId,
+  authInitialized,
   onInitWords,
   onPostWord,
   onPostCustomWord,
@@ -85,12 +86,11 @@ const AddWords: React.FC<Props> = ({
       charSet: charSet,
       loading: false,
       addError: false,
-      showWords: false,
+      showWords: true,
       justAdded: null,
       meaning: '',
       meaningInputDisabled: false,
       showMeaningInput: false,
-      showChengyus: false,
       showNewWordModal: false,
     };
   });
@@ -149,15 +149,20 @@ const AddWords: React.FC<Props> = ({
     [dismissClashTable, dismissMeaningInput, dismissModal, dismissNewWordModal, state.showClashTable, state.showErrorMessage, state.showMeaningInput, state.showNewWordModal]
   );
 
+  // Initialize words when userId becomes available
   useEffect(() => {
     if (userId !== null) {
       onInitWords();
     }
+  }, [onInitWords, userId]);
+
+  // Separate effect for keyup listener to avoid re-fetching words when modal state changes
+  useEffect(() => {
     document.addEventListener('keyup', onKeyUp);
     return () => {
       document.removeEventListener('keyup', onKeyUp);
     };
-  }, [onInitWords, onKeyUp, userId]);
+  }, [onKeyUp]);
 
   useEffect(() => {
     if (prevJustAddedId.current !== state.justAdded?.id) {
@@ -170,10 +175,6 @@ const AddWords: React.FC<Props> = ({
 
   const onInputChangedHandler = (event: ChangeEvent<HTMLInputElement>): void => {
     updateState({ newWord: event.target.value });
-  };
-
-  const onShowChengyusClicked = (): void => {
-    setState((prevState) => ({ ...prevState, showChengyus: !prevState.showChengyus }));
   };
 
   const handleSearchResult = (res: Word[], searchedWord: string): void => {
@@ -266,24 +267,8 @@ const AddWords: React.FC<Props> = ({
   };
 
   const onTestHandler = (): void => {
-    const anyDue = words.some((word) => new Date(word.due_date || '') <= new Date());
-    const anyWords = words.length > 0;
-
-    if (anyDue) {
-      history.push('/test-words');
-    } else {
-      if (!anyWords) {
-        updateState({
-          showErrorMessage: true,
-          errorMessage: "You don't have any words yet!",
-        });
-      } else {
-        updateState({
-          showErrorMessage: true,
-          errorMessage: 'You are up to date!',
-        });
-      }
-    }
+    // Navigate to test page - practice mode is available there if no words are due
+    history.push('/test-words');
   };
 
   const convertDateString = (initial: string): string => {
@@ -338,20 +323,17 @@ const AddWords: React.FC<Props> = ({
     meaningElement.focus();
   };
 
+  // Wait for auth to initialize before redirecting
+  if (!authInitialized) {
+    return null;
+  }
   if (userId === null) {
     return <Redirect to="/" />;
   }
 
   let table: React.ReactNode = loading ? <Spinner /> : null;
 
-  const allWords = words;
-  let tableWords: Word[];
-
-  if (state.showChengyus) {
-    tableWords = allWords.filter((word) => word.simp.length >= 4);
-  } else {
-    tableWords = allWords.filter((word) => word.simp.length < 4);
-  }
+  const tableWords = words;
 
   if (tableWords) {
     const tableRows = tableWords.map((row, index) => {
@@ -379,14 +361,9 @@ const AddWords: React.FC<Props> = ({
     });
 
     table = (
-      <Aux>
-        <Button clicked={onShowChengyusClicked}>
-          {state.showChengyus ? 'Show words' : 'Show chengyus'}
-        </Button>
-        <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due Date (D/M/Y)', 'Remove']}>
-          {tableRows}
-        </Table>
-      </Aux>
+      <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due Date (D/M/Y)', 'Remove']}>
+        {tableRows}
+      </Table>
     );
   }
 
@@ -453,7 +430,7 @@ const AddWords: React.FC<Props> = ({
           />
           <Button
             clicked={() => {
-              onDeleteWord(token!, state.justAdded!.id);
+              onDeleteWord(state.justAdded!.id);
               updateState({ justAdded: null });
             }}
           >

@@ -16,7 +16,7 @@ const AccountSummary: React.FC<AccountSummaryProps> = (props) => (
       You have {props.numDue}/{props.numTot} words due for testing...
     </h3>
     <Button
-      disabled={props.numDue === 0}
+      disabled={props.numTot === 0}
       colour="red"
       clicked={props.testClicked}
     >

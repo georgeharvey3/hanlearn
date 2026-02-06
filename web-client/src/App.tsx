@@ -7,7 +7,6 @@ import Layout from './components/Layout/Layout';
 import Home from './containers/Home/Home';
 import AddWords from './containers/AddWords/AddWords';
 import TestWords from './containers/TestWords/TestWords';
-import TestChengyus from './containers/TestChengyus/TestChengyus';
 import Auth from './containers/Auth/Auth';
 import Register from './containers/Auth/Register';
 import Logout from './containers/Auth/Logout/Logout';
@@ -121,7 +120,6 @@ const App: React.FC<Props> = ({
           <Route path="/" exact component={Home} />
           <Route path="/add-words" component={AddWords} />
           <Route path="/test-words" component={TestWords} />
-          <Route path="/test-chengyus" component={TestChengyus} />
           <Route path="/auth" component={Auth} />
           <Route path="/register" component={Register} />
           <Route path="/logout" component={Logout} />

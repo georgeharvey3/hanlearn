@@ -50,6 +50,7 @@ interface SentenceWriteState {
   errorMessage: string;
   message: string;
   sentences: string[];
+  translations: string[]; // Store translations for each sentence
   usedWords: Word[];
   translatedEnglish: string;
   lastEnteredEnglish: string;
@@ -94,6 +95,7 @@ const SentenceWrite: React.FC<Props> = ({
     errorMessage: '',
     message: '',
     sentences: [],
+    translations: [],
     usedWords: [],
     translatedEnglish: '',
     lastEnteredEnglish: '',
@@ -191,6 +193,7 @@ const SentenceWrite: React.FC<Props> = ({
       translatedEnglish: '',
       message: '',
       sentences: prevState.sentences.concat(prevState.chineseSentence || ''),
+      translations: prevState.translations.concat(prevState.sentence || ''),
       usedWords: prevState.usedWords.concat(foundWords),
     }));
   }, [words]);
@@ -265,49 +268,6 @@ const SentenceWrite: React.FC<Props> = ({
     if (event.key !== 'Enter') return;
     updateState({ englishTranslationLoading: true });
     translateEnglishWord(stateRef.current.enteredEnglish);
-  };
-
-  const findHighlights = (
-    string: string,
-    wordsToHighlight: string[]
-  ): { type: 'high' | 'low'; light: [number, number] }[] => {
-    const filteredWords = wordsToHighlight.filter((word) => string.includes(word));
-    const orderedWords = [...filteredWords].sort(
-      (a, b) => string.indexOf(a) - string.indexOf(b)
-    );
-
-    const highlights = orderedWords.reduce(
-      (acc: { type: 'high' | 'low'; light: [number, number] }[], word, index, arr) => {
-        const previousWord = index > 0 ? arr[index - 1] : null;
-        const previousStart = previousWord ? string.indexOf(previousWord) : null;
-        const previousHighlight: [number, number] | null =
-          previousStart !== null && previousWord
-            ? [previousStart, previousStart + previousWord.length]
-            : null;
-
-        const wordStart = string.indexOf(word);
-        const wordHighlight: [number, number] = [wordStart, wordStart + word.length];
-
-        if (previousHighlight === null) {
-          const low = [0, wordStart] as [number, number];
-          acc.push({ type: 'low', light: low });
-          acc.push({ type: 'high', light: wordHighlight });
-          return acc;
-        }
-
-        const low = [previousHighlight[1], wordStart] as [number, number];
-        acc.push({ type: 'low', light: low });
-        acc.push({ type: 'high', light: wordHighlight });
-        return acc;
-      }, []
-    );
-
-    if (highlights.length > 0) {
-      const last = highlights[highlights.length - 1].light;
-      highlights.push({ type: 'low', light: [last[1], string.length] });
-    }
-
-    return highlights;
   };
 
   const getWordToTest = (): Word | null => {
@@ -386,12 +346,11 @@ const SentenceWrite: React.FC<Props> = ({
 
   if (state.usedWords.length === words.length) {
     const headings = ['Sentence', 'Pinyin', 'Translation'];
-    const highlights = findHighlights(state.sentences.join(' '), words.map((w) => w[state.charSet]));
 
     const rows = state.sentences.map((sentence, index) => {
       return (
         <TableRow key={index}>
-          {[sentence, pinyin(sentence).join(' '), state.translatedEnglish]}
+          {[sentence, pinyin(sentence).join(' '), state.translations[index] || '']}
         </TableRow>
       );
     });
@@ -400,16 +359,6 @@ const SentenceWrite: React.FC<Props> = ({
       <Modal show>
         <h2>Finished!</h2>
         <Table headings={headings}>{rows}</Table>
-        <div className={classes.Highlights}>
-          {highlights.map((light, index) => (
-            <span
-              key={index}
-              className={light.type === 'high' ? classes.HighHighlight : classes.LowHighlight}
-            >
-              {state.sentences.join(' ').slice(light.light[0], light.light[1])}
-            </span>
-          ))}
-        </div>
         <Button clicked={onHomeClicked}>Home</Button>
       </Modal>
     );

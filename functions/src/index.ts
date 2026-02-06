@@ -1,8 +1,17 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import fetch from 'node-fetch';
+import { Segment, useDefault } from 'segmentit';
+import { Translate } from '@google-cloud/translate/build/src/v2';
 
 admin.initializeApp();
+
+// Initialize Chinese segmenter
+const segmentit = new Segment();
+useDefault(segmentit);
+
+// Initialize Google Cloud Translation client
+const translate = new Translate();
 
 const db = admin.firestore();
 
@@ -20,8 +29,8 @@ function verifyAuth(context: functions.https.CallableContext): string {
 }
 
 /**
- * Translate text using DeepL API
- * This moves the API key to the server side, fixing the security issue
+ * Translate text using Google Cloud Translation API
+ * Keeps the same function name for frontend compatibility
  */
 export const translateWithDeepL = functions.https.onCall(
   async (data: { text: string; targetLang: string }, context) => {
@@ -36,44 +45,16 @@ export const translateWithDeepL = functions.https.onCall(
       );
     }
 
-    // Get API key from Firebase config
-    // Set with: firebase functions:config:set deepl.key="your-api-key"
-    const apiKey = functions.config().deepl?.key;
-
-    if (!apiKey) {
-      throw new functions.https.HttpsError(
-        'failed-precondition',
-        'DeepL API key not configured'
-      );
-    }
+    // Map DeepL language codes to Google codes
+    const googleLang = targetLang === 'EN' ? 'en' : 'zh-CN';
 
     try {
-      const response = await fetch(
-        `https://api-free.deepl.com/v2/translate`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-            auth_key: apiKey,
-            text: text,
-            target_lang: targetLang,
-          }),
-        }
-      );
+      const [translation] = await translate.translate(text, googleLang);
 
-      if (!response.ok) {
-        throw new functions.https.HttpsError(
-          'internal',
-          `DeepL API error: ${response.statusText}`
-        );
-      }
-
-      const result = await response.json();
-      return result;
+      // Return in same format as DeepL for frontend compatibility
+      return { translations: [{ text: translation }] };
     } catch (error) {
-      console.error('DeepL translation error:', error);
+      console.error('Google Translation error:', error);
       throw new functions.https.HttpsError(
         'internal',
         'Translation failed'
@@ -92,22 +73,242 @@ interface SentenceWord {
 interface Sentence {
   chinese: {
     sentence: string;
-    highlight: string;
-    words: SentenceWord[];
+    highlight: number[][];
+    words: (SentenceWord | string)[];
   };
   english: {
     sentence: string;
-    highlight: string;
+    highlight: number[][];
   };
 }
 
 /**
+ * Calculate highlight indices for a word in a sentence
+ */
+function calculateHighlightIndices(
+  sentence: string,
+  word: string
+): number[][] {
+  const indices: number[][] = [];
+  let startIndex = 0;
+
+  while (true) {
+    const index = sentence.indexOf(word, startIndex);
+    if (index === -1) break;
+    indices.push([index, index + word.length]);
+    startIndex = index + word.length;
+  }
+
+  return indices;
+}
+
+interface TatoebaExample {
+  chinese: string;
+  english: string;
+}
+
+interface TatoebaSentence {
+  id: number;
+  text: string;
+  lang: string;
+  script: string | null;
+  transcriptions?: Array<{
+    script: string;
+    text: string;
+  }>;
+}
+
+interface TatoebaTranslation extends TatoebaSentence {
+  is_direct: boolean;
+}
+
+interface TatoebaSentenceWithTranslations extends TatoebaSentence {
+  translations: TatoebaTranslation[];
+}
+
+/**
+ * Fetch example sentences from Tatoeba API
+ */
+async function fetchTatoebaExamples(word: string): Promise<TatoebaExample[]> {
+  // Search for Chinese sentences containing the word
+  const searchUrl = `https://api.tatoeba.org/unstable/sentences?lang=cmn&q=${encodeURIComponent(word)}&limit=20&sort=relevance`;
+
+  const searchResponse = await fetch(searchUrl);
+  if (!searchResponse.ok) {
+    console.error(`Tatoeba search failed: ${searchResponse.status}`);
+    return [];
+  }
+
+  const searchData = await searchResponse.json() as { data: TatoebaSentence[] };
+  const sentences = searchData.data || [];
+
+  if (sentences.length === 0) {
+    return [];
+  }
+
+  // Fetch translations for each sentence
+  const examples: TatoebaExample[] = [];
+
+  for (const sentence of sentences.slice(0, 10)) {
+    const detailUrl = `https://api.tatoeba.org/unstable/sentences/${sentence.id}?include=translations`;
+    const detailResponse = await fetch(detailUrl);
+
+    if (!detailResponse.ok) {
+      continue;
+    }
+
+    const detailData = await detailResponse.json() as { data: TatoebaSentenceWithTranslations };
+    const sentenceWithTranslations = detailData.data;
+
+    // Find English translation
+    const englishTranslation = sentenceWithTranslations.translations?.find(
+      (t) => t.lang === 'eng'
+    );
+
+    if (englishTranslation) {
+      // Get simplified Chinese text (from transcriptions if available, or original)
+      let chineseText = sentence.text;
+      if (sentence.script === 'Hant') {
+        const simpTranscription = sentence.transcriptions?.find(
+          (t) => t.script === 'Hans'
+        );
+        if (simpTranscription) {
+          chineseText = simpTranscription.text;
+        }
+      }
+
+      examples.push({
+        chinese: chineseText,
+        english: englishTranslation.text,
+      });
+    }
+  }
+
+  return examples;
+}
+
+/**
+ * Check if a string contains Latin letters
+ */
+function containsLatinLetters(text: string): boolean {
+  return /[a-zA-Z]/.test(text);
+}
+
+/**
+ * Check if a string is a Chinese character
+ */
+function isChinese(text: string): boolean {
+  return /^[\u4e00-\u9fff]+$/.test(text);
+}
+
+/**
+ * Segment Chinese text into words
+ */
+function segmentChinese(text: string): string[] {
+  const result = segmentit.doSegment(text, { simple: true });
+  return result as string[];
+}
+
+/**
+ * Look up words in Firestore dictionary
+ */
+async function lookupWords(
+  words: string[]
+): Promise<(SentenceWord | null)[]> {
+  const results: (SentenceWord | null)[] = [];
+
+  for (const word of words) {
+    // Skip non-Chinese text
+    if (!isChinese(word)) {
+      results.push(null);
+      continue;
+    }
+
+    // Try to find the word as-is
+    const wordSnapshot = await db
+      .collection('words')
+      .where('simp', '==', word)
+      .limit(1)
+      .get();
+
+    if (!wordSnapshot.empty) {
+      const data = wordSnapshot.docs[0].data();
+      results.push({
+        simp: data.simp,
+        trad: data.trad || data.simp,
+        pinyin: data.pinyin || '',
+        meaning: data.meaning || '',
+      });
+    } else if (word.length > 1) {
+      // If multi-char word not found, look up individual characters
+      for (const char of word) {
+        const charSnapshot = await db
+          .collection('words')
+          .where('simp', '==', char)
+          .limit(1)
+          .get();
+
+        if (!charSnapshot.empty) {
+          const data = charSnapshot.docs[0].data();
+          results.push({
+            simp: data.simp,
+            trad: data.trad || data.simp,
+            pinyin: data.pinyin || '',
+            meaning: data.meaning || '',
+          });
+        } else {
+          results.push(null);
+        }
+      }
+    } else {
+      results.push(null);
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Get word breakdown for a sentence, excluding the target word
+ */
+async function getWordBreakdown(
+  sentence: string,
+  targetWord: string
+): Promise<(SentenceWord | string)[]> {
+  const parts = sentence.split(targetWord);
+  const result: (SentenceWord | string)[] = [];
+
+  // Process text before the target word
+  if (parts[0]) {
+    const segmented = segmentChinese(parts[0]);
+    const lookedUp = await lookupWords(segmented);
+    for (let i = 0; i < segmented.length; i++) {
+      if (lookedUp[i]) {
+        result.push(lookedUp[i]!);
+      }
+    }
+  }
+
+  // Add the target word as a string marker
+  result.push(targetWord);
+
+  // Process text after the target word
+  if (parts[1]) {
+    const segmented = segmentChinese(parts[1]);
+    const lookedUp = await lookupWords(segmented);
+    for (let i = 0; i < segmented.length; i++) {
+      if (lookedUp[i]) {
+        result.push(lookedUp[i]!);
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
  * Get example sentences for a word
- * Note: This is a placeholder implementation
- * Full implementation would require:
- * 1. Reverso Context API (or similar service)
- * 2. Chinese text segmentation (jieba-js or similar)
- * 3. Word lookups from Firestore
+ * Fetches from Tatoeba API, segments Chinese text, and looks up words
  */
 export const getSentences = functions.https.onCall(
   async (data: { word: string }, context) => {
@@ -122,11 +323,47 @@ export const getSentences = functions.https.onCall(
       );
     }
 
-    // Placeholder: Return empty sentences array
-    // Full implementation would call Reverso API and process results
-    const sentences: Sentence[] = [];
+    try {
+      // Fetch examples from Tatoeba
+      const examples = await fetchTatoebaExamples(word);
 
-    return { sentences };
+      // Filter out sentences containing Latin letters
+      const filteredExamples = examples.filter(
+        (ex) => !containsLatinLetters(ex.chinese)
+      );
+
+      // Build sentence objects with word breakdowns
+      const sentences: Sentence[] = [];
+      for (const ex of filteredExamples.slice(0, 10)) {
+        const wordBreakdown = await getWordBreakdown(ex.chinese, word);
+
+        // Calculate highlight indices for the word in the sentence
+        const chineseHighlight = calculateHighlightIndices(ex.chinese, word);
+
+        sentences.push({
+          chinese: {
+            sentence: ex.chinese,
+            highlight: chineseHighlight,
+            words: wordBreakdown,
+          },
+          english: {
+            sentence: ex.english,
+            highlight: [],
+          },
+        });
+      }
+
+      // Shuffle the results
+      for (let i = sentences.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [sentences[i], sentences[j]] = [sentences[j], sentences[i]];
+      }
+
+      return { sentences };
+    } catch (error) {
+      console.error('Error fetching sentences:', error);
+      return { sentences: [] };
+    }
   }
 );
 
@@ -146,9 +383,38 @@ export const getOneSentence = functions.https.onCall(
       );
     }
 
-    // Placeholder: Return null sentence
-    // Full implementation would call Reverso API
-    return { sentence: null };
+    try {
+      // Fetch examples from Tatoeba
+      const examples = await fetchTatoebaExamples(word);
+
+      // Filter out sentences containing Latin letters
+      const filteredExamples = examples.filter(
+        (ex) => !containsLatinLetters(ex.chinese)
+      );
+
+      if (filteredExamples.length === 0) {
+        return { sentence: null };
+      }
+
+      // Sort by sentence length and take shortest 10
+      const sortedExamples = filteredExamples
+        .sort((a, b) => a.chinese.length - b.chinese.length)
+        .slice(0, 10);
+
+      // Pick a random sentence from the shortest ones
+      const randomIndex = Math.floor(Math.random() * sortedExamples.length);
+      const selected = sortedExamples[randomIndex];
+
+      return {
+        sentence: {
+          chinese: selected.chinese,
+          english: selected.english,
+        },
+      };
+    } catch (error) {
+      console.error('Error fetching sentence:', error);
+      return { sentence: null };
+    }
   }
 );
 
@@ -167,9 +433,15 @@ export const getDailyChengyu = functions.https.onCall(
 
     // Get all chengyus
     const chengyusSnapshot = await db.collection('chengyus').get();
-    const chengyus = chengyusSnapshot.docs.map((doc) => ({
+    interface Chengyu {
+      id: string;
+      characters: string;
+      pinyin: string;
+      meaning: string;
+    }
+    const chengyus: Chengyu[] = chengyusSnapshot.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data(),
+      ...(doc.data() as Omit<Chengyu, 'id'>),
     }));
 
     if (chengyus.length === 0) {
@@ -178,16 +450,12 @@ export const getDailyChengyu = functions.https.onCall(
 
     // Select today's chengyu
     const index = daysSinceBase % chengyus.length;
-    const todaysChengyu = chengyus[index] as {
-      characters: string;
-      pinyin: string;
-      meaning: string;
-    };
+    const todaysChengyu = chengyus[index];
 
     // Get 3 random wrong options
     const otherChengyus = chengyus.filter((_, i) => i !== index);
     const shuffled = otherChengyus.sort(() => Math.random() - 0.5);
-    const wrongOptions = shuffled.slice(0, 3).map((c: any) => c.meaning);
+    const wrongOptions = shuffled.slice(0, 3).map((c) => c.meaning);
 
     // Shuffle all options
     const allOptions = [todaysChengyu.meaning, ...wrongOptions].sort(

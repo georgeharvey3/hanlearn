@@ -17,6 +17,7 @@ const reducer = (state = initialState, action: AuthAction): AuthState => {
         ...state,
         loading: true,
         error: null,
+        newSignUp: false,
       };
     case actionTypes.AUTH_SUCCESS:
       return {
@@ -37,6 +38,7 @@ const reducer = (state = initialState, action: AuthAction): AuthState => {
         ...state,
         userId: null,
         initialized: true,
+        newSignUp: false,
       };
     case actionTypes.AUTH_INITIALIZED:
       return {

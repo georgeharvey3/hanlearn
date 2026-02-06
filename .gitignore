@@ -15,6 +15,7 @@ web-client/.env
 
 # Firebase
 .firebase
+emulator-data
 *.log
 firebase-debug.log
 firestore-debug.log
