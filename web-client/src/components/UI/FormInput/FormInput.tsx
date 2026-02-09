@@ -1,6 +1,7 @@
 import React, { ChangeEvent } from 'react';
-
-import classes from './FormInput.module.css';
+import TextField from '@mui/material/TextField';
+import MenuItem from '@mui/material/MenuItem';
+import Box from '@mui/material/Box';
 
 interface ElementConfig {
   type?: string;
@@ -21,72 +22,50 @@ interface FormInputProps {
 }
 
 const FormInput: React.FC<FormInputProps> = (props) => {
-  let inputElement: React.ReactNode = null;
-  const inputClasses = [classes.InputElement];
+  const showError = !!(props.invalid && props.shouldValidate && props.touched);
+  const showSuccess = !!(!props.invalid && props.shouldValidate && props.touched);
 
-  if (props.invalid && props.shouldValidate && props.touched) {
-    inputClasses.push(classes.Invalid);
-  }
-
-  if (!props.invalid && props.shouldValidate && props.touched) {
-    inputClasses.push(classes.Valid);
-  }
-
-  switch (props.elementType) {
-    case 'input':
-      inputElement = (
-        <input
-          className={inputClasses.join(' ')}
-          {...props.elementConfig}
-          value={props.value}
-          onChange={props.changed}
-        />
-      );
-      break;
-    case 'textarea':
-      inputElement = (
-        <textarea
-          className={inputClasses.join(' ')}
-          {...props.elementConfig}
-          onChange={props.changed}
-        />
-      );
-      break;
-    case 'select':
-      inputElement = (
-        <select className={inputClasses.join(' ')} onChange={props.changed}>
+  if (props.elementType === 'select') {
+    return (
+      <Box sx={{ mb: 2 }}>
+        <TextField
+          select
+          label={props.label}
+          value={props.value || ''}
+          onChange={props.changed as any}
+          error={showError}
+          color={showSuccess ? 'success' : undefined}
+          helperText={showError ? props.errorMessage : undefined}
+          fullWidth
+          size="small"
+        >
           {props.elementConfig?.options?.map((option) => (
-            <option key={option.value} value={option.value}>
+            <MenuItem key={option.value} value={option.value}>
               {option.displayValue}
-            </option>
+            </MenuItem>
           ))}
-        </select>
-      );
-      break;
-    default:
-      inputElement = (
-        <input
-          className={classes.InputElement}
-          {...props.elementConfig}
-          onChange={props.changed}
-        />
-      );
-  }
-
-  let validationError: React.ReactNode = null;
-
-  if (props.invalid && props.touched) {
-    validationError = (
-      <p className={classes.ValidationError}>{props.errorMessage}</p>
+        </TextField>
+      </Box>
     );
   }
 
   return (
-    <div className={classes.FormInput}>
-      <label className={classes.Label}>{props.label}</label>
-      {inputElement}
-      {validationError}
-    </div>
+    <Box sx={{ mb: 2 }}>
+      <TextField
+        type={props.elementConfig?.type || 'text'}
+        placeholder={props.elementConfig?.placeholder}
+        label={props.label}
+        value={props.value || ''}
+        onChange={props.changed}
+        error={showError}
+        color={showSuccess ? 'success' : undefined}
+        helperText={showError ? props.errorMessage : undefined}
+        multiline={props.elementType === 'textarea'}
+        rows={props.elementType === 'textarea' ? 3 : undefined}
+        fullWidth
+        size="small"
+      />
+    </Box>
   );
 };
 

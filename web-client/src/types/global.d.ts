@@ -53,17 +53,6 @@ interface QuizOptions {
   onMistake?: (strokeData: object) => void;
 }
 
-// CSS modules
-declare module '*.module.css' {
-  const classes: { [key: string]: string };
-  export default classes;
-}
-
-declare module '*.css' {
-  const content: { [className: string]: string };
-  export default content;
-}
-
 // Asset imports
 declare module '*.png' {
   const value: string;

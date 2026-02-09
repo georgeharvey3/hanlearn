@@ -1,6 +1,5 @@
 import React, { ChangeEvent, KeyboardEvent, FocusEvent, CSSProperties } from 'react';
-
-import classes from './Input.module.css';
+import TextField from '@mui/material/TextField';
 
 interface InputProps {
   id?: string;
@@ -19,9 +18,7 @@ interface InputProps {
 }
 
 const Input: React.FC<InputProps> = (props) => (
-  <input
-    className={classes.Input}
-    type="text"
+  <TextField
     id={props.id}
     placeholder={props.placeholder}
     onChange={props.changed}
@@ -31,10 +28,22 @@ const Input: React.FC<InputProps> = (props) => (
     onBlur={props.blurred}
     autoFocus={props.autoFocus}
     autoComplete={props.autoComplete}
-    autoCorrect={props.autoCorrect}
-    autoCapitalize={props.autoCapitalize}
-    spellCheck={props.spellCheck}
+    variant="outlined"
+    size="small"
+    slotProps={{
+      htmlInput: {
+        autoCorrect: props.autoCorrect,
+        autoCapitalize: props.autoCapitalize,
+        spellCheck: props.spellCheck,
+      },
+    }}
     style={props.style}
+    sx={{
+      width: '50%',
+      maxWidth: 300,
+      mx: 'auto',
+      '& input': { textAlign: 'center' },
+    }}
   />
 );
 

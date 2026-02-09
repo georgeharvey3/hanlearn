@@ -1,11 +1,9 @@
 import React from 'react';
-
-import classes from './SideDrawer.module.css';
+import Drawer from '@mui/material/Drawer';
+import Box from '@mui/material/Box';
 
 import Logo from '../../Logo/Logo';
 import NavigationItems from '../NavigationItems/NavigationItems';
-import Backdrop from '../../UI/Backdrop/Backdrop';
-import Aux from '../../../hoc/Aux';
 
 interface SideDrawerProps {
   open?: boolean;
@@ -14,24 +12,27 @@ interface SideDrawerProps {
 }
 
 const SideDrawer: React.FC<SideDrawerProps> = (props) => {
-  let attachedClasses = [classes.SideDrawer, classes.Closed];
-
-  if (props.open) {
-    attachedClasses = [classes.SideDrawer, classes.Open];
-  }
-
   return (
-    <Aux>
-      <Backdrop show={props.open} clicked={props.closed} />
-      <div className={attachedClasses.join(' ')}>
-        <div className={classes.Logo}>
-          <Logo />
-        </div>
-        <nav>
-          <NavigationItems authenticated={props.isAuth} isSideDrawer />
-        </nav>
-      </div>
-    </Aux>
+    <Drawer
+      anchor="left"
+      open={!!props.open}
+      onClose={props.closed}
+      sx={{
+        display: { sm: 'none' },
+        '& .MuiDrawer-paper': {
+          width: 200,
+          maxWidth: '70%',
+          backgroundColor: 'rgb(46, 66, 66)',
+        },
+      }}
+    >
+      <Box sx={{ height: 56, display: 'flex', justifyContent: 'center' }}>
+        <Logo />
+      </Box>
+      <nav>
+        <NavigationItems authenticated={props.isAuth} isSideDrawer />
+      </nav>
+    </Drawer>
   );
 };
 

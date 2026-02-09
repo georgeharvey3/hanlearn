@@ -1,6 +1,6 @@
 import React, { ChangeEvent } from 'react';
-
-import classes from './Toggle.module.css';
+import Switch from '@mui/material/Switch';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 interface ToggleProps {
   checked?: boolean;
@@ -9,17 +9,18 @@ interface ToggleProps {
 
 const Toggle: React.FC<ToggleProps> = (props) => {
   return (
-    <div className={classes.ToggleContainer}>
-      <label>Auto Record:</label>
-      <label className={classes.Toggle}>
-        <input
+    <FormControlLabel
+      control={
+        <Switch
           checked={props.checked}
           onChange={props.changed}
-          type="checkbox"
+          color="primary"
         />
-        <span className={classes.Slider}></span>
-      </label>
-    </div>
+      }
+      label="Auto Record:"
+      labelPlacement="start"
+      sx={{ color: '#E6E0AE' }}
+    />
   );
 };
 

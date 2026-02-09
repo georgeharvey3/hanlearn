@@ -1,7 +1,6 @@
 import React, { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
-
-import classes from './NavigationItem.module.css';
+import MuiButton from '@mui/material/Button';
 
 interface NavigationItemProps {
   link: string;
@@ -9,11 +8,22 @@ interface NavigationItemProps {
 }
 
 const NavigationItem: React.FC<NavigationItemProps> = (props) => (
-  <li className={classes.NavigationItem}>
-    <NavLink to={props.link} exact activeClassName={classes.active}>
-      {props.children}
-    </NavLink>
-  </li>
+  <MuiButton
+    component={NavLink}
+    to={props.link}
+    exact
+    sx={{
+      color: '#AA381E',
+      textTransform: 'none',
+      px: 1.5,
+      '&.active': {
+        borderBottom: '4px solid #AA381E',
+        borderRadius: 0,
+      },
+    }}
+  >
+    {props.children}
+  </MuiButton>
 );
 
 export default NavigationItem;

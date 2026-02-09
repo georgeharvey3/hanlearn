@@ -1,7 +1,5 @@
 import React, { ReactNode } from 'react';
-
-import classes from './Buttons.module.css';
-
+import Stack from '@mui/material/Stack';
 import Button from './Button/Button';
 
 interface ButtonsProps {
@@ -15,7 +13,11 @@ const Buttons: React.FC<ButtonsProps> = (props) => {
       {button}
     </Button>
   ));
-  return <div className={classes.Buttons}>{buttonElems}</div>;
+  return (
+    <Stack direction="row" justifyContent="center" alignItems="center" sx={{ py: 3 }} flexWrap="wrap">
+      {buttonElems}
+    </Stack>
+  );
 };
 
 export default Buttons;

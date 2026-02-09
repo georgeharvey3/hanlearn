@@ -98,7 +98,7 @@ export const postWord = (word: Word): AppThunk => {
  * Add a custom word (not in dictionary) to Firestore
  */
 export const postCustomWord = (
-  word: { simp: string; meaning: string }
+  word: { text: string; meaning: string; charSet: 'simp' | 'trad' }
 ): AppThunk => {
   return async (dispatch, getState) => {
     const { auth } = getState();
@@ -107,8 +107,9 @@ export const postCustomWord = (
     try {
       const newWord = await wordService.addCustomWord(
         auth.userId,
-        word.simp,
-        word.meaning
+        word.text,
+        word.meaning,
+        word.charSet
       );
       dispatch(addCustomWord(newWord));
     } catch (error) {

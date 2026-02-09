@@ -1,15 +1,50 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
+import List from '@mui/material/List';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
 
-import classes from './Chengyu.module.css';
-
-import Aux from '../../../hoc/Aux';
-import { getDailyChengyu } from '../../../data/chengyus';
+import { getDailyChengyu, convertDailyChengyu, lookupCharacterMeanings } from '../../../data/chengyus';
 
 const Chengyu: React.FC = () => {
   const [finished, setFinished] = useState(false);
   const [incorrect, setIncorrect] = useState<number[]>([]);
+  const [charMeanings, setCharMeanings] = useState<Map<string, string>>(new Map());
+  const [charSet] = useState<'simp' | 'trad'>(
+    (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp'
+  );
+  const [displayChengyu, setDisplayChengyu] = useState<string | null>(null);
+  const [displayCharPinyins, setDisplayCharPinyins] = useState<
+    { char: string; pinyin: string; meaning?: string }[] | null
+  >(null);
 
   const dailyChengyu = useMemo(() => getDailyChengyu(), []);
+
+  // Convert chengyu characters to the selected character set
+  useEffect(() => {
+    convertDailyChengyu(dailyChengyu, charSet).then((converted) => {
+      setDisplayChengyu(converted.chengyu);
+      setDisplayCharPinyins(converted.charPinyins);
+    });
+  }, [dailyChengyu, charSet]);
+
+  const charPinyins = displayCharPinyins || dailyChengyu.charPinyins;
+
+  useEffect(() => {
+    if (finished) {
+      // Look up character meanings when the chengyu is revealed
+      const chars = charPinyins.map((c) => c.char);
+      lookupCharacterMeanings(chars, charSet).then((results) => {
+        const meanings = new Map<string, string>();
+        results.forEach((result) => {
+          meanings.set(result.char, result.meaning);
+        });
+        setCharMeanings(meanings);
+      });
+    }
+  }, [finished, charPinyins, charSet]);
 
   const optionClicked = (_event: React.MouseEvent, index: number): void => {
     if (dailyChengyu.options[index] !== dailyChengyu.correct) {
@@ -23,80 +58,118 @@ const Chengyu: React.FC = () => {
 
   if (finished) {
     details = (
-      <ul style={{ margin: '0px' }}>
-        {dailyChengyu.charPinyins.map((c, index) => (
-          <Aux key={index}>
-            <li
-              style={{
-                maxHeight: '1000px',
-                opacity: 1,
-                backgroundColor: 'transparent',
-                color: '#AA381E',
-              }}
-            >
-              <h5
-                style={{
-                  fontSize: '1.5em',
-                  margin: '3px auto',
-                  fontWeight: 'normal',
+      <List sx={{ m: 0, p: 0 }}>
+        {charPinyins.map((c, index) => {
+          const meaning = charMeanings.get(c.char) || '';
+          return (
+            <React.Fragment key={index}>
+              <Box
+                component="li"
+                sx={{
+                  listStyle: 'none',
+                  backgroundColor: 'transparent',
+                  color: '#AA381E',
+                  mb: 1,
                 }}
               >
-                {c.char}
-              </h5>{' '}
-              ({c.pinyin})
-            </li>
-            <br />
-          </Aux>
-        ))}
-        <li
-          style={{
-            maxHeight: '1000px',
-            opacity: 1,
+                <Typography sx={{ fontSize: '1.5em', m: '3px auto', fontWeight: 'normal' }}>
+                  {c.char}
+                </Typography>
+                <Typography sx={{ fontSize: '0.9em', mb: '5px' }}>
+                  ({c.pinyin})
+                </Typography>
+                {meaning && (
+                  <Typography sx={{ fontSize: '0.85em', fontStyle: 'italic', opacity: 0.8 }}>
+                    {meaning}
+                  </Typography>
+                )}
+              </Box>
+            </React.Fragment>
+          );
+        })}
+        <Box
+          component="li"
+          sx={{
+            listStyle: 'none',
             backgroundColor: 'transparent',
             color: '#AA381E',
             fontStyle: 'italic',
           }}
         >
           {dailyChengyu.correct}
-        </li>
-      </ul>
+        </Box>
+      </List>
     );
   }
 
   return (
-    <div className={classes.Chengyu}>
-      <h3>Chengyu Of The Day</h3>
-      <h2>{dailyChengyu.chengyu}</h2>
-      <p>Choose the correct translation:</p>
-      <ul>
+    <Paper
+      elevation={3}
+      sx={{
+        width: '95%',
+        height: 'auto',
+        borderRadius: '10px',
+        mx: 'auto',
+        mb: '34px',
+        mt: '10px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-evenly',
+        alignItems: 'center',
+        p: '20px',
+        boxSizing: 'border-box',
+        color: '#AA381E',
+        textAlign: 'center',
+        fontSize: { xs: '1.1em', sm: '1.4em' },
+      }}
+    >
+      <Typography variant="h6" sx={{ m: '5px 0' }}>Chengyu Of The Day</Typography>
+      <Typography variant="h5" fontWeight="bold">{displayChengyu || dailyChengyu.chengyu}</Typography>
+      <Typography sx={{ m: '5px 0' }}>Choose the correct translation:</Typography>
+      <List sx={{ p: 0, width: '100%' }}>
         {dailyChengyu.options.map((op, index) => {
-          let classNames = [classes.show];
-
-          if (finished) {
-            if (op !== dailyChengyu.correct) {
-              classNames = [];
-            } else {
-              classNames = [classes.show, classes.Correct];
-            }
-          }
-
-          if (incorrect.includes(index)) {
-            classNames.push(classes.Incorrect);
-          }
+          const isCorrect = op === dailyChengyu.correct;
+          const isIncorrect = incorrect.includes(index);
+          const isHidden = finished && !isCorrect;
 
           return (
-            <li
-              className={classNames.join(' ')}
+            <ListItemButton
               key={index}
               onClick={(event) => optionClicked(event, index)}
+              sx={{
+                listStyle: 'none',
+                borderRadius: '5px',
+                color: 'black',
+                opacity: isHidden ? 0 : 1,
+                maxHeight: isHidden ? 0 : '50px',
+                m: isHidden ? 0 : '5px',
+                p: isHidden ? 0 : '15px',
+                overflow: 'hidden',
+                transition: 'opacity 0.25s ease-out, max-height 0.5s ease-out, margin 0.5s ease-out, padding 0.5s ease-out',
+                justifyContent: 'center',
+                backgroundColor: isIncorrect
+                  ? '#AA381E'
+                  : finished && isCorrect
+                    ? '#00A86B'
+                    : 'rgb(184, 183, 183)',
+                '&:hover': {
+                  backgroundColor: isIncorrect
+                    ? '#AA381E'
+                    : finished && isCorrect
+                      ? '#00A86B'
+                      : 'rgb(199, 199, 199)',
+                  cursor: isHidden ? 'default' : 'pointer',
+                },
+              }}
+              disabled={isHidden}
             >
-              {op}
-            </li>
+              <ListItemText primary={op} sx={{ textAlign: 'center' }} />
+            </ListItemButton>
           );
         })}
-      </ul>
+      </List>
       {details}
-    </div>
+    </Paper>
   );
 };
 

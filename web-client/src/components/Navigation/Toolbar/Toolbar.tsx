@@ -1,7 +1,9 @@
 import React from 'react';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
-
-import classes from './Toolbar.module.css';
+import AppBar from '@mui/material/AppBar';
+import MuiToolbar from '@mui/material/Toolbar';
+import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
 
 import Logo from '../../Logo/Logo';
 import NavigationItems from '../NavigationItems/NavigationItems';
@@ -13,20 +15,35 @@ interface ToolbarProps extends RouteComponentProps {
 }
 
 const Toolbar: React.FC<ToolbarProps> = (props) => (
-  <header className={classes.Toolbar}>
-    <DrawerToggle clicked={props.drawerToggleClicked} />
-    <h2 className={classes.PhoneOnly}>HanLearn</h2>
-    <div
-      className={[classes.Logo, classes.DesktopOnly].join(' ')}
-      onClick={() => props.history.push('/')}
-    >
-      <Logo colour="red" />
-      <h3 className={classes.DesktopOnly}>HanLearn</h3>
-    </div>
-    <nav className={classes.DesktopOnly}>
-      <NavigationItems authenticated={props.isAuth} />
-    </nav>
-  </header>
+  <AppBar position="fixed" sx={{ backgroundColor: '#E6E0AE', boxShadow: 1 }}>
+    <MuiToolbar sx={{ minHeight: 56 }}>
+      <DrawerToggle clicked={props.drawerToggleClicked} />
+      <Typography
+        variant="h6"
+        sx={{ display: { xs: 'block', sm: 'none' }, color: '#AA381E', flexGrow: 1 }}
+      >
+        HanLearn
+      </Typography>
+      <Box
+        sx={{
+          display: { xs: 'none', sm: 'flex' },
+          alignItems: 'center',
+          height: 56,
+          cursor: 'pointer',
+        }}
+        onClick={() => props.history.push('/')}
+      >
+        <Logo colour="red" />
+        <Typography variant="subtitle1" sx={{ color: '#AA381E', ml: 0.5 }}>
+          HanLearn
+        </Typography>
+      </Box>
+      <Box sx={{ flexGrow: 1 }} />
+      <Box sx={{ display: { xs: 'none', sm: 'flex' }, height: '100%' }}>
+        <NavigationItems authenticated={props.isAuth} />
+      </Box>
+    </MuiToolbar>
+  </AppBar>
 );
 
 export default withRouter(Toolbar);

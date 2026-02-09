@@ -1,8 +1,9 @@
 import React, { ChangeEvent, FocusEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { RouteComponentProps, withRouter, Redirect } from 'react-router-dom';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
 
-import Aux from '../../hoc/Aux';
 import Modal from '../../components/UI/Modal/Modal';
 import MainBanner from '../../components/AddWords/MainBanner';
 import Table from '../../components/UI/Table/Table';
@@ -12,7 +13,6 @@ import Remove from '../../components/UI/Table/TableRow/Remove/Remove';
 import Spinner from '../../components/UI/Spinner/Spinner';
 import Input from '../../components/UI/Input/Input';
 
-import classes from './AddWords.module.css';
 import NewWord from '../../components/Test/NewWords/NewWord/NewWord';
 import { RootState } from '../../types/store';
 import { Word } from '../../types/models';
@@ -294,17 +294,11 @@ const AddWords: React.FC<Props> = ({
   };
 
   const meaningSubmitClicked = (): void => {
-    const customWord = {
-      simp: state.newWord,
-      meaning: state.meaning,
-    } as Word;
-
-    onPostCustomWord(customWord);
+    onPostCustomWord({ text: state.newWord, meaning: state.meaning, charSet: state.charSet });
     updateState({
       showMeaningInput: false,
       meaning: '',
       newWord: '',
-      justAdded: customWord,
     });
     const mainInput = document.querySelector('#addInput') as HTMLInputElement | null;
 
@@ -372,12 +366,12 @@ const AddWords: React.FC<Props> = ({
   }
 
   if (error) {
-    table = <p style={{ fontSize: '20px', color: '#E6E0AE' }}>Error: Could not fetch words</p>;
+    table = <Typography sx={{ fontSize: '20px', color: '#E6E0AE' }}>Error: Could not fetch words</Typography>;
   }
 
   if (state.addError) {
     table = (
-      <p style={{ fontSize: '20px', color: '#E6E0AE' }}>Error: Could not search for word</p>
+      <Typography sx={{ fontSize: '20px', color: '#E6E0AE' }}>Error: Could not search for word</Typography>
     );
   }
 
@@ -409,7 +403,7 @@ const AddWords: React.FC<Props> = ({
   const buttonText = state.showWords ? 'Hide Table' : 'Show Table';
 
   return (
-    <Aux>
+    <>
       {state.justAdded !== null ? (
         <Modal show={state.showNewWordModal} modalClosed={dismissNewWordModal}>
           <h2>Just added</h2>
@@ -465,12 +459,12 @@ const AddWords: React.FC<Props> = ({
         submitClicked={searchForWord}
         loading={state.loading}
       />
-      <div className={classes.TableBoxHolder}>{table}</div>
+      <Box sx={{ minHeight: { '@media (min-height: 750px)': 400 }, '& h3': { color: '#e6e0ae' } }}>{table}</Box>
       <Button disabled={words.length === 0} clicked={onTestHandler}>
         Test
       </Button>
       <Button clicked={toggleWords}>{buttonText}</Button>
-    </Aux>
+    </>
   );
 };
 

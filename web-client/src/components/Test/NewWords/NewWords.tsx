@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 
+import { Box, Typography } from '@mui/material';
+
 import Button from '../../UI/Buttons/Button/Button';
 import NewWord from './NewWord/NewWord';
 
-import classes from './NewWords.module.css';
 import { Word } from '../../../types/models';
 
 interface NewWordsProps {
@@ -46,9 +47,9 @@ const NewWords: React.FC<NewWordsProps> = ({ words, isDemo, startTest }) => {
   }, [onKeyDown]);
 
   return (
-    <div className={classes.NewWords}>
-      <h2>New Words</h2>
-      <h4>Click on a character to see information</h4>
+    <Box sx={{ width: '90%', maxWidth: 400, textAlign: 'center', mx: 'auto', py: '30px', color: 'secondary.main' }}>
+      <Typography variant="h5" component="h2">New Words</Typography>
+      <Typography variant="subtitle1" component="h4">Click on a character to see information</Typography>
       <NewWord word={words[wordIndex]} isDemo={isDemo}></NewWord>
       <Button clicked={() => onChangeWord(-1)} disabled={wordIndex < 1}>
         Previous Word
@@ -64,7 +65,7 @@ const NewWords: React.FC<NewWordsProps> = ({ words, isDemo, startTest }) => {
       >
         {wordIndex < words.length - 1 ? 'Next Word' : 'Start Test'}
       </Button>
-    </div>
+    </Box>
   );
 };
 

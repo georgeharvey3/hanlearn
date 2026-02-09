@@ -1,6 +1,5 @@
 import React from 'react';
-
-import classes from './Logo.module.css';
+import Box from '@mui/material/Box';
 
 import hanLearnLogo from '../../assets/images/hlclearsq.png';
 import hanLearnLogoRed from '../../assets/images/hlclearredsq.png';
@@ -16,9 +15,9 @@ const Logo: React.FC<LogoProps> = (props) => {
     logoVer = hanLearnLogoRed;
   }
   return (
-    <div className={classes.Logo}>
+    <Box sx={{ p: 1, height: '100%', boxSizing: 'border-box', '& img': { height: '100%' } }}>
       <img src={logoVer} alt="HanLearn" />
-    </div>
+    </Box>
   );
 };
 

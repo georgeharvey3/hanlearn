@@ -1,7 +1,15 @@
 import React, { ChangeEvent, useCallback, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Slider from '@mui/material/Slider';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Checkbox from '@mui/material/Checkbox';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
+import FormGroup from '@mui/material/FormGroup';
+import Divider from '@mui/material/Divider';
 
-import classes from './Settings.module.css';
 import { RootState } from '../../types/store';
 
 interface SettingsState {
@@ -94,12 +102,13 @@ const Settings: React.FC<PropsFromRedux> = ({
     }
   }, []);
 
-  const onSliderChange = useCallback((e: ChangeEvent<HTMLInputElement>): void => {
+  const onSliderChange = useCallback((_e: Event, value: number | number[]): void => {
+    const numValue = value as number;
     setState((prev) => ({
       ...prev,
-      numWords: parseInt(e.target.value),
+      numWords: numValue,
     }));
-    localStorage.setItem('numWords', e.target.value);
+    localStorage.setItem('numWords', String(numValue));
   }, []);
 
   const onCheckChange = useCallback((e: ChangeEvent<HTMLInputElement>): void => {
@@ -145,190 +154,95 @@ const Settings: React.FC<PropsFromRedux> = ({
   }, []);
 
   return (
-    <div className={classes.Settings}>
-      <h3>Character Set</h3>
-      <label>
-        Simplified
-        <input
-          type="radio"
-          name="charSet"
-          checked={state.charSet === 'simp'}
-          value="simp"
-          onChange={onRadioChange}
-        />
-      </label>
-      <label>
-        Traditional
-        <input
-          type="radio"
-          name="charSet"
-          checked={state.charSet === 'trad'}
-          value="trad"
-          onChange={onRadioChange}
-        />
-      </label>
-      <hr />
-      <h3>Characters per test:</h3>
-      <div className={classes.SliderBox}>
-        <p>{state.numWords}</p>
-        <input
-          type="range"
-          min="1"
-          max="20"
+    <Box sx={{ width: 300, display: 'inline-block', p: 1.5, color: '#AA381E' }}>
+      <Typography variant="subtitle1" fontWeight="bold">Character Set</Typography>
+      <RadioGroup name="charSet" value={state.charSet} onChange={onRadioChange} row>
+        <FormControlLabel value="simp" control={<Radio size="small" />} label="Simplified" />
+        <FormControlLabel value="trad" control={<Radio size="small" />} label="Traditional" />
+      </RadioGroup>
+      <Divider sx={{ my: 1 }} />
+
+      <Typography variant="subtitle1" fontWeight="bold">Characters per test:</Typography>
+      <Box sx={{ width: '60%', mx: 'auto', textAlign: 'center' }}>
+        <Typography>{state.numWords}</Typography>
+        <Slider
           value={state.numWords}
-          className={classes.Slider}
-          id="slider"
           onChange={onSliderChange}
+          min={1}
+          max={20}
+          size="small"
+          color="primary"
         />
-      </div>
-      <hr />
-      <p>Test Settings</p>
-      <div className={classes.CheckGrid}>
-        <input
-          type="checkbox"
-          value="useSound"
-          checked={state.useSound && synthAvailable}
-          onChange={onCheckChange}
-          disabled={!synthAvailable}
+      </Box>
+      <Divider sx={{ my: 1 }} />
+
+      <Typography variant="body2">Test Settings</Typography>
+      <FormGroup>
+        <FormControlLabel
+          control={<Checkbox size="small" value="useSound" checked={state.useSound && synthAvailable} onChange={onCheckChange} disabled={!synthAvailable} />}
+          label="Sound"
         />
-        <label>Sound</label>
-        <input
-          type="checkbox"
-          value="useChineseSpeechRecognition"
-          checked={state.useChineseSpeechRecognition && speechAvailable}
-          onChange={onCheckChange}
-          disabled={!speechAvailable}
+        <FormControlLabel
+          control={<Checkbox size="small" value="useChineseSpeechRecognition" checked={state.useChineseSpeechRecognition && speechAvailable} onChange={onCheckChange} disabled={!speechAvailable} />}
+          label="Chinese speech recognition"
         />
-        <label>Chinese speech recognition</label>
-        <input
-          type="checkbox"
-          value="useEnglishSpeechRecognition"
-          checked={state.useEnglishSpeechRecognition && speechAvailable}
-          onChange={onCheckChange}
-          disabled={!speechAvailable}
+        <FormControlLabel
+          control={<Checkbox size="small" value="useEnglishSpeechRecognition" checked={state.useEnglishSpeechRecognition && speechAvailable} onChange={onCheckChange} disabled={!speechAvailable} />}
+          label="English speech recognition"
         />
-        <label>English speech recognition</label>
-        <input
-          type="checkbox"
-          value="useAutoRecord"
-          checked={state.useAutoRecord}
-          onChange={onCheckChange}
+        <FormControlLabel
+          control={<Checkbox size="small" value="useAutoRecord" checked={state.useAutoRecord} onChange={onCheckChange} />}
+          label="Automatic recording"
         />
-        <label>Automatic recording</label>
-        <input
-          type="checkbox"
-          value="useFlashcards"
-          checked={state.useFlashcards}
-          onChange={onCheckChange}
+        <FormControlLabel
+          control={<Checkbox size="small" value="useFlashcards" checked={state.useFlashcards} onChange={onCheckChange} />}
+          label="Meaning flashcards"
         />
-        <label>Meaning flashcards</label>
-        <input
-          type="checkbox"
-          value="useHandwriting"
-          checked={state.useHandwriting}
-          onChange={onCheckChange}
+        <FormControlLabel
+          control={<Checkbox size="small" value="useHandwriting" checked={state.useHandwriting} onChange={onCheckChange} />}
+          label="Handwriting input"
         />
-        <label>Handwriting input</label>
-      </div>
-      <hr />
-      <p>Priority</p>
-      <div className={classes.CheckGrid2}>
-        <label htmlFor="none">
-          <input
-            id="none"
-            type="radio"
-            name="priority"
-            value="none"
-            checked={state.priority === 'none'}
-            onChange={onRadioChange}
-          />
-          None
-        </label>
-        <label htmlFor="MP">
-          <input
-            id="MP"
-            type="radio"
-            name="priority"
-            value="MP"
-            checked={state.priority === 'MP'}
-            onChange={onRadioChange}
-          />
-          Listening
-        </label>
-        <label htmlFor="PM">
-          <input
-            id="PM"
-            type="radio"
-            name="priority"
-            value="PM"
-            checked={state.priority === 'PM'}
-            onChange={onRadioChange}
-          />
-          Speaking
-        </label>
-        <label htmlFor="MC">
-          <input
-            id="MC"
-            type="radio"
-            name="priority"
-            value="MC"
-            checked={state.priority === 'MC'}
-            onChange={onRadioChange}
-          />
-          Reading
-        </label>
-        <label htmlFor="MC">
-          <input
-            id="CM"
-            type="radio"
-            name="priority"
-            value="CM"
-            checked={state.priority === 'CM'}
-            onChange={onRadioChange}
-            disabled={!state.useHandwriting}
-          />
-          Writing
-        </label>
-        <label>
-          <input
-            id="only-priority"
-            type="checkbox"
+      </FormGroup>
+      <Divider sx={{ my: 1 }} />
+
+      <Typography variant="body2">Priority</Typography>
+      <RadioGroup name="priority" value={state.priority} onChange={onRadioChange}>
+        <FormControlLabel value="none" control={<Radio size="small" />} label="None" />
+        <FormControlLabel value="MP" control={<Radio size="small" />} label="Listening" />
+        <FormControlLabel value="PM" control={<Radio size="small" />} label="Speaking" />
+        <FormControlLabel value="MC" control={<Radio size="small" />} label="Reading" />
+        <FormControlLabel value="CM" control={<Radio size="small" disabled={!state.useHandwriting} />} label="Writing" />
+      </RadioGroup>
+      <FormControlLabel
+        control={
+          <Checkbox
+            size="small"
             value="onlyPriority"
             checked={state.onlyPriority && state.priority !== 'none'}
             disabled={state.priority === 'none'}
             onChange={onCheckChange}
           />
-          Only Priority
-        </label>
-      </div>
-      <hr />
-      <p>Stages</p>
-      <div className={classes.CheckGrid}>
-        <input
-          type="checkbox"
-          value="newWords"
-          checked={state.newWords}
-          onChange={onCheckChange}
-          disabled={!synthAvailable}
+        }
+        label="Only Priority"
+      />
+      <Divider sx={{ my: 1 }} />
+
+      <Typography variant="body2">Stages</Typography>
+      <FormGroup>
+        <FormControlLabel
+          control={<Checkbox size="small" value="newWords" checked={state.newWords} onChange={onCheckChange} disabled={!synthAvailable} />}
+          label="New Words"
         />
-        <label>New Words</label>
-        <input
-          type="checkbox"
-          value="sentenceRead"
-          checked={state.sentenceRead}
-          onChange={onCheckChange}
-          disabled={!speechAvailable}
+        <FormControlLabel
+          control={<Checkbox size="small" value="sentenceRead" checked={state.sentenceRead} onChange={onCheckChange} disabled={!speechAvailable} />}
+          label="Translate Sentences"
         />
-        <label>Translate Sentences</label>
-        <input
-          type="checkbox"
-          value="sentenceWrite"
-          checked={state.sentenceWrite}
-          onChange={onCheckChange}
+        <FormControlLabel
+          control={<Checkbox size="small" value="sentenceWrite" checked={state.sentenceWrite} onChange={onCheckChange} />}
+          label="Make Sentences"
         />
-        <label>Make Sentences</label>
-      </div>
-    </div>
+      </FormGroup>
+    </Box>
   );
 };
 

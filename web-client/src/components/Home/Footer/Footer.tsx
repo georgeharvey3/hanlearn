@@ -1,18 +1,20 @@
 import React from 'react';
-
-import classes from './Footer.module.css';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Divider from '@mui/material/Divider';
+import Link from '@mui/material/Link';
 
 const Footer: React.FC = () => (
-  <div className={classes.Footer}>
-    <p>
+  <Box sx={{ textAlign: 'center', py: 3, color: '#E6E0AE' }}>
+    <Typography variant="body2">
       HanLearn is a free, open source application. Please send any
       feedback/suggestions to hanlearnapp AT gmail.com
-    </p>
-    <hr />
-    <p>
-      © <a href="https://github.com/georgeharvey3">George Harvey</a> 2020
-    </p>
-  </div>
+    </Typography>
+    <Divider sx={{ my: 1, borderColor: '#E6E0AE' }} />
+    <Typography variant="body2">
+      &copy; <Link href="https://github.com/georgeharvey3" sx={{ color: '#E6E0AE' }}>George Harvey</Link> 2020
+    </Typography>
+  </Box>
 );
 
 export default Footer;

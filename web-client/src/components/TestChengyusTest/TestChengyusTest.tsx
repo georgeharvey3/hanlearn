@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 
-import Aux from '../../hoc/Aux';
+import { Box, Link, Paper, Typography } from '@mui/material';
+
 import Button from '../UI/Buttons/Button/Button';
 
-import classes from './TestChengyusTest.module.css';
 import { RootState } from '../../types/store';
 import { Word } from '../../types/models';
 
@@ -159,45 +159,70 @@ const TestChengyusTest: React.FC<Props> = ({
 
   if (state.charData !== null) {
     charInfo = (
-      <Aux>
-        <p style={{ fontSize: '3em' }}>{state.charData.simp}</p>
-        <p style={{ fontSize: '1.5em' }}>({state.charData.pinyins.join('/')})</p>
-        <p style={{ fontSize: '1.1em' }}>{state.charData.meanings.join(' / ')}</p>
-      </Aux>
+      <>
+        <Typography sx={{ fontSize: '3em', m: 0 }}>{state.charData.simp}</Typography>
+        <Typography sx={{ fontSize: '1.5em', m: 0 }}>({state.charData.pinyins.join('/')})</Typography>
+        <Typography sx={{ fontSize: '1.1em', m: 0 }}>{state.charData.meanings.join(' / ')}</Typography>
+      </>
     );
   }
 
   return (
-    <div className={classes.TestChengyusTest}>
-      <h4>Click on a character to see information</h4>
-      <div className={classes.CharCard}>
-        <div className={classes.CharHolder}>
+    <Box sx={{ width: '90%', maxWidth: 400, textAlign: 'center', mx: 'auto', py: '30px', color: 'secondary.main' }}>
+      <Typography variant="subtitle1" component="h4">Click on a character to see information</Typography>
+      <Paper
+        sx={{
+          width: '70%',
+          bgcolor: 'secondary.main',
+          boxShadow: '0 1px 4px black',
+          color: 'rgb(46, 66, 66)',
+          borderRadius: 1,
+          minHeight: 110,
+          mx: 'auto',
+          mb: '10px',
+          p: '10px 5px',
+          fontSize: '1.6em',
+          '& p': { m: 0 },
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           {chars.map((char, index) => {
             return (
-              <div key={index}>
-                <p className={classes.Char} onClick={() => onCharacterClick(char)}>
+              <Box
+                key={index}
+                sx={{
+                  display: 'inline-block',
+                  p: '2px',
+                  borderRadius: 1,
+                  '&:hover': {
+                    bgcolor: 'rgb(197, 197, 106)',
+                    cursor: 'pointer',
+                  },
+                }}
+              >
+                <p onClick={() => onCharacterClick(char)}>
                   {char}
                 </p>
-              </div>
+              </Box>
             );
           })}
-        </div>
+        </Box>
         {state.showChengyuMeaning ? (
-          <Aux>
+          <>
             <p style={{ fontSize: '0.6em' }}>({words[state.wordIndex].pinyin})</p>
             <p style={{ fontSize: '1.1em' }}>{words[state.wordIndex].meaning}</p>
-          </Aux>
+          </>
         ) : null}
-      </div>
-      <a
+      </Paper>
+      <Link
         target="_blank"
         rel="noopener noreferrer"
-        style={{ color: '#E6E0AE' }}
+        sx={{ color: 'secondary.main' }}
         href={`https://baike.baidu.com/item/${words[state.wordIndex].simp}`}
       >
         Lookup chengyu information
-      </a>
-      <div style={{ minHeight: '250px' }}>{charInfo}</div>
+      </Link>
+      <Box sx={{ minHeight: 250 }}>{charInfo}</Box>
       <Button style={{ width: '230px', margin: '0 auto' }} clicked={onToggleAnswer}>
         {state.showChengyuMeaning ? 'Hide' : 'Show'} Answer
       </Button>
@@ -211,7 +236,7 @@ const TestChengyusTest: React.FC<Props> = ({
       >
         Next
       </Button>
-    </div>
+    </Box>
   );
 };
 

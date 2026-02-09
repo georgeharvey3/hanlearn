@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { RouteComponentProps, withRouter } from 'react-router-dom';
 
-import Aux from '../../hoc/Aux';
+import Box from '@mui/material/Box';
 import MainBanner from '../../components/Home/MainBanner/MainBanner';
 import ExpBanner from '../../components/Home/ExpBanner/ExpBanner';
 import SignUpBanner from '../../components/Home/SignUpBanner/SignUpBanner';
@@ -96,7 +96,7 @@ const Home: React.FC<Props> = ({
   }
 
   return (
-    <Aux>
+    <Box>
       <MainBanner />
       {firstBanner}
       <Chengyu />
@@ -115,7 +115,7 @@ const Home: React.FC<Props> = ({
         memory.
       </ExpBanner>
       <Footer />
-    </Aux>
+    </Box>
   );
 };
 

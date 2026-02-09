@@ -1,11 +1,13 @@
 import React from 'react';
-
-import classes from './NavigationItems.module.css';
+import Stack from '@mui/material/Stack';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
+import { NavLink } from 'react-router-dom';
 
 import NavigationItem from './NavigationItem/NavigationItem';
 import Dropdown from './Dropdown/Dropdown';
-
-import Aux from '../../../hoc/Aux';
 
 interface NavigationItemsProps {
   authenticated?: boolean;
@@ -13,39 +15,63 @@ interface NavigationItemsProps {
 }
 
 const NavigationItems: React.FC<NavigationItemsProps> = (props) => {
-  let navItems: React.ReactNode = (
-    <ul className={classes.NavigationItems}>
-      <NavigationItem link="/">Home</NavigationItem>
-      <NavigationItem link="/auth">Login</NavigationItem>
-      <NavigationItem link="/register">Register</NavigationItem>
-    </ul>
-  );
+  // Side drawer uses MUI List
+  if (props.isSideDrawer) {
+    const links = props.authenticated
+      ? [
+          { to: '/', label: 'Home' },
+          { to: '/add-words', label: 'Add' },
+          { to: '/test-words', label: 'Test' },
+          { to: '/settings', label: 'Settings' },
+          { to: '/logout', label: 'Logout' },
+        ]
+      : [
+          { to: '/', label: 'Home' },
+          { to: '/auth', label: 'Login' },
+          { to: '/register', label: 'Register' },
+        ];
 
-  if (props.authenticated && !props.isSideDrawer) {
-    navItems = (
-      <ul className={classes.NavigationItems}>
+    return (
+      <List>
+        {links.map((link) => (
+          <ListItem key={link.to} disablePadding>
+            <ListItemButton
+              component={NavLink}
+              to={link.to}
+              exact
+              sx={{
+                color: '#E6E0AE',
+                '&.active': { color: '#AA381E' },
+              }}
+            >
+              <ListItemText primary={link.label} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+    );
+  }
+
+  // Desktop nav bar
+  if (props.authenticated) {
+    return (
+      <Stack direction="row" alignItems="center" sx={{ height: '100%' }}>
         <NavigationItem link="/">Home</NavigationItem>
         <NavigationItem link="/add-words">Add</NavigationItem>
         <NavigationItem link="/test-words">Test</NavigationItem>
         <Dropdown />
         <NavigationItem link="/logout">Logout</NavigationItem>
-      </ul>
+      </Stack>
     );
   }
 
-  if (props.authenticated && props.isSideDrawer) {
-    navItems = (
-      <ul className={classes.NavigationItems}>
-        <NavigationItem link="/">Home</NavigationItem>
-        <NavigationItem link="/add-words">Add</NavigationItem>
-        <NavigationItem link="/test-words">Test</NavigationItem>
-        <NavigationItem link="/settings">Settings</NavigationItem>
-        <NavigationItem link="/logout">Logout</NavigationItem>
-      </ul>
-    );
-  }
-
-  return <Aux>{navItems}</Aux>;
+  return (
+    <Stack direction="row" alignItems="center" sx={{ height: '100%' }}>
+      <NavigationItem link="/">Home</NavigationItem>
+      <NavigationItem link="/auth">Login</NavigationItem>
+      <NavigationItem link="/register">Register</NavigationItem>
+    </Stack>
+  );
 };
 
 export default NavigationItems;

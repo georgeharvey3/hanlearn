@@ -1,9 +1,10 @@
 import React, { FocusEvent, KeyboardEvent, useEffect, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 
-import Aux from '../../../../hoc/Aux';
+import { Box, Paper, Typography } from '@mui/material';
 
-import classes from './NewWord.module.css';
+import { searchWord } from '../../../../services/dictionaryService';
+
 import { RootState } from '../../../../types/store';
 import { Word } from '../../../../types/models';
 
@@ -47,6 +48,7 @@ const NewWord: React.FC<Props> = ({
   meaningBlurred,
 }) => {
   const [charData, setCharData] = useState<CharData | null>(null);
+  const [clickedChar, setClickedChar] = useState<string>('');
   const [charSet] = useState<'simp' | 'trad'>(
     (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp'
   );
@@ -71,19 +73,24 @@ const NewWord: React.FC<Props> = ({
     synth.speak(utterThis);
   };
 
-  const onDisplayMeaning = (char: string): void => {
-    fetch(`/api/lookup-chengyu-char/${char}`).then((response) => {
-      if (response.ok) {
-        response.json().then((data: CharData) => {
-          setCharData(data);
-        });
+  const onDisplayMeaning = async (char: string): Promise<void> => {
+    try {
+      const charSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp';
+      const results = await searchWord(char, charSet);
+      if (results.length > 0) {
+        const pinyins = Array.from(new Set(results.map((r) => r.pinyin)));
+        const meanings = Array.from(new Set(results.map((r) => r.meaning)));
+        setCharData({ simp: char, pinyins, meanings });
       } else {
-        setErrorMessage('Error looking up character');
+        setErrorMessage('Character not found');
       }
-    });
+    } catch {
+      setErrorMessage('Error looking up character');
+    }
   };
 
   const onCharacterClick = (char: string): void => {
+    setClickedChar(char);
     onDisplayMeaning(char);
     if (useSound || (isDemo && synthAvailable)) {
       onSpeakPinyin(char);
@@ -103,28 +110,53 @@ const NewWord: React.FC<Props> = ({
 
   if (charData !== null) {
     charInfo = (
-      <Aux>
-        <p style={{ fontSize: '3em' }}>{charData.simp}</p>
-        <p style={{ fontSize: '1.5em' }}>({charData.pinyins.join('/')})</p>
-        <p style={{ fontSize: '1.1em' }}>{charData.meanings.join(' / ')}</p>
-      </Aux>
+      <>
+        <Typography sx={{ fontSize: '3em', m: 0 }}>{clickedChar || charData.simp}</Typography>
+        <Typography sx={{ fontSize: '1.5em', m: 0 }}>({charData.pinyins.join('/')})</Typography>
+        <Typography sx={{ fontSize: '1.1em', m: 0 }}>{charData.meanings.join(' / ')}</Typography>
+      </>
     );
   }
 
   return (
-    <div className={classes.NewWordWrapper}>
-      <div className={classes.CharCard}>
-        <div className={classes.CharHolder}>
+    <Box>
+      <Paper
+        sx={{
+          width: '70%',
+          bgcolor: 'secondary.main',
+          boxShadow: '0 1px 4px black',
+          color: 'rgb(46, 66, 66)',
+          borderRadius: 1,
+          minHeight: 110,
+          mx: 'auto',
+          mb: '10px',
+          p: '10px 5px',
+          fontSize: '1.6em',
+          '& p': { m: 0 },
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           {chars.map((char, index) => {
             return (
-              <div key={index}>
-                <p className={classes.Char} onClick={() => onCharacterClick(char)}>
+              <Box
+                key={index}
+                sx={{
+                  display: 'inline-block',
+                  p: '2px',
+                  borderRadius: 1,
+                  '&:hover': {
+                    bgcolor: 'rgb(197, 197, 106)',
+                    cursor: 'pointer',
+                  },
+                }}
+              >
+                <p onClick={() => onCharacterClick(char)}>
                   {char}
                 </p>
-              </div>
+              </Box>
             );
           })}
-        </div>
+        </Box>
         <p style={{ fontSize: '0.6em' }}>({word.pinyin})</p>
         {isAddedWord ? (
           <p
@@ -141,9 +173,9 @@ const NewWord: React.FC<Props> = ({
         ) : (
           <p style={{ fontSize: '0.7em', marginTop: '5px' }}>{word.meaning}</p>
         )}
-      </div>
-      <div style={{ minHeight: '250px' }}>{charInfo}</div>
-    </div>
+      </Paper>
+      <Box sx={{ minHeight: 250 }}>{charInfo}</Box>
+    </Box>
   );
 };
 

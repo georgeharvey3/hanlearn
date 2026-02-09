@@ -1,6 +1,5 @@
 import React, { ReactNode, CSSProperties } from 'react';
-
-import classes from './Button.module.css';
+import MuiButton from '@mui/material/Button';
 
 interface ButtonProps {
   id?: string;
@@ -12,26 +11,20 @@ interface ButtonProps {
 }
 
 const Button: React.FC<ButtonProps> = (props) => {
-  let attachedClasses = [classes.Button, classes.Yellow];
-
-  if (props.colour === 'red') {
-    attachedClasses = [classes.Button, classes.Red];
-  }
-
-  if (props.disabled) {
-    attachedClasses = [classes.Button, classes.Grey];
-  }
+  const color = props.colour === 'red' ? 'primary' : 'secondary';
 
   return (
-    <button
+    <MuiButton
       id={props.id}
-      className={attachedClasses.join(' ')}
+      variant="contained"
+      color={color}
+      disabled={props.disabled}
       onClick={props.clicked}
       style={props.style}
-      disabled={props.disabled}
+      sx={{ m: '8px 15px' }}
     >
       {props.children}
-    </button>
+    </MuiButton>
   );
 };
 

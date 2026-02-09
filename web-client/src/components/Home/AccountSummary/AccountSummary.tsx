@@ -1,6 +1,6 @@
 import React from 'react';
-
-import classes from './AccountSummary.module.css';
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
 
 import Button from '../../UI/Buttons/Button/Button';
 
@@ -11,10 +11,10 @@ interface AccountSummaryProps {
 }
 
 const AccountSummary: React.FC<AccountSummaryProps> = (props) => (
-  <div className={classes.AccountSummary}>
-    <h3>
+  <Paper sx={{ width: '90%', maxWidth: 700, mx: 'auto', my: 2, p: 3, textAlign: 'center' }}>
+    <Typography variant="h5" sx={{ color: '#AA381E' }}>
       You have {props.numDue}/{props.numTot} words due for testing...
-    </h3>
+    </Typography>
     <Button
       disabled={props.numTot === 0}
       colour="red"
@@ -22,7 +22,7 @@ const AccountSummary: React.FC<AccountSummaryProps> = (props) => (
     >
       Test
     </Button>
-  </div>
+  </Paper>
 );
 
 export default AccountSummary;

@@ -1,3 +1,5 @@
+import { searchWord, convertText } from '../services/dictionaryService';
+
 export interface Chengyu {
   characters: string;
   pinyin: string;
@@ -157,14 +159,16 @@ export const chengyus: Chengyu[] = [
 const BASE_DATE = new Date('2021-05-24');
 
 /**
- * Get the daily chengyu based on days since BASE_DATE
+ * Get the daily chengyu based on days since BASE_DATE.
+ * Returns simplified characters synchronously; call convertDailyChengyu()
+ * to get the display form in the selected character set.
  */
 export function getDailyChengyu(): {
   chengyu: string;
   pinyin: string;
   options: string[];
   correct: string;
-  charPinyins: { char: string; pinyin: string }[];
+  charPinyins: { char: string; pinyin: string; meaning?: string }[];
 } {
   const today = new Date();
   const daysSinceBase = Math.floor(
@@ -186,10 +190,11 @@ export function getDailyChengyu(): {
 
   // Parse pinyin for each character
   const pinyinParts = todaysChengyu.pinyin.split(' ');
-  const chars = [...todaysChengyu.characters].filter((c) => c !== '，' && c !== ',');
+  const chars = Array.from(todaysChengyu.characters).filter((c) => c !== '，' && c !== ',');
   const charPinyins = chars.map((char, i) => ({
     char,
     pinyin: pinyinParts[i] || '',
+    meaning: undefined, // Will be populated asynchronously
   }));
 
   return {
@@ -199,4 +204,59 @@ export function getDailyChengyu(): {
     correct: todaysChengyu.meaning,
     charPinyins,
   };
+}
+
+/**
+ * Convert the daily chengyu display strings to the selected character set.
+ * Returns converted chengyu string and charPinyins with converted chars.
+ */
+export async function convertDailyChengyu(
+  dailyChengyu: {
+    chengyu: string;
+    charPinyins: { char: string; pinyin: string; meaning?: string }[];
+  },
+  charSet: 'simp' | 'trad'
+): Promise<{
+  chengyu: string;
+  charPinyins: { char: string; pinyin: string; meaning?: string }[];
+}> {
+  if (charSet === 'simp') {
+    return dailyChengyu;
+  }
+
+  const convertedChengyu = await convertText(dailyChengyu.chengyu, charSet);
+  const convertedChars = await Promise.all(
+    dailyChengyu.charPinyins.map(async (cp) => ({
+      ...cp,
+      char: await convertText(cp.char, charSet),
+    }))
+  );
+
+  return {
+    chengyu: convertedChengyu,
+    charPinyins: convertedChars,
+  };
+}
+
+/**
+ * Look up meanings for each character in the chengyu
+ */
+export async function lookupCharacterMeanings(
+  chars: string[],
+  charSet: 'simp' | 'trad' = 'simp'
+): Promise<{ char: string; meaning: string }[]> {
+  const results = await Promise.all(
+    chars.map(async (char) => {
+      try {
+        const wordResults = await searchWord(char, charSet);
+        // Get the first meaning if available
+        const meaning = wordResults.length > 0 ? wordResults[0].meaning : '';
+        return { char, meaning };
+      } catch (error) {
+        console.error(`Failed to lookup character ${char}:`, error);
+        return { char, meaning: '' };
+      }
+    })
+  );
+  return results;
 }

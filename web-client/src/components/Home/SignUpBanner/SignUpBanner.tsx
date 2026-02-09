@@ -1,6 +1,7 @@
 import React from 'react';
-
-import classes from './SignUpBanner.module.css';
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import Stack from '@mui/material/Stack';
 
 import Button from '../../UI/Buttons/Button/Button';
 
@@ -10,21 +11,21 @@ interface SignUpBannerProps {
 }
 
 const SignUpBanner: React.FC<SignUpBannerProps> = (props) => (
-  <div className={classes.SignUpBanner}>
-    <h3>Join HanLearn!</h3>
-    <p>
+  <Paper sx={{ width: '90%', maxWidth: 700, mx: 'auto', my: 2, p: 3, textAlign: 'center' }}>
+    <Typography variant="h5" sx={{ color: '#AA381E' }}>Join HanLearn!</Typography>
+    <Typography sx={{ color: '#AA381E', mt: 1 }}>
       Create a free account to edit translations, add your own words and
       practise with spaced repitition.
-    </p>
-    <div style={{ display: 'flex', justifyContent: 'center' }}>
+    </Typography>
+    <Stack direction="row" justifyContent="center" sx={{ mt: 2 }}>
       <Button colour="red" clicked={props.tryOutClicked}>
         Try it out
       </Button>
       <Button colour="red" clicked={props.signUpClicked}>
         Sign Up
       </Button>
-    </div>
-  </div>
+    </Stack>
+  </Paper>
 );
 
 export default SignUpBanner;

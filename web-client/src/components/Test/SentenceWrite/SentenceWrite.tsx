@@ -3,9 +3,10 @@ import { connect, ConnectedProps } from 'react-redux';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 import { Howl } from 'howler';
 
+import { Box, TextField, Typography } from '@mui/material';
+
 import Button from '../../UI/Buttons/Button/Button';
 import PictureButton from '../../UI/Buttons/PictureButton/PictureButton';
-import Aux from '../../../hoc/Aux';
 import Modal from '../../UI/Modal/Modal';
 import Table from '../../UI/Table/Table';
 import TableRow from '../../UI/Table/TableRow/TableRow';
@@ -13,8 +14,6 @@ import TableRow from '../../UI/Table/TableRow/TableRow';
 import micPic from '../../../assets/images/microphone.png';
 import likePic from '../../../assets/images/like.png';
 import dislikePic from '../../../assets/images/dislike.png';
-
-import classes from './SentenceWrite.module.css';
 
 import successSound from '../../../assets/sounds/success1.wav';
 import failSound from '../../../assets/sounds/failure1.wav';
@@ -287,36 +286,44 @@ const SentenceWrite: React.FC<Props> = ({
   const currentWord = getWordToTest();
 
   let content: React.ReactNode = (
-    <Aux>
-      <h2>Write a sentence using:</h2>
-      <h1>{currentWord ? getChineseSentence(currentWord) : ''}</h1>
-      <input
+    <>
+      <Typography variant="h5" component="h2">Write a sentence using:</Typography>
+      <Typography variant="h4" component="h1">{currentWord ? getChineseSentence(currentWord) : ''}</Typography>
+      <TextField
         id="answerInput"
-        className={classes.SentenceInput}
         autoComplete="off"
         onChange={onInputChanged}
         onKeyPress={onInputKeyPress}
         value={state.entered}
+        variant="outlined"
+        size="small"
+        sx={{
+          width: '80%',
+          maxWidth: 300,
+          m: '5px auto 0',
+          '& .MuiOutlinedInput-root': {
+            borderRadius: '25px',
+            bgcolor: 'white',
+            boxShadow: '0 1px 4px black',
+            '& input': {
+              textAlign: 'center',
+              fontSize: '16px',
+            },
+            '& fieldset': {
+              border: 'none',
+            },
+          },
+        }}
       />
       <br />
       {state.useChineseSpeechRecognition ? (
-        <Aux>
-          <p>{state.message}</p>
+        <>
+          <Typography>{state.message}</Typography>
           <PictureButton colour="yellow" src={micPic} clicked={onListenPinyin} />
-        </Aux>
+        </>
       ) : null}
-      <p>{state.errorMessage}</p>
-      <h4>Translation</h4>
-      <input
-        className={classes.SentenceInput}
-        autoComplete="off"
-        onChange={onEnglishInputChanged}
-        onKeyPress={onEnglishInputKeyPress}
-        value={state.enteredEnglish}
-      />
-      {state.englishTranslationLoading ? <p>Translating...</p> : null}
-      {state.translatedEnglish !== '' ? <p>{state.translatedEnglish}</p> : null}
-    </Aux>
+      <Typography>{state.errorMessage}</Typography>
+    </>
   );
 
   let buttons: React.ReactNode = null;
@@ -330,10 +337,10 @@ const SentenceWrite: React.FC<Props> = ({
     };
 
     content = (
-      <Aux>
-        <h2>{state.message}</h2>
-        <p>{state.sentence}</p>
-      </Aux>
+      <>
+        <Typography variant="h5" component="h2">{state.message}</Typography>
+        <Typography>{state.sentence}</Typography>
+      </>
     );
 
     buttons = (
@@ -357,7 +364,7 @@ const SentenceWrite: React.FC<Props> = ({
 
     return (
       <Modal show>
-        <h2>Finished!</h2>
+        <Typography variant="h5" component="h2">Finished!</Typography>
         <Table headings={headings}>{rows}</Table>
         <Button clicked={onHomeClicked}>Home</Button>
       </Modal>
@@ -365,10 +372,22 @@ const SentenceWrite: React.FC<Props> = ({
   }
 
   return (
-    <div className={classes.SentenceWrite}>
+    <Box
+      sx={{
+        width: '90%',
+        maxWidth: 400,
+        textAlign: 'center',
+        mx: 'auto',
+        py: '30px',
+        color: 'secondary.main',
+        '& p': { fontSize: '1.1em' },
+        '& h2': { fontWeight: 300, fontSize: '1.5em' },
+        '& h3': { fontWeight: 300, fontSize: '1.5em', m: '5px auto' },
+      }}
+    >
       {content}
       {buttons}
-    </div>
+    </Box>
   );
 };
 

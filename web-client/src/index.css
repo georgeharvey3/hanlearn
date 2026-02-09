@@ -1,7 +1,4 @@
-body, html {
-  margin: 0;
-  padding: 0;
-  font-family: 'Cabin', sans-serif;
+body {
   background-image: url("/background-double.jpg");
   background-size: repeat;
 }

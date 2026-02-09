@@ -17,6 +17,7 @@ import { Word } from '../types/models';
 import {
   searchWord as searchDictionary,
   lookupCharacter,
+  lookupCharacterByTrad,
 } from './dictionaryService';
 
 // Spaced repetition intervals in days for each bank level
@@ -201,32 +202,44 @@ export const searchWord = async (
 
 /**
  * Add a custom word that isn't in the dictionary.
- * Constructs pinyin and traditional characters from constituent character lookups
- * using the static dictionary.
+ * Constructs pinyin and the counterpart character set from constituent character lookups
+ * using the static dictionary. Supports both simplified and traditional input.
  */
 export const addCustomWord = async (
   userId: string,
-  simp: string,
-  meaning: string
+  text: string,
+  meaning: string,
+  charSet: 'simp' | 'trad' = 'simp'
 ): Promise<Word> => {
-  // Look up constituent characters to construct pinyin and traditional
   let pinyin = '';
+  let simp = '';
   let trad = '';
 
-  for (let i = 0; i < simp.length; i++) {
-    const char = simp[i];
-    const charData = await lookupCharacter(char);
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
 
-    if (charData) {
-      // Handle pinyin - join with space between syllables
-      let charPinyin = charData.pinyin || '';
-      if (pinyin && charPinyin) {
-        pinyin += ' ';
+    if (charSet === 'simp') {
+      const charData = await lookupCharacter(char);
+      if (charData) {
+        if (pinyin && charData.pinyin) pinyin += ' ';
+        pinyin += charData.pinyin || '';
+        simp += char;
+        trad += charData.trad || char;
+      } else {
+        simp += char;
+        trad += char;
       }
-      pinyin += charPinyin;
-      trad += charData.trad || char;
     } else {
-      trad += char;
+      const charData = await lookupCharacterByTrad(char);
+      if (charData) {
+        if (pinyin && charData.pinyin) pinyin += ' ';
+        pinyin += charData.pinyin || '';
+        simp += charData.simp || char;
+        trad += char;
+      } else {
+        simp += char;
+        trad += char;
+      }
     }
   }
 

@@ -1,17 +1,19 @@
 import React from 'react';
-
-import classes from './DrawerToggle.module.css';
+import IconButton from '@mui/material/IconButton';
+import MenuIcon from '@mui/icons-material/Menu';
 
 interface DrawerToggleProps {
   clicked?: () => void;
 }
 
 const DrawerToggle: React.FC<DrawerToggleProps> = (props) => (
-  <div onClick={props.clicked} className={classes.DrawerToggle}>
-    <div />
-    <div />
-    <div />
-  </div>
+  <IconButton
+    onClick={props.clicked}
+    sx={{ display: { sm: 'none' }, color: '#AA381E' }}
+    edge="start"
+  >
+    <MenuIcon />
+  </IconButton>
 );
 
 export default DrawerToggle;

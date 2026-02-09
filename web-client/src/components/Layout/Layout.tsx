@@ -1,8 +1,6 @@
 import React, { ReactNode, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
-import Aux from '../../hoc/Aux';
-
-import classes from './Layout.module.css';
+import Box from '@mui/material/Box';
 
 import Toolbar from '../Navigation/Toolbar/Toolbar';
 import SideDrawer from '../Navigation/SideDrawer/SideDrawer';
@@ -41,15 +39,17 @@ const Layout: React.FC<Props> = ({ isAuthenticated, children }) => {
   };
 
   return (
-    <Aux>
+    <>
       <Toolbar drawerToggleClicked={sideDrawerToggleHandler} isAuth={isAuthenticated} />
       <SideDrawer
         open={state.showSideDrawer}
         closed={sideDrawerClosedHandler}
         isAuth={isAuthenticated}
       />
-      <main className={classes.Content}>{children}</main>
-    </Aux>
+      <Box component="main" sx={{ mt: '56px', height: '100%' }}>
+        {children}
+      </Box>
+    </>
   );
 };
 

@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
-
+import MuiTableRow from '@mui/material/TableRow';
+import TableCell from '@mui/material/TableCell';
 import Remove from './Remove/Remove';
 
 interface TableRowProps {
@@ -9,17 +10,21 @@ interface TableRowProps {
 }
 
 const TableRow: React.FC<TableRowProps> = (props) => {
-  const cells = props.children?.map((cell, index) => <td key={index}>{cell}</td>);
+  const cells = props.children?.map((cell, index) => (
+    <TableCell key={index} sx={{ color: 'inherit' }}>
+      {cell}
+    </TableCell>
+  ));
   const remove = props.removable ? (
-    <td>
+    <TableCell>
       <Remove clicked={props.removed} />
-    </td>
+    </TableCell>
   ) : null;
   return (
-    <tr>
+    <MuiTableRow>
       {cells}
       {remove}
-    </tr>
+    </MuiTableRow>
   );
 };
 

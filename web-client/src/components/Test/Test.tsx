@@ -3,10 +3,9 @@ import { withRouter, RouteComponentProps } from 'react-router-dom';
 import { connect, ConnectedProps } from 'react-redux';
 import { Howl } from 'howler';
 
-import classes from './Test.module.css';
+import { Box, Paper, Typography } from '@mui/material';
 
 import * as testLogic from './Logic/TestLogic';
-import Aux from '../../hoc/Aux';
 import Modal from '../UI/Modal/Modal';
 import Backdrop from '../UI/Backdrop/Backdrop';
 import ProgressBar from './ProgressBar/ProgressBar';
@@ -1214,7 +1213,7 @@ const Test: React.FC<Props> = (props) => {
 
   if (state.questionCategory === 'pinyin' && state.useSound && !state.showPinyin) {
     questionFormat = (
-      <Aux>
+      <>
         <div style={{ display: 'flex', alignItems: 'center', overflow: 'hidden', height: '100px' }}>
           {state.synthLoading ? (
             <Spinner style={{ overflow: 'hidden', margin: '0 auto' }} />
@@ -1227,10 +1226,20 @@ const Test: React.FC<Props> = (props) => {
           )}
         </div>
         {state.showQuestionPinyin ? <p style={{ color: 'black' }}>{state.question}</p> : null}
-        <button onClick={onToggleShowPinyin} className={classes.PinyinToggle}>
+        <Box
+          component="button"
+          onClick={onToggleShowPinyin}
+          sx={{
+            bgcolor: 'transparent',
+            textDecoration: 'underline',
+            border: 'none',
+            fontFamily: 'inherit',
+            cursor: 'pointer',
+          }}
+        >
           {state.showQuestionPinyin ? 'Hide Pinyin' : 'Show Pinyin'}
-        </button>
-      </Aux>
+        </Box>
+      </>
     );
   }
 
@@ -1241,7 +1250,7 @@ const Test: React.FC<Props> = (props) => {
 
   if (state.testSet.length !== 0 || props.isDemo) {
     return (
-      <Aux>
+      <>
         <Backdrop show={state.testFinished} />
         <Modal
           show={state.testFinished}
@@ -1252,15 +1261,60 @@ const Test: React.FC<Props> = (props) => {
             scores={state.scoreList}
           />
         </Modal>
-        <div className={classes.Test}>
+        <Box
+          sx={{
+            width: '90%',
+            maxWidth: 400,
+            textAlign: 'center',
+            mx: 'auto',
+            py: '30px',
+            color: 'secondary.main',
+            '& h3 span': {
+              bgcolor: 'secondary.main',
+              color: 'primary.main',
+              boxShadow: '0 1px 4px black',
+              borderRadius: 1,
+              p: '2px',
+            },
+          }}
+        >
           <ProgressBar progress={progressNum} />
           <h3 id="q-phrase-box">
             {verb}
             <span>{state.answerCategory}</span> for...
           </h3>
-          <div className={classes.QuestionCard}>{questionFormat}</div>
-          <p className={classes.Result}>{state.result}</p>
-          <div className={classes.InputDiv}>{inputFormat}</div>
+          <Paper
+            sx={{
+              width: '90%',
+              bgcolor: 'secondary.main',
+              boxShadow: '0 1px 4px black',
+              color: 'primary.main',
+              borderRadius: 1,
+              minHeight: 100,
+              height: 160,
+              boxSizing: 'border-box',
+              mx: 'auto',
+              p: '20px 5px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              '& h2': { overflowWrap: 'normal' },
+            }}
+          >
+            {questionFormat}
+          </Paper>
+          <Typography sx={{ minHeight: 30 }}>{state.result}</Typography>
+          <Box
+            sx={{
+              height: 200,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-end',
+              '@media (max-height: 825px)': { height: 'auto' },
+            }}
+          >
+            {inputFormat}
+          </Box>
           <div style={{ paddingTop: '30px', display: 'flex', justifyContent: 'center' }}>
             <Button disabled={state.idkDisabled || state.showAnswer} clicked={onIDontKnow} id="idk">
               I Don't Know
@@ -1289,8 +1343,8 @@ const Test: React.FC<Props> = (props) => {
               </Button>
             ) : null}
           </div>
-        </div>
-      </Aux>
+        </Box>
+      </>
     );
   }
 

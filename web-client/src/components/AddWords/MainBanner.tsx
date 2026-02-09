@@ -1,6 +1,6 @@
 import React, { ChangeEvent, useCallback, useEffect, useState } from 'react';
-
-import classes from './MainBanner.module.css';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
 
 import Input from '../UI/Input/Input';
 import Button from '../UI/Buttons/Button/Button';
@@ -62,16 +62,16 @@ const MainBanner: React.FC<MainBannerProps> = ({
   };
 
   return (
-    <div className={classes.MainBanner}>
-      <h2>{text}</h2>
+    <Box sx={{ p: '30px', color: '#E6E0AE' }}>
+      <Typography variant="h5" sx={{ height: '30px' }}>{text}</Typography>
       <form onSubmit={handleSubmit}>
-        <div
-          style={{
+        <Box
+          sx={{
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
             width: '400px',
-            margin: '0 auto',
+            mx: 'auto',
             height: '60px',
           }}
         >
@@ -82,9 +82,9 @@ const MainBanner: React.FC<MainBannerProps> = ({
             focussed={onFocusInput}
             blurred={onBlurInput}
           />
-          <div style={{ display: 'inline-block' }}>
-            <div
-              style={{
+          <Box sx={{ display: 'inline-block' }}>
+            <Box
+              sx={{
                 overflow: 'hidden',
                 display: 'flex',
                 justifyContent: 'center',
@@ -94,11 +94,11 @@ const MainBanner: React.FC<MainBannerProps> = ({
               }}
             >
               {button}
-            </div>
-          </div>
-        </div>
+            </Box>
+          </Box>
+        </Box>
       </form>
-    </div>
+    </Box>
   );
 };
 

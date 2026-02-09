@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect } from 'react';
 import { Route, Switch, withRouter, RouteComponentProps } from 'react-router-dom';
-import './App.css';
+import Box from '@mui/material/Box';
 import { connect, ConnectedProps } from 'react-redux';
 
 import Layout from './components/Layout/Layout';
@@ -114,7 +114,7 @@ const App: React.FC<Props> = ({
   }, [loadVoices, onSetSpeechAvailable, onSetSynthAvailable, onTryAutoLogin]);
 
   return (
-    <div className="App">
+    <Box sx={{ textAlign: 'center', height: '100%' }}>
       <Layout>
         <Switch>
           <Route path="/" exact component={Home} />
@@ -127,7 +127,7 @@ const App: React.FC<Props> = ({
           <Route path="/tryout" render={() => <TestWords isDemo />} />
         </Switch>
       </Layout>
-    </div>
+    </Box>
   );
 };
 

@@ -1,13 +1,16 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { createStore, applyMiddleware, compose, combineReducers, Store } from 'redux';
 import thunk from 'redux-thunk';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
 
 import wordsReducer from './store/reducers/addWords';
 import authReducer from './store/reducers/auth';
 import settingsReducer from './store/reducers/settings';
+import theme from './theme';
 
 import './index.css';
 import App from './App';
@@ -30,15 +33,19 @@ const rootReducer = combineReducers({
 
 const store: Store<RootState> = createStore(rootReducer, composeEnhancers(applyMiddleware(thunk)));
 
-const app = (
-  <Provider store={store}>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </Provider>
+const root = createRoot(document.getElementById('root')!);
+root.render(
+  <React.StrictMode>
+    <Provider store={store}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </ThemeProvider>
+    </Provider>
+  </React.StrictMode>
 );
-
-ReactDOM.render(<React.StrictMode>{app}</React.StrictMode>, document.getElementById('root'));
 
 // If you want your app to work offline and load faster, you can change
 // unregister() to register() below. Note this comes with some pitfalls.

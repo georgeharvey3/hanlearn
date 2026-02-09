@@ -4,9 +4,10 @@ import { withRouter, RouteComponentProps } from 'react-router-dom';
 import { Howl } from 'howler';
 import { httpsCallable } from 'firebase/functions';
 
+import { Box, Paper, Typography } from '@mui/material';
+
 import Button from '../../UI/Buttons/Button/Button';
 import Input from '../../UI/Input/Input';
-import Aux from '../../../hoc/Aux';
 import PictureButton from '../../UI/Buttons/PictureButton/PictureButton';
 import Spinner from '../../UI/Spinner/Spinner';
 
@@ -14,8 +15,6 @@ import likePic from '../../../assets/images/like.png';
 import dislikePic from '../../../assets/images/dislike.png';
 import speakerPic from '../../../assets/images/speaker.png';
 import micPic from '../../../assets/images/microphone.png';
-
-import classes from './SentenceRead.module.css';
 
 import successSound from '../../../assets/sounds/success1.wav';
 import failSound from '../../../assets/sounds/failure1.wav';
@@ -25,19 +24,35 @@ import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
 import { AppDispatch } from '../../../types/actions';
 import { functions } from '../../../firebase/config';
+import { searchWord } from '../../../services/dictionaryService';
 
 const beep = new Howl({ src: [successSound], volume: 0.5 });
 const fail = new Howl({ src: [failSound], volume: 0.7 });
 
 interface SentenceWord {
-  id?: number;
+  id: number;
   simp: string;
   trad: string;
   pinyin: string;
   meaning: string;
 }
 
-interface Sentence {
+// What the cloud function returns (segmented strings, no lookups)
+interface CloudSentence {
+  chinese: {
+    sentence: string;
+    highlight: number[][];
+    segments: string[];
+    targetIndex: number;
+  };
+  english: {
+    sentence: string;
+    highlight: number[][];
+  };
+}
+
+// Resolved sentence with full word data (used for rendering)
+interface ResolvedSentence {
   chinese: {
     sentence: string;
     words: (string | SentenceWord)[];
@@ -49,20 +64,75 @@ interface Sentence {
   };
 }
 
-// Cloud Function for fetching sentences
-const getSentencesFromCloud = httpsCallable<
-  { word: string },
-  { sentences: Sentence[] }
+// Cloud Function for fetching a single sentence at an offset
+const getSentenceFromCloud = httpsCallable<
+  { word: string; offset: number },
+  { sentence: CloudSentence | null; totalCount: number }
 >(functions, 'getSentences');
 
+/**
+ * Resolve segmented word strings to full word objects using the static dictionary.
+ */
+async function resolveSentence(
+  cloudSentence: CloudSentence
+): Promise<ResolvedSentence> {
+  // Collect unique non-target segments
+  const uniqueSegments = new Set<string>();
+  cloudSentence.chinese.segments.forEach((seg, i) => {
+    if (i !== cloudSentence.chinese.targetIndex) {
+      uniqueSegments.add(seg);
+    }
+  });
+
+  // Resolve all unique segments in parallel via static dictionary
+  const segmentArray = Array.from(uniqueSegments);
+  const lookupResults = await Promise.all(
+    segmentArray.map(async (seg) => {
+      const results = await searchWord(seg, 'simp');
+      return { seg, word: results.length > 0 ? results[0] : null };
+    })
+  );
+
+  const wordMap = new Map<string, SentenceWord>();
+  for (const { seg, word } of lookupResults) {
+    if (word) {
+      wordMap.set(seg, {
+        id: word.id,
+        simp: word.simp,
+        trad: word.trad,
+        pinyin: word.pinyin,
+        meaning: word.meaning,
+      });
+    }
+  }
+
+  const words: (SentenceWord | string)[] = cloudSentence.chinese.segments.map((seg, i) => {
+    if (i === cloudSentence.chinese.targetIndex) {
+      return seg; // Target word stays as string marker
+    }
+    return wordMap.get(seg) || seg; // Resolved word or plain string fallback
+  });
+
+  return {
+    chinese: {
+      sentence: cloudSentence.chinese.sentence,
+      highlight: cloudSentence.chinese.highlight,
+      words,
+    },
+    english: cloudSentence.english,
+  };
+}
+
 interface SentenceReadState {
-  sentences: Sentence[];
+  sentences: ResolvedSentence[];
+  totalCount: number;
   charSet: 'simp' | 'trad';
   sentenceIndex: number;
   wordIndex: number;
   submitted: boolean;
   entered: string;
   loading: boolean;
+  sentenceLoading: boolean;
   useSound: boolean;
   useEnglishSpeechRecognition: boolean;
   showText: boolean;
@@ -93,6 +163,44 @@ interface OwnProps {
 
 type Props = PropsFromRedux & OwnProps & RouteComponentProps;
 
+// Popup styles
+const popupBaseSx = {
+  position: 'relative',
+  borderRadius: 1,
+  display: 'inline-block',
+  cursor: 'pointer',
+  userSelect: 'none',
+  height: 36,
+  boxSizing: 'border-box',
+  border: 'none',
+  fontFamily: 'inherit',
+  fontSize: '1.1em',
+  width: 'auto',
+  '&:hover': {
+    bgcolor: '#c75940',
+    color: '#e6e0ae',
+    cursor: 'pointer',
+  },
+} as const;
+
+const popupTextStyle: React.CSSProperties = {
+  visibility: 'hidden',
+  backgroundColor: 'rgb(238, 238, 238)',
+  width: 200,
+  color: 'rgb(49, 49, 49)',
+  fontSize: '0.7em',
+  textAlign: 'center',
+  borderRadius: 6,
+  boxSizing: 'border-box',
+  padding: 5,
+  position: 'absolute',
+  zIndex: 1,
+  top: '125%',
+  left: '50%',
+  marginLeft: -100,
+  boxShadow: '0 3px 6px rgb(73, 34, 34)',
+};
+
 const SentenceRead: React.FC<Props> = ({
   synthAvailable,
   voice,
@@ -106,12 +214,14 @@ const SentenceRead: React.FC<Props> = ({
 }) => {
   const [state, setState] = useState<SentenceReadState>({
     sentences: [],
+    totalCount: 0,
     charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
     sentenceIndex: 0,
     wordIndex: 0,
     submitted: false,
     entered: '',
     loading: false,
+    sentenceLoading: false,
     useSound: true,
     useEnglishSpeechRecognition: false,
     showText: false,
@@ -189,60 +299,82 @@ const SentenceRead: React.FC<Props> = ({
     }
   }, [history, sentenceWriteEnabled, startSentenceWrite]);
 
-  const getSentences = useCallback(async (): Promise<void> => {
-    updateState({ loading: true });
-    const currentWord = words[stateRef.current.wordIndex][stateRef.current.charSet];
+  const fetchSentence = useCallback(async (offset: number, isNewWord: boolean): Promise<void> => {
+    if (isNewWord) {
+      updateState({ loading: true });
+    } else {
+      updateState({ sentenceLoading: true });
+    }
+
+    const currentWord = words[stateRef.current.wordIndex].simp;
 
     try {
-      const result = await getSentencesFromCloud({ word: currentWord });
-      const data = result.data;
+      const result = await getSentenceFromCloud({ word: currentWord, offset });
+      const { sentence: cloudSentence, totalCount } = result.data;
 
-      // Filter to sentences with reasonable length (not too long to display)
-      const shortSentences = data.sentences.filter(
-        (sentence) => sentence.chinese.sentence.length <= 30
-      );
+      if (!cloudSentence) {
+        if (isNewWord) {
+          // No sentences found for this word, try next word
+          console.warn(`No sentences found for word: ${currentWord}`);
+          if (stateRef.current.wordIndex >= words.length - 1) {
+            onEndStage();
+          } else {
+            setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
+          }
+        }
+        return;
+      }
 
-      if (shortSentences.length) {
-        updateState({ sentences: shortSentences, loading: false });
-        if (stateRef.current.useSound) {
-          onSpeakPinyin(shortSentences[stateRef.current.sentenceIndex].chinese.sentence);
-        }
-      } else if (data.sentences.length) {
-        // If no short sentences, use the shortest available
-        const sorted = [...data.sentences].sort(
-          (a, b) => a.chinese.sentence.length - b.chinese.sentence.length
-        );
-        updateState({ sentences: sorted.slice(0, 5), loading: false });
-        if (stateRef.current.useSound) {
-          onSpeakPinyin(sorted[0].chinese.sentence);
-        }
-      } else {
-        // No sentences found for this word, try next word
-        console.warn(`No sentences found for word: ${currentWord}`);
+      const resolved = await resolveSentence(cloudSentence);
+
+      setState((prevState) => {
+        const newSentences = isNewWord ? [resolved] : [...prevState.sentences, resolved];
+        return {
+          ...prevState,
+          sentences: newSentences,
+          totalCount,
+          sentenceIndex: offset,
+          loading: false,
+          sentenceLoading: false,
+          showText: false,
+        };
+      });
+
+      if (stateRef.current.useSound) {
+        onSpeakPinyin(resolved.chinese.sentence);
+      }
+    } catch (error) {
+      console.error('Error fetching sentence:', error);
+      if (isNewWord) {
+        // On error, try next word instead of getting stuck
         if (stateRef.current.wordIndex >= words.length - 1) {
           onEndStage();
         } else {
           setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
         }
-      }
-    } catch (error) {
-      console.error('Error fetching sentences:', error);
-      // On error, try next word instead of getting stuck
-      if (stateRef.current.wordIndex >= words.length - 1) {
-        onEndStage();
       } else {
-        setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
+        updateState({ sentenceLoading: false });
       }
     }
   }, [onEndStage, onSpeakPinyin, updateState, words]);
 
-  const onChangeSentence = (direction: number): void => {
-    setState((prevState) => ({
-      ...prevState,
-      sentenceIndex: prevState.sentenceIndex + direction,
-      showText: false,
-    }));
-  };
+  const onChangeSentence = useCallback((direction: number): void => {
+    const newIndex = stateRef.current.sentenceIndex + direction;
+
+    if (newIndex < 0 || newIndex >= stateRef.current.totalCount) return;
+
+    // If we already have this sentence cached, just navigate
+    if (stateRef.current.sentences[newIndex]) {
+      setState((prevState) => ({
+        ...prevState,
+        sentenceIndex: newIndex,
+        showText: false,
+      }));
+    } else {
+      // Fetch the next sentence from the cloud
+      fetchSentence(newIndex, false);
+    }
+  }, [fetchSentence]);
 
   const onYesClicked = (): void => {
     if (stateRef.current.useSound) beep.play();
@@ -254,6 +386,8 @@ const SentenceRead: React.FC<Props> = ({
         ...prevState,
         wordIndex: prevState.wordIndex + 1,
         sentenceIndex: 0,
+        sentences: [],
+        totalCount: 0,
         submitted: false,
         entered: '',
         showText: false,
@@ -298,12 +432,12 @@ const SentenceRead: React.FC<Props> = ({
       if (
         event.key === 'ArrowRight' &&
         !stateRef.current.submitted &&
-        stateRef.current.sentenceIndex < stateRef.current.sentences.length - 1
+        stateRef.current.sentenceIndex < stateRef.current.totalCount - 1
       ) {
         onChangeSentence(1);
       }
     },
-    [onNoClicked, onYesClicked]
+    [onChangeSentence, onNoClicked, onYesClicked]
   );
 
   const onToggleText = (): void => {
@@ -311,17 +445,19 @@ const SentenceRead: React.FC<Props> = ({
   };
 
   const onShowPopup = (id: string, word: string): void => {
-    const vocabs = document.getElementsByClassName(classes.popuptext);
+    const vocabs = document.querySelectorAll('[data-popup-text]');
     const popup = document.getElementById(id);
 
-    if (popup && !popup.classList.contains(classes.show)) {
-      for (let i = 0; i < vocabs.length; i++) {
-        vocabs[i].classList.remove(classes.show);
-      }
+    if (popup && popup.style.visibility !== 'visible') {
+      vocabs.forEach((el) => {
+        (el as HTMLElement).style.visibility = 'hidden';
+      });
       if (stateRef.current.useSound) onSpeakPinyin(word);
     }
 
-    popup?.classList.toggle(classes.show);
+    if (popup) {
+      popup.style.visibility = popup.style.visibility === 'visible' ? 'hidden' : 'visible';
+    }
     updateState({ openPopup: id });
   };
 
@@ -329,14 +465,14 @@ const SentenceRead: React.FC<Props> = ({
     const target = event.target as HTMLElement;
     if (
       stateRef.current.openPopup !== '' &&
-      !target.classList.contains(classes.popup) &&
+      !target.hasAttribute('data-popup') &&
       !(
-        target.parentElement?.classList.contains(classes.popuptext) ||
-        target.classList.contains(classes.popuptext)
+        target.parentElement?.hasAttribute('data-popup-text') ||
+        target.hasAttribute('data-popup-text')
       )
     ) {
-      Array.from(document.getElementsByClassName(classes.show)).forEach((element) => {
-        element.classList.remove(classes.show);
+      document.querySelectorAll('[data-popup-text]').forEach((el) => {
+        (el as HTMLElement).style.visibility = 'hidden';
       });
     }
   };
@@ -344,7 +480,7 @@ const SentenceRead: React.FC<Props> = ({
   useEffect(() => {
     if (!hasInitialized.current) {
       hasInitialized.current = true;
-      getSentences();
+      fetchSentence(0, true);
       initialiseSettings();
     }
     document.addEventListener('keyup', onKeyUp);
@@ -353,63 +489,90 @@ const SentenceRead: React.FC<Props> = ({
       document.removeEventListener('keyup', onKeyUp);
       document.removeEventListener('click', closePopup);
     };
-  }, [getSentences, initialiseSettings, onKeyUp]);
+  }, [fetchSentence, initialiseSettings, onKeyUp]);
 
-  const prevIndices = useRef({ wordIndex: state.wordIndex, sentenceIndex: state.sentenceIndex });
+  const prevWordIndex = useRef(state.wordIndex);
   useEffect(() => {
-    if (prevIndices.current.wordIndex !== state.wordIndex) {
-      getSentences();
-    } else if (prevIndices.current.sentenceIndex !== state.sentenceIndex) {
+    if (prevWordIndex.current !== state.wordIndex) {
+      fetchSentence(0, true);
+    }
+    prevWordIndex.current = state.wordIndex;
+  }, [fetchSentence, state.wordIndex]);
+
+  // Speak sentence when navigating to a cached sentence
+  const prevSentenceIndex = useRef(state.sentenceIndex);
+  useEffect(() => {
+    if (prevSentenceIndex.current !== state.sentenceIndex) {
       if (state.useSound && state.sentences[state.sentenceIndex]) {
         onSpeakPinyin(state.sentences[state.sentenceIndex].chinese.sentence);
       }
     }
-    prevIndices.current = { wordIndex: state.wordIndex, sentenceIndex: state.sentenceIndex };
-  }, [getSentences, onSpeakPinyin, state.sentenceIndex, state.sentences, state.useSound, state.wordIndex]);
+    prevSentenceIndex.current = state.sentenceIndex;
+  }, [onSpeakPinyin, state.sentenceIndex, state.sentences, state.useSound]);
 
   let sentenceWords: React.ReactNode = <Spinner />;
 
-  if (state.sentences.length > 0 && !state.loading) {
+  if (state.sentences[state.sentenceIndex] && !state.loading) {
     const currentSentence = state.sentences[state.sentenceIndex];
     const sentenceText = currentSentence.chinese.sentence;
     const wordStart = currentSentence.chinese.highlight[0]?.[0] || 0;
     const wordEnd = currentSentence.chinese.highlight[0]?.[1] || 0;
+    // chosenWord is in simplified (matches the sentence text from cloud function)
     const chosenWord = sentenceText.slice(wordStart, wordEnd);
+    // The display form of the target word in the selected character set
+    const currentTargetWord = words[state.wordIndex]?.[state.charSet] || chosenWord;
 
     sentenceWords = currentSentence.chinese.words.map((word, index) => {
       if (typeof word === 'string') {
+        // String entries are the target word marker (in simplified from cloud function)
         if (word === chosenWord) {
           return (
-            <span key={index} className={classes.ChosenWord}>
-              {word}
-            </span>
+            <Box
+              component="span"
+              key={index}
+              sx={{ color: 'primary.main', fontSize: '1.1em' }}
+            >
+              {currentTargetWord}
+            </Box>
           );
         }
         return word;
       } else {
-        if (word[state.charSet] === chosenWord) {
+        // Compare using simplified (matches the sentence text), display in selected charSet
+        if (word.simp === chosenWord) {
           return (
-            <span key={index} className={classes.ChosenWord}>
+            <Box
+              component="span"
+              key={index}
+              sx={{ color: 'primary.main', fontSize: '1.1em' }}
+            >
               {word[state.charSet]}
-            </span>
+            </Box>
           );
         }
         return (
-          <span
-            className={classes.popup}
-            onClick={(event) => {
-              if ((event.target as HTMLElement).classList.contains(classes.popup)) {
+          <Box
+            component="span"
+            data-popup
+            onClick={(event: React.MouseEvent) => {
+              if ((event.target as HTMLElement).hasAttribute('data-popup')) {
                 onShowPopup(word.id + 'popup', word[state.charSet]);
               }
             }}
             key={index}
+            sx={popupBaseSx}
           >
             {word[state.charSet]}
-            <span className={classes.popuptext} id={word.id + 'popup'}>
-              <h5>Pinyin:</h5>
-              <p>{word.pinyin}</p>
-              <h5>Meaning:</h5>
-              <p>{word.meaning.split('/').join(' / ')}</p>
+            <Box
+              component="span"
+              data-popup-text
+              id={word.id + 'popup'}
+              style={popupTextStyle}
+            >
+              <Typography variant="subtitle2" sx={{ m: 0, fontWeight: 'bold' }}>Pinyin:</Typography>
+              <Typography variant="body2">{word.pinyin}</Typography>
+              <Typography variant="subtitle2" sx={{ m: 0, fontWeight: 'bold' }}>Meaning:</Typography>
+              <Typography variant="body2">{word.meaning.split('/').join(' / ')}</Typography>
               {addedWords.filter((addedWord) => addedWord.id === word.id).length > 0 ? (
                 <Button disabled>Added!</Button>
               ) : (
@@ -417,8 +580,8 @@ const SentenceRead: React.FC<Props> = ({
                   Add to bank
                 </Button>
               )}
-            </span>
-          </span>
+            </Box>
+          </Box>
         );
       }
     });
@@ -439,14 +602,14 @@ const SentenceRead: React.FC<Props> = ({
   ) : null;
 
   const micButton = state.useEnglishSpeechRecognition ? (
-    <Aux>
-      <p>{state.message}</p>
+    <>
+      <Typography>{state.message}</Typography>
       <PictureButton colour="yellow" src={micPic} clicked={onListenPinyin} />
-    </Aux>
+    </>
   ) : null;
 
   let content: React.ReactNode = (
-    <Aux>
+    <>
       <Input
         id="answerInput"
         changed={onInputChanged}
@@ -462,12 +625,12 @@ const SentenceRead: React.FC<Props> = ({
       </Button>
       <Button
         clicked={() => onChangeSentence(1)}
-        disabled={state.sentenceIndex > state.sentences.length - 2}
+        disabled={state.sentenceLoading || state.sentenceIndex >= state.totalCount - 1}
       >
-        Next Sentence
+        {state.sentenceLoading ? 'Loading...' : 'Next Sentence'}
       </Button>
       {showHide}
-    </Aux>
+    </>
   );
 
   let buttons: React.ReactNode = null;
@@ -484,25 +647,51 @@ const SentenceRead: React.FC<Props> = ({
       const word = translationText.slice(wordStart, wordEnd);
       const afterWord = translationText.slice(wordEnd, translationText.length);
       translation = (
-        <p>
+        <Typography>
           {beforeWord}
           <span>{word}</span>
           {afterWord}
-        </p>
+        </Typography>
       );
     }
 
     content = (
-      <Aux>
-        <h2>Your Translation:</h2>
-        <div className={classes.QuestionCard} style={{ fontSize: '1em', minHeight: '0' }}>
-          <p>{state.entered}</p>
-        </div>
-        <h2>Correct Translation:</h2>
-        <div className={classes.QuestionCard} style={{ fontSize: '1em', minHeight: '0' }}>
+      <>
+        <Typography variant="h5" component="h2">Your Translation:</Typography>
+        <Paper
+          sx={{
+            width: '70%',
+            bgcolor: 'secondary.main',
+            boxShadow: '0 1px 4px black',
+            color: 'rgb(46, 66, 66)',
+            borderRadius: 1,
+            mx: 'auto',
+            mb: '10px',
+            p: '10px 5px',
+            fontSize: '1em',
+            minHeight: 0,
+          }}
+        >
+          <Typography>{state.entered}</Typography>
+        </Paper>
+        <Typography variant="h5" component="h2">Correct Translation:</Typography>
+        <Paper
+          sx={{
+            width: '70%',
+            bgcolor: 'secondary.main',
+            boxShadow: '0 1px 4px black',
+            color: 'rgb(46, 66, 66)',
+            borderRadius: 1,
+            mx: 'auto',
+            mb: '10px',
+            p: '10px 5px',
+            fontSize: '1em',
+            minHeight: 0,
+          }}
+        >
           {translation}
-        </div>
-      </Aux>
+        </Paper>
+      </>
     );
 
     const buttonStyle = {
@@ -521,12 +710,39 @@ const SentenceRead: React.FC<Props> = ({
   }
 
   return (
-    <div className={classes.SentenceRead}>
-      <h2>Try to translate...</h2>
-      <div className={classes.QuestionCard}>{sentenceWords}</div>
+    <Box
+      sx={{
+        width: '90%',
+        maxWidth: 400,
+        textAlign: 'center',
+        mx: 'auto',
+        py: '30px',
+        color: 'secondary.main',
+        '& p': { fontSize: '1.1em' },
+        '& h2': { fontWeight: 300, fontSize: '1.5em', m: '10px' },
+        '& h3': { fontWeight: 300, fontSize: '1.5em', m: '2px auto' },
+      }}
+    >
+      <Typography variant="h5" component="h2">Try to translate...</Typography>
+      <Paper
+        sx={{
+          width: '70%',
+          bgcolor: 'secondary.main',
+          boxShadow: '0 1px 4px black',
+          color: 'rgb(46, 66, 66)',
+          borderRadius: 1,
+          minHeight: 100,
+          mx: 'auto',
+          mb: '10px',
+          p: '10px 5px',
+          fontSize: '1.6em',
+        }}
+      >
+        {sentenceWords}
+      </Paper>
       {content}
       {buttons}
-    </div>
+    </Box>
   );
 };
 

@@ -1,8 +1,9 @@
 import React, { ChangeEvent, FormEvent, useMemo, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { Redirect } from 'react-router-dom';
-
-import classes from './Auth.module.css';
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
 
 import FormInput from '../../components/UI/FormInput/FormInput';
 import Button from '../../components/UI/Buttons/Button/Button';
@@ -211,8 +212,9 @@ const Register: React.FC<PropsFromRedux> = ({
   let form: React.ReactNode = (
     <form onSubmit={submitHandler}>
       {formElements}
-      <br />
-      <Button disabled={!state.formIsValid}>Register</Button>
+      <Box sx={{ mt: 2 }}>
+        <Button disabled={!state.formIsValid}>Register</Button>
+      </Box>
     </form>
   );
 
@@ -223,7 +225,7 @@ const Register: React.FC<PropsFromRedux> = ({
   let errorMessage: React.ReactNode = null;
 
   if (error) {
-    errorMessage = <p>{error}</p>;
+    errorMessage = <Typography color="error">{error}</Typography>;
   }
 
   let authRedirect: React.ReactNode = null;
@@ -235,12 +237,14 @@ const Register: React.FC<PropsFromRedux> = ({
   }
 
   return (
-    <div className={classes.Auth}>
-      <h1>Sign Up</h1>
-      {authRedirect}
-      {errorMessage}
-      {form}
-    </div>
+    <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+      <Paper sx={{ m: 2.5, width: { xs: '80%', sm: 500 }, textAlign: 'center', p: 2 }}>
+        <Typography variant="h4" sx={{ color: '#AA381E', mb: 2 }}>Sign Up</Typography>
+        {authRedirect}
+        {errorMessage}
+        {form}
+      </Paper>
+    </Box>
   );
 };
 

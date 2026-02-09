@@ -1,6 +1,5 @@
 import React, { CSSProperties } from 'react';
-
-import classes from './PictureButton.module.css';
+import IconButton from '@mui/material/IconButton';
 
 interface PictureButtonProps {
   colour?: 'red' | 'yellow' | 'grey';
@@ -9,25 +8,28 @@ interface PictureButtonProps {
   src?: string;
 }
 
+const colorMap = {
+  red: '#AA381E',
+  yellow: '#E6E0AE',
+  grey: 'grey',
+};
+
 const PictureButton: React.FC<PictureButtonProps> = (props) => {
-  let attachedClasses = [classes.PictureButton, classes.Yellow];
-
-  if (props.colour === 'red') {
-    attachedClasses = [classes.PictureButton, classes.Red];
-  }
-
-  if (props.colour === 'grey') {
-    attachedClasses = [classes.PictureButton, classes.Grey];
-  }
+  const bgColor = colorMap[props.colour || 'yellow'];
 
   return (
-    <button
-      style={props.style}
-      className={attachedClasses.join(' ')}
+    <IconButton
       onClick={props.clicked}
+      style={props.style}
+      sx={{
+        backgroundColor: bgColor,
+        '&:hover': { backgroundColor: bgColor, opacity: 0.85 },
+        width: 40,
+        height: 40,
+      }}
     >
-      <img src={props.src} alt="sound" />
-    </button>
+      <img src={props.src} alt="sound" style={{ width: 20, height: 20 }} />
+    </IconButton>
   );
 };
 

@@ -68,6 +68,8 @@ async function loadDictionary(): Promise<void> {
 
 /**
  * Search for words by exact character match.
+ * Tries the selected charSet index first, falls back to the other index
+ * so searches work regardless of whether the user typed simplified or traditional.
  */
 export async function searchWord(
   character: string,
@@ -75,8 +77,13 @@ export async function searchWord(
 ): Promise<Word[]> {
   await loadDictionary();
 
-  const index = charSet === 'simp' ? simpIndex : tradIndex;
-  const results = index.get(character) || [];
+  const primaryIndex = charSet === 'simp' ? simpIndex : tradIndex;
+  const fallbackIndex = charSet === 'simp' ? tradIndex : simpIndex;
+
+  let results = primaryIndex.get(character) || [];
+  if (results.length === 0) {
+    results = fallbackIndex.get(character) || [];
+  }
 
   return results.map((entry) => ({
     id: entry.id,
@@ -88,7 +95,7 @@ export async function searchWord(
 }
 
 /**
- * Look up a single character to get its pinyin and traditional form.
+ * Look up a single simplified character to get its pinyin and traditional form.
  * Used when constructing custom words character by character.
  */
 export async function lookupCharacter(
@@ -106,6 +113,53 @@ export async function lookupCharacter(
     pinyin: entry.pinyin,
     trad: entry.trad,
   };
+}
+
+/**
+ * Look up a single traditional character to get its pinyin and simplified form.
+ * Used when constructing custom words from traditional character input.
+ */
+export async function lookupCharacterByTrad(
+  char: string
+): Promise<{ pinyin: string; simp: string } | null> {
+  await loadDictionary();
+
+  const results = tradIndex.get(char);
+  if (!results || results.length === 0) {
+    return null;
+  }
+
+  const entry = results[0];
+  return {
+    pinyin: entry.pinyin,
+    simp: entry.simp,
+  };
+}
+
+/**
+ * Convert a Chinese text string to the target character set.
+ * Converts character by character using dictionary lookups.
+ * Characters not found in the dictionary pass through unchanged.
+ */
+export async function convertText(
+  text: string,
+  toCharSet: 'simp' | 'trad'
+): Promise<string> {
+  await loadDictionary();
+
+  const fromIndex = toCharSet === 'trad' ? simpIndex : tradIndex;
+  let result = '';
+
+  for (const char of text) {
+    const entries = fromIndex.get(char);
+    if (entries && entries.length > 0) {
+      result += toCharSet === 'trad' ? entries[0].trad : entries[0].simp;
+    } else {
+      result += char;
+    }
+  }
+
+  return result;
 }
 
 /**

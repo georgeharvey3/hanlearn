@@ -1,9 +1,8 @@
 import React, { ReactNode } from 'react';
-
-import classes from './Modal.module.css';
-
-import Backdrop from '../../UI/Backdrop/Backdrop';
-import Aux from '../../../hoc/Aux';
+import Dialog from '@mui/material/Dialog';
+import IconButton from '@mui/material/IconButton';
+import CloseIcon from '@mui/icons-material/Close';
+import Box from '@mui/material/Box';
 
 interface ModalProps {
   show?: boolean;
@@ -13,22 +12,23 @@ interface ModalProps {
 
 const Modal: React.FC<ModalProps> = (props) => {
   return (
-    <Aux>
-      <Backdrop show={props.show} clicked={props.modalClosed} />
-      <div
-        className={classes.Modal}
-        style={{
-          transform: props.show ? 'translateY(0)' : 'translateY(-100vh)',
-          display: props.show ? 'block' : 'none',
-          opacity: props.show ? '1' : '0',
-        }}
-      >
-        <button onClick={props.modalClosed} className={classes.Close}>
-          &times;
-        </button>
+    <Dialog
+      open={!!props.show}
+      onClose={props.modalClosed}
+      maxWidth="sm"
+      fullWidth
+    >
+      <Box sx={{ position: 'relative', p: 2 }}>
+        <IconButton
+          onClick={props.modalClosed}
+          sx={{ position: 'absolute', top: 8, right: 8 }}
+          size="small"
+        >
+          <CloseIcon sx={{ color: '#E6E0AE' }} />
+        </IconButton>
         {props.children}
-      </div>
-    </Aux>
+      </Box>
+    </Dialog>
   );
 };
 

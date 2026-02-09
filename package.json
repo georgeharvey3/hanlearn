@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run emulators\" \"npm run dev:client\"",
+    "dev": "concurrently \"firebase emulators:start --import=./emulator-data\" \"npm run dev:client\"",
     "dev:client": "npm --prefix web-client run dev",
     "emulators": "firebase emulators:start --export-on-exit=./emulator-data --import=./emulator-data",
     "build": "npm --prefix web-client run build:all",

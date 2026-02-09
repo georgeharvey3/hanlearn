@@ -1,13 +1,13 @@
 import React from 'react';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 
-import Aux from '../../../hoc/Aux';
+import { IconButton, Typography } from '@mui/material';
+import HomeIcon from '@mui/icons-material/Home';
+
 import Table from '../../UI/Table/Table';
 import TableRow from '../../UI/Table/TableRow/TableRow';
 import Button from '../../UI/Buttons/Button/Button';
-import HomePic from '../../../assets/images/home.png';
 
-import classes from './TestSummary.module.css';
 import { WordScore } from '../../../types/models';
 
 interface TestSummaryProps extends RouteComponentProps {
@@ -44,14 +44,31 @@ const TestSummary: React.FC<TestSummaryProps> = ({
   }
 
   return (
-    <Aux>
-      <button className={classes.HomeButton} onClick={homePressed}>
-        <img alt="home" src={HomePic} />
-      </button>
-      <h3>Test Summary</h3>
+    <>
+      <IconButton
+        onClick={homePressed}
+        sx={{
+          position: 'absolute',
+          right: 10,
+          bgcolor: 'secondary.main',
+          borderRadius: 1,
+          p: '5px',
+          boxShadow: '0px 2px 0px #918c63',
+          '&:active': {
+            boxShadow: '0px 0px',
+            transform: 'translateY(3px)',
+          },
+          '&:hover': {
+            bgcolor: '#f8f4cc',
+          },
+        }}
+      >
+        <HomeIcon sx={{ fontSize: 24 }} />
+      </IconButton>
+      <Typography variant="h6" component="h3">Test Summary</Typography>
       <Table headings={['Word', 'Score']}>{scoreRows}</Table>
       {continueButton}
-    </Aux>
+    </>
   );
 };
 

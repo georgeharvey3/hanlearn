@@ -63,18 +63,12 @@ export const translateWithDeepL = functions.https.onCall(
   }
 );
 
-interface SentenceWord {
-  simp: string;
-  trad: string;
-  pinyin: string;
-  meaning: string;
-}
-
-interface Sentence {
+interface SegmentedSentence {
   chinese: {
     sentence: string;
     highlight: number[][];
-    words: (SentenceWord | string)[];
+    segments: string[];
+    targetIndex: number;
   };
   english: {
     sentence: string;
@@ -127,10 +121,10 @@ interface TatoebaSentenceWithTranslations extends TatoebaSentence {
 }
 
 /**
- * Fetch example sentences from Tatoeba API
+ * Search Tatoeba for Chinese sentences containing a word.
+ * Returns raw sentence objects (no translations fetched yet).
  */
-async function fetchTatoebaExamples(word: string): Promise<TatoebaExample[]> {
-  // Search for Chinese sentences containing the word
+async function searchTatoeba(word: string): Promise<TatoebaSentence[]> {
   const searchUrl = `https://api.tatoeba.org/unstable/sentences?lang=cmn&q=${encodeURIComponent(word)}&limit=20&sort=relevance`;
 
   const searchResponse = await fetch(searchUrl);
@@ -140,51 +134,69 @@ async function fetchTatoebaExamples(word: string): Promise<TatoebaExample[]> {
   }
 
   const searchData = await searchResponse.json() as { data: TatoebaSentence[] };
-  const sentences = searchData.data || [];
+  return searchData.data || [];
+}
 
-  if (sentences.length === 0) {
-    return [];
-  }
-
-  // Fetch translations for each sentence
-  const examples: TatoebaExample[] = [];
-
-  for (const sentence of sentences.slice(0, 10)) {
+/**
+ * Fetch the English translation for a single Tatoeba sentence.
+ * Returns null if no English translation is available.
+ */
+async function fetchTatoebaTranslation(sentence: TatoebaSentence): Promise<TatoebaExample | null> {
+  try {
     const detailUrl = `https://api.tatoeba.org/unstable/sentences/${sentence.id}?include=translations`;
     const detailResponse = await fetch(detailUrl);
 
     if (!detailResponse.ok) {
-      continue;
+      return null;
     }
 
     const detailData = await detailResponse.json() as { data: TatoebaSentenceWithTranslations };
     const sentenceWithTranslations = detailData.data;
 
-    // Find English translation
     const englishTranslation = sentenceWithTranslations.translations?.find(
       (t) => t.lang === 'eng'
     );
 
-    if (englishTranslation) {
-      // Get simplified Chinese text (from transcriptions if available, or original)
-      let chineseText = sentence.text;
-      if (sentence.script === 'Hant') {
-        const simpTranscription = sentence.transcriptions?.find(
-          (t) => t.script === 'Hans'
-        );
-        if (simpTranscription) {
-          chineseText = simpTranscription.text;
-        }
-      }
-
-      examples.push({
-        chinese: chineseText,
-        english: englishTranslation.text,
-      });
+    if (!englishTranslation) {
+      return null;
     }
+
+    let chineseText = sentence.text;
+    if (sentence.script === 'Hant') {
+      const simpTranscription = sentence.transcriptions?.find(
+        (t) => t.script === 'Hans'
+      );
+      if (simpTranscription) {
+        chineseText = simpTranscription.text;
+      }
+    }
+
+    return {
+      chinese: chineseText,
+      english: englishTranslation.text,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch example sentences from Tatoeba API (batch mode).
+ * Used by getOneSentence and as fallback.
+ */
+async function fetchTatoebaExamples(word: string): Promise<TatoebaExample[]> {
+  const sentences = await searchTatoeba(word);
+
+  if (sentences.length === 0) {
+    return [];
   }
 
-  return examples;
+  const detailPromises = sentences.slice(0, 10).map(
+    (sentence) => fetchTatoebaTranslation(sentence)
+  );
+
+  const results = await Promise.all(detailPromises);
+  return results.filter((r): r is TatoebaExample => r !== null);
 }
 
 /**
@@ -210,111 +222,53 @@ function segmentChinese(text: string): string[] {
 }
 
 /**
- * Look up words in Firestore dictionary
+ * Segment a sentence into words, marking the target word's position.
+ * Returns plain strings — word lookups happen on the frontend via the static dictionary.
  */
-async function lookupWords(
-  words: string[]
-): Promise<(SentenceWord | null)[]> {
-  const results: (SentenceWord | null)[] = [];
-
-  for (const word of words) {
-    // Skip non-Chinese text
-    if (!isChinese(word)) {
-      results.push(null);
-      continue;
-    }
-
-    // Try to find the word as-is
-    const wordSnapshot = await db
-      .collection('words')
-      .where('simp', '==', word)
-      .limit(1)
-      .get();
-
-    if (!wordSnapshot.empty) {
-      const data = wordSnapshot.docs[0].data();
-      results.push({
-        simp: data.simp,
-        trad: data.trad || data.simp,
-        pinyin: data.pinyin || '',
-        meaning: data.meaning || '',
-      });
-    } else if (word.length > 1) {
-      // If multi-char word not found, look up individual characters
-      for (const char of word) {
-        const charSnapshot = await db
-          .collection('words')
-          .where('simp', '==', char)
-          .limit(1)
-          .get();
-
-        if (!charSnapshot.empty) {
-          const data = charSnapshot.docs[0].data();
-          results.push({
-            simp: data.simp,
-            trad: data.trad || data.simp,
-            pinyin: data.pinyin || '',
-            meaning: data.meaning || '',
-          });
-        } else {
-          results.push(null);
-        }
-      }
-    } else {
-      results.push(null);
-    }
-  }
-
-  return results;
-}
-
-/**
- * Get word breakdown for a sentence, excluding the target word
- */
-async function getWordBreakdown(
+function segmentSentence(
   sentence: string,
   targetWord: string
-): Promise<(SentenceWord | string)[]> {
+): { segments: string[]; targetIndex: number } {
   const parts = sentence.split(targetWord);
-  const result: (SentenceWord | string)[] = [];
+  const segments: string[] = [];
 
-  // Process text before the target word
+  // Segment text before the target word
   if (parts[0]) {
     const segmented = segmentChinese(parts[0]);
-    const lookedUp = await lookupWords(segmented);
-    for (let i = 0; i < segmented.length; i++) {
-      if (lookedUp[i]) {
-        result.push(lookedUp[i]!);
+    for (const word of segmented) {
+      if (isChinese(word)) {
+        segments.push(word);
       }
     }
   }
 
-  // Add the target word as a string marker
-  result.push(targetWord);
+  // Add the target word
+  const targetIndex = segments.length;
+  segments.push(targetWord);
 
-  // Process text after the target word
-  if (parts[1]) {
+  // Segment text after the target word
+  if (parts.length > 1 && parts[1]) {
     const segmented = segmentChinese(parts[1]);
-    const lookedUp = await lookupWords(segmented);
-    for (let i = 0; i < segmented.length; i++) {
-      if (lookedUp[i]) {
-        result.push(lookedUp[i]!);
+    for (const word of segmented) {
+      if (isChinese(word)) {
+        segments.push(word);
       }
     }
   }
 
-  return result;
+  return { segments, targetIndex };
 }
 
 /**
- * Get example sentences for a word
- * Fetches from Tatoeba API, segments Chinese text, and looks up words
+ * Get example sentences for a word.
+ * With offset: returns a single sentence at that position + totalCount (fast: 2 API calls).
+ * Without offset: returns all sentences (legacy batch mode: 11 API calls).
  */
 export const getSentences = functions.https.onCall(
-  async (data: { word: string }, context) => {
+  async (data: { word: string; offset?: number }, context) => {
     verifyAuth(context);
 
-    const { word } = data;
+    const { word, offset } = data;
 
     if (!word) {
       throw new functions.https.HttpsError(
@@ -324,44 +278,90 @@ export const getSentences = functions.https.onCall(
     }
 
     try {
-      // Fetch examples from Tatoeba
-      const examples = await fetchTatoebaExamples(word);
+      // Search Tatoeba for candidate sentences (1 API call)
+      const rawSentences = await searchTatoeba(word);
 
-      // Filter out sentences containing Latin letters
-      const filteredExamples = examples.filter(
-        (ex) => !containsLatinLetters(ex.chinese)
+      // Filter out sentences with Latin characters
+      const filtered = rawSentences.filter(
+        (s) => !containsLatinLetters(s.text)
       );
 
-      // Build sentence objects with word breakdowns
-      const sentences: Sentence[] = [];
-      for (const ex of filteredExamples.slice(0, 10)) {
-        const wordBreakdown = await getWordBreakdown(ex.chinese, word);
+      // Sort by sentence length (shorter = easier to read)
+      const sorted = [...filtered].sort(
+        (a, b) => a.text.length - b.text.length
+      );
 
-        // Calculate highlight indices for the word in the sentence
+      // Keep only short sentences (≤30 chars), or shortest 5 if none qualify
+      const shortSentences = sorted.filter((s) => s.text.length <= 30);
+      const candidates = shortSentences.length > 0
+        ? shortSentences
+        : sorted.slice(0, 5);
+
+      if (typeof offset === 'number') {
+        // Single-sentence mode: fetch translation for just one sentence
+        if (offset >= candidates.length) {
+          return { sentence: null, totalCount: candidates.length };
+        }
+
+        const selected = candidates[offset];
+        const example = await fetchTatoebaTranslation(selected);
+
+        if (!example) {
+          return { sentence: null, totalCount: candidates.length };
+        }
+
+        const { segments, targetIndex } = segmentSentence(example.chinese, word);
+        const chineseHighlight = calculateHighlightIndices(example.chinese, word);
+
+        return {
+          sentence: {
+            chinese: {
+              sentence: example.chinese,
+              highlight: chineseHighlight,
+              segments,
+              targetIndex,
+            },
+            english: {
+              sentence: example.english,
+              highlight: [],
+            },
+          },
+          totalCount: candidates.length,
+        };
+      }
+
+      // Batch mode (legacy): fetch translations for all candidates
+      const detailPromises = candidates.map(
+        (s) => fetchTatoebaTranslation(s)
+      );
+      const examples = (await Promise.all(detailPromises)).filter(
+        (r): r is TatoebaExample => r !== null
+      );
+
+      const sentences: SegmentedSentence[] = examples.map((ex) => {
+        const { segments, targetIndex } = segmentSentence(ex.chinese, word);
         const chineseHighlight = calculateHighlightIndices(ex.chinese, word);
 
-        sentences.push({
+        return {
           chinese: {
             sentence: ex.chinese,
             highlight: chineseHighlight,
-            words: wordBreakdown,
+            segments,
+            targetIndex,
           },
           english: {
             sentence: ex.english,
             highlight: [],
           },
-        });
-      }
-
-      // Shuffle the results
-      for (let i = sentences.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [sentences[i], sentences[j]] = [sentences[j], sentences[i]];
-      }
+        };
+      });
 
       return { sentences };
     } catch (error) {
       console.error('Error fetching sentences:', error);
+      if (typeof offset === 'number') {
+        return { sentence: null, totalCount: 0 };
+      }
       return { sentences: [] };
     }
   }
