@@ -11,7 +11,7 @@ interface AccountSummaryProps {
 }
 
 const AccountSummary: React.FC<AccountSummaryProps> = (props) => (
-  <Paper sx={{ width: '90%', maxWidth: 700, mx: 'auto', my: 2, p: 3, textAlign: 'center' }}>
+  <Paper sx={{ width: '95%', mx: 'auto', p: 3, textAlign: 'center' }}>
     <Typography variant="h5" sx={{ color: '#AA381E' }}>
       You have {props.numDue}/{props.numTot} words due for testing...
     </Typography>

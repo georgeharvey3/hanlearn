@@ -20,6 +20,13 @@ const theme = createTheme({
         },
       },
     },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#fff',
+        },
+      },
+    },
     MuiDialog: {
       styleOverrides: {
         paper: {

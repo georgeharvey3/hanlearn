@@ -110,8 +110,6 @@ const Chengyu: React.FC = () => {
         height: 'auto',
         borderRadius: '10px',
         mx: 'auto',
-        mb: '34px',
-        mt: '10px',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-evenly',
@@ -123,10 +121,10 @@ const Chengyu: React.FC = () => {
         fontSize: { xs: '1.1em', sm: '1.4em' },
       }}
     >
-      <Typography variant="h6" sx={{ m: '5px 0' }}>Chengyu Of The Day</Typography>
-      <Typography variant="h5" fontWeight="bold">{displayChengyu || dailyChengyu.chengyu}</Typography>
-      <Typography sx={{ m: '5px 0' }}>Choose the correct translation:</Typography>
-      <List sx={{ p: 0, width: '100%' }}>
+      <Typography variant="h5" sx={{ m: '5px 0' }}>Chengyu Of The Day</Typography>
+      <Typography variant="h4" fontWeight="bold">{displayChengyu || dailyChengyu.chengyu}</Typography>
+      <Typography variant="body1" sx={{ m: '5px 0', fontSize: { xs: '1.1em', sm: '1.3em' } }}>Choose the correct translation:</Typography>
+      <List sx={{ p: 0, width: '100%', maxWidth: 600 }}>
         {dailyChengyu.options.map((op, index) => {
           const isCorrect = op === dailyChengyu.correct;
           const isIncorrect = incorrect.includes(index);

@@ -30,7 +30,6 @@ const ExpBanner: React.FC<ExpBannerProps> = (props) => {
       sx={{
         width: '95%',
         mx: 'auto',
-        mb: 4,
         display: 'flex',
         p: { xs: 2, sm: '20px 10%' },
         color: '#AA381E',

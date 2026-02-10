@@ -5,7 +5,7 @@ import Typography from '@mui/material/Typography';
 import mainImage from '../../../assets/images/main-image.jpeg';
 
 const MainBanner: React.FC = () => (
-  <Box sx={{ width: { xs: '100%', sm: '95%', md: '90%' }, mx: 'auto', pt: { xs: 3, md: 4.5 }, px: 1.5 }}>
+  <Box sx={{ width: '100vw', position: 'relative', left: '50%', transform: 'translateX(-50%)', py: { xs: 3, md: 4.5 } }}>
     <Box
       sx={{
         backgroundImage: `url(${mainImage})`,
@@ -14,18 +14,18 @@ const MainBanner: React.FC = () => (
         height: { xs: 300, sm: 550, md: 650 },
         display: 'flex',
         alignItems: 'center',
-        border: { xs: 'none', sm: '2px solid black' },
+        border: 'none',
       }}
     >
       <Box
         sx={{
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
           mx: 'auto',
-          p: 1.5,
+          p: { xs: 2.5, sm: 4 },
           borderRadius: 1,
           color: '#e6e0ae',
           width: { xs: '90%', lg: '50%', xl: '50%' },
-          textAlign: 'left',
+          textAlign: 'center',
         }}
       >
         <Typography variant="h4" sx={{ fontSize: { xs: '1.5em', sm: '2.2em' }, mb: 1 }}>

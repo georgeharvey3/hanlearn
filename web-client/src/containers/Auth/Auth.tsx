@@ -193,7 +193,7 @@ const Auth: React.FC<PropsFromRedux> = ({ loading, error, isAuthenticated, onAut
 
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-      <Paper sx={{ m: 2.5, width: { xs: '80%', sm: 500 }, textAlign: 'center', p: 2 }}>
+      <Paper sx={{ m: 2.5, width: { xs: '80%', sm: 500 }, textAlign: 'center', p: 2, backgroundColor: '#fff' }}>
         <Typography variant="h4" sx={{ color: '#AA381E', mb: 2 }}>Log In</Typography>
         {authRedirect}
         {errorMessage}

@@ -96,10 +96,10 @@ const Home: React.FC<Props> = ({
   }
 
   return (
-    <Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <MainBanner />
       {firstBanner}
-      <Chengyu />
+      {isAuthenticated && <Chengyu />}
       <ExpBanner priority="left" img={addCap} heading={'Build your word bank'}>
         Simply search for the Chinese word you want to add and we'll give you the pinyin
         pronunctiation and the meaning. Don't like the translation? Feel free to add your own!

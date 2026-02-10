@@ -238,7 +238,7 @@ const Register: React.FC<PropsFromRedux> = ({
 
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-      <Paper sx={{ m: 2.5, width: { xs: '80%', sm: 500 }, textAlign: 'center', p: 2 }}>
+      <Paper sx={{ m: 2.5, width: { xs: '80%', sm: 500 }, textAlign: 'center', p: 2, backgroundColor: '#fff' }}>
         <Typography variant="h4" sx={{ color: '#AA381E', mb: 2 }}>Sign Up</Typography>
         {authRedirect}
         {errorMessage}

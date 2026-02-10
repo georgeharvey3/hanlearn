@@ -1,6 +1,6 @@
 import React, { ReactNode, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
-import Box from '@mui/material/Box';
+import Container from '@mui/material/Container';
 
 import Toolbar from '../Navigation/Toolbar/Toolbar';
 import SideDrawer from '../Navigation/SideDrawer/SideDrawer';
@@ -46,9 +46,9 @@ const Layout: React.FC<Props> = ({ isAuthenticated, children }) => {
         closed={sideDrawerClosedHandler}
         isAuth={isAuthenticated}
       />
-      <Box component="main" sx={{ mt: '56px', height: '100%' }}>
+      <Container component="main" maxWidth={false} sx={{ mt: '56px', pt: 3, height: '100%', maxWidth: 1400 }}>
         {children}
-      </Box>
+      </Container>
     </>
   );
 };

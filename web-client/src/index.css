@@ -1,4 +1,5 @@
 body {
   background-image: url("/background-double.jpg");
   background-size: repeat;
+  overflow-x: hidden;
 }

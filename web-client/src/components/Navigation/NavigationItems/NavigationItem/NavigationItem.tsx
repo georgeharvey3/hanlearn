@@ -16,9 +16,10 @@ const NavigationItem: React.FC<NavigationItemProps> = (props) => (
       color: '#AA381E',
       textTransform: 'none',
       px: 1.5,
+      borderBottom: '4px solid transparent',
+      borderRadius: 0,
       '&.active': {
         borderBottom: '4px solid #AA381E',
-        borderRadius: 0,
       },
     }}
   >
