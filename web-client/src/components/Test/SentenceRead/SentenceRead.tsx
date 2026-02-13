@@ -6,6 +6,7 @@ import { httpsCallable } from 'firebase/functions';
 
 import { Box, Paper, Typography } from '@mui/material';
 
+import { colors } from '../../../theme';
 import Button from '../../UI/Buttons/Button/Button';
 import Input from '../../UI/Input/Input';
 import PictureButton from '../../UI/Buttons/PictureButton/PictureButton';
@@ -177,17 +178,17 @@ const popupBaseSx = {
   fontSize: '1.1em',
   width: 'auto',
   '&:hover': {
-    bgcolor: '#c75940',
-    color: '#e6e0ae',
+    bgcolor: 'primary.dark',
+    color: 'common.white',
     cursor: 'pointer',
   },
 } as const;
 
 const popupTextStyle: React.CSSProperties = {
   visibility: 'hidden',
-  backgroundColor: 'rgb(238, 238, 238)',
+  backgroundColor: colors.divider,
   width: 200,
-  color: 'rgb(49, 49, 49)',
+  color: colors.text,
   fontSize: '0.7em',
   textAlign: 'center',
   borderRadius: 6,
@@ -198,7 +199,7 @@ const popupTextStyle: React.CSSProperties = {
   top: '125%',
   left: '50%',
   marginLeft: -100,
-  boxShadow: '0 3px 6px rgb(73, 34, 34)',
+  boxShadow: '0 3px 6px rgba(0, 0, 0, 0.3)',
 };
 
 const SentenceRead: React.FC<Props> = ({
@@ -663,7 +664,7 @@ const SentenceRead: React.FC<Props> = ({
             width: '70%',
             bgcolor: 'secondary.main',
             boxShadow: '0 1px 4px black',
-            color: 'rgb(46, 66, 66)',
+            color: 'text.primary',
             borderRadius: 1,
             mx: 'auto',
             mb: '10px',
@@ -680,7 +681,7 @@ const SentenceRead: React.FC<Props> = ({
             width: '70%',
             bgcolor: 'secondary.main',
             boxShadow: '0 1px 4px black',
-            color: 'rgb(46, 66, 66)',
+            color: 'text.primary',
             borderRadius: 1,
             mx: 'auto',
             mb: '10px',
@@ -729,7 +730,7 @@ const SentenceRead: React.FC<Props> = ({
           width: '70%',
           bgcolor: 'secondary.main',
           boxShadow: '0 1px 4px black',
-          color: 'rgb(46, 66, 66)',
+          color: 'text.primary',
           borderRadius: 1,
           minHeight: 100,
           mx: 'auto',

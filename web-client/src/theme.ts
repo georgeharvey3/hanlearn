@@ -1,12 +1,32 @@
 import { createTheme } from '@mui/material/styles';
 
+export const colors = {
+  primary: '#efdece', // beige
+  primaryDark: '#1a5c40', // green
+  primaryLight: '#df566e', // vermillion
+  charcoal: '#36454f',
+  white: '#ffffff',
+  text: '#2d2d2d',
+  error: '#cc0000',
+  success: '#00A86B',
+  divider: '#e0e0e0',
+} as const;
+
 const theme = createTheme({
   palette: {
-    primary: { main: '#AA381E' },
-    secondary: { main: '#E6E0AE' },
+    primary: {
+      main: colors.primary,
+      dark: colors.primaryDark,
+      light: colors.primaryLight,
+    },
+    secondary: { main: colors.white },
+    error: { main: colors.error },
+    success: { main: colors.success },
+    text: { primary: colors.text },
+    divider: colors.divider,
     background: {
-      default: 'transparent',
-      paper: '#E6E0AE',
+      default: colors.white,
+      paper: colors.white,
     },
   },
   typography: {
@@ -23,15 +43,16 @@ const theme = createTheme({
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
-          backgroundColor: '#fff',
+          backgroundColor: colors.white,
         },
       },
     },
     MuiDialog: {
       styleOverrides: {
         paper: {
-          backgroundColor: 'rgb(46, 66, 66)',
-          color: '#E6E0AE',
+          backgroundColor: colors.white,
+          color: colors.text,
+          borderRadius: 12,
         },
       },
     },

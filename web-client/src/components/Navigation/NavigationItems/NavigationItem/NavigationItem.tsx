@@ -5,6 +5,7 @@ import MuiButton from '@mui/material/Button';
 interface NavigationItemProps {
   link: string;
   children?: ReactNode;
+  textColor?: string;
 }
 
 const NavigationItem: React.FC<NavigationItemProps> = (props) => (
@@ -13,13 +14,13 @@ const NavigationItem: React.FC<NavigationItemProps> = (props) => (
     to={props.link}
     exact
     sx={{
-      color: '#AA381E',
+      color: props.textColor ?? 'common.white',
       textTransform: 'none',
       px: 1.5,
       borderBottom: '4px solid transparent',
       borderRadius: 0,
       '&.active': {
-        borderBottom: '4px solid #AA381E',
+        borderBottom: `4px solid ${props.textColor ?? 'white'}`,
       },
     }}
   >

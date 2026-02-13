@@ -13,6 +13,8 @@ export interface AuthState {
   error: string | null;
   newSignUp: boolean;
   initialized: boolean;
+  modalOpen: boolean;
+  modalMode: 'login' | 'register';
 }
 
 export interface SettingsState {

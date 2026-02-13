@@ -5,6 +5,7 @@ import { Howl } from 'howler';
 
 import { Box, Paper, Typography } from '@mui/material';
 
+import { colors } from '../../theme';
 import * as testLogic from './Logic/TestLogic';
 import Modal from '../UI/Modal/Modal';
 import Backdrop from '../UI/Backdrop/Backdrop';
@@ -1134,7 +1135,7 @@ const Test: React.FC<Props> = (props) => {
     <div
       id="character-target-div"
       style={{
-        backgroundColor: 'lightgray',
+        backgroundColor: colors.divider,
         width: '150px',
         margin: '0 auto',
         borderRadius: '3px',
@@ -1225,7 +1226,7 @@ const Test: React.FC<Props> = (props) => {
             />
           )}
         </div>
-        {state.showQuestionPinyin ? <p style={{ color: 'black' }}>{state.question}</p> : null}
+        {state.showQuestionPinyin ? <p style={{ color: colors.text }}>{state.question}</p> : null}
         <Box
           component="button"
           onClick={onToggleShowPinyin}
@@ -1271,7 +1272,7 @@ const Test: React.FC<Props> = (props) => {
             color: 'secondary.main',
             '& h3 span': {
               bgcolor: 'secondary.main',
-              color: 'primary.main',
+              color: 'text.primary',
               boxShadow: '0 1px 4px black',
               borderRadius: 1,
               p: '2px',
@@ -1288,7 +1289,7 @@ const Test: React.FC<Props> = (props) => {
               width: '90%',
               bgcolor: 'secondary.main',
               boxShadow: '0 1px 4px black',
-              color: 'primary.main',
+              color: 'text.primary',
               borderRadius: 1,
               minHeight: 100,
               height: 160,

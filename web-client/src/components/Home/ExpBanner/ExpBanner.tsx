@@ -32,7 +32,7 @@ const ExpBanner: React.FC<ExpBannerProps> = (props) => {
         mx: 'auto',
         display: 'flex',
         p: { xs: 2, sm: '20px 10%' },
-        color: '#AA381E',
+        color: 'text.primary',
         textAlign: 'justify',
         fontSize: { xs: '1em', sm: '1.1em' },
       }}

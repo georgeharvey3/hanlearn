@@ -21,6 +21,9 @@ export const ActionTypes = {
   AUTH_LOGOUT: 'AUTH_LOGOUT',
   AUTH_INITIALIZED: 'AUTH_INITIALIZED',
   REGISTER_SUCCESS: 'REGISTER_SUCCESS',
+  OPEN_AUTH_MODAL: 'OPEN_AUTH_MODAL',
+  CLOSE_AUTH_MODAL: 'CLOSE_AUTH_MODAL',
+  SET_AUTH_MODAL_MODE: 'SET_AUTH_MODAL_MODE',
   SET_SPEECH_AVAILABLE: 'SET_SPEECH_AVAILABLE',
   SET_SYNTH_AVAILABLE: 'SET_SYNTH_AVAILABLE',
   SET_VOICE: 'SET_VOICE',
@@ -95,6 +98,20 @@ export interface RegisterSuccessAction {
   type: typeof ActionTypes.REGISTER_SUCCESS;
 }
 
+export interface OpenAuthModalAction {
+  type: typeof ActionTypes.OPEN_AUTH_MODAL;
+  mode: 'login' | 'register';
+}
+
+export interface CloseAuthModalAction {
+  type: typeof ActionTypes.CLOSE_AUTH_MODAL;
+}
+
+export interface SetAuthModalModeAction {
+  type: typeof ActionTypes.SET_AUTH_MODAL_MODE;
+  mode: 'login' | 'register';
+}
+
 // Settings actions
 export interface SetSpeechAvailableAction {
   type: typeof ActionTypes.SET_SPEECH_AVAILABLE;
@@ -133,7 +150,10 @@ export type AuthAction =
   | AuthFailAction
   | AuthLogoutAction
   | AuthInitializedAction
-  | RegisterSuccessAction;
+  | RegisterSuccessAction
+  | OpenAuthModalAction
+  | CloseAuthModalAction
+  | SetAuthModalModeAction;
 
 export type SettingsAction =
   | SetSpeechAvailableAction

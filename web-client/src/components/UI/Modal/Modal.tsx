@@ -18,13 +18,19 @@ const Modal: React.FC<ModalProps> = (props) => {
       maxWidth="sm"
       fullWidth
     >
-      <Box sx={{ position: 'relative', p: 2 }}>
+      <Box sx={{ position: 'relative', p: 3 }}>
         <IconButton
           onClick={props.modalClosed}
-          sx={{ position: 'absolute', top: 8, right: 8 }}
+          sx={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            color: 'text.secondary',
+            '&:hover': { color: 'text.primary' },
+          }}
           size="small"
         >
-          <CloseIcon sx={{ color: '#E6E0AE' }} />
+          <CloseIcon fontSize="small" />
         </IconButton>
         {props.children}
       </Box>

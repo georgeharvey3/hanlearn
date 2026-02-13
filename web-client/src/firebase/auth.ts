@@ -3,13 +3,32 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
   User,
   UserCredential,
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './config';
 
 export type { User };
+
+/**
+ * Ensures a user document exists in Firestore.
+ * Creates one if it doesn't exist (used for Google sign-ins and registration).
+ */
+const ensureUserDocument = async (user: User): Promise<void> => {
+  const userDocRef = doc(db, 'users', user.uid);
+  const userDoc = await getDoc(userDocRef);
+
+  if (!userDoc.exists()) {
+    await setDoc(userDocRef, {
+      email: user.email,
+      username: user.displayName || user.email || 'User',
+      createdAt: serverTimestamp(),
+    });
+  }
+};
 
 /**
  * Register a new user with email and password.
@@ -17,8 +36,7 @@ export type { User };
  */
 export const registerUser = async (
   email: string,
-  password: string,
-  username?: string
+  password: string
 ): Promise<User> => {
   const userCredential: UserCredential = await createUserWithEmailAndPassword(
     auth,
@@ -26,12 +44,21 @@ export const registerUser = async (
     password
   );
 
-  // Create user document in Firestore
-  await setDoc(doc(db, 'users', userCredential.user.uid), {
-    email,
-    username: username || email,
-    createdAt: serverTimestamp(),
-  });
+  await ensureUserDocument(userCredential.user);
+
+  return userCredential.user;
+};
+
+/**
+ * Sign in with Google using popup.
+ * Creates a Firestore user document if this is the first sign-in.
+ */
+export const signInWithGoogle = async (): Promise<User> => {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+
+  const userCredential = await signInWithPopup(auth, provider);
+  await ensureUserDocument(userCredential.user);
 
   return userCredential.user;
 };

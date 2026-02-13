@@ -8,7 +8,7 @@ import Settings from '../../components/Settings/Settings';
 const SettingsPage: React.FC = () => {
   return (
     <Box sx={{ textAlign: 'center' }}>
-      <Typography variant="h5" sx={{ mt: '30px', color: '#E6E0AE', display: 'inline-block' }}>
+      <Typography variant="h5" sx={{ mt: '30px', color: 'text.primary', display: 'inline-block' }}>
         Settings
       </Typography>
       <Paper

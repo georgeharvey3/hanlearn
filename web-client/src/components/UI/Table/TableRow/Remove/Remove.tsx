@@ -7,7 +7,7 @@ interface RemoveProps {
 }
 
 const Remove: React.FC<RemoveProps> = (props) => (
-  <IconButton onClick={props.clicked} size="small" sx={{ color: '#E6E0AE' }}>
+  <IconButton onClick={props.clicked} size="small" sx={{ color: 'error.main' }}>
     <CloseIcon fontSize="small" />
   </IconButton>
 );

@@ -154,7 +154,7 @@ const Settings: React.FC<PropsFromRedux> = ({
   }, []);
 
   return (
-    <Box sx={{ width: 300, display: 'inline-block', p: 1.5, color: '#AA381E' }}>
+    <Box sx={{ width: 300, display: 'inline-block', p: 1.5, color: 'text.primary' }}>
       <Typography variant="subtitle1" fontWeight="bold">Character Set</Typography>
       <RadioGroup name="charSet" value={state.charSet} onChange={onRadioChange} row>
         <FormControlLabel value="simp" control={<Radio size="small" />} label="Simplified" />

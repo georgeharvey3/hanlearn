@@ -68,7 +68,7 @@ const Chengyu: React.FC = () => {
                 sx={{
                   listStyle: 'none',
                   backgroundColor: 'transparent',
-                  color: '#AA381E',
+                  color: 'text.primary',
                   mb: 1,
                 }}
               >
@@ -92,7 +92,7 @@ const Chengyu: React.FC = () => {
           sx={{
             listStyle: 'none',
             backgroundColor: 'transparent',
-            color: '#AA381E',
+            color: 'text.primary',
             fontStyle: 'italic',
           }}
         >
@@ -116,7 +116,7 @@ const Chengyu: React.FC = () => {
         alignItems: 'center',
         p: '20px',
         boxSizing: 'border-box',
-        color: '#AA381E',
+        color: 'text.primary',
         textAlign: 'center',
         fontSize: { xs: '1.1em', sm: '1.4em' },
       }}
@@ -137,7 +137,7 @@ const Chengyu: React.FC = () => {
               sx={{
                 listStyle: 'none',
                 borderRadius: '5px',
-                color: 'black',
+                color: 'text.primary',
                 opacity: isHidden ? 0 : 1,
                 maxHeight: isHidden ? 0 : '50px',
                 m: isHidden ? 0 : '5px',
@@ -146,16 +146,16 @@ const Chengyu: React.FC = () => {
                 transition: 'opacity 0.25s ease-out, max-height 0.5s ease-out, margin 0.5s ease-out, padding 0.5s ease-out',
                 justifyContent: 'center',
                 backgroundColor: isIncorrect
-                  ? '#AA381E'
+                  ? 'error.main'
                   : finished && isCorrect
-                    ? '#00A86B'
-                    : 'rgb(184, 183, 183)',
+                    ? 'success.main'
+                    : 'grey.400',
                 '&:hover': {
                   backgroundColor: isIncorrect
-                    ? '#AA381E'
+                    ? 'error.main'
                     : finished && isCorrect
-                      ? '#00A86B'
-                      : 'rgb(199, 199, 199)',
+                      ? 'success.main'
+                      : 'grey.500',
                   cursor: isHidden ? 'default' : 'pointer',
                 },
               }}

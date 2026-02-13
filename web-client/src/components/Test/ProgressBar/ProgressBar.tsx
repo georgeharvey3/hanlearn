@@ -14,9 +14,9 @@ const ProgressBar: React.FC<ProgressBarProps> = (props) => (
       sx={{
         height: 10,
         borderRadius: 5,
-        bgcolor: 'darkgray',
+        bgcolor: 'divider',
         '& .MuiLinearProgress-bar': {
-          bgcolor: 'indianred',
+          bgcolor: 'primary.main',
           borderRadius: 5,
         },
       }}

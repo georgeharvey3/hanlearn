@@ -7,10 +7,8 @@ import Layout from './components/Layout/Layout';
 import Home from './containers/Home/Home';
 import AddWords from './containers/AddWords/AddWords';
 import TestWords from './containers/TestWords/TestWords';
-import Auth from './containers/Auth/Auth';
-import Register from './containers/Auth/Register';
-import Logout from './containers/Auth/Logout/Logout';
 import SettingsPage from './containers/SettingsPage/SettingsPage';
+import AuthModal from './components/Auth/AuthModal';
 import * as actions from './store/actions/index';
 
 const mapDispatchToProps = {
@@ -120,13 +118,11 @@ const App: React.FC<Props> = ({
           <Route path="/" exact component={Home} />
           <Route path="/add-words" component={AddWords} />
           <Route path="/test-words" component={TestWords} />
-          <Route path="/auth" component={Auth} />
-          <Route path="/register" component={Register} />
-          <Route path="/logout" component={Logout} />
           <Route path="/settings" component={SettingsPage} />
           <Route path="/tryout" render={() => <TestWords isDemo />} />
         </Switch>
       </Layout>
+      <AuthModal />
     </Box>
   );
 };

@@ -1,5 +1,12 @@
+@font-face {
+  font-family: 'Spell of Asia';
+  src: url('./assets/fonts/Spell of Asia.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 body {
-  background-image: url("/background-double.jpg");
-  background-size: repeat;
+  background-color: #ffffff;
   overflow-x: hidden;
 }

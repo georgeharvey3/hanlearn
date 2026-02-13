@@ -22,7 +22,7 @@ const SideDrawer: React.FC<SideDrawerProps> = (props) => {
         '& .MuiDrawer-paper': {
           width: 200,
           maxWidth: '70%',
-          backgroundColor: 'rgb(46, 66, 66)',
+          backgroundColor: 'primary.main',
         },
       }}
     >
@@ -30,7 +30,7 @@ const SideDrawer: React.FC<SideDrawerProps> = (props) => {
         <Logo />
       </Box>
       <nav>
-        <NavigationItems authenticated={props.isAuth} isSideDrawer />
+        <NavigationItems authenticated={props.isAuth} isSideDrawer drawerClosed={props.closed} />
       </nav>
     </Drawer>
   );

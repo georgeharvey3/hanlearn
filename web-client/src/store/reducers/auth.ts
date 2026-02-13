@@ -8,6 +8,8 @@ const initialState: AuthState = {
   error: null,
   newSignUp: false,
   initialized: false,
+  modalOpen: false,
+  modalMode: 'login',
 };
 
 const reducer = (state = initialState, action: AuthAction): AuthState => {
@@ -26,6 +28,7 @@ const reducer = (state = initialState, action: AuthAction): AuthState => {
         error: null,
         loading: false,
         initialized: true,
+        modalOpen: false,
       };
     case actionTypes.AUTH_FAIL:
       return {
@@ -51,6 +54,26 @@ const reducer = (state = initialState, action: AuthAction): AuthState => {
         error: null,
         loading: false,
         newSignUp: true,
+      };
+    case actionTypes.OPEN_AUTH_MODAL:
+      return {
+        ...state,
+        modalOpen: true,
+        modalMode: action.mode,
+        error: null,
+      };
+    case actionTypes.CLOSE_AUTH_MODAL:
+      return {
+        ...state,
+        modalOpen: false,
+        error: null,
+        loading: false,
+      };
+    case actionTypes.SET_AUTH_MODAL_MODE:
+      return {
+        ...state,
+        modalMode: action.mode,
+        error: null,
       };
     default:
       return state;

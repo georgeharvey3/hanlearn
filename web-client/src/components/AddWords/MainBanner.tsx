@@ -62,7 +62,7 @@ const MainBanner: React.FC<MainBannerProps> = ({
   };
 
   return (
-    <Box sx={{ p: '30px', color: '#E6E0AE' }}>
+    <Box sx={{ p: '30px', color: 'text.primary' }}>
       <Typography variant="h5" sx={{ height: '30px' }}>{text}</Typography>
       <form onSubmit={handleSubmit}>
         <Box

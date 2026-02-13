@@ -366,12 +366,12 @@ const AddWords: React.FC<Props> = ({
   }
 
   if (error) {
-    table = <Typography sx={{ fontSize: '20px', color: '#E6E0AE' }}>Error: Could not fetch words</Typography>;
+    table = <Typography sx={{ fontSize: '20px', color: 'error.main' }}>Error: Could not fetch words</Typography>;
   }
 
   if (state.addError) {
     table = (
-      <Typography sx={{ fontSize: '20px', color: '#E6E0AE' }}>Error: Could not search for word</Typography>
+      <Typography sx={{ fontSize: '20px', color: 'error.main' }}>Error: Could not search for word</Typography>
     );
   }
 
@@ -459,7 +459,7 @@ const AddWords: React.FC<Props> = ({
         submitClicked={searchForWord}
         loading={state.loading}
       />
-      <Box sx={{ minHeight: { '@media (min-height: 750px)': 400 }, '& h3': { color: '#e6e0ae' } }}>{table}</Box>
+      <Box sx={{ minHeight: { '@media (min-height: 750px)': 400 }, '& h3': { color: 'text.primary' } }}>{table}</Box>
       <Button disabled={words.length === 0} clicked={onTestHandler}>
         Test
       </Button>

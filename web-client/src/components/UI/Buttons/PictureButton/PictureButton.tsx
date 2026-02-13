@@ -1,5 +1,6 @@
 import React, { CSSProperties } from 'react';
 import IconButton from '@mui/material/IconButton';
+import { colors } from '../../../../theme';
 
 interface PictureButtonProps {
   colour?: 'red' | 'yellow' | 'grey';
@@ -9,8 +10,8 @@ interface PictureButtonProps {
 }
 
 const colorMap = {
-  red: '#AA381E',
-  yellow: '#E6E0AE',
+  red: colors.primary,
+  yellow: colors.primaryLight,
   grey: 'grey',
 };
 

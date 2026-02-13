@@ -5,7 +5,11 @@ import Paper from '@mui/material/Paper';
 
 import Settings from '../../../Settings/Settings';
 
-const Dropdown: React.FC = () => {
+interface DropdownProps {
+  textColor?: string;
+}
+
+const Dropdown: React.FC<DropdownProps> = ({ textColor }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
 
@@ -21,7 +25,7 @@ const Dropdown: React.FC = () => {
     <>
       <MuiButton
         onClick={handleClick}
-        sx={{ color: '#AA381E', textTransform: 'none', px: 1.5 }}
+        sx={{ color: textColor ?? 'common.white', textTransform: 'none', px: 1.5 }}
       >
         Settings
       </MuiButton>

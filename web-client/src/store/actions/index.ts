@@ -6,7 +6,16 @@ export {
   postUpdateMeaning,
   finishTest,
 } from './word';
-export { auth, logout, authCheckState, register } from './auth';
+export {
+  auth,
+  logout,
+  authCheckState,
+  register,
+  openAuthModal,
+  closeAuthModal,
+  setAuthModalMode,
+  googleSignIn,
+} from './auth';
 export {
   setSpeechAvailable,
   setSynthAvailable,

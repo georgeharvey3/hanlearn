@@ -6,12 +6,16 @@ import {
   AuthLogoutAction,
   AuthInitializedAction,
   RegisterSuccessAction,
+  OpenAuthModalAction,
+  CloseAuthModalAction,
+  SetAuthModalModeAction,
   AppThunk,
 } from '../../types/actions';
 import {
   loginUser,
   registerUser,
   logoutUser,
+  signInWithGoogle,
   subscribeToAuthChanges,
 } from '../../firebase/auth';
 import { FirebaseError } from 'firebase/app';
@@ -47,6 +51,20 @@ export const authInitialized = (): AuthInitializedAction => {
     type: actionTypes.AUTH_INITIALIZED,
   };
 };
+
+export const openAuthModal = (mode: 'login' | 'register' = 'login'): OpenAuthModalAction => ({
+  type: actionTypes.OPEN_AUTH_MODAL,
+  mode,
+});
+
+export const closeAuthModal = (): CloseAuthModalAction => ({
+  type: actionTypes.CLOSE_AUTH_MODAL,
+});
+
+export const setAuthModalMode = (mode: 'login' | 'register'): SetAuthModalModeAction => ({
+  type: actionTypes.SET_AUTH_MODAL_MODE,
+  mode,
+});
 
 export const logout = (): AppThunk => {
   return async (dispatch) => {
@@ -88,6 +106,13 @@ const getErrorMessage = (error: FirebaseError): string => {
       return 'Invalid email or password';
     case 'auth/too-many-requests':
       return 'Too many failed attempts. Please try again later';
+    case 'auth/popup-blocked':
+      return 'Please allow popups for this site to sign in with Google';
+    case 'auth/account-exists-with-different-credential':
+      return 'An account already exists with this email. Please sign in with email/password';
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+      return '';
     default:
       return error.message || 'An error occurred';
   }
@@ -111,20 +136,39 @@ export const auth = (email: string, password: string): AppThunk => {
 
 export const register = (
   email: string,
-  username: string,
   password: string
 ): AppThunk => {
   return async (dispatch) => {
     dispatch(authStart());
     try {
-      const user = await registerUser(email, password, username);
+      const user = await registerUser(email, password);
       dispatch(authSuccess(user.uid));
-      dispatch(registerSuccess());
     } catch (error) {
       if (error instanceof Error && 'code' in error) {
         dispatch(authFail(getErrorMessage(error as FirebaseError)));
       } else {
         dispatch(authFail('Registration failed'));
+      }
+    }
+  };
+};
+
+export const googleSignIn = (): AppThunk => {
+  return async (dispatch) => {
+    dispatch(authStart());
+    try {
+      const user = await signInWithGoogle();
+      dispatch(authSuccess(user.uid));
+    } catch (error) {
+      if (error instanceof Error && 'code' in error) {
+        const message = getErrorMessage(error as FirebaseError);
+        if (message) {
+          dispatch(authFail(message));
+        } else {
+          dispatch(authFail(''));
+        }
+      } else {
+        dispatch(authFail('Google sign-in failed'));
       }
     }
   };

@@ -53,13 +53,13 @@ const TestSummary: React.FC<TestSummaryProps> = ({
           bgcolor: 'secondary.main',
           borderRadius: 1,
           p: '5px',
-          boxShadow: '0px 2px 0px #918c63',
+          boxShadow: (theme) => `0px 2px 0px ${theme.palette.grey[600]}`,
           '&:active': {
             boxShadow: '0px 0px',
             transform: 'translateY(3px)',
           },
           '&:hover': {
-            bgcolor: '#f8f4cc',
+            bgcolor: 'primary.light',
           },
         }}
       >

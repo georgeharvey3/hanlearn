@@ -175,7 +175,7 @@ const TestChengyusTest: React.FC<Props> = ({
           width: '70%',
           bgcolor: 'secondary.main',
           boxShadow: '0 1px 4px black',
-          color: 'rgb(46, 66, 66)',
+          color: 'text.primary',
           borderRadius: 1,
           minHeight: 110,
           mx: 'auto',
@@ -195,7 +195,7 @@ const TestChengyusTest: React.FC<Props> = ({
                   p: '2px',
                   borderRadius: 1,
                   '&:hover': {
-                    bgcolor: 'rgb(197, 197, 106)',
+                    bgcolor: 'primary.light',
                     cursor: 'pointer',
                   },
                 }}

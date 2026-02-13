@@ -19,7 +19,7 @@ const Toggle: React.FC<ToggleProps> = (props) => {
       }
       label="Auto Record:"
       labelPlacement="start"
-      sx={{ color: '#E6E0AE' }}
+      sx={{ color: 'text.primary' }}
     />
   );
 };

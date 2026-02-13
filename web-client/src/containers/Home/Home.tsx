@@ -4,15 +4,12 @@ import { RouteComponentProps, withRouter } from 'react-router-dom';
 
 import Box from '@mui/material/Box';
 import MainBanner from '../../components/Home/MainBanner/MainBanner';
-import ExpBanner from '../../components/Home/ExpBanner/ExpBanner';
 import SignUpBanner from '../../components/Home/SignUpBanner/SignUpBanner';
 import AccountSummary from '../../components/Home/AccountSummary/AccountSummary';
 import Footer from '../../components/Home/Footer/Footer';
 import Chengyu from '../../components/Home/Chengyu/Chengyu';
-
-import addCap from '../../assets/images/homepage/add.png';
-import testCap from '../../assets/images/homepage/test.png';
-import sentenceCap from '../../assets/images/homepage/sentence.png';
+import HowItWorks from '../../components/Home/HowItWorks/HowItWorks';
+import FeatureHighlights from '../../components/Home/FeatureHighlights/FeatureHighlights';
 
 import * as actions from '../../store/actions/index';
 import { RootState } from '../../types/store';
@@ -26,6 +23,7 @@ const mapStateToProps = (state: RootState) => ({
 
 const mapDispatchToProps = {
   onInitWords: actions.initWords,
+  onOpenAuthModal: actions.openAuthModal,
 };
 
 const connector = connect(mapStateToProps, mapDispatchToProps);
@@ -36,6 +34,7 @@ const Home: React.FC<Props> = ({
   isAuthenticated,
   userId,
   onInitWords,
+  onOpenAuthModal,
   history,
 }) => {
   const [numDue, setNumDue] = useState(0);
@@ -70,7 +69,7 @@ const Home: React.FC<Props> = ({
   }, [getDueWords, getUserWords, isAuthenticated, onInitWords, userId]);
 
   const onClickSignUp = (): void => {
-    history.push('/register');
+    onOpenAuthModal('register');
   };
 
   const onTryOutClicked = (): void => {
@@ -81,39 +80,25 @@ const Home: React.FC<Props> = ({
     history.push('/test-words');
   };
 
-  let firstBanner: React.ReactNode = (
-    <SignUpBanner signUpClicked={onClickSignUp} tryOutClicked={onTryOutClicked} />
-  );
-
-  if (isAuthenticated) {
-    firstBanner = (
-      <AccountSummary
-        numDue={numDue}
-        numTot={numTot}
-        testClicked={onTestClicked}
-      />
-    );
-  }
-
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <MainBanner />
-      {firstBanner}
+      <MainBanner
+        signUpClicked={!isAuthenticated ? onClickSignUp : undefined}
+        tryOutClicked={!isAuthenticated ? onTryOutClicked : undefined}
+      />
+      {isAuthenticated && (
+        <AccountSummary
+          numDue={numDue}
+          numTot={numTot}
+          testClicked={onTestClicked}
+        />
+      )}
       {isAuthenticated && <Chengyu />}
-      <ExpBanner priority="left" img={addCap} heading={'Build your word bank'}>
-        Simply search for the Chinese word you want to add and we'll give you the pinyin
-        pronunctiation and the meaning. Don't like the translation? Feel free to add your own!
-      </ExpBanner>
-      <ExpBanner priority="right" img={testCap} heading={'Start learning!'}>
-        During the test, you will be asked to complete various pairwise combinations between the
-        character(s), pinyin and meaning of each word. When you feel comfortable with a word you
-        can eliminate it from your bank.
-      </ExpBanner>
-      <ExpBanner priority="left" img={sentenceCap} heading={'Create sentences'}>
-        Once you have tested a word correctly, you can cement your understanding by using it in a
-        sentence. Research shows this is one of the best ways to commit vocabulary to long term
-        memory.
-      </ExpBanner>
+      <HowItWorks />
+      <FeatureHighlights />
+      {!isAuthenticated && (
+        <SignUpBanner signUpClicked={onClickSignUp} tryOutClicked={onTryOutClicked} />
+      )}
       <Footer />
     </Box>
   );
