@@ -36,6 +36,18 @@ migration/service-account.json
 migration/*.json
 !migration/package.json
 
+# Claude task runner
+claude-tasks/logs/
+claude-tasks/done/
+# Keep the directory structure but not its runtime contents
+!claude-tasks/.gitkeep
+!claude-tasks/done/.gitkeep
+!claude-tasks/logs/.gitkeep
+
+# Playwright
+web-client/playwright-report/
+web-client/test-results/
+
 # Python
 __pycache__
 *.pyc

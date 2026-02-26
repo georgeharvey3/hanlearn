@@ -33,6 +33,7 @@ interface TestWordsState {
   sentenceWriteEnabled: boolean;
   devTestFinished: boolean; // For testing TestSummary directly
   practiceMode: boolean; // Practice mode ignores due dates and doesn't update them
+  seenOffsets: Record<string, { offset: number; text: string; english: string }>;
 }
 
 interface OwnProps {
@@ -82,6 +83,7 @@ const TestWords: React.FC<Props> = ({
     sentenceWriteEnabled: localStorage.getItem('sentenceWrite') === 'false' ? false : true,
     devTestFinished: devConfig?.testFinished ?? false,
     practiceMode: false,
+    seenOffsets: {},
   });
 
   const prevWordsLength = useRef(words.length);
@@ -151,12 +153,12 @@ const TestWords: React.FC<Props> = ({
 
   // Separate effect for initial word selection - only runs once when words are first available
   useEffect(() => {
-    if (!hasInitialized.current && words.length > 0) {
+    if (!hasInitialized.current && (words.length > 0 || isDemo)) {
       hasInitialized.current = true;
 
       if (devConfig) {
-        // For dev stages, use actual words from user's bank
-        const selectedWords = selectTestWords();
+        // For dev stages, use actual words from user's bank (ignore due dates)
+        const selectedWords = selectTestWords(true);
         const newWords = selectedWords.filter((word) => word.bank === 1);
         setState((prev) => ({
           ...prev,
@@ -168,7 +170,7 @@ const TestWords: React.FC<Props> = ({
         setSelectedWords();
       }
     }
-  }, [selectTestWords, setSelectedWords, words.length]);
+  }, [isDemo, selectTestWords, setSelectedWords, words.length]);
 
   // This effect is now handled by the initialization effect above
   useEffect(() => {
@@ -222,9 +224,9 @@ const TestWords: React.FC<Props> = ({
     }
   };
 
-  const onStartSentenceWrite = (): void => {
+  const onStartSentenceWrite = (seenOffsets: Record<string, { offset: number; text: string; english: string }>): void => {
     if (state.sentenceWriteEnabled) {
-      setState((prev) => ({ ...prev, stage: 'write' }));
+      setState((prev) => ({ ...prev, stage: 'write', seenOffsets }));
     }
   };
 
@@ -269,7 +271,7 @@ const TestWords: React.FC<Props> = ({
         );
         break;
       case 'write':
-        content = <SentenceWrite words={state.sentenceWords} />;
+        content = <SentenceWrite words={state.sentenceWords} seenOffsets={state.seenOffsets} />;
         break;
       default:
         content = (
@@ -295,7 +297,7 @@ const TestWords: React.FC<Props> = ({
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
           <Button clicked={onClickAddWords}>Add Words</Button>
           {hasWordsInBank && (
-            <Button clicked={onStartPractice}>Practice</Button>
+            <Button type='ghost' clicked={onStartPractice}>Practice</Button>
           )}
         </div>
       </Modal>

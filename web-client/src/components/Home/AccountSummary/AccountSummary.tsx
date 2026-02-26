@@ -17,7 +17,7 @@ const AccountSummary: React.FC<AccountSummaryProps> = (props) => (
     </Typography>
     <Button
       disabled={props.numTot === 0}
-      colour="red"
+      type="primary"
       clicked={props.testClicked}
     >
       Test

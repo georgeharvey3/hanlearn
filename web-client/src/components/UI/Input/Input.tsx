@@ -39,8 +39,8 @@ const Input: React.FC<InputProps> = (props) => (
     }}
     style={props.style}
     sx={{
-      width: '50%',
-      maxWidth: 300,
+      width: '75%',
+      maxWidth: 400,
       mx: 'auto',
       '& input': { textAlign: 'center' },
     }}

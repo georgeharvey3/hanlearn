@@ -143,7 +143,7 @@ async function searchTatoeba(word: string): Promise<TatoebaSentence[]> {
  */
 async function fetchTatoebaTranslation(sentence: TatoebaSentence): Promise<TatoebaExample | null> {
   try {
-    const detailUrl = `https://api.tatoeba.org/unstable/sentences/${sentence.id}?include=translations`;
+    const detailUrl = `https://api.tatoeba.org/unstable/sentences/${sentence.id}?include=transcriptions&showtrans=all`;
     const detailResponse = await fetch(detailUrl);
 
     if (!detailResponse.ok) {
@@ -162,8 +162,8 @@ async function fetchTatoebaTranslation(sentence: TatoebaSentence): Promise<Tatoe
     }
 
     let chineseText = sentence.text;
-    if (sentence.script === 'Hant') {
-      const simpTranscription = sentence.transcriptions?.find(
+    if (sentenceWithTranslations.script === 'Hant') {
+      const simpTranscription = sentenceWithTranslations.transcriptions?.find(
         (t) => t.script === 'Hans'
       );
       if (simpTranscription) {

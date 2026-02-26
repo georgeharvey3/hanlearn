@@ -5,6 +5,8 @@ import { connect, ConnectedProps } from 'react-redux';
 
 import Layout from './components/Layout/Layout';
 import Home from './containers/Home/Home';
+import Dashboard from './containers/Dashboard/Dashboard';
+import { RootState } from './types/store';
 import AddWords from './containers/AddWords/AddWords';
 import TestWords from './containers/TestWords/TestWords';
 import SettingsPage from './containers/SettingsPage/SettingsPage';
@@ -19,11 +21,16 @@ const mapDispatchToProps = {
   onSetLang: actions.setLang,
 };
 
-const connector = connect(null, mapDispatchToProps);
+const mapStateToProps = (state: RootState) => ({
+  isAuthenticated: state.auth.userId !== null,
+});
+
+const connector = connect(mapStateToProps, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 type Props = PropsFromRedux & RouteComponentProps;
 
 const App: React.FC<Props> = ({
+  isAuthenticated,
   onTryAutoLogin,
   onSetSpeechAvailable,
   onSetSynthAvailable,
@@ -115,7 +122,7 @@ const App: React.FC<Props> = ({
     <Box sx={{ textAlign: 'center', height: '100%' }}>
       <Layout>
         <Switch>
-          <Route path="/" exact component={Home} />
+          <Route path="/" exact render={() => (isAuthenticated ? <Dashboard /> : <Home />)} />
           <Route path="/add-words" component={AddWords} />
           <Route path="/test-words" component={TestWords} />
           <Route path="/settings" component={SettingsPage} />

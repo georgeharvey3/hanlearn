@@ -1,0 +1,871 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for src/data/chengyus.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../prettify.css" />
+    <link rel="stylesheet" href="../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/data</a> chengyus.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">5.88% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>2/34</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/9</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/11</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">6.89% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>2/29</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line low'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { searchWord, convertText } from '../services/dictionaryService';
+&nbsp;
+export interface Chengyu {
+  characters: string;
+  pinyin: string;
+  meaning: string;
+}
+&nbsp;
+export const chengyus: Chengyu[] = [
+  { characters: '不可得兼', pinyin: 'bù kě dé jiān', meaning: "you can't have both at the same time" },
+  { characters: '不得其法', pinyin: 'bù dé qí fǎ', meaning: 'not knowing the right way' },
+  { characters: '心神不宁', pinyin: 'xīn shén bù níng', meaning: 'to feel bad about nothing' },
+  { characters: '一本正经', pinyin: 'yī běn zhèng jīng', meaning: 'to always be serious' },
+  { characters: '沉鱼落雁', pinyin: 'chén yú luò yàn', meaning: 'extremely beautiful' },
+  { characters: '独一无二', pinyin: 'dú yī wú èr', meaning: 'unique' },
+  { characters: '数一数二', pinyin: 'shǔ yī shǔ èr', meaning: 'the best; considered among the best' },
+  { characters: '绝无仅有', pinyin: 'jué wú jǐn yǒu', meaning: 'one of a kind; unique' },
+  { characters: '损人利己', pinyin: 'sǔn rén lì jǐ', meaning: 'to seek benefit at the expense of others' },
+  { characters: '幸灾乐祸', pinyin: 'xìng zāi lè huò', meaning: "to enjoy others' misfortunes" },
+  { characters: '力不从心', pinyin: 'lì bù cóng xīn', meaning: "the qualities aren't at the level of the aspirations" },
+  { characters: '亦步亦趋', pinyin: 'yì bù yì qū', meaning: 'to blindly imitate someone' },
+  { characters: '滔滔不绝', pinyin: 'tāo tāo bù jué', meaning: 'without interruption' },
+  { characters: '桃李满天下', pinyin: 'táo lǐ mǎn tiān xià', meaning: 'to have pupils everywhere' },
+  { characters: '省吃俭用', pinyin: 'shěng chī jiǎn yòng', meaning: 'to live frugally' },
+  { characters: '婀娜多姿', pinyin: 'ē nuó duō zī', meaning: 'to be graceful' },
+  { characters: '应运而生', pinyin: 'yìng yùn ér shēng', meaning: 'to emerge thanks to a favorable situation' },
+  { characters: '厮守终生', pinyin: 'sī shǒu zhōng shēng', meaning: 'to be together forever' },
+  { characters: '寓意深远', pinyin: 'yù yì shēn yuǎn', meaning: 'morale is very low' },
+  { characters: '一切就绪', pinyin: 'yī qiè jiù xù', meaning: 'everything is in order' },
+  { characters: '囫囵吞枣', pinyin: 'hú lún tūn zǎo', meaning: 'to swallow information without assimilating it' },
+  { characters: '塞翁失马', pinyin: 'sài wēng shī mǎ', meaning: 'not all bad comes to cause harm' },
+  { characters: '狼吞虎咽', pinyin: 'láng tūn hǔ yàn', meaning: 'to brush away food like a wolf' },
+  { characters: '避而不见', pinyin: 'bì ér bù jiàn', meaning: 'to avoid meeting someone' },
+  { characters: '成千上万', pinyin: 'chéng qiān shàng wàn', meaning: 'thousands' },
+  { characters: '依依不舍', pinyin: 'yī yī bù shě', meaning: 'to be reluctant to leave something' },
+  { characters: '如期而至', pinyin: 'rú qī ér zhì', meaning: 'to arrive in time' },
+  { characters: '自作聪明', pinyin: 'zì zuò cōng míng', meaning: 'to be presumptuous' },
+  { characters: '废寝忘食', pinyin: 'fèi qǐn wàng shí', meaning: 'forgetting to eat and sleep so as to do something' },
+  { characters: '一门心思', pinyin: 'yī mén xīn si', meaning: 'to be solely concentrated on doing something' },
+  { characters: '深情厚谊', pinyin: 'shēn qíng hòu yì', meaning: 'long and intimate friendship' },
+  { characters: '死里逃生', pinyin: 'sǐ lǐ táo shēng', meaning: 'to find a way out of certain death' },
+  { characters: '与众不同', pinyin: 'yǔ zhòng bù tóng', meaning: 'different than the crowd' },
+  { characters: '心甘情愿', pinyin: 'xīn gān qíng yuàn', meaning: 'to be extremely happy to do something' },
+  { characters: '无可奈何', pinyin: 'wú kě nài hé', meaning: 'to have no alternatives' },
+  { characters: '眼见为实', pinyin: 'yǎn jiàn wéi shí', meaning: 'to believe in what can be seen' },
+  { characters: '耳听为虚', pinyin: 'ěr tīng wèi xū', meaning: 'to not believe in what you hear' },
+  { characters: '十全十美', pinyin: 'shí quán shí měi', meaning: 'perfect' },
+  { characters: '星火燎原', pinyin: 'xīng huǒ liáo yuán', meaning: 'a single spark creates a blaze' },
+  { characters: '夸大其词', pinyin: 'kuā dà qí cí', meaning: 'exaggerate' },
+  { characters: '举目无亲', pinyin: 'jǔ mù wú qīn', meaning: 'to be a stranger in a strange land' },
+  { characters: '四海为家', pinyin: 'sì hǎi wéi jiā', meaning: 'to make every place your home; live as a hobo' },
+  { characters: '小心翼翼', pinyin: 'xiǎo xīn yì yì', meaning: 'extremely cautious' },
+  { characters: '焕然一新', pinyin: 'huàn rán yī xīn', meaning: 'to take on a completely new appearance' },
+  { characters: '乱七八糟', pinyin: 'luàn qī bā zāo', meaning: 'in complete disorder' },
+  { characters: '不自觉地', pinyin: 'bù zì jué de', meaning: 'unconsciously' },
+  { characters: '筋疲力尽', pinyin: 'jīn pí lì jìn', meaning: 'to feel exhausted' },
+  { characters: '顺其自然', pinyin: 'shùn qí zì rán', meaning: 'to let nature take its course' },
+  { characters: '恋恋不舍', pinyin: 'liàn liàn bù shě', meaning: 'to be reluctant to leave' },
+  { characters: '擦肩而过', pinyin: 'cā jiān ér guò', meaning: 'to brush up against someone in passing' },
+  { characters: '迫不及待', pinyin: 'pò bù jí dài', meaning: 'impatiently waiting' },
+  { characters: '无所不谈', pinyin: 'wú suǒ bù tán', meaning: 'to talk about everything under the sun' },
+  { characters: '不谋而合', pinyin: 'bù móu ér hé', meaning: 'to agree without discussion' },
+  { characters: '不以为然', pinyin: 'bù yǐ wéi rán', meaning: 'to consider something unacceptable' },
+  { characters: '我行我素', pinyin: 'wǒ xíng wǒ sù', meaning: 'to stick to your own way of doing things' },
+  { characters: '栩栩如生', pinyin: 'xǔ xǔ rú shēng', meaning: 'as vivid as life' },
+  { characters: '莞尔一笑', pinyin: 'wǎn ěr yī xiào', meaning: 'to give a faint smile' },
+  { characters: '胡说八道', pinyin: 'hú shuō bā dào', meaning: 'to talk nonsense' },
+  { characters: '眉飞色舞', pinyin: 'méi fēi sè wǔ', meaning: 'to be exultant, exuberant' },
+  { characters: '漫无目的', pinyin: 'màn wú mù dì', meaning: 'to be without a goal' },
+  { characters: '左顾右盼', pinyin: 'zuǒ gù yòu pàn', meaning: 'to look to the left and right' },
+  { characters: '一针见血', pinyin: 'yī zhēn jiàn xiě', meaning: 'to hit the mark' },
+  { characters: '轻而易举', pinyin: 'qīng ér yì jǔ', meaning: 'easy to do' },
+  { characters: '全心全意', pinyin: 'quán xīn quán yì', meaning: 'to do something with all your heart' },
+  { characters: '相去甚远', pinyin: 'xiāng qù shèn yuǎn', meaning: 'to make a big difference' },
+  { characters: '彬彬有礼', pinyin: 'bīn bīn yǒu lǐ', meaning: 'sophisticated' },
+  { characters: '称兄道弟', pinyin: 'chēng xiōng dào dì', meaning: 'to be like brothers with someone; to have a great relationship' },
+  { characters: '相提并论', pinyin: 'xiāng tí bìng lùn', meaning: 'to be placed at the same level of' },
+  { characters: '惟妙惟肖', pinyin: 'wéi miào wéi xiào', meaning: 'to be just like the real thing' },
+  { characters: '忙里偷闲', pinyin: 'máng lǐ tōu xián', meaning: 'to find time for pleasure between work' },
+  { characters: '全神贯注', pinyin: 'quán shén guàn zhù', meaning: 'absorbed, absorbed in' },
+  { characters: '缘木求鱼', pinyin: 'yuán mù qiú yú', meaning: 'to use counterproductive methods to do something' },
+  { characters: '见钱眼开', pinyin: 'jiàn qián yǎn kāi', meaning: 'to be desirous of money' },
+  { characters: '见利忘义', pinyin: 'jiàn lì wàng yì', meaning: 'to forget integrity so as to achieve gain' },
+  { characters: '下不为例', pinyin: 'xià bù wéi lì', meaning: 'it will not set a precedent' },
+  { characters: '可想而知', pinyin: 'kě xiǎng ér zhī', meaning: 'as you can well imagine' },
+  { characters: '不翼而飞', pinyin: 'bù yì ér fēi', meaning: 'to suddenly disappear' },
+  { characters: '惊慌失措', pinyin: 'jīng huāng shī cuò', meaning: 'caught in panic' },
+  { characters: '龇牙咧嘴', pinyin: 'zī yá liě zuǐ', meaning: 'to grit your teeth in pain' },
+  { characters: '火上加油', pinyin: 'huǒ shàng jiā yóu', meaning: 'to throw fuel on the fire' },
+  { characters: '雪上加霜', pinyin: 'xuě shàng jiā shuāng', meaning: 'one disaster after another' },
+  { characters: '如愿以偿', pinyin: 'rú yuàn yǐ cháng', meaning: 'fully satisfied desires' },
+  { characters: '无理取闹', pinyin: 'wú lǐ qǔ nào', meaning: 'to create problems for no reason' },
+  { characters: '对牛弹琴', pinyin: 'duì niú tán qín', meaning: 'to speak to the wrong audience' },
+  { characters: '理直气壮', pinyin: 'lǐ zhí qì zhuàng', meaning: "to do something while knowing you're in the right" },
+  { characters: '思前想后', pinyin: 'sī qián xiǎng hòu', meaning: 'to accurately ponder over something' },
+  { characters: '如释重负', pinyin: 'rú shì zhòng fù', meaning: 'to feel freed of a great burden' },
+  { characters: '不可开交', pinyin: 'bù kě kāi jiāo', meaning: 'extremely' },
+  { characters: '重温旧梦', pinyin: 'chóng wēn jiù mèng', meaning: 'to relive an old experience; relive an old dream' },
+  { characters: '兴致勃勃', pinyin: 'xìng zhì bó bó', meaning: 'full of enthusiasm' },
+  { characters: '如影随形', pinyin: 'rú yǐng suí xíng', meaning: 'inseparable; followed like your own shadow' },
+  { characters: '千言万语', pinyin: 'qiān yán wàn yǔ', meaning: 'thousands and thousands of words' },
+  { characters: '惴惴不安', pinyin: 'zhuì zhuì bù ān', meaning: 'on thorns' },
+  { characters: '大惊小怪', pinyin: 'dà jīng xiǎo guài', meaning: 'great fuss over something ordinary; to complain unjustifiably' },
+  { characters: '不足挂齿', pinyin: 'bù zú guà chǐ', meaning: 'nothing to talk about' },
+  { characters: '天涯海角', pinyin: 'tiān yá hǎi jiǎo', meaning: 'far off world' },
+  { characters: '垂垂老矣', pinyin: 'chuí chuí lǎo yǐ', meaning: 'always older' },
+  { characters: '白发苍苍', pinyin: 'bái fà cāng cāng', meaning: 'from white hairs' },
+  { characters: '低三下四', pinyin: 'dī sān xià sì', meaning: 'mean, petty' },
+  { characters: '安贫乐道', pinyin: 'ān pín lè dào', meaning: 'happy to live a virtuous life even if in a state of poverty' },
+  { characters: '光明磊落', pinyin: 'guāng míng lěi luò', meaning: 'in broad daylight; cards showing; correctly and legitimately' },
+  { characters: '知足常乐', pinyin: 'zhī zú cháng lè', meaning: 'to be content with what you have' },
+  { characters: '东山再起', pinyin: 'dōng shān zài qǐ', meaning: 'to stage a return' },
+  { characters: '完璧归赵', pinyin: 'wán bì guī zhào', meaning: 'to give something back to its owner in excellent condition' },
+  { characters: '如虎添翼', pinyin: 'rú hǔ tiān yì', meaning: 'with double the power' },
+  { characters: '夜深人静', pinyin: 'yè shēn rén jìng', meaning: 'in the silence of deepest night' },
+  { characters: '班门弄斧', pinyin: 'bān mén nòng fǔ', meaning: 'to show your talent is of little account in front of a true expert on the material' },
+  { characters: '乘风破浪', pinyin: 'chéng fēng pò làng', meaning: 'to have great ambitions' },
+  { characters: '程门立雪', pinyin: 'chéng mén lì xuě', meaning: 'to honor the master and respect his teachings' },
+  { characters: '狐假虎威', pinyin: 'hú jiǎ hǔ wēi', meaning: 'to intimidate someone by flaunting your relationship with important people' },
+  { characters: '孟母三迁', pinyin: 'mèng mǔ sān qiān', meaning: 'a wise mother works to find a healthy educational environment for her children' },
+  { characters: '愚公移山', pinyin: 'yú gōng yí shān', meaning: 'to want to is to be able to' },
+  { characters: '画蛇添足', pinyin: 'huà shé tiān zú', meaning: 'more than enough' },
+  { characters: '开卷有益', pinyin: 'kāi juàn yǒu yì', meaning: 'reading always brings benefits' },
+  { characters: '世外桃源', pinyin: 'shì wài táo yuán', meaning: 'paradise of peace; utopia' },
+  { characters: '津津有味', pinyin: 'jīn jīn yǒu wèi', meaning: 'to do something with gusto' },
+  { characters: '落英缤纷', pinyin: 'luò yīng bīn fēn', meaning: 'flower petals that fall like snowflakes' },
+  { characters: '虚怀若谷', pinyin: 'xū huái ruò gǔ', meaning: 'to be extremely open-minded' },
+  { characters: '心如止水', pinyin: 'xīn rú zhǐ shuǐ', meaning: 'a peaceful heart; a heart as calm as still water' },
+  { characters: '随遇而安', pinyin: 'suí yù ér ān', meaning: 'to feel adequate wherever you are' },
+  { characters: '厚德载物', pinyin: 'hòu dé zài wù', meaning: 'to be of strong moral character' },
+  { characters: '大智若愚', pinyin: 'dà zhì ruò yú', meaning: 'the wise one appears stupid' },
+  { characters: '相濡以沫', pinyin: 'xiāng rú yǐ mò', meaning: 'to help each other out despite both being in delicate condition' },
+  { characters: '阳光明媚', pinyin: 'yáng guāng míng mèi', meaning: 'the sun is particularly bright' },
+  { characters: '忐忑不安', pinyin: 'tǎn tè bù ān', meaning: 'disquieted; preoccupied; uncomfortable' },
+  { characters: '说三道四', pinyin: 'shuō sān dào sì', meaning: 'to gossip' },
+  { characters: '不顾一切', pinyin: 'bù gù yī qiè', meaning: 'indifferent to everything' },
+  { characters: '一日为师，终身为父', pinyin: 'yī rì wèi shī, zhōng shēn wèi fù', meaning: 'teacher for a day, father for a lifetime' },
+  { characters: '不管三七二十一', pinyin: 'bù guǎn sān qī èr shí yī', meaning: 'not caring about the consequences' },
+  { characters: '开门见山', pinyin: 'kāi mén jiàn shān', meaning: 'to get right to the chase' },
+  { characters: '一蹴而就', pinyin: 'yī cù ér jiù', meaning: 'to be successful on the first try' },
+  { characters: '惹是生非', pinyin: 'rě shì shēng fēi', meaning: 'to start a dispute; begin a conflict' },
+  { characters: '安居乐业', pinyin: 'ān jū lè yè', meaning: 'to live in peace, without disturbance' },
+  { characters: '难兄难弟', pinyin: 'nàn xiōng nàn dì', meaning: 'brothers of misfortune' },
+  { characters: '笑里藏刀', pinyin: 'xiào lǐ cáng dāo', meaning: 'a dagger hidden behind a smile' },
+  { characters: '海市蜃楼', pinyin: 'hǎi shì shèn lóu', meaning: 'to build castles in the air; mirage' },
+  { characters: '厮守终身', pinyin: 'sī shǒu zhōng shēn', meaning: "to be together for one's whole life" },
+  { characters: '伶牙俐齿', pinyin: 'líng yá lì chǐ', meaning: 'to be clear and eloquent' },
+  { characters: '日积月累', pinyin: 'rì jī yuè lěi', meaning: 'to accumulate for a long time' },
+  { characters: '雷打不动', pinyin: 'léi dǎ bù dòng', meaning: 'to be determined, unshakable' },
+  { characters: '家常便饭', pinyin: 'jiā cháng biàn fàn', meaning: 'routine' },
+  { characters: '一头雾水', pinyin: 'yī tóu wù shuǐ', meaning: 'to feel confused' },
+  { characters: '大汗淋漓', pinyin: 'dà hàn lín lí', meaning: 'to be soaked with sweat' },
+  { characters: '有条不紊', pinyin: 'yǒu tiáo bù wěn', meaning: 'methodical, systematic' },
+  { characters: '知难而退', pinyin: 'zhī nán ér tuì', meaning: 'to run from difficulty' },
+  { characters: '似懂非懂', pinyin: 'sì dǒng fēi dǒng', meaning: 'to not fully understand' },
+  { characters: '知行合一', pinyin: 'zhī xíng hé yī', meaning: 'the union of practice and knowledge' },
+];
+&nbsp;
+const BASE_DATE = new Date('2021-05-24');
+&nbsp;
+/**
+ * Get the daily chengyu based on days since BASE_DATE.
+ * Returns simplified characters synchronously; call convertDailyChengyu()
+ * to get the display form in the selected character set.
+ */
+export function <span class="fstat-no" title="function not covered" >getDailyChengyu(): {</span>
+  chengyu: string;
+  pinyin: string;
+  options: string[];
+  correct: string;
+  charPinyins: { char: string; pinyin: string; meaning?: string }[];
+} {
+  const today = <span class="cstat-no" title="statement not covered" >new Date();</span>
+  const daysSinceBase = <span class="cstat-no" title="statement not covered" >Math.floor(</span>
+    (today.getTime() - BASE_DATE.getTime()) / (1000 * 60 * 60 * 24)
+  );
+&nbsp;
+  const index = <span class="cstat-no" title="statement not covered" >daysSinceBase % chengyus.length;</span>
+  const todaysChengyu = <span class="cstat-no" title="statement not covered" >chengyus[index];</span>
+&nbsp;
+  // Get 3 random wrong options
+  const otherChengyus = <span class="cstat-no" title="statement not covered" >chengyus.filter(<span class="fstat-no" title="function not covered" >(_</span>, i) =&gt; <span class="cstat-no" title="statement not covered" >i !== index)</span>;</span>
+  const shuffled = <span class="cstat-no" title="statement not covered" >[...otherChengyus].sort(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >M</span>ath.random() - 0.5)</span>;</span>
+  const wrongOptions = <span class="cstat-no" title="statement not covered" >shuffled.slice(0, 3).map(<span class="fstat-no" title="function not covered" >(c</span>) =&gt; <span class="cstat-no" title="statement not covered" >c.meaning)</span>;</span>
+&nbsp;
+  // Shuffle all options
+  const allOptions = <span class="cstat-no" title="statement not covered" >[todaysChengyu.meaning, ...wrongOptions].sort(</span>
+<span class="fstat-no" title="function not covered" >    () =&gt; <span class="cstat-no" title="statement not covered" >M</span>ath.random() - 0.5</span>
+  );
+&nbsp;
+  // Parse pinyin for each character
+  const pinyinParts = <span class="cstat-no" title="statement not covered" >todaysChengyu.pinyin.split(' ');</span>
+  const chars = <span class="cstat-no" title="statement not covered" >Array.from(todaysChengyu.characters).filter(<span class="fstat-no" title="function not covered" >(c</span>) =&gt; <span class="cstat-no" title="statement not covered" >c !== '，' &amp;&amp; c !== ',')</span>;</span>
+  const charPinyins = <span class="cstat-no" title="statement not covered" >chars.map(<span class="fstat-no" title="function not covered" >(c</span>har, i) =&gt; (<span class="cstat-no" title="statement not covered" >{</span></span>
+    char,
+    pinyin: pinyinParts[i] || '',
+    meaning: undefined, // Will be populated asynchronously
+  }));
+&nbsp;
+<span class="cstat-no" title="statement not covered" >  return {</span>
+    chengyu: todaysChengyu.characters,
+    pinyin: todaysChengyu.pinyin,
+    options: allOptions,
+    correct: todaysChengyu.meaning,
+    charPinyins,
+  };
+}
+&nbsp;
+/**
+ * Convert the daily chengyu display strings to the selected character set.
+ * Returns converted chengyu string and charPinyins with converted chars.
+ */
+export async function <span class="fstat-no" title="function not covered" >convertDailyChengyu(</span>
+  dailyChengyu: {
+    chengyu: string;
+    charPinyins: { char: string; pinyin: string; meaning?: string }[];
+  },
+  charSet: 'simp' | 'trad'
+): Promise&lt;{
+  chengyu: string;
+  charPinyins: { char: string; pinyin: string; meaning?: string }[];
+}&gt; {
+<span class="cstat-no" title="statement not covered" >  if (charSet === 'simp') {</span>
+<span class="cstat-no" title="statement not covered" >    return dailyChengyu;</span>
+  }
+&nbsp;
+  const convertedChengyu = <span class="cstat-no" title="statement not covered" >await convertText(dailyChengyu.chengyu, charSet);</span>
+  const convertedChars = <span class="cstat-no" title="statement not covered" >await Promise.all(</span>
+    dailyChengyu.charPinyins.map(<span class="fstat-no" title="function not covered" >async (c</span>p) =&gt; (<span class="cstat-no" title="statement not covered" >{</span>
+      ...cp,
+      char: await convertText(cp.char, charSet),
+    }))
+  );
+&nbsp;
+<span class="cstat-no" title="statement not covered" >  return {</span>
+    chengyu: convertedChengyu,
+    charPinyins: convertedChars,
+  };
+}
+&nbsp;
+/**
+ * Look up meanings for each character in the chengyu
+ */
+export async function <span class="fstat-no" title="function not covered" >lookupCharacterMeanings(</span>
+  chars: string[],
+  charSet: 'simp' | 'trad' = <span class="branch-0 cbranch-no" title="branch not covered" >'simp'</span>
+): Promise&lt;{ char: string; meaning: string }[]&gt; {
+  const results = <span class="cstat-no" title="statement not covered" >await Promise.all(</span>
+    chars.map(<span class="fstat-no" title="function not covered" >async (c</span>har) =&gt; {
+<span class="cstat-no" title="statement not covered" >      try {</span>
+        const wordResults = <span class="cstat-no" title="statement not covered" >await searchWord(char, charSet);</span>
+        // Get the first meaning if available
+        const meaning = <span class="cstat-no" title="statement not covered" >wordResults.length &gt; 0 ? wordResults[0].meaning : '';</span>
+<span class="cstat-no" title="statement not covered" >        return { char, meaning };</span>
+      } catch (error) {
+<span class="cstat-no" title="statement not covered" >        console.error(`Failed to lookup character ${char}:`, error);</span>
+<span class="cstat-no" title="statement not covered" >        return { char, meaning: '' };</span>
+      }
+    })
+  );
+<span class="cstat-no" title="statement not covered" >  return results;</span>
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-02-26T17:02:32.996Z
+            </div>
+        <script src="../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../sorter.js"></script>
+        <script src="../../block-navigation.js"></script>
+    </body>
+</html>
+    

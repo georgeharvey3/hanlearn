@@ -70,7 +70,8 @@ const MainBanner: React.FC<MainBannerProps> = ({
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            width: '400px',
+            width: '100%',
+            maxWidth: '400px',
             mx: 'auto',
             height: '60px',
           }}

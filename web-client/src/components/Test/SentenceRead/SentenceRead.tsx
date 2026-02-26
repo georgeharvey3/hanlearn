@@ -4,7 +4,7 @@ import { withRouter, RouteComponentProps } from 'react-router-dom';
 import { Howl } from 'howler';
 import { httpsCallable } from 'firebase/functions';
 
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, Paper, Stack, Typography, Chip } from '@mui/material';
 
 import { colors } from '../../../theme';
 import Button from '../../UI/Buttons/Button/Button';
@@ -58,6 +58,7 @@ interface ResolvedSentence {
     sentence: string;
     words: (string | SentenceWord)[];
     highlight: number[][];
+    targetIndex: number;
   };
   english: {
     sentence: string;
@@ -118,6 +119,7 @@ async function resolveSentence(
     chinese: {
       sentence: cloudSentence.chinese.sentence,
       highlight: cloudSentence.chinese.highlight,
+      targetIndex: cloudSentence.chinese.targetIndex,
       words,
     },
     english: cloudSentence.english,
@@ -159,7 +161,7 @@ type PropsFromRedux = ConnectedProps<typeof connector>;
 interface OwnProps {
   words: Word[];
   sentenceWriteEnabled?: boolean;
-  startSentenceWrite?: () => void;
+  startSentenceWrite?: (seenOffsets: Record<string, { offset: number; text: string; english: string }>) => void;
 }
 
 type Props = PropsFromRedux & OwnProps & RouteComponentProps;
@@ -233,6 +235,7 @@ const SentenceRead: React.FC<Props> = ({
 
   const stateRef = useRef(state);
   const hasInitialized = useRef(false);
+  const seenOffsets = useRef<Record<string, { offset: number; text: string; english: string }>>({});
 
   useEffect(() => {
     stateRef.current = state;
@@ -294,7 +297,7 @@ const SentenceRead: React.FC<Props> = ({
 
   const onEndStage = useCallback((): void => {
     if (sentenceWriteEnabled) {
-      startSentenceWrite?.();
+      startSentenceWrite?.(seenOffsets.current);
     } else {
       history.push('/');
     }
@@ -379,6 +382,14 @@ const SentenceRead: React.FC<Props> = ({
 
   const onYesClicked = (): void => {
     if (stateRef.current.useSound) beep.play();
+
+    const currentWord = words[stateRef.current.wordIndex];
+    const seenSentence = stateRef.current.sentences[stateRef.current.sentenceIndex];
+    seenOffsets.current[currentWord.simp] = {
+      offset: stateRef.current.sentenceIndex,
+      text: seenSentence?.chinese.sentence ?? '',
+      english: seenSentence?.english.sentence ?? '',
+    };
 
     if (stateRef.current.wordIndex >= words.length - 1) {
       onEndStage();
@@ -511,46 +522,55 @@ const SentenceRead: React.FC<Props> = ({
     prevSentenceIndex.current = state.sentenceIndex;
   }, [onSpeakPinyin, state.sentenceIndex, state.sentences, state.useSound]);
 
-  let sentenceWords: React.ReactNode = <Spinner />;
+  // ── Sentence display content ──────────────────────────────────────────────
+  let sentenceCardContent: React.ReactNode = <Spinner />;
 
   if (state.sentences[state.sentenceIndex] && !state.loading) {
     const currentSentence = state.sentences[state.sentenceIndex];
-    const sentenceText = currentSentence.chinese.sentence;
-    const wordStart = currentSentence.chinese.highlight[0]?.[0] || 0;
-    const wordEnd = currentSentence.chinese.highlight[0]?.[1] || 0;
-    // chosenWord is in simplified (matches the sentence text from cloud function)
-    const chosenWord = sentenceText.slice(wordStart, wordEnd);
-    // The display form of the target word in the selected character set
-    const currentTargetWord = words[state.wordIndex]?.[state.charSet] || chosenWord;
+    const targetIndex = currentSentence.chinese.targetIndex;
+    const currentTargetWord = words[state.wordIndex]?.[state.charSet] || '';
 
-    sentenceWords = currentSentence.chinese.words.map((word, index) => {
-      if (typeof word === 'string') {
-        // String entries are the target word marker (in simplified from cloud function)
-        if (word === chosenWord) {
+    if (state.useSound && !state.showText) {
+      // Audio mode: centred speaker button with hint
+      sentenceCardContent = (
+        <Stack alignItems="center" spacing={1}>
+          <PictureButton
+            type="secondary"
+            src={speakerPic}
+            clicked={() => onSpeakPinyin(currentSentence.chinese.sentence)}
+          />
+          <Typography variant="caption" sx={{ color: 'text.secondary', letterSpacing: 0.3 }}>
+            Tap to replay
+          </Typography>
+        </Stack>
+      );
+    } else {
+      // Text mode: render the segmented sentence
+      const renderedWords = currentSentence.chinese.words.map((word, index) => {
+        const isTarget = index === targetIndex;
+
+        if (isTarget) {
           return (
             <Box
               component="span"
               key={index}
-              sx={{ color: 'primary.main', fontSize: '1.1em' }}
+              sx={{
+                color: 'primary.dark',
+                bgcolor: 'primary.50',
+                px: 0.5,
+                borderRadius: 1,
+                lineHeight: 'inherit',
+              }}
             >
               {currentTargetWord}
             </Box>
           );
         }
-        return word;
-      } else {
-        // Compare using simplified (matches the sentence text), display in selected charSet
-        if (word.simp === chosenWord) {
-          return (
-            <Box
-              component="span"
-              key={index}
-              sx={{ color: 'primary.main', fontSize: '1.1em' }}
-            >
-              {word[state.charSet]}
-            </Box>
-          );
+
+        if (typeof word === 'string') {
+          return <React.Fragment key={index}>{word}</React.Fragment>;
         }
+
         return (
           <Box
             component="span"
@@ -564,149 +584,143 @@ const SentenceRead: React.FC<Props> = ({
             sx={popupBaseSx}
           >
             {word[state.charSet]}
-            <Box
-              component="span"
-              data-popup-text
-              id={word.id + 'popup'}
-              style={popupTextStyle}
-            >
+            <Box component="span" data-popup-text id={word.id + 'popup'} style={popupTextStyle}>
               <Typography variant="subtitle2" sx={{ m: 0, fontWeight: 'bold' }}>Pinyin:</Typography>
               <Typography variant="body2">{word.pinyin}</Typography>
               <Typography variant="subtitle2" sx={{ m: 0, fontWeight: 'bold' }}>Meaning:</Typography>
               <Typography variant="body2">{word.meaning.split('/').join(' / ')}</Typography>
-              {addedWords.filter((addedWord) => addedWord.id === word.id).length > 0 ? (
+              {addedWords.find((aw) => aw.id === word.id) ? (
                 <Button disabled>Added!</Button>
               ) : (
-                <Button clicked={() => onPostWord(word as Word)}>
-                  Add to bank
-                </Button>
+                <Button clicked={() => onPostWord(word as Word)}>Add to bank</Button>
               )}
             </Box>
           </Box>
         );
-      }
-    });
+      });
 
-    if (state.useSound && !state.showText) {
-      sentenceWords = (
-        <PictureButton
-          colour="grey"
-          src={speakerPic}
-          clicked={() => onSpeakPinyin(currentSentence.chinese.sentence)}
-        />
+      sentenceCardContent = (
+        <Box sx={{ lineHeight: 1.8, fontSize: '1.5em', letterSpacing: 2 }}>
+          {renderedWords}
+        </Box>
       );
     }
   }
 
-  const showHide = state.useSound ? (
-    <Button clicked={onToggleText}>{state.showText ? 'Hide' : 'Show'} Text</Button>
-  ) : null;
-
-  const micButton = state.useEnglishSpeechRecognition ? (
-    <>
-      <Typography>{state.message}</Typography>
-      <PictureButton colour="yellow" src={micPic} clicked={onListenPinyin} />
-    </>
-  ) : null;
-
-  let content: React.ReactNode = (
-    <>
-      <Input
-        id="answerInput"
-        changed={onInputChanged}
-        keyPressed={onKeyPressed}
-        autoComplete="off"
-        value={state.entered}
-        style={{ width: '100%', margin: '16px auto' }}
-      />
-      {micButton}
-      <br />
-      <Button clicked={() => onChangeSentence(-1)} disabled={state.sentenceIndex < 1}>
-        Previous Sentence
-      </Button>
-      <Button
-        clicked={() => onChangeSentence(1)}
-        disabled={state.sentenceLoading || state.sentenceIndex >= state.totalCount - 1}
-      >
-        {state.sentenceLoading ? 'Loading...' : 'Next Sentence'}
-      </Button>
-      {showHide}
-    </>
-  );
-
-  let buttons: React.ReactNode = null;
+  // ── Main input / navigation area ──────────────────────────────────────────
+  let mainContent: React.ReactNode;
 
   if (state.submitted) {
     const currentSentence = state.sentences[state.sentenceIndex];
     let translation: React.ReactNode = currentSentence.english.sentence;
 
     if (currentSentence.english.highlight.length > 0) {
-      const translationText = currentSentence.english.sentence;
-      const wordStart = currentSentence.english.highlight[0][0];
-      const wordEnd = currentSentence.english.highlight[0][1];
-      const beforeWord = translationText.slice(0, wordStart);
-      const word = translationText.slice(wordStart, wordEnd);
-      const afterWord = translationText.slice(wordEnd, translationText.length);
+      const t = currentSentence.english.sentence;
+      const s = currentSentence.english.highlight[0][0];
+      const e = currentSentence.english.highlight[0][1];
       translation = (
-        <Typography>
-          {beforeWord}
-          <span>{word}</span>
-          {afterWord}
-        </Typography>
+        <>
+          {t.slice(0, s)}
+          <Box component="span" sx={{ color: 'primary.dark', fontWeight: 600 }}>
+            {t.slice(s, e)}
+          </Box>
+          {t.slice(e)}
+        </>
       );
     }
 
-    content = (
-      <>
-        <Typography variant="h5" component="h2">Your Translation:</Typography>
-        <Paper
-          sx={{
-            width: '70%',
-            bgcolor: 'secondary.main',
-            boxShadow: '0 1px 4px black',
-            color: 'text.primary',
-            borderRadius: 1,
-            mx: 'auto',
-            mb: '10px',
-            p: '10px 5px',
-            fontSize: '1em',
-            minHeight: 0,
-          }}
-        >
-          <Typography>{state.entered}</Typography>
-        </Paper>
-        <Typography variant="h5" component="h2">Correct Translation:</Typography>
-        <Paper
-          sx={{
-            width: '70%',
-            bgcolor: 'secondary.main',
-            boxShadow: '0 1px 4px black',
-            color: 'text.primary',
-            borderRadius: 1,
-            mx: 'auto',
-            mb: '10px',
-            p: '10px 5px',
-            fontSize: '1em',
-            minHeight: 0,
-          }}
-        >
-          {translation}
-        </Paper>
-      </>
+    mainContent = (
+      <Stack spacing={2} alignItems="center">
+        <Stack spacing={1} sx={{ width: '100%' }}>
+          <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: 1 }}>
+            Your translation
+          </Typography>
+          <Paper
+            variant="outlined"
+            sx={{ p: '12px 16px', borderRadius: 2, bgcolor: '#f9f9f9', textAlign: 'left' }}
+          >
+            <Typography sx={{ color: 'text.primary', fontSize: '1em' }}>{state.entered}</Typography>
+          </Paper>
+        </Stack>
+
+        <Stack spacing={1} sx={{ width: '100%' }}>
+          <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: 1 }}>
+            Correct translation
+          </Typography>
+          <Paper
+            variant="outlined"
+            sx={{ p: '12px 16px', borderRadius: 2, bgcolor: '#f0f7f4', textAlign: 'left' }}
+          >
+            <Typography sx={{ color: 'text.primary', fontSize: '1em' }}>{translation}</Typography>
+          </Paper>
+        </Stack>
+
+        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          How did you do?
+        </Typography>
+        <Stack direction="row" spacing={3} justifyContent="center">
+          <PictureButton
+            style={{ width: 56, height: 56 }}
+            clicked={onYesClicked}
+            src={likePic}
+          />
+          <PictureButton
+            style={{ width: 56, height: 56 }}
+            clicked={onNoClicked}
+            src={dislikePic}
+          />
+        </Stack>
+      </Stack>
     );
+  } else {
+    const micButton = state.useEnglishSpeechRecognition ? (
+      <Stack direction="row" alignItems="center" spacing={1} justifyContent="center">
+        {state.message && (
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            {state.message}
+          </Typography>
+        )}
+        <PictureButton type="secondary" src={micPic} clicked={onListenPinyin} />
+      </Stack>
+    ) : null;
 
-    const buttonStyle = {
-      display: 'inline-block',
-      width: '50px',
-      height: '50px',
-      margin: '10px 20px',
-    };
+    mainContent = (
+      <Stack spacing={2} alignItems="center">
+        <Box sx={{ width: '100%' }}>
+          <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: 1, display: 'block', mb: 0.5 }}>
+            English translation
+          </Typography>
+          <Input
+            id="answerInput"
+            changed={onInputChanged}
+            keyPressed={onKeyPressed}
+            autoComplete="off"
+            value={state.entered}
+            placeholder="Type here and press Enter…"
+            style={{ width: '100%' }}
+          />
+        </Box>
 
-    buttons = (
-      <div>
-        <PictureButton style={buttonStyle} clicked={onYesClicked} src={likePic} />
-        <PictureButton style={buttonStyle} clicked={onNoClicked} src={dislikePic} />
-      </div>
+        {micButton}
+
+        {/* Navigation row */}
+        <Stack direction="row" spacing={1} justifyContent="center" alignItems="center" flexWrap="wrap">
+          <Button
+            clicked={() => onChangeSentence(-1)}
+            disabled={state.sentenceIndex < 1}
+            type="ghost"
+          >
+            ← Prev
+          </Button>
+          <Button
+            clicked={() => onChangeSentence(1)}
+            disabled={state.sentenceLoading || state.sentenceIndex >= state.totalCount - 1}
+            type="ghost"
+          >
+            {state.sentenceLoading ? 'Loading…' : 'Next →'}
+          </Button>
+        </Stack>
+      </Stack>
     );
   }
 
@@ -714,35 +728,68 @@ const SentenceRead: React.FC<Props> = ({
     <Box
       sx={{
         width: '90%',
-        maxWidth: 400,
-        textAlign: 'center',
+        maxWidth: 520,
         mx: 'auto',
-        py: '30px',
-        color: 'secondary.main',
-        '& p': { fontSize: '1.1em' },
-        '& h2': { fontWeight: 300, fontSize: '1.5em', m: '10px' },
-        '& h3': { fontWeight: 300, fontSize: '1.5em', m: '2px auto' },
+        py: 4,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 3,
       }}
     >
-      <Typography variant="h5" component="h2">Try to translate...</Typography>
+      {/* Header */}
+      <Typography
+        variant="overline"
+        sx={{ textAlign: 'center', color: 'text.secondary', letterSpacing: 2, display: 'block' }}
+      >
+        Listen &amp; translate
+      </Typography>
+
+      {/* Sentence card */}
       <Paper
+        elevation={2}
         sx={{
-          width: '70%',
-          bgcolor: 'secondary.main',
-          boxShadow: '0 1px 4px black',
-          color: 'text.primary',
-          borderRadius: 1,
-          minHeight: 100,
-          mx: 'auto',
-          mb: '10px',
-          p: '10px 5px',
-          fontSize: '1.6em',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          minHeight: 110,
+          p: 3,
+          borderRadius: 3,
+          bgcolor: '#fff',
+          textAlign: 'center',
         }}
       >
-        {sentenceWords}
+        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', minHeight: 72 }}>
+          {sentenceCardContent}
+        </Box>
+        {/* Helper text – always occupies space to prevent layout shift */}
+        <Typography
+          variant="caption"
+          sx={{
+            textAlign: 'center',
+            color: 'text.secondary',
+            display: 'block',
+            mt: 1,
+            visibility:
+              (!state.useSound || state.showText) && !!state.sentences[state.sentenceIndex] && !state.loading
+                ? 'visible'
+                : 'hidden',
+          }}
+        >
+          Tap a word to reveal its meaning
+        </Typography>
+        {state.useSound && (
+          <Chip
+            label={state.showText ? 'Hide text' : 'Show text'}
+            onClick={onToggleText}
+            variant="outlined"
+            size="small"
+            sx={{ cursor: 'pointer', borderColor: 'primary.dark', color: 'primary.dark', mt: 2 }}
+          />
+        )}
       </Paper>
-      {content}
-      {buttons}
+
+      {/* Input / result area */}
+      {mainContent}
     </Box>
   );
 };

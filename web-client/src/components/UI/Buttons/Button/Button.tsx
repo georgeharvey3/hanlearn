@@ -1,27 +1,46 @@
 import React, { ReactNode, CSSProperties } from 'react';
 import MuiButton from '@mui/material/Button';
 
+type ButtonType = 'primary' | 'secondary' | 'ghost';
+
 interface ButtonProps {
   id?: string;
-  colour?: 'red' | 'yellow';
+  type?: ButtonType;
   disabled?: boolean;
   clicked?: () => void;
   style?: CSSProperties;
   children?: ReactNode;
 }
 
+const buttonStyles: Record<ButtonType, object> = {
+  primary: {
+    bgcolor: 'primary.dark',
+    color: '#fff',
+    '&:hover': { bgcolor: '#145233' },
+  },
+  secondary: {
+    bgcolor: 'primary.light',
+    color: '#fff',
+    '&:hover': { bgcolor: '#c94d62' },
+  },
+  ghost: {
+    color: 'text.secondary',
+    borderColor: 'divider',
+  },
+};
+
 const Button: React.FC<ButtonProps> = (props) => {
-  const color = props.colour === 'red' ? 'primary' : 'secondary';
+  const { type = 'primary' } = props;
+  const variant = type === 'ghost' ? 'outlined' : 'contained';
 
   return (
     <MuiButton
       id={props.id}
-      variant="contained"
-      color={color}
+      variant={variant}
       disabled={props.disabled}
       onClick={props.clicked}
       style={props.style}
-      sx={{ m: '8px 15px' }}
+      sx={{ m: '8px 15px', ...buttonStyles[type] }}
     >
       {props.children}
     </MuiButton>

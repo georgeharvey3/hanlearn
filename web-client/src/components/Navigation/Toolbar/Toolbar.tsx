@@ -15,7 +15,7 @@ interface ToolbarProps extends RouteComponentProps {
 }
 
 const Toolbar: React.FC<ToolbarProps> = (props) => {
-  const isHomePage = props.location.pathname === '/';
+  const isHomePage = props.location.pathname === '/' && !props.isAuth;
   const [scrollProgress, setScrollProgress] = useState(0);
 
   useEffect(() => {
@@ -68,9 +68,11 @@ const Toolbar: React.FC<ToolbarProps> = (props) => {
           HanLearn
         </Typography>
         <Box sx={{ display: { xs: 'none', sm: 'flex' }, flexGrow: 1 }} />
-        <Box sx={{ display: { xs: 'none', sm: 'flex' }, height: '100%' }}>
-          <NavigationItems authenticated={props.isAuth} textColor={colors.text} />
-        </Box>
+        {!props.isAuth && (
+          <Box sx={{ display: { xs: 'none', sm: 'flex' }, height: '100%' }}>
+            <NavigationItems authenticated={props.isAuth} textColor={colors.text} />
+          </Box>
+        )}
       </MuiToolbar>
     </AppBar>
   );

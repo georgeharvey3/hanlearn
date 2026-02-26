@@ -7,9 +7,6 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.7",
     "@mui/material": "^7.3.7",
-    "@testing-library/jest-dom": "^4.2.4",
-    "@testing-library/react": "^9.5.0",
-    "@testing-library/user-event": "^7.2.1",
     "firebase": "^10.7.0",
     "howler": "^2.2.0",
     "pinyin": "^2.9.1",
@@ -25,7 +22,12 @@
     "build": "vite build",
     "build:dict": "node ../migration/build-dictionary.js",
     "build:all": "npm run build:dict && npm run build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui",
+    "test:e2e": "playwright test"
   },
   "eslintConfig": {
     "extends": "react-app"
@@ -43,6 +45,10 @@
     ]
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/dom-speech-recognition": "^0.0.7",
     "@types/howler": "^2.2.12",
     "@types/jest": "^30.0.0",
@@ -51,7 +57,12 @@
     "@types/react-dom": "^19.2.3",
     "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^5.1.2",
+    "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/ui": "^4.0.18",
+    "jsdom": "^28.1.0",
+    "playwright": "^1.58.2",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
   }
 }

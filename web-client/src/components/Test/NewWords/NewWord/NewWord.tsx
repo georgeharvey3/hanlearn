@@ -1,7 +1,9 @@
-import React, { FocusEvent, KeyboardEvent, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 
 import { Box, Paper, Typography } from '@mui/material';
+
+import MeaningEditor from '../../../UI/MeaningEditor/MeaningEditor';
 
 import { searchWord } from '../../../../services/dictionaryService';
 
@@ -29,9 +31,8 @@ interface OwnProps {
   word: Word;
   isDemo?: boolean;
   isAddedWord?: boolean;
-  originalMeaning?: string;
-  meaningKeyPressed?: (e: KeyboardEvent<HTMLParagraphElement>) => void;
-  meaningBlurred?: (e: FocusEvent<HTMLParagraphElement>) => void;
+  compact?: boolean;
+  onMeaningChange?: (meaning: string) => void;
 }
 
 type Props = PropsFromRedux & OwnProps;
@@ -43,12 +44,12 @@ const NewWord: React.FC<Props> = ({
   word,
   isDemo,
   isAddedWord,
-  originalMeaning,
-  meaningKeyPressed,
-  meaningBlurred,
+  compact,
+  onMeaningChange,
 }) => {
   const [charData, setCharData] = useState<CharData | null>(null);
   const [clickedChar, setClickedChar] = useState<string>('');
+  const [editedMeaning, setEditedMeaning] = useState(word.meaning);
   const [charSet] = useState<'simp' | 'trad'>(
     (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp'
   );
@@ -102,79 +103,99 @@ const NewWord: React.FC<Props> = ({
       onSpeakPinyin(word[charSet]);
     }
     setCharData(null);
+    setClickedChar('');
   }, [charSet, useSound, word]);
 
   const chars = word[charSet].split('');
 
-  let charInfo: React.ReactNode = null;
-
-  if (charData !== null) {
-    charInfo = (
-      <>
-        <Typography sx={{ fontSize: '3em', m: 0 }}>{clickedChar || charData.simp}</Typography>
-        <Typography sx={{ fontSize: '1.5em', m: 0 }}>({charData.pinyins.join('/')})</Typography>
-        <Typography sx={{ fontSize: '1.1em', m: 0 }}>{charData.meanings.join(' / ')}</Typography>
-      </>
-    );
-  }
+  let charInfo: React.ReactNode = charData === null ? (
+    <Typography sx={{ color: 'text.disabled', fontSize: '0.85em', textAlign: 'center', py: 3, fontStyle: 'italic' }}>
+      Tap a character above to see its details
+    </Typography>
+  ) : (
+    <Box sx={{ textAlign: 'center', py: 1.5 }}>
+      <Typography sx={{ fontSize: '2.8em', fontWeight: 500, lineHeight: 1.2, color: 'text.primary' }}>
+        {clickedChar || charData.simp}
+      </Typography>
+      <Typography sx={{ fontSize: '1.2em', color: 'primary.dark', fontWeight: 500, mt: 0.5 }}>
+        {charData.pinyins.join(' / ')}
+      </Typography>
+      <Box sx={{ mt: 0.5, display: 'flex', justifyContent: 'center' }}>
+        <MeaningEditor value={charData.meanings.join('/')} readOnly size="small" />
+      </Box>
+    </Box>
+  );
 
   return (
     <Box>
       <Paper
+        elevation={compact ? 0 : 2}
         sx={{
-          width: '70%',
-          bgcolor: 'secondary.main',
-          boxShadow: '0 1px 4px black',
+          width: compact ? '100%' : '85%',
+          bgcolor: compact ? 'grey.50' : 'background.paper',
+          border: '1px solid',
+          borderColor: 'divider',
           color: 'text.primary',
-          borderRadius: 1,
-          minHeight: 110,
+          borderRadius: 3,
+          minHeight: compact ? 'auto' : 110,
           mx: 'auto',
-          mb: '10px',
-          p: '10px 5px',
+          mb: compact ? 0 : 1,
+          p: compact ? 2.5 : '20px 16px 16px',
           fontSize: '1.6em',
           '& p': { m: 0 },
         }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 0.5 }}>
           {chars.map((char, index) => {
+            const isActive = clickedChar === char;
             return (
               <Box
                 key={index}
+                onClick={() => onCharacterClick(char)}
                 sx={{
                   display: 'inline-block',
-                  p: '2px',
-                  borderRadius: 1,
+                  px: 1,
+                  py: 0.5,
+                  borderRadius: 1.5,
+                  cursor: 'pointer',
+                  bgcolor: isActive ? 'primary.main' : 'transparent',
+                  transition: 'background-color 0.15s, transform 0.1s',
                   '&:hover': {
-                    bgcolor: 'primary.light',
-                    cursor: 'pointer',
+                    bgcolor: isActive ? 'primary.main' : 'grey.100',
+                  },
+                  '&:active': {
+                    transform: 'scale(0.95)',
                   },
                 }}
               >
-                <p onClick={() => onCharacterClick(char)}>
+                <Typography sx={{ fontSize: 'inherit', lineHeight: 1.3 }}>
                   {char}
-                </p>
+                </Typography>
               </Box>
             );
           })}
         </Box>
-        <p style={{ fontSize: '0.6em' }}>({word.pinyin})</p>
+        <Typography sx={{ fontSize: '0.55em', textAlign: 'center', color: 'text.secondary', mt: 0.5 }}>
+          {word.pinyin}
+        </Typography>
         {isAddedWord ? (
-          <p
-            style={{ fontSize: '0.7em', marginTop: '5px' }}
-            contentEditable
-            suppressContentEditableWarning
-            data-new-word-meaning
-            onKeyPress={meaningKeyPressed}
-            onBlur={meaningBlurred}
-            data-orig={originalMeaning}
-          >
-            {word.meaning}
-          </p>
+          <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
+            <MeaningEditor
+              value={editedMeaning}
+              onChange={(newValue) => {
+                setEditedMeaning(newValue);
+                onMeaningChange?.(newValue);
+              }}
+              size="small"
+            />
+          </Box>
         ) : (
-          <p style={{ fontSize: '0.7em', marginTop: '5px' }}>{word.meaning}</p>
+          <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
+            <MeaningEditor value={word.meaning} readOnly size="small" />
+          </Box>
         )}
       </Paper>
-      <Box sx={{ minHeight: 250 }}>{charInfo}</Box>
+      <Box sx={{ minHeight: compact ? 160 : 200, mt: compact ? 1.5 : 1 }}>{charInfo}</Box>
     </Box>
   );
 };
