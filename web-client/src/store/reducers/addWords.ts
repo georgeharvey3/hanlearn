@@ -38,6 +38,9 @@ const reducer = (state = initialState, action: WordAction): AddWordsState => {
     case actionTypes.ADD_CUSTOM_WORD: {
       const customWord = { ...action.word };
       const todayCustom = new Date();
+      if (state.words.length > 9) {
+        todayCustom.setDate(todayCustom.getDate() + 1);
+      }
 
       const todayDayCustom =
         todayCustom.getDate() >= 10

@@ -36,31 +36,37 @@ async function loadDictionary(): Promise<void> {
 
   loadingPromise = (async () => {
     console.log('Loading dictionary...');
-    const response = await fetch('/dictionary.json');
+    try {
+      const response = await fetch('/dictionary.json');
 
-    if (!response.ok) {
-      throw new Error(`Failed to load dictionary: ${response.status}`);
-    }
-
-    entries = await response.json();
-
-    // Build indexes for fast lookups
-    for (const entry of entries) {
-      // Index by simplified character
-      if (!simpIndex.has(entry.simp)) {
-        simpIndex.set(entry.simp, []);
+      if (!response.ok) {
+        throw new Error(`Failed to load dictionary: ${response.status}`);
       }
-      simpIndex.get(entry.simp)!.push(entry);
 
-      // Index by traditional character
-      if (!tradIndex.has(entry.trad)) {
-        tradIndex.set(entry.trad, []);
+      entries = await response.json();
+
+      // Build indexes for fast lookups
+      for (const entry of entries) {
+        // Index by simplified character
+        if (!simpIndex.has(entry.simp)) {
+          simpIndex.set(entry.simp, []);
+        }
+        simpIndex.get(entry.simp)!.push(entry);
+
+        // Index by traditional character
+        if (!tradIndex.has(entry.trad)) {
+          tradIndex.set(entry.trad, []);
+        }
+        tradIndex.get(entry.trad)!.push(entry);
       }
-      tradIndex.get(entry.trad)!.push(entry);
-    }
 
-    dictionaryLoaded = true;
-    console.log(`Dictionary loaded: ${entries.length} entries`);
+      dictionaryLoaded = true;
+      console.log(`Dictionary loaded: ${entries.length} entries`);
+    } catch (error) {
+      // Reset so subsequent calls can retry instead of returning the rejected promise forever
+      loadingPromise = null;
+      throw error;
+    }
   })();
 
   return loadingPromise;

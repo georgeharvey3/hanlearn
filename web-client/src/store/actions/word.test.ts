@@ -160,8 +160,12 @@ describe('word action thunks', () => {
       { word_id: 2, score: 2 },
     ];
 
-    it('calls wordService.finishTest and recordTestCompletion', async () => {
+    it('calls wordService.finishTest, re-fetches words, and records streak', async () => {
+      const updatedWords = [
+        { ...sampleWord, bank: 2, due_date: '2026/03/05' },
+      ];
       mockedWordService.finishTest.mockResolvedValue({ '你好': '2026/03/05' });
+      mockedWordService.getUserWords.mockResolvedValue(updatedWords);
       mockedStreakService.recordTestCompletion.mockResolvedValue(undefined);
       const store = createTestStore(authenticatedState());
 
@@ -171,6 +175,11 @@ describe('word action thunks', () => {
         'test-user-123',
         scores
       );
+      expect(mockedWordService.getUserWords).toHaveBeenCalledWith(
+        'test-user-123'
+      );
+      // Verify the store was updated with refreshed words
+      expect(store.getState().addWords.words).toEqual(updatedWords);
       expect(mockedStreakService.recordTestCompletion).toHaveBeenCalledWith(
         'test-user-123'
       );
@@ -178,6 +187,7 @@ describe('word action thunks', () => {
 
     it('still succeeds if streak recording fails', async () => {
       mockedWordService.finishTest.mockResolvedValue({ '你好': '2026/03/05' });
+      mockedWordService.getUserWords.mockResolvedValue(sampleWords);
       mockedStreakService.recordTestCompletion.mockRejectedValue(
         new Error('streak error')
       );
@@ -187,6 +197,19 @@ describe('word action thunks', () => {
       await store.dispatch(wordActions.finishTest(scores) as any);
 
       expect(mockedWordService.finishTest).toHaveBeenCalled();
+      expect(mockedStreakService.recordTestCompletion).toHaveBeenCalled();
+    });
+
+    it('still records streak if word refresh fails', async () => {
+      mockedWordService.finishTest.mockResolvedValue({ '你好': '2026/03/05' });
+      mockedWordService.getUserWords.mockRejectedValue(new Error('fetch failed'));
+      mockedStreakService.recordTestCompletion.mockResolvedValue(undefined);
+      const store = createTestStore(authenticatedState());
+
+      await store.dispatch(wordActions.finishTest(scores) as any);
+
+      expect(mockedWordService.finishTest).toHaveBeenCalled();
+      expect(mockedWordService.getUserWords).toHaveBeenCalled();
       expect(mockedStreakService.recordTestCompletion).toHaveBeenCalled();
     });
 
