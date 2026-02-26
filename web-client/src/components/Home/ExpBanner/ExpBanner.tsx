@@ -21,7 +21,7 @@ const ExpBanner: React.FC<ExpBannerProps> = (props) => {
 
   const imageSection = (
     <Grid size={{ xs: 12, sm: 6 }} sx={{ display: { xs: 'none', sm: 'block' }, textAlign: 'center', p: 1 }}>
-      <Box component="img" src={props.img} alt="ScreenCap" sx={{ width: '90%', maxHeight: 400, maxWidth: 400 }} />
+      <Box component="img" src={props.img} alt={props.heading || 'Feature screenshot'} sx={{ width: '90%', maxHeight: 400, maxWidth: 400 }} />
     </Grid>
   );
 

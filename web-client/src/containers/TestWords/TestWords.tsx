@@ -233,7 +233,7 @@ const TestWords: React.FC<Props> = ({
   // All dev stages require auth since they use real words from user's bank
   // Wait for auth to initialize before redirecting
   if (devConfig && !authInitialized) {
-    return null;
+    return <Spinner />;
   }
   if (userId === null && !isDemo) {
     return <Redirect to="/" />;

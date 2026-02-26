@@ -8,6 +8,7 @@ interface PictureButtonProps {
   style?: CSSProperties;
   clicked?: () => void;
   src?: string;
+  'aria-label'?: string;
 }
 
 const buttonStyles: Record<ButtonType, { bg: string; hover: string; invert: boolean }> = {
@@ -23,6 +24,7 @@ const PictureButton: React.FC<PictureButtonProps> = (props) => {
   return (
     <IconButton
       onClick={props.clicked}
+      aria-label={props['aria-label'] || 'Action button'}
       style={props.style}
       sx={{
         backgroundColor: bg,
@@ -31,7 +33,7 @@ const PictureButton: React.FC<PictureButtonProps> = (props) => {
         height: 40,
       }}
     >
-      <img src={props.src} alt="sound" style={{ width: 20, height: 20, filter: invert ? 'brightness(0) invert(1)' : undefined }} />
+      <img src={props.src} alt="" style={{ width: 20, height: 20, filter: invert ? 'brightness(0) invert(1)' : undefined }} />
     </IconButton>
   );
 };

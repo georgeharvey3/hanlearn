@@ -45,6 +45,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
             <PictureButton
               type="secondary"
               src={speakerPic}
+              aria-label="Play pronunciation"
               clicked={() => chosenCharacter && onSpeak(chosenCharacter)}
             />
           )}

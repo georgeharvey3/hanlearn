@@ -380,8 +380,8 @@ const SentenceWrite: React.FC<Props> = ({
             How did you do?
           </Typography>
           <Stack direction="row" spacing={3} justifyContent="center">
-            <PictureButton style={{ width: 56, height: 56 }} clicked={onYesClicked} src={likePic} />
-            <PictureButton style={{ width: 56, height: 56 }} clicked={onNoClicked} src={dislikePic} />
+            <PictureButton style={{ width: 56, height: 56 }} clicked={onYesClicked} src={likePic} aria-label="I got it right" />
+            <PictureButton style={{ width: 56, height: 56 }} clicked={onNoClicked} src={dislikePic} aria-label="I got it wrong" />
           </Stack>
         </Stack>
       </Box>
@@ -462,7 +462,7 @@ const SentenceWrite: React.FC<Props> = ({
                 {state.message}
               </Typography>
             )}
-            <PictureButton type="secondary" src={micPic} clicked={onListenPinyin} />
+            <PictureButton type="secondary" src={micPic} aria-label="Record speech" clicked={onListenPinyin} />
           </Stack>
         )}
       </Stack>

@@ -78,6 +78,7 @@ const MainBanner: React.FC<MainBannerProps> = ({
         >
           <Input
             id="addInput"
+            aria-label="Search for a Chinese word"
             value={newWord}
             changed={inputChanged}
             focussed={onFocusInput}

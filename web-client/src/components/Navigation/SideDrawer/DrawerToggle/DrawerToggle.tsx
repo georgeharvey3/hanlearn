@@ -10,6 +10,7 @@ interface DrawerToggleProps {
 const DrawerToggle: React.FC<DrawerToggleProps> = (props) => (
   <IconButton
     onClick={props.clicked}
+    aria-label="Open navigation menu"
     sx={{ display: { sm: 'none' }, color: props.textColor ?? 'common.white' }}
     edge="start"
   >

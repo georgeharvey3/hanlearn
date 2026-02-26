@@ -45,6 +45,7 @@ const MountainLayer: React.FC<MountainLayerProps> = ({
         width="100%"
         height="100%"
         style={{ display: 'block' }}
+        aria-hidden="true"
       >
         <path d={pathData} fill={color} opacity={opacity} />
       </svg>

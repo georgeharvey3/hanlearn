@@ -39,6 +39,7 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
   const textInput = (
     <Input
       id="answer-input"
+      aria-label="Enter your answer"
       keyPressed={onKeyPress}
       value={state.answerInput}
       changed={onInputChanged}
@@ -57,6 +58,7 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
         style={state.yesClicked ? activeButtonStyle : buttonStyle}
         clicked={onCorrectAnswer}
         src={likePic}
+        aria-label="I knew this"
       />
       <PictureButton
         style={state.noClicked ? activeButtonStyle : buttonStyle}
@@ -65,6 +67,7 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
           onIDontKnow();
         }}
         src={dislikePic}
+        aria-label="I didn't know this"
       />
     </div>
   ) : (
@@ -73,6 +76,9 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
     </Button>
   );
 
+  // TODO: UX — the handwriting canvas is an empty div with no visible affordance.
+  // Consider adding a placeholder label like "Draw here" and a border to indicate
+  // it's an interactive area. Needs design input for the drawing library integration.
   const characterInput = (
     <div
       id="character-target-div"
@@ -88,7 +94,7 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
   const micInput = (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
       <div style={{ display: 'flex', alignItems: 'center' }}>
-        <PictureButton type="secondary" src={micPic} clicked={() => onListen()} />
+        <PictureButton type="secondary" src={micPic} aria-label="Record speech" clicked={() => onListen()} />
         <Toggle
           checked={state.useAutoRecord}
           changed={(event) => {

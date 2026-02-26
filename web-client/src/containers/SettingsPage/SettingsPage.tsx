@@ -12,13 +12,13 @@ const SettingsPage: React.FC = () => {
         Settings
       </Typography>
       <Paper
+        elevation={2}
         sx={{
           width: 300,
           display: 'block',
           mx: 'auto',
           my: '10px',
           p: '10px',
-          boxShadow: '0 1px 2px black',
         }}
       >
         <Settings />
