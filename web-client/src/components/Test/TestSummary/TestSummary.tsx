@@ -1,14 +1,23 @@
-import React from 'react';
-import { withRouter, RouteComponentProps } from 'react-router-dom';
+import React from "react";
+import { withRouter, RouteComponentProps } from "react-router-dom";
 
-import { IconButton, Typography } from '@mui/material';
-import HomeIcon from '@mui/icons-material/Home';
+import { Box, Button as MuiButton, Chip, Typography } from "@mui/material";
+import HomeIcon from "@mui/icons-material/Home";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 
-import Table from '../../UI/Table/Table';
-import TableRow from '../../UI/Table/TableRow/TableRow';
-import Button from '../../UI/Buttons/Button/Button';
+import { WordScore } from "../../../types/models";
+import Button from "../../UI/Buttons/Button/Button";
 
-import { WordScore } from '../../../types/models';
+const scoreConfig: Record<
+  WordScore["score"],
+  { color: "success" | "info" | "warning" | "error"; label: string }
+> = {
+  "Very Strong": { color: "success", label: "Very Strong" },
+  Strong: { color: "success", label: "Strong" },
+  Average: { color: "info", label: "Average" },
+  Weak: { color: "warning", label: "Weak" },
+  "Very Weak": { color: "error", label: "Very Weak" },
+};
 
 interface TestSummaryProps extends RouteComponentProps {
   scores?: WordScore[];
@@ -23,52 +32,82 @@ const TestSummary: React.FC<TestSummaryProps> = ({
   continueClicked,
 }) => {
   const homePressed = (): void => {
-    history.push('/');
+    history.push("/");
   };
 
-  const scoreRows = scores?.map((row, index) => {
-    return <TableRow key={index}>{[row.char, row.score]}</TableRow>;
-  });
-
-  let continueButton: React.ReactNode = null;
-
-  if (continueAvailable) {
-    continueButton = (
-      <Button
-        clicked={continueClicked}
-        style={{ width: '180px', height: 'auto', margin: '0 0 20px 0' }}
-      >
-        Continue To Sentence Stage
-      </Button>
-    );
-  }
-
   return (
-    <>
-      <IconButton
-        onClick={homePressed}
+    <Box sx={{ textAlign: "center" }}>
+      <Typography variant="h5" component="h3" sx={{ fontWeight: 700, mb: 0.5 }}>
+        Test Summary
+      </Typography>
+      <Typography variant="body2" sx={{ color: "text.secondary", mb: 2.5 }}>
+        {scores?.length} word{scores && scores.length !== 1 ? "s" : ""} tested
+      </Typography>
+
+      <Box
         sx={{
-          position: 'absolute',
-          right: 10,
-          bgcolor: 'secondary.main',
-          borderRadius: 1,
-          p: '5px',
-          boxShadow: (theme) => `0px 2px 0px ${theme.palette.grey[600]}`,
-          '&:active': {
-            boxShadow: '0px 0px',
-            transform: 'translateY(3px)',
-          },
-          '&:hover': {
-            bgcolor: 'primary.light',
-          },
+          maxHeight: { xs: 220, sm: 280 },
+          overflowY: "auto",
+          mx: { xs: 0, sm: 2 },
+          mb: 3,
+          display: "flex",
+          flexDirection: "column",
+          gap: 0.75,
         }}
       >
-        <HomeIcon sx={{ fontSize: 24 }} />
-      </IconButton>
-      <Typography variant="h6" component="h3">Test Summary</Typography>
-      <Table headings={['Word', 'Score']}>{scoreRows}</Table>
-      {continueButton}
-    </>
+        {scores?.map((row, index) => {
+          const config = scoreConfig[row.score];
+          return (
+            <Box
+              key={index}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                px: 2,
+                py: 1,
+                borderRadius: 1.5,
+                bgcolor: "grey.50",
+                border: "1px solid",
+                borderColor: "grey.200",
+              }}
+            >
+              <Typography sx={{ fontSize: "1.1rem", fontWeight: 500 }}>
+                {row.char}
+              </Typography>
+              <Chip
+                label={config.label}
+                color={config.color}
+                size="small"
+                variant="outlined"
+                sx={{ fontWeight: 600, minWidth: 90 }}
+              />
+            </Box>
+          );
+        })}
+      </Box>
+
+      <Box sx={{ display: "flex", gap: 1.5, justifyContent: "center" }}>
+        <MuiButton
+          variant="outlined"
+          onClick={homePressed}
+          startIcon={<HomeIcon />}
+          sx={{
+            borderColor: "grey.300",
+            color: "text.primary",
+            "&:hover": { borderColor: "grey.400", bgcolor: "grey.50" },
+          }}
+        >
+          Home
+        </MuiButton>
+        {continueAvailable && (
+          <Button clicked={continueClicked} type="primary">
+            Sentence Stage
+            <ArrowForwardIcon />
+          </Button>
+        )}
+      </Box>
+    </Box>
   );
 };
 

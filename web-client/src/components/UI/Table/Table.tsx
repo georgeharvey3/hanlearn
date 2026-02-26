@@ -5,6 +5,7 @@ import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import MuiTableRow from '@mui/material/TableRow';
 import TableContainer from '@mui/material/TableContainer';
+import Paper from '@mui/material/Paper';
 import { alpha } from '@mui/material/styles';
 
 interface TableProps {
@@ -18,12 +19,15 @@ const Table: React.FC<TableProps> = (props) => {
       key={heading}
       sx={{
         color: 'common.white',
-        borderBottom: (theme) => `3px solid ${theme.palette.common.white}`,
-        fontWeight: 'bold',
-        backgroundColor: 'primary.main',
-        position: 'sticky',
-        top: 0,
-        zIndex: 1,
+        fontWeight: 600,
+        fontSize: { xs: '0.75rem', sm: '0.8rem', md: '0.85rem' },
+        backgroundColor: 'primary.dark',
+        borderRight: (theme) => `1px solid ${alpha(theme.palette.common.white, 0.2)}`,
+        '&:last-child': { borderRight: 'none' },
+        py: 1.25,
+        px: 1.5,
+        textAlign: 'center',
+        letterSpacing: '0.02em',
         ...(heading === 'Due Date (D/M/Y)' && {
           display: { xs: 'none', sm: 'table-cell' },
         }),
@@ -35,24 +39,44 @@ const Table: React.FC<TableProps> = (props) => {
 
   return (
     <TableContainer
+      component={Paper}
+      elevation={2}
       sx={{
-        height: { xs: 220, sm: 220 },
+        maxHeight: { xs: 220, sm: 250 },
         width: '90%',
         maxWidth: 700,
         mx: 'auto',
-        '@media (min-height: 600px)': { height: 250 },
-        '@media (min-height: 750px)': { height: 400 },
+        borderRadius: 2,
+        overflow: 'auto',
+        '@media (min-height: 750px)': { maxHeight: 400 },
       }}
     >
-      <MuiTable size="small" stickyHeader sx={{ '& td, & th': { fontSize: { xs: '0.75em', sm: '0.85em', md: '1em' } } }}>
+      <MuiTable size="small" stickyHeader>
         <TableHead>
           <MuiTableRow>{headings}</MuiTableRow>
         </TableHead>
         <TableBody
           sx={{
-            '& tr': { borderBottom: (theme) => `1px solid ${theme.palette.divider}` },
-            '& tr:nth-of-type(even)': { backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.08) },
-            '& td': { color: 'text.primary', py: 0.5, px: 0.25 },
+            '& tr': {
+              transition: 'background-color 0.15s ease',
+              '&:hover': {
+                backgroundColor: (theme) => alpha(theme.palette.primary.dark, 0.06),
+              },
+            },
+            '& tr:nth-of-type(even)': {
+              backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.15),
+              '&:hover': {
+                backgroundColor: (theme) => alpha(theme.palette.primary.dark, 0.1),
+              },
+            },
+            '& td': {
+              color: 'text.primary',
+              fontSize: { xs: '0.75rem', sm: '0.85rem', md: '0.9rem' },
+              py: 1,
+              px: 1.5,
+              borderRight: (theme) => `1px solid ${theme.palette.divider}`,
+              '&:last-child': { borderRight: 'none' },
+            },
           }}
         >
           {props.children}

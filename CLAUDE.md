@@ -124,3 +124,74 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 - Type definitions are in [web-client/src/types/](web-client/src/types/)
 - The `amendedMeaning` field allows users to override dictionary definitions
 - Chengyu challenges rotate daily based on days since May 24, 2021
+
+## Design Principles
+
+- **Mobile-first**: The app is primarily used on mobile devices during study sessions
+- **Minimal friction**: Getting into a study session should require as few taps as possible
+- **Chinese-centric UI**: Hanzi should be large and legible; pinyin is secondary
+- **Progressive disclosure**: Advanced settings and stats are available but not in the way
+- **Offline-tolerant**: Core study flows should degrade gracefully without a network connection
+- **No dark patterns**: No streaks that punish missing a day, no notification spam
+
+## Known Issues & Tech Debt
+
+- Testing libraries upgraded to RTL v16, user-event v14, Vitest — 40 tests passing as of 2026-02-26
+- Redux `connect()` pattern is used throughout; consider migrating to hooks (`useSelector`/`useDispatch`) over time
+- `web-client/src/store/reducers/auth.ts` — auth reducer is missing from the source listing (needs audit)
+- React Router v5 is used; v6 migration would be beneficial but is a large refactor
+- No error boundaries in the component tree
+- Speech synthesis/recognition is browser-dependent with no consistent fallback UI
+
+## Prioritised Roadmap
+
+### Now (current focus)
+- Autonomous development workflow: testing infrastructure, CI/CD, PR-based review
+
+### Next
+- Improve spaced repetition: show due-date countdown, allow manual bank adjustment
+- Dashboard improvements: learning statistics, streak tracking, progress charts
+- Better chengyu UX: example sentences, stroke order hints
+
+### Later
+- Offline support via service worker + IndexedDB caching
+- React Router v6 migration
+- Redux hooks migration
+- Sentence mining: save sentences alongside words
+
+### Deferred / Won't do soon
+- Mobile native app (web app is sufficient for now)
+- Social/multiplayer features
+
+## Decision Log
+
+| Date | Proposal | Decision | Reasoning |
+|------|----------|----------|-----------|
+| 2026-02 | Autonomous workflow setup | Accepted | Local tmux runner preferred over GitHub Actions cron |
+| — | — | — | Add entries here as Claude proposes and you accept/reject |
+
+## Testing Conventions
+
+### Unit / Integration Tests (Vitest + React Testing Library)
+- Test files live alongside source: `ComponentName.test.tsx`
+- Use `src/test/utils.tsx` for render helpers that wrap with Redux store and Router
+- Firebase calls should be mocked at the service layer (not at the Firebase SDK level)
+- Test scripts: `npm test` (watch), `npm run test:run` (CI, single run), `npm run test:coverage`
+
+### End-to-End Tests (Playwright)
+- Tests live in `web-client/e2e/`
+- Always use Firebase emulators — never hit production
+- Seed test users via `web-client/e2e/fixtures/seed.ts` before each test
+- Test script: `npm run test:e2e`
+
+### Firebase Emulators for Tests
+- Start emulators before e2e tests: `npm run emulators` from repo root
+- Emulator data is ephemeral — tests must seed their own data
+
+## Git Conventions
+
+- Always create a new branch: `claude/{task-description}` (e.g. `claude/fix-auth-redirect`)
+- Commit messages should summarise what was done and why, not just what files changed
+- Never push directly to main
+- All Claude-authored changes go through a PR for review
+- Pull the latest main before starting any task: `git checkout main && git pull`

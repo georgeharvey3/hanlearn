@@ -10,6 +10,7 @@ import {
   AppThunk,
 } from '../../types/actions';
 import * as wordService from '../../services/wordService';
+import { recordTestCompletion } from '../../services/streakService';
 
 export const addWord = (word: Word): AddWordAction => {
   return {
@@ -168,6 +169,12 @@ export const finishTest = (
     try {
       const newDates = await wordService.finishTest(auth.userId, scores);
       console.log('Test finished, new dates:', newDates);
+
+      try {
+        await recordTestCompletion(auth.userId);
+      } catch (streakError) {
+        console.error('Failed to record streak:', streakError);
+      }
     } catch (error) {
       console.error('Failed to finish test:', error);
     }

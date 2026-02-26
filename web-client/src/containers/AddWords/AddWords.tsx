@@ -1,22 +1,31 @@
-import React, { ChangeEvent, FocusEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { connect, ConnectedProps } from 'react-redux';
-import { RouteComponentProps, withRouter, Redirect } from 'react-router-dom';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
+import React, {
+  ChangeEvent,
+  KeyboardEvent,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+import { connect, ConnectedProps } from "react-redux";
+import { RouteComponentProps, withRouter, Redirect } from "react-router-dom";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import TableRow from "@mui/material/TableRow";
+import TableCell from "@mui/material/TableCell";
+import MeaningEditor from "../../components/UI/MeaningEditor/MeaningEditor";
 
-import Modal from '../../components/UI/Modal/Modal';
-import MainBanner from '../../components/AddWords/MainBanner';
-import Table from '../../components/UI/Table/Table';
-import Button from '../../components/UI/Buttons/Button/Button';
-import * as wordActions from '../../store/actions/index';
-import Remove from '../../components/UI/Table/TableRow/Remove/Remove';
-import Spinner from '../../components/UI/Spinner/Spinner';
-import Input from '../../components/UI/Input/Input';
+import Modal from "../../components/UI/Modal/Modal";
+import MainBanner from "../../components/AddWords/MainBanner";
+import Table from "../../components/UI/Table/Table";
+import Button from "../../components/UI/Buttons/Button/Button";
+import * as wordActions from "../../store/actions/index";
+import Remove from "../../components/UI/Table/TableRow/Remove/Remove";
+import Spinner from "../../components/UI/Spinner/Spinner";
+import Input from "../../components/UI/Input/Input";
 
-import NewWord from '../../components/Test/NewWords/NewWord/NewWord';
-import { RootState } from '../../types/store';
-import { Word } from '../../types/models';
-import * as wordService from '../../services/wordService';
+import NewWord from "../../components/Test/NewWords/NewWord/NewWord";
+import { RootState } from "../../types/store";
+import { Word } from "../../types/models";
+import * as wordService from "../../services/wordService";
 
 interface AddWordsState {
   newWord: string;
@@ -25,15 +34,16 @@ interface AddWordsState {
   clashChar: string;
   clashWords: Word[];
   showClashTable: boolean;
-  charSet: 'simp' | 'trad';
+  charSet: "simp" | "trad";
   loading: boolean;
   addError: boolean;
   showWords: boolean;
-  justAdded: Word | null;
+  pendingWord: Word | null;
   meaning: string;
   meaningInputDisabled: boolean;
   showMeaningInput: boolean;
-  showNewWordModal: boolean;
+  showConfirmModal: boolean;
+  pendingMeaning: string;
 }
 
 interface OwnProps {
@@ -75,60 +85,84 @@ const AddWords: React.FC<Props> = ({
   isDemo,
 }) => {
   const [state, setState] = useState<AddWordsState>(() => {
-    const charSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp';
+    const charSet =
+      (localStorage.getItem("charSet") as "simp" | "trad") || "simp";
     return {
-      newWord: '',
-      errorMessage: '',
+      newWord: "",
+      errorMessage: "",
       showErrorMessage: false,
-      clashChar: '',
+      clashChar: "",
       clashWords: [],
       showClashTable: false,
       charSet: charSet,
       loading: false,
       addError: false,
       showWords: true,
-      justAdded: null,
-      meaning: '',
+      pendingWord: null,
+      meaning: "",
       meaningInputDisabled: false,
       showMeaningInput: false,
-      showNewWordModal: false,
+      showConfirmModal: false,
+      pendingMeaning: "",
     };
   });
-
-  const prevJustAddedId = useRef<number | null | undefined>(undefined);
 
   const updateState = useCallback((partial: Partial<AddWordsState>) => {
     setState((prev) => ({ ...prev, ...partial }));
   }, []);
 
   const dismissModal = useCallback((): void => {
-    updateState({ showErrorMessage: false, newWord: '' });
+    updateState({ showErrorMessage: false, newWord: "" });
   }, [updateState]);
 
   const dismissClashTable = useCallback((): void => {
-    updateState({ showClashTable: false, newWord: '' });
+    updateState({ showClashTable: false, newWord: "" });
   }, [updateState]);
 
   const dismissMeaningInput = useCallback((): void => {
-    updateState({ showMeaningInput: false, newWord: '' });
-    const mainInput = document.querySelector('#addInput') as HTMLInputElement | null;
+    updateState({ showMeaningInput: false, newWord: "" });
+    const mainInput = document.querySelector(
+      "#addInput",
+    ) as HTMLInputElement | null;
 
     if (mainInput) {
       mainInput.focus();
     }
   }, [updateState]);
 
-  const dismissNewWordModal = useCallback((): void => {
-    updateState({ showNewWordModal: false });
-    const input = document.querySelector('#addInput') as HTMLInputElement | null;
+  const dismissConfirmModal = useCallback((): void => {
+    updateState({ showConfirmModal: false, pendingWord: null, pendingMeaning: "" });
+    const input = document.querySelector(
+      "#addInput",
+    ) as HTMLInputElement | null;
     if (input) {
       input.focus();
     }
   }, [updateState]);
 
+  const confirmAddWord = useCallback((): void => {
+    if (!state.pendingWord) return;
+
+    const editedMeaning = state.pendingMeaning.trim();
+
+    if (editedMeaning && editedMeaning !== state.pendingWord.meaning) {
+      onPostWord({ ...state.pendingWord, meaning: editedMeaning });
+    } else {
+      onPostWord(state.pendingWord);
+    }
+
+    updateState({ showConfirmModal: false, pendingWord: null, pendingMeaning: "" });
+    const input = document.querySelector(
+      "#addInput",
+    ) as HTMLInputElement | null;
+    if (input) {
+      input.focus();
+    }
+  }, [state.pendingWord, state.pendingMeaning, onPostWord, updateState]);
+
   const onKeyUp = useCallback(
     (event: globalThis.KeyboardEvent): void => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         if (state.showErrorMessage) {
           dismissModal();
         }
@@ -141,12 +175,21 @@ const AddWords: React.FC<Props> = ({
           dismissMeaningInput();
         }
 
-        if (state.showNewWordModal) {
-          dismissNewWordModal();
+        if (state.showConfirmModal) {
+          dismissConfirmModal();
         }
       }
     },
-    [dismissClashTable, dismissMeaningInput, dismissModal, dismissNewWordModal, state.showClashTable, state.showErrorMessage, state.showMeaningInput, state.showNewWordModal]
+    [
+      dismissClashTable,
+      dismissMeaningInput,
+      dismissModal,
+      dismissConfirmModal,
+      state.showClashTable,
+      state.showErrorMessage,
+      state.showMeaningInput,
+      state.showConfirmModal,
+    ],
   );
 
   // Initialize words when userId becomes available
@@ -158,34 +201,29 @@ const AddWords: React.FC<Props> = ({
 
   // Separate effect for keyup listener to avoid re-fetching words when modal state changes
   useEffect(() => {
-    document.addEventListener('keyup', onKeyUp);
+    document.addEventListener("keyup", onKeyUp);
     return () => {
-      document.removeEventListener('keyup', onKeyUp);
+      document.removeEventListener("keyup", onKeyUp);
     };
   }, [onKeyUp]);
 
-  useEffect(() => {
-    if (prevJustAddedId.current !== state.justAdded?.id) {
-      if (state.justAdded) {
-        updateState({ showNewWordModal: true });
-      }
-    }
-    prevJustAddedId.current = state.justAdded?.id;
-  }, [state.justAdded, updateState]);
-
-  const onInputChangedHandler = (event: ChangeEvent<HTMLInputElement>): void => {
+  const onInputChangedHandler = (
+    event: ChangeEvent<HTMLInputElement>,
+  ): void => {
     updateState({ newWord: event.target.value });
   };
 
   const handleSearchResult = (res: Word[], searchedWord: string): void => {
     if (res.length === 0) {
-      (document.getElementById('addInput') as HTMLInputElement | null)?.blur();
+      (document.getElementById("addInput") as HTMLInputElement | null)?.blur();
       updateState({
         errorMessage: `The word ${searchedWord} could not be found`,
         showMeaningInput: true,
       });
 
-      const input = document.querySelector('#meaning') as HTMLInputElement | null;
+      const input = document.querySelector(
+        "#meaning",
+      ) as HTMLInputElement | null;
       if (!input) {
         return;
       }
@@ -205,8 +243,7 @@ const AddWords: React.FC<Props> = ({
           return;
         }
       }
-      onPostWord(word);
-      updateState({ newWord: '', justAdded: word });
+      updateState({ newWord: "", pendingWord: word, pendingMeaning: word.meaning, showConfirmModal: true });
     }
 
     if (res.length > 1) {
@@ -220,7 +257,7 @@ const AddWords: React.FC<Props> = ({
 
   const searchForWord = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    if (state.newWord === '') {
+    if (state.newWord === "") {
       return;
     }
 
@@ -233,42 +270,18 @@ const AddWords: React.FC<Props> = ({
       });
       handleSearchResult(words, state.newWord);
     } catch (error) {
-      console.error('Failed to search for word:', error);
+      console.error("Failed to search for word:", error);
       updateState({
         loading: false,
         addError: true,
-        newWord: '',
+        newWord: "",
       });
     }
   };
 
-  const onMeaningKeyPress = (e: KeyboardEvent<HTMLTableCellElement>, wordID: number): void => {
-    if (e.key !== 'Enter') {
-      return;
-    }
-
-    e.preventDefault();
-
-    const newMeaning = (e.target as HTMLElement).textContent || '';
-
-    // eslint-disable-next-line no-useless-escape
-    const regex = "^[A-Za-z'()-? ]+(?:/[[A-Za-z'()-? ]+)*$";
-    if (!newMeaning.match(regex)) {
-      return;
-    }
-
-    (e.target as HTMLElement).dataset.orig = newMeaning;
-    onPostMeaningUpdate(wordID, newMeaning);
-    (e.target as HTMLElement).blur();
-  };
-
-  const onBlurMeaning = (e: FocusEvent<HTMLTableCellElement>): void => {
-    (e.target as HTMLElement).textContent = (e.target as HTMLElement).dataset.orig || '';
-  };
-
   const onTestHandler = (): void => {
     // Navigate to test page - practice mode is available there if no words are due
-    history.push('/test-words');
+    history.push("/test-words");
   };
 
   const convertDateString = (initial: string): string => {
@@ -276,11 +289,14 @@ const AddWords: React.FC<Props> = ({
     const month = initial.slice(5, 7);
     const day = initial.slice(8);
 
-    return [day, month, year].join('/');
+    return [day, month, year].join("/");
   };
 
   const toggleWords = (): void => {
-    setState((prevState) => ({ ...prevState, showWords: !prevState.showWords }));
+    setState((prevState) => ({
+      ...prevState,
+      showWords: !prevState.showWords,
+    }));
   };
 
   const meaningChanged = (event: ChangeEvent<HTMLInputElement>): void => {
@@ -288,33 +304,29 @@ const AddWords: React.FC<Props> = ({
   };
 
   const meaningKeyPressed = (event: KeyboardEvent<HTMLInputElement>): void => {
-    if (event.key === 'Enter') {
+    if (event.key === "Enter") {
       meaningSubmitClicked();
     }
   };
 
   const meaningSubmitClicked = (): void => {
-    onPostCustomWord({ text: state.newWord, meaning: state.meaning, charSet: state.charSet });
+    onPostCustomWord({
+      text: state.newWord,
+      meaning: state.meaning,
+      charSet: state.charSet,
+    });
     updateState({
       showMeaningInput: false,
-      meaning: '',
-      newWord: '',
+      meaning: "",
+      newWord: "",
     });
-    const mainInput = document.querySelector('#addInput') as HTMLInputElement | null;
+    const mainInput = document.querySelector(
+      "#addInput",
+    ) as HTMLInputElement | null;
 
     if (mainInput) {
       mainInput.focus();
     }
-  };
-
-  const onUpdateMeaningClicked = (): void => {
-    const meaningElement = document.querySelector('[data-new-word-meaning]') as HTMLElement | null;
-
-    if (!meaningElement) {
-      return;
-    }
-
-    meaningElement.focus();
   };
 
   // Wait for auth to initialize before redirecting
@@ -330,32 +342,45 @@ const AddWords: React.FC<Props> = ({
   const tableWords = words;
 
   if (tableWords) {
-    const tableRows = tableWords.map((row, index) => {
+    const tableRows = tableWords.map((row) => {
       return (
-        <tr key={index}>
-          <td>{row[state.charSet]}</td>
-          <td>{row.pinyin}</td>
-          <td
-            contentEditable={true}
-            suppressContentEditableWarning={true}
-            onKeyPress={(e: KeyboardEvent<HTMLTableCellElement>) =>
-              onMeaningKeyPress(e, row.id)
-            }
-            onBlur={onBlurMeaning}
-            data-orig={row.meaning}
+        <TableRow key={row.id}>
+          <TableCell sx={{ textAlign: "center", fontWeight: 500 }}>
+            {row[state.charSet]}
+          </TableCell>
+          <TableCell sx={{ textAlign: "center" }}>{row.pinyin}</TableCell>
+          <TableCell>
+            <MeaningEditor
+              value={row.meaning}
+              onChange={(newMeaning) => onPostMeaningUpdate(row.id, newMeaning)}
+              size="small"
+            />
+          </TableCell>
+          <TableCell
+            sx={{
+              display: { xs: "none", sm: "table-cell" },
+              textAlign: "center",
+            }}
           >
-            {row.meaning}
-          </td>
-          <td className="Disappear">{convertDateString(row.due_date || '')}</td>
-          <td>
+            {convertDateString(row.due_date || "")}
+          </TableCell>
+          <TableCell sx={{ textAlign: "center" }}>
             <Remove clicked={() => onDeleteWord(row.id)} />
-          </td>
-        </tr>
+          </TableCell>
+        </TableRow>
       );
     });
 
     table = (
-      <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due Date (D/M/Y)', 'Remove']}>
+      <Table
+        headings={[
+          "Character(s)",
+          "Pinyin",
+          "Meaning",
+          "Due Date (D/M/Y)",
+          "Remove",
+        ]}
+      >
         {tableRows}
       </Table>
     );
@@ -366,12 +391,18 @@ const AddWords: React.FC<Props> = ({
   }
 
   if (error) {
-    table = <Typography sx={{ fontSize: '20px', color: 'error.main' }}>Error: Could not fetch words</Typography>;
+    table = (
+      <Typography sx={{ fontSize: "20px", color: "error.main" }}>
+        Error: Could not fetch words
+      </Typography>
+    );
   }
 
   if (state.addError) {
     table = (
-      <Typography sx={{ fontSize: '20px', color: 'error.main' }}>Error: Could not search for word</Typography>
+      <Typography sx={{ fontSize: "20px", color: "error.main" }}>
+        Error: Could not search for word
+      </Typography>
     );
   }
 
@@ -380,62 +411,62 @@ const AddWords: React.FC<Props> = ({
   if (state.clashWords.length > 0) {
     clashTableRows = state.clashWords.map((word, index) => {
       return (
-        <tr
+        <TableRow
           key={index}
-          className="Hoverable"
-          style={{ cursor: 'pointer' }}
+          hover
+          sx={{ cursor: "pointer" }}
           onClick={() => {
             handleSearchResult([word], word[state.charSet]);
             updateState({
-              clashChar: '',
+              clashChar: "",
               clashWords: [],
               showClashTable: false,
             });
           }}
         >
-          <td>{word.pinyin}</td>
-          <td>{word.meaning}</td>
-        </tr>
+          <TableCell>{word.pinyin}</TableCell>
+          <TableCell>{word.meaning}</TableCell>
+        </TableRow>
       );
     });
   }
 
-  const buttonText = state.showWords ? 'Hide Table' : 'Show Table';
+  const buttonText = state.showWords ? "Hide Table" : "Show Table";
 
   return (
     <>
-      {state.justAdded !== null ? (
-        <Modal show={state.showNewWordModal} modalClosed={dismissNewWordModal}>
-          <h2>Just added</h2>
+      {state.pendingWord !== null ? (
+        <Modal show={state.showConfirmModal} modalClosed={dismissConfirmModal}>
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, pr: 3 }}>
+            Add to Word Bank?
+          </Typography>
           <NewWord
-            word={state.justAdded}
+            word={state.pendingWord}
             isDemo={isDemo}
             isAddedWord={true}
-            meaningKeyPressed={(e: KeyboardEvent<HTMLParagraphElement>) =>
-              onMeaningKeyPress(
-                e as unknown as KeyboardEvent<HTMLTableCellElement>,
-                state.justAdded!.id
-              )
-            }
-            meaningBlurred={
-              onBlurMeaning as unknown as (e: FocusEvent<HTMLParagraphElement>) => void
-            }
-            originalMeaning={state.justAdded.meaning}
+            compact
+            onMeaningChange={(meaning) => updateState({ pendingMeaning: meaning })}
           />
-          <Button
-            clicked={() => {
-              onDeleteWord(state.justAdded!.id);
-              updateState({ justAdded: null });
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 1.5,
+              mt: 3,
             }}
           >
-            Remove Word
-          </Button>
-          <Button clicked={onUpdateMeaningClicked}>Update Meaning</Button>
+            <Button clicked={dismissConfirmModal} type="ghost">
+              Cancel
+            </Button>
+            <Button clicked={confirmAddWord} type="primary">
+              Add
+            </Button>
+          </Box>
         </Modal>
       ) : null}
       <Modal show={state.showClashTable} modalClosed={dismissClashTable}>
         <h2>Select entry for {state.clashChar}</h2>
-        <Table headings={['Pinyin', 'Meaning']}>{clashTableRows}</Table>
+        <Table headings={["Pinyin", "Meaning"]}>{clashTableRows}</Table>
       </Modal>
       <Modal show={state.showMeaningInput} modalClosed={dismissMeaningInput}>
         <h3>Word not found - Enter meaning...</h3>
@@ -445,7 +476,10 @@ const AddWords: React.FC<Props> = ({
           changed={meaningChanged}
           keyPressed={meaningKeyPressed}
         />
-        <Button disabled={state.meaningInputDisabled} clicked={meaningSubmitClicked}>
+        <Button
+          disabled={state.meaningInputDisabled}
+          clicked={meaningSubmitClicked}
+        >
           Submit
         </Button>
       </Modal>
@@ -459,11 +493,26 @@ const AddWords: React.FC<Props> = ({
         submitClicked={searchForWord}
         loading={state.loading}
       />
-      <Box sx={{ minHeight: { '@media (min-height: 750px)': 400 }, '& h3': { color: 'text.primary' } }}>{table}</Box>
-      <Button disabled={words.length === 0} clicked={onTestHandler}>
-        Test
-      </Button>
-      <Button clicked={toggleWords}>{buttonText}</Button>
+      {words.length > 0 ? (
+        <>
+          <Box sx={{ mb: 4, "& h3": { color: "text.primary" } }}>{table}</Box>
+          <Button clicked={onTestHandler}>
+            Test
+          </Button>
+          <Button clicked={toggleWords}>{buttonText}</Button>
+        </>
+      ) : (
+        <Typography
+          sx={{
+            mt: 4,
+            fontSize: "1.1rem",
+            color: "text.secondary",
+            textAlign: "center",
+          }}
+        >
+          Add words to start learning
+        </Typography>
+      )}
     </>
   );
 };

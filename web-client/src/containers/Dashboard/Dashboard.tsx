@@ -1,0 +1,70 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { connect, ConnectedProps } from 'react-redux';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/Grid';
+
+import { RootState } from '../../types/store';
+import { DashboardStats, getDashboardStats } from '../../services/dashboardService';
+import WordsDueCard from './widgets/WordsDueCard';
+import StreakCard from './widgets/StreakCard';
+import BankDistributionCard from './widgets/BankDistributionCard';
+import MasteryCard from './widgets/MasteryCard';
+import Chengyu from '../../components/Home/Chengyu/Chengyu';
+
+const mapStateToProps = (state: RootState) => ({
+  userId: state.auth.userId,
+});
+
+const connector = connect(mapStateToProps);
+type PropsFromRedux = ConnectedProps<typeof connector>;
+
+const Dashboard: React.FC<PropsFromRedux> = ({ userId }) => {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadStats = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const data = await getDashboardStats(userId);
+      setStats(data);
+    } catch (error) {
+      console.error('Failed to load dashboard stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  if (loading) {
+    return <Typography>Loading...</Typography>;
+  }
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <Typography variant="h4" sx={{ textAlign: 'left', fontWeight: 'bold' }}>
+        Dashboard
+      </Typography>
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <WordsDueCard dueWords={stats?.dueWords ?? 0} totalWords={stats?.totalWords ?? 0} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <StreakCard streak={stats?.streak ?? 0} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <BankDistributionCard distribution={stats?.bankDistribution ?? {}} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <MasteryCard masteredCount={stats?.masteredCount ?? 0} totalWords={stats?.totalWords ?? 0} />
+        </Grid>
+      </Grid>
+      <Chengyu />
+    </Box>
+  );
+};
+
+export default connector(Dashboard);

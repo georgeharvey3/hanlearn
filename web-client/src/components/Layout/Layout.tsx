@@ -4,6 +4,7 @@ import Container from '@mui/material/Container';
 
 import Toolbar from '../Navigation/Toolbar/Toolbar';
 import SideDrawer from '../Navigation/SideDrawer/SideDrawer';
+import Sidebar, { SIDEBAR_WIDTH } from '../Navigation/Sidebar/Sidebar';
 import { RootState } from '../../types/store';
 
 interface LayoutState {
@@ -46,7 +47,21 @@ const Layout: React.FC<Props> = ({ isAuthenticated, children }) => {
         closed={sideDrawerClosedHandler}
         isAuth={isAuthenticated}
       />
-      <Container component="main" maxWidth={false} sx={{ mt: '56px', pt: 3, height: '100%', maxWidth: 1400 }}>
+      {isAuthenticated && <Sidebar />}
+      <Container
+        component="main"
+        maxWidth={false}
+        sx={{
+          mt: '56px',
+          pt: 3,
+          height: '100%',
+          maxWidth: 1400,
+          ...(isAuthenticated && {
+            ml: { xs: 0, sm: `${SIDEBAR_WIDTH}px` },
+            maxWidth: { xs: '100%', sm: 1400 - SIDEBAR_WIDTH },
+          }),
+        }}
+      >
         {children}
       </Container>
     </>

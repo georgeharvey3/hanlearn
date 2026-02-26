@@ -34,7 +34,7 @@ const NavigationItems: React.FC<Props> = (props) => {
   if (props.isSideDrawer) {
     if (props.authenticated) {
       const links = [
-        { to: '/', label: 'Home' },
+        { to: '/', label: 'Dashboard' },
         { to: '/add-words', label: 'Add' },
         { to: '/test-words', label: 'Test' },
         { to: '/settings', label: 'Settings' },
