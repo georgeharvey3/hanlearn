@@ -3,10 +3,8 @@ import { withRouter, RouteComponentProps } from "react-router-dom";
 
 import { Box, Button as MuiButton, Chip, Typography } from "@mui/material";
 import HomeIcon from "@mui/icons-material/Home";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 
 import { WordScore } from "../../../types/models";
-import Button from "../../UI/Buttons/Button/Button";
 
 const scoreConfig: Record<
   WordScore["score"],
@@ -21,16 +19,9 @@ const scoreConfig: Record<
 
 interface TestSummaryProps extends RouteComponentProps {
   scores?: WordScore[];
-  continueAvailable?: boolean;
-  continueClicked?: () => void;
 }
 
-const TestSummary: React.FC<TestSummaryProps> = ({
-  history,
-  scores,
-  continueAvailable,
-  continueClicked,
-}) => {
+const TestSummary: React.FC<TestSummaryProps> = ({ history, scores }) => {
   const homePressed = (): void => {
     history.push("/");
   };
@@ -38,7 +29,7 @@ const TestSummary: React.FC<TestSummaryProps> = ({
   return (
     <Box sx={{ textAlign: "center" }}>
       <Typography variant="h5" component="h3" sx={{ fontWeight: 700, mb: 0.5 }}>
-        Test Summary
+        Session Summary
       </Typography>
       <Typography variant="body2" sx={{ color: "text.secondary", mb: 2.5 }}>
         {scores?.length} word{scores && scores.length !== 1 ? "s" : ""} tested
@@ -87,7 +78,7 @@ const TestSummary: React.FC<TestSummaryProps> = ({
         })}
       </Box>
 
-      <Box sx={{ display: "flex", gap: 1.5, justifyContent: "center" }}>
+      <Box sx={{ display: "flex", justifyContent: "center" }}>
         <MuiButton
           variant="outlined"
           onClick={homePressed}
@@ -100,12 +91,6 @@ const TestSummary: React.FC<TestSummaryProps> = ({
         >
           Home
         </MuiButton>
-        {continueAvailable && (
-          <Button clicked={continueClicked} type="primary">
-            Sentence Stage
-            <ArrowForwardIcon />
-          </Button>
-        )}
       </Box>
     </Box>
   );

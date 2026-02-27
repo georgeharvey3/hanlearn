@@ -500,7 +500,7 @@ const AddWords: React.FC<Props> = ({
           <Button clicked={onTestHandler}>
             Test
           </Button>
-          <Button clicked={toggleWords}>{buttonText}</Button>
+          <Button type="ghost" clicked={toggleWords}>{buttonText}</Button>
         </>
       ) : (
         <Typography

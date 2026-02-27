@@ -2,7 +2,6 @@ import React, { ChangeEvent, KeyboardEvent, useCallback, useEffect, useRef, useS
 import { connect, ConnectedProps } from 'react-redux';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 import { Howl } from 'howler';
-import { httpsCallable } from 'firebase/functions';
 
 import { Box, Paper, Stack, Typography, Chip } from '@mui/material';
 
@@ -24,8 +23,8 @@ import * as wordActions from '../../../store/actions/index';
 import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
 import { AppDispatch } from '../../../types/actions';
-import { functions } from '../../../firebase/config';
 import { searchWord } from '../../../services/dictionaryService';
+import { getSegmentedSentence } from '../../../services/sentenceService';
 
 const beep = new Howl({ src: [successSound], volume: 0.5 });
 const fail = new Howl({ src: [failSound], volume: 0.7 });
@@ -66,11 +65,6 @@ interface ResolvedSentence {
   };
 }
 
-// Cloud Function for fetching a single sentence at an offset
-const getSentenceFromCloud = httpsCallable<
-  { word: string; offset: number },
-  { sentence: CloudSentence | null; totalCount: number }
->(functions, 'getSentences');
 
 /**
  * Resolve segmented word strings to full word objects using the static dictionary.
@@ -162,6 +156,7 @@ interface OwnProps {
   words: Word[];
   sentenceWriteEnabled?: boolean;
   startSentenceWrite?: (seenOffsets: Record<string, { offset: number; text: string; english: string }>) => void;
+  isDemo?: boolean;
 }
 
 type Props = PropsFromRedux & OwnProps & RouteComponentProps;
@@ -213,6 +208,7 @@ const SentenceRead: React.FC<Props> = ({
   words,
   sentenceWriteEnabled,
   startSentenceWrite,
+  isDemo,
   history,
 }) => {
   const [state, setState] = useState<SentenceReadState>({
@@ -247,12 +243,12 @@ const SentenceRead: React.FC<Props> = ({
 
   const initialiseSettings = useCallback((): void => {
     const useSound =
-      synthAvailable && localStorage.getItem('useSound') !== 'false';
+      synthAvailable && (localStorage.getItem('useSound') !== 'false' || Boolean(isDemo));
     const useEnglishSpeechRecognition =
-      synthAvailable && localStorage.getItem('useEnglishSpeechRecognition') !== 'false';
+      synthAvailable && (localStorage.getItem('useEnglishSpeechRecognition') !== 'false' || Boolean(isDemo));
 
     updateState({ useSound, useEnglishSpeechRecognition });
-  }, [synthAvailable, updateState]);
+  }, [isDemo, synthAvailable, updateState]);
 
   const onSpeakPinyin = useCallback(
     (sentence: string): void => {
@@ -313,8 +309,7 @@ const SentenceRead: React.FC<Props> = ({
     const currentWord = words[stateRef.current.wordIndex].simp;
 
     try {
-      const result = await getSentenceFromCloud({ word: currentWord, offset });
-      const { sentence: cloudSentence, totalCount } = result.data;
+      const { sentence: cloudSentence, totalCount } = await getSegmentedSentence(currentWord, stateRef.current.charSet, offset);
 
       if (!cloudSentence) {
         if (isNewWord) {

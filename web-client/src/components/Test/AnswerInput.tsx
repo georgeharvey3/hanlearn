@@ -1,5 +1,9 @@
 import React from 'react';
 
+import { IconButton, Tooltip } from '@mui/material';
+import KeyboardIcon from '@mui/icons-material/Keyboard';
+import MicIcon from '@mui/icons-material/Mic';
+
 import { colors } from '../../theme';
 import Input from '../UI/Input/Input';
 import PictureButton from '../UI/Buttons/PictureButton/PictureButton';
@@ -118,13 +122,42 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
           spellCheck={false}
         />
       ) : null}
+      <Tooltip title="Type instead">
+        <IconButton
+          size="small"
+          onClick={() => {
+            state.recognition?.abort();
+            setStateMerged({ useTypingInput: true });
+          }}
+          aria-label="Switch to typing"
+          sx={{ color: 'text.disabled' }}
+        >
+          <KeyboardIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+    </div>
+  );
+
+  const typingInputWithMicToggle = (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+      {textInput}
+      <Tooltip title="Speak instead">
+        <IconButton
+          size="small"
+          onClick={() => setStateMerged({ useTypingInput: false })}
+          aria-label="Switch to speaking"
+          sx={{ color: 'text.disabled' }}
+        >
+          <MicIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
     </div>
   );
 
   switch (state.answerCategory) {
     case 'pinyin':
       if (state.useChineseSpeechRecognition) {
-        return micInput;
+        return state.useTypingInput ? typingInputWithMicToggle : micInput;
       }
       return textInput;
     case 'character':
@@ -134,7 +167,7 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
         return showAnswerContent;
       }
       if (state.useEnglishSpeechRecognition) {
-        return micInput;
+        return state.useTypingInput ? typingInputWithMicToggle : micInput;
       }
       return textInput;
     default:
@@ -145,12 +178,12 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
 export function getVerb(state: TestState): string {
   switch (state.answerCategory) {
     case 'pinyin':
-      return state.useChineseSpeechRecognition ? 'Speak the ' : 'Enter the ';
+      return state.useChineseSpeechRecognition && !state.useTypingInput ? 'Speak the ' : 'Enter the ';
     case 'character':
       return 'Draw the ';
     case 'meaning':
       if (state.useFlashcards) return 'What is the ';
-      if (state.useEnglishSpeechRecognition) return 'Speak the ';
+      if (state.useEnglishSpeechRecognition && !state.useTypingInput) return 'Speak the ';
       return 'Enter the ';
     default:
       return 'Enter the ';

@@ -35,6 +35,7 @@ export interface TestState {
   showErrorMessage: boolean;
   redoChar: boolean;
   sentenceWords: Word[];
+  sentenceCheckStatus: 'idle' | 'pending' | 'available' | 'unavailable';
   writer: HanziWriterInstance | null;
   qNum: number;
   recognition: SpeechRecognition | null;
@@ -53,6 +54,7 @@ export interface TestState {
   speechLoading: boolean;
   interaction: boolean;
   speechResult: boolean;
+  useTypingInput: boolean;
 }
 
 export interface ReduxProps {
@@ -68,7 +70,8 @@ export interface OwnProps {
   words: Word[];
   isDemo?: boolean;
   finalStage?: boolean;
-  startSentenceRead?: (words: Word[]) => void;
+  startSentenceRead?: (words: Word[], scores?: WordScore[]) => void;
+  onVocabComplete?: (scores: WordScore[]) => void;
   devTestFinished?: boolean;
   practiceMode?: boolean;
 }

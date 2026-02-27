@@ -8,9 +8,9 @@ import Checkbox from '@mui/material/Checkbox';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import FormGroup from '@mui/material/FormGroup';
-import Divider from '@mui/material/Divider';
 
 import { RootState } from '../../types/store';
+import { colors } from '../../theme';
 
 interface SettingsState {
   charSet: string;
@@ -38,6 +38,41 @@ const mapStateToProps = (state: RootState) => {
 
 const connector = connect(mapStateToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
+
+const sectionGroupSx = {
+  bgcolor: '#fff',
+  borderRadius: '12px',
+  border: '1px solid #e5ddd6',
+  overflow: 'hidden',
+  mb: 3,
+};
+
+const sectionLabelSx = {
+  display: 'block',
+  fontSize: '0.7rem',
+  fontWeight: 700,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase' as const,
+  color: colors.primaryDark,
+  mb: 0.75,
+  pl: 0.5,
+};
+
+const rowSx = {
+  px: 2,
+  borderBottom: '1px solid #ede6e0',
+  '&:last-child': { borderBottom: 'none' },
+};
+
+const SectionGroup: React.FC<{ label: string; children: React.ReactNode }> = ({
+  label,
+  children,
+}) => (
+  <Box sx={{ mb: 3 }}>
+    <Typography sx={sectionLabelSx}>{label}</Typography>
+    <Box sx={sectionGroupSx}>{children}</Box>
+  </Box>
+);
 
 const Settings: React.FC<PropsFromRedux> = ({
   speechAvailable,
@@ -81,168 +116,305 @@ const Settings: React.FC<PropsFromRedux> = ({
     };
   });
 
-  const onRadioChange = useCallback((e: ChangeEvent<HTMLInputElement>): void => {
-    const { name, value } = e.target;
-    setState((prev) => {
-      const nextState: SettingsState = {
-        ...prev,
-        [name]: value,
-      } as SettingsState;
+  const onRadioChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>): void => {
+      const { name, value } = e.target;
+      setState((prev) => {
+        const nextState: SettingsState = {
+          ...prev,
+          [name]: value,
+        } as SettingsState;
+
+        if (name === 'priority' && value === 'none') {
+          nextState.onlyPriority = false;
+        }
+
+        return nextState;
+      });
+      localStorage.setItem(name, value);
 
       if (name === 'priority' && value === 'none') {
-        nextState.onlyPriority = false;
+        localStorage.setItem('onlyPriority', 'false');
       }
+    },
+    []
+  );
 
-      return nextState;
-    });
-    localStorage.setItem(name, value);
-
-    if (name === 'priority' && value === 'none') {
-      localStorage.setItem('onlyPriority', 'false');
-    }
-  }, []);
-
-  const onSliderChange = useCallback((_e: Event, value: number | number[]): void => {
-    const numValue = value as number;
-    setState((prev) => ({
-      ...prev,
-      numWords: numValue,
-    }));
-    localStorage.setItem('numWords', String(numValue));
-  }, []);
-
-  const onCheckChange = useCallback((e: ChangeEvent<HTMLInputElement>): void => {
-    const key = e.target.value as keyof SettingsState;
-    const checked = e.target.checked;
-
-    setState((prev) => {
-      const nextState: SettingsState = {
+  const onSliderChange = useCallback(
+    (_e: Event, value: number | number[]): void => {
+      const numValue = value as number;
+      setState((prev) => ({
         ...prev,
-        [key]: !Boolean(prev[key]),
-      } as SettingsState;
+        numWords: numValue,
+      }));
+      localStorage.setItem('numWords', String(numValue));
+    },
+    []
+  );
 
-      if (key === 'useEnglishSpeechRecognition' && checked) {
-        nextState.useFlashcards = false;
+  const onCheckChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>): void => {
+      const key = e.target.value as keyof SettingsState;
+      const checked = e.target.checked;
+
+      setState((prev) => {
+        const nextState: SettingsState = {
+          ...prev,
+          [key]: !Boolean(prev[key]),
+        } as SettingsState;
+
+        if (key === 'useEnglishSpeechRecognition' && checked) {
+          nextState.useFlashcards = false;
+        }
+
+        if (key === 'useFlashcards' && checked) {
+          nextState.useEnglishSpeechRecognition = false;
+        }
+
+        if (key === 'useHandwriting' && !checked) {
+          nextState.priority = 'none';
+          nextState.onlyPriority = false;
+        }
+
+        return nextState;
+      });
+
+      localStorage.setItem(e.target.value, String(checked));
+
+      if (e.target.value === 'useEnglishSpeechRecognition' && checked) {
+        localStorage.setItem('useFlashcards', 'false');
       }
 
-      if (key === 'useFlashcards' && checked) {
-        nextState.useEnglishSpeechRecognition = false;
+      if (e.target.value === 'useFlashcards' && checked) {
+        localStorage.setItem('useEnglishSpeechRecognition', 'false');
       }
 
-      if (key === 'useHandwriting' && !checked) {
-        nextState.priority = 'none';
-        nextState.onlyPriority = false;
+      if (e.target.value === 'useHandwriting' && !checked) {
+        localStorage.setItem('priority', 'none');
+        localStorage.setItem('onlyPriority', 'false');
       }
+    },
+    []
+  );
 
-      return nextState;
-    });
+  const checkboxItems = [
+    {
+      value: 'useSound',
+      label: 'Sound',
+      checked: state.useSound && synthAvailable,
+      disabled: !synthAvailable,
+    },
+    {
+      value: 'useChineseSpeechRecognition',
+      label: 'Chinese speech recognition',
+      checked: state.useChineseSpeechRecognition && speechAvailable,
+      disabled: !speechAvailable,
+    },
+    {
+      value: 'useEnglishSpeechRecognition',
+      label: 'English speech recognition',
+      checked: state.useEnglishSpeechRecognition && speechAvailable,
+      disabled: !speechAvailable,
+    },
+    {
+      value: 'useAutoRecord',
+      label: 'Automatic recording',
+      checked: state.useAutoRecord,
+      disabled: false,
+    },
+    {
+      value: 'useFlashcards',
+      label: 'Meaning flashcards',
+      checked: state.useFlashcards,
+      disabled: false,
+    },
+    {
+      value: 'useHandwriting',
+      label: 'Handwriting input',
+      checked: state.useHandwriting,
+      disabled: false,
+    },
+  ];
 
-    localStorage.setItem(e.target.value, String(checked));
+  const priorityItems = [
+    { value: 'none', label: 'None', disabled: false },
+    { value: 'MP', label: 'Listening', disabled: false },
+    { value: 'PM', label: 'Speaking', disabled: false },
+    { value: 'MC', label: 'Reading', disabled: false },
+    { value: 'CM', label: 'Writing', disabled: !state.useHandwriting },
+  ];
 
-    if (e.target.value === 'useEnglishSpeechRecognition' && checked) {
-      localStorage.setItem('useFlashcards', 'false');
-    }
-
-    if (e.target.value === 'useFlashcards' && checked) {
-      localStorage.setItem('useEnglishSpeechRecognition', 'false');
-    }
-
-    if (e.target.value === 'useHandwriting' && !checked) {
-      localStorage.setItem('priority', 'none');
-      localStorage.setItem('onlyPriority', 'false');
-    }
-  }, []);
+  const stageItems = [
+    {
+      value: 'newWords',
+      label: 'New Words',
+      checked: state.newWords,
+      disabled: !synthAvailable,
+    },
+    {
+      value: 'sentenceRead',
+      label: 'Translate Sentences',
+      checked: state.sentenceRead,
+      disabled: !speechAvailable,
+    },
+    {
+      value: 'sentenceWrite',
+      label: 'Make Sentences',
+      checked: state.sentenceWrite,
+      disabled: false,
+    },
+  ];
 
   return (
-    <Box sx={{ width: 300, display: 'inline-block', p: 1.5, color: 'text.primary' }}>
-      <Typography variant="subtitle1" fontWeight="bold">Character Set</Typography>
-      <RadioGroup name="charSet" value={state.charSet} onChange={onRadioChange} row>
-        <FormControlLabel value="simp" control={<Radio size="small" />} label="Simplified" />
-        <FormControlLabel value="trad" control={<Radio size="small" />} label="Traditional" />
-      </RadioGroup>
-      <Divider sx={{ my: 1 }} />
+    <Box sx={{ color: 'text.primary' }}>
+      <SectionGroup label="Character Set">
+        <Box sx={{ px: 2, py: 0.5 }}>
+          <RadioGroup
+            name="charSet"
+            value={state.charSet}
+            onChange={onRadioChange}
+            row
+            sx={{ gap: 1 }}
+          >
+            <FormControlLabel
+              value="simp"
+              control={<Radio size="small" />}
+              label="Simplified"
+            />
+            <FormControlLabel
+              value="trad"
+              control={<Radio size="small" />}
+              label="Traditional"
+            />
+          </RadioGroup>
+        </Box>
+      </SectionGroup>
 
-      <Typography variant="subtitle1" fontWeight="bold">Characters per test:</Typography>
-      <Box sx={{ width: '60%', mx: 'auto', textAlign: 'center' }}>
-        <Typography>{state.numWords}</Typography>
-        <Slider
-          value={state.numWords}
-          onChange={onSliderChange}
-          min={1}
-          max={20}
-          size="small"
-          color="primary"
-          aria-label="Characters per test"
-        />
-      </Box>
-      <Divider sx={{ my: 1 }} />
-
-      <Typography variant="body2">Test Settings</Typography>
-      <FormGroup>
-        <FormControlLabel
-          control={<Checkbox size="small" value="useSound" checked={state.useSound && synthAvailable} onChange={onCheckChange} disabled={!synthAvailable} />}
-          label="Sound"
-        />
-        <FormControlLabel
-          control={<Checkbox size="small" value="useChineseSpeechRecognition" checked={state.useChineseSpeechRecognition && speechAvailable} onChange={onCheckChange} disabled={!speechAvailable} />}
-          label="Chinese speech recognition"
-        />
-        <FormControlLabel
-          control={<Checkbox size="small" value="useEnglishSpeechRecognition" checked={state.useEnglishSpeechRecognition && speechAvailable} onChange={onCheckChange} disabled={!speechAvailable} />}
-          label="English speech recognition"
-        />
-        <FormControlLabel
-          control={<Checkbox size="small" value="useAutoRecord" checked={state.useAutoRecord} onChange={onCheckChange} />}
-          label="Automatic recording"
-        />
-        <FormControlLabel
-          control={<Checkbox size="small" value="useFlashcards" checked={state.useFlashcards} onChange={onCheckChange} />}
-          label="Meaning flashcards"
-        />
-        <FormControlLabel
-          control={<Checkbox size="small" value="useHandwriting" checked={state.useHandwriting} onChange={onCheckChange} />}
-          label="Handwriting input"
-        />
-      </FormGroup>
-      <Divider sx={{ my: 1 }} />
-
-      <Typography variant="body2">Priority</Typography>
-      <RadioGroup name="priority" value={state.priority} onChange={onRadioChange}>
-        <FormControlLabel value="none" control={<Radio size="small" />} label="None" />
-        <FormControlLabel value="MP" control={<Radio size="small" />} label="Listening" />
-        <FormControlLabel value="PM" control={<Radio size="small" />} label="Speaking" />
-        <FormControlLabel value="MC" control={<Radio size="small" />} label="Reading" />
-        <FormControlLabel value="CM" control={<Radio size="small" disabled={!state.useHandwriting} />} label="Writing" />
-      </RadioGroup>
-      <FormControlLabel
-        control={
-          <Checkbox
+      <SectionGroup label="Characters per Test">
+        <Box sx={{ px: 2, pt: 2, pb: 1.5 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'baseline',
+              mb: 1.5,
+            }}
+          >
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              Words per session
+            </Typography>
+            <Typography
+              variant="h5"
+              fontWeight="bold"
+              sx={{ color: colors.primaryDark, lineHeight: 1 }}
+            >
+              {state.numWords}
+            </Typography>
+          </Box>
+          <Slider
+            value={state.numWords}
+            onChange={onSliderChange}
+            min={1}
+            max={20}
             size="small"
-            value="onlyPriority"
-            checked={state.onlyPriority && state.priority !== 'none'}
-            disabled={state.priority === 'none'}
-            onChange={onCheckChange}
+            aria-label="Characters per test"
           />
-        }
-        label="Only Priority"
-      />
-      <Divider sx={{ my: 1 }} />
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.25 }}>
+            <Typography variant="caption" color="text.secondary">
+              1
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              20
+            </Typography>
+          </Box>
+        </Box>
+      </SectionGroup>
 
-      <Typography variant="body2">Stages</Typography>
-      <FormGroup>
-        <FormControlLabel
-          control={<Checkbox size="small" value="newWords" checked={state.newWords} onChange={onCheckChange} disabled={!synthAvailable} />}
-          label="New Words"
-        />
-        <FormControlLabel
-          control={<Checkbox size="small" value="sentenceRead" checked={state.sentenceRead} onChange={onCheckChange} disabled={!speechAvailable} />}
-          label="Translate Sentences"
-        />
-        <FormControlLabel
-          control={<Checkbox size="small" value="sentenceWrite" checked={state.sentenceWrite} onChange={onCheckChange} />}
-          label="Make Sentences"
-        />
-      </FormGroup>
+      <SectionGroup label="Test Settings">
+        <FormGroup>
+          {checkboxItems.map(({ value, label, checked, disabled }) => (
+            <Box key={value} sx={rowSx}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    value={value}
+                    checked={checked}
+                    onChange={onCheckChange}
+                    disabled={disabled}
+                  />
+                }
+                label={label}
+                sx={{ width: '100%', my: 0.25 }}
+              />
+            </Box>
+          ))}
+        </FormGroup>
+      </SectionGroup>
+
+      <SectionGroup label="Priority">
+        <RadioGroup
+          name="priority"
+          value={state.priority}
+          onChange={onRadioChange}
+        >
+          {priorityItems.map(({ value, label, disabled }) => (
+            <Box key={value} sx={rowSx}>
+              <FormControlLabel
+                value={value}
+                control={<Radio size="small" disabled={disabled} />}
+                label={label}
+                sx={{ width: '100%', my: 0.25 }}
+              />
+            </Box>
+          ))}
+        </RadioGroup>
+        <Box
+          sx={{
+            px: 2,
+            pt: 0.5,
+            pb: 0.25,
+            borderTop: '1px solid #ede6e0',
+            bgcolor: '#faf7f4',
+          }}
+        >
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                value="onlyPriority"
+                checked={state.onlyPriority && state.priority !== 'none'}
+                disabled={state.priority === 'none'}
+                onChange={onCheckChange}
+              />
+            }
+            label="Only Priority"
+            sx={{ my: 0.25 }}
+          />
+        </Box>
+      </SectionGroup>
+
+      <SectionGroup label="Stages">
+        <FormGroup>
+          {stageItems.map(({ value, label, checked, disabled }) => (
+            <Box key={value} sx={rowSx}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    value={value}
+                    checked={checked}
+                    onChange={onCheckChange}
+                    disabled={disabled}
+                  />
+                }
+                label={label}
+                sx={{ width: '100%', my: 0.25 }}
+              />
+            </Box>
+          ))}
+        </FormGroup>
+      </SectionGroup>
     </Box>
   );
 };

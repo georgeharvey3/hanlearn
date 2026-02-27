@@ -22,8 +22,8 @@ export const activeButtonStyle = { ...buttonStyle, boxShadow: '0px 0px', transfo
 export const createInitialState = (props: Props): TestState => {
   const numWords = parseInt(localStorage.getItem('numWords') || '5');
   const charSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp';
-  const priority = localStorage.getItem('priority') || 'none';
-  const onlyPriority = localStorage.getItem('onlyPriority') === 'true';
+  const priority = props.isDemo ? 'none' : (localStorage.getItem('priority') || 'none');
+  const onlyPriority = props.isDemo ? false : localStorage.getItem('onlyPriority') === 'true';
 
   const devScoreList: WordScore[] = props.devTestFinished
     ? props.words.map((word) => ({
@@ -67,6 +67,7 @@ export const createInitialState = (props: Props): TestState => {
     showErrorMessage: false,
     redoChar: false,
     sentenceWords: [],
+    sentenceCheckStatus: 'idle',
     writer: null,
     qNum: 0,
     recognition: null,
@@ -85,5 +86,6 @@ export const createInitialState = (props: Props): TestState => {
     speechLoading: false,
     interaction: false,
     speechResult: false,
+    useTypingInput: false,
   };
 };

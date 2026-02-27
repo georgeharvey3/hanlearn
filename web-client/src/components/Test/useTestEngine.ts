@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { httpsCallable } from 'firebase/functions';
 import pinyin from 'pinyin';
 
-import { functions } from '../../firebase/config';
 import * as testLogic from './Logic/TestLogic';
 import { beep, fail, createInitialState } from './constants';
 import { Props, TestState, TestStateUpdate } from './types';
 import { WordScore } from '../../types/models';
+import { checkSentenceAvailability, getHintSentence } from '../../services/sentenceService';
 
 export const useTestEngine = (props: Props) => {
   const [state, setState] = useState<TestState>(() => createInitialState(props));
@@ -212,12 +211,52 @@ export const useTestEngine = (props: Props) => {
       onSendScores(sendScores);
     }
 
-    setStateMerged({
-      testFinished: true,
-      scoreList: wordScores,
-      sentenceWords: sentenceWords,
-    });
-  }, [getState, onSendScores, props.isDemo, setStateMerged]);
+    if (sentenceWords.length === 0 || props.isDemo) {
+      setStateMerged({
+        testFinished: true,
+        scoreList: wordScores,
+        sentenceWords,
+        sentenceCheckStatus: props.isDemo && sentenceWords.length > 0 ? 'available' : 'idle',
+      });
+      if (!props.isDemo) {
+        props.onVocabComplete?.(wordScores);
+      } else if (sentenceWords.length > 0 && !props.finalStage) {
+        setTimeout(() => {
+          props.startSentenceRead?.(sentenceWords, wordScores);
+        }, 1000);
+      }
+    } else {
+      setStateMerged({
+        testFinished: true,
+        scoreList: wordScores,
+        sentenceWords,
+        sentenceCheckStatus: 'pending',
+      });
+
+      Promise.all(
+        sentenceWords.map((w) =>
+          checkSentenceAvailability(w.simp, current.charSet)
+            .then((available) => (available ? w : null))
+            .catch(() => null)
+        )
+      ).then((results) => {
+        const available = results.filter((w): w is import('../../types/models').Word => w !== null);
+        if (available.length > 0 && !props.finalStage) {
+          setStateMerged({
+            sentenceWords: available,
+            sentenceCheckStatus: 'available',
+          });
+          props.startSentenceRead?.(available, wordScores);
+        } else {
+          setStateMerged({
+            sentenceWords: available,
+            sentenceCheckStatus: 'unavailable',
+          });
+          props.onVocabComplete?.(wordScores);
+        }
+      });
+    }
+  }, [getState, onSendScores, props.isDemo, props.practiceMode, props.finalStage, props.onVocabComplete, props.startSentenceRead, setStateMerged]);
 
   const onCorrectAnswer = useCallback(
     (usedSpeech?: boolean): void => {
@@ -316,7 +355,7 @@ export const useTestEngine = (props: Props) => {
       }
 
       setStateMerged({ result: resultString, showHint: false });
-      if (current.useAutoRecord && !current.pauseAutoRecord) {
+      if (current.useAutoRecord && !current.pauseAutoRecord && !current.useTypingInput) {
         onListen();
       }
     }
@@ -380,7 +419,7 @@ export const useTestEngine = (props: Props) => {
             numSpeakTries: prevState.numSpeakTries + 1,
           }));
         }
-        if (current.useAutoRecord && !current.pauseAutoRecord) {
+        if (current.useAutoRecord && !current.pauseAutoRecord && !current.useTypingInput) {
           setTimeout(() => onListenRef.current(), 1500);
         }
       } else {
@@ -398,7 +437,7 @@ export const useTestEngine = (props: Props) => {
             numSpeakTries: prevState.numSpeakTries + 1,
           }));
         }
-        if (current.useAutoRecord && !current.pauseAutoRecord) {
+        if (current.useAutoRecord && !current.pauseAutoRecord && !current.useTypingInput) {
           setTimeout(() => onListenRef.current(), 1500);
         }
       }
@@ -621,10 +660,8 @@ export const useTestEngine = (props: Props) => {
   const showSentenceHint = useCallback(
     (word: string): void => {
       setStateMerged({ hintLoading: true });
-      const getOneSentence = httpsCallable<{ word: string }, { sentence: { chinese: string; english: string } | null }>(functions, 'getOneSentence');
-      getOneSentence({ word }).then((result) => {
+      getHintSentence(word).then((sentence) => {
         const current = getState();
-        const sentence = result.data.sentence;
         if (!sentence) {
           setStateMerged({ result: 'No example sentence found', hintLoading: false });
           return;
@@ -780,12 +817,7 @@ export const useTestEngine = (props: Props) => {
 
       if (event.key === ' ') {
         if (current.testFinished) {
-          event.preventDefault();
-          if (!props.finalStage && (current.sentenceWords.length > 0 || props.isDemo)) {
-            props.startSentenceRead?.(current.sentenceWords);
-          } else {
-            onHomeClicked();
-          }
+          // Transitions are now handled by callbacks; ignore spacebar here
         } else if (sourceElement !== 'input') {
           event.preventDefault();
           (event.target as HTMLElement).blur();
@@ -916,7 +948,7 @@ export const useTestEngine = (props: Props) => {
       onSpeak(current.chosenCharacter, current.useAutoRecord);
     }
 
-    if (current.useAutoRecord && !(current.questionCategory === 'pinyin' && current.useSound)) {
+    if (current.useAutoRecord && !current.useTypingInput && !(current.questionCategory === 'pinyin' && current.useSound)) {
       if (current.answerCategory === 'pinyin') {
         onListen();
       }

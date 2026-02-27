@@ -55,11 +55,10 @@ const Layout: React.FC<Props> = ({ isAuthenticated, children }) => {
           mt: '56px',
           pt: 3,
           height: '100%',
-          maxWidth: 1400,
-          ...(isAuthenticated && {
-            ml: { xs: 0, sm: `${SIDEBAR_WIDTH}px` },
-            maxWidth: { xs: '100%', sm: 1400 - SIDEBAR_WIDTH },
-          }),
+          ...(isAuthenticated
+            ? { ml: { xs: 0, sm: `${SIDEBAR_WIDTH}px` }, maxWidth: { xs: '100%', sm: 1440 - SIDEBAR_WIDTH } }
+            : { maxWidth: 1440 }
+          ),
         }}
       >
         {children}

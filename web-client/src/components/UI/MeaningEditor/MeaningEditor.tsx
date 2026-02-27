@@ -37,6 +37,9 @@ const MeaningEditor: React.FC<MeaningEditorProps> = ({
   }, [isAdding]);
 
   const emitChange = (updated: string[]) => {
+    if (onChange === undefined) {
+      return;
+    }
     onChange(joinMeanings(updated));
   };
 

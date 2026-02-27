@@ -2,17 +2,13 @@ import React, { KeyboardEvent, useCallback, useEffect, useRef, useState } from '
 import { connect, ConnectedProps } from 'react-redux';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 import { Howl } from 'howler';
-import { httpsCallable } from 'firebase/functions';
 
 import { Box, Paper, Stack, Typography } from '@mui/material';
 
 import Button from '../../UI/Buttons/Button/Button';
 import Input from '../../UI/Input/Input';
 import PictureButton from '../../UI/Buttons/PictureButton/PictureButton';
-import Modal from '../../UI/Modal/Modal';
 import Spinner from '../../UI/Spinner/Spinner';
-import Table from '../../UI/Table/Table';
-import TableRow from '../../UI/Table/TableRow/TableRow';
 
 import micPic from '../../../assets/images/microphone.png';
 import likePic from '../../../assets/images/like.png';
@@ -23,15 +19,8 @@ import failSound from '../../../assets/sounds/failure1.wav';
 
 import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
-import { functions } from '../../../firebase/config';
+import { getSegmentedSentence } from '../../../services/sentenceService';
 
-import pinyin from 'pinyin';
-
-// Reuse the same cloud function as SentenceRead
-const getSentenceFromCloud = httpsCallable<
-  { word: string; offset: number },
-  { sentence: { chinese: { sentence: string }; english: { sentence: string } } | null; totalCount: number }
->(functions, 'getSentences');
 
 const beep = new Howl({ src: [successSound], volume: 0.5 });
 const fail = new Howl({ src: [failSound], volume: 0.7 });
@@ -73,6 +62,8 @@ type PropsFromRedux = ConnectedProps<typeof connector>;
 interface OwnProps {
   words: Word[];
   seenOffsets?: Record<string, { offset: number; text: string; english: string }>;
+  onComplete?: () => void;
+  isDemo?: boolean;
 }
 
 type Props = PropsFromRedux & OwnProps & RouteComponentProps;
@@ -82,16 +73,16 @@ const SentenceWrite: React.FC<Props> = ({
   synthAvailable,
   words,
   seenOffsets,
+  onComplete,
+  isDemo,
   history,
 }) => {
   const [state, setState] = useState<SentenceWriteState>(() => ({
     wordIndex: 0,
     charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
     useChineseSpeechRecognition:
-      localStorage.getItem('useChineseSpeechRecognition') === 'false' || !speechAvailable
-        ? false
-        : true,
-    useSound: localStorage.getItem('useSound') === 'false' || !synthAvailable ? false : true,
+      (localStorage.getItem('useChineseSpeechRecognition') !== 'false' || Boolean(isDemo)) && speechAvailable,
+    useSound: (localStorage.getItem('useSound') !== 'false' || Boolean(isDemo)) && synthAvailable,
     loading: false,
     originalChinese: null,
     englishPrompt: null,
@@ -130,7 +121,11 @@ const SentenceWrite: React.FC<Props> = ({
 
       const skipToNextWord = (): void => {
         if (wordIndex >= words.length - 1) {
-          updateState({ loading: false, wordIndex: words.length });
+          if (stateRef.current.results.length === 0) {
+            history.push('/');
+          } else {
+            updateState({ loading: false, wordIndex: words.length });
+          }
         } else {
           const nextIndex = wordIndex + 1;
           const nextOffset = (seenOffsets?.[words[nextIndex].simp]?.offset ?? -1) + 1;
@@ -140,8 +135,8 @@ const SentenceWrite: React.FC<Props> = ({
       };
 
       try {
-        const result = await getSentenceFromCloud({ word: word.simp, offset: tryOffset });
-        const { sentence, totalCount } = result.data;
+        const charSet = stateRef.current.charSet;
+        const { sentence, totalCount } = await getSegmentedSentence(word.simp, charSet, tryOffset);
 
         if (!sentence) {
           if (tryOffset === 0) {
@@ -150,8 +145,7 @@ const SentenceWrite: React.FC<Props> = ({
             return;
           }
           // No sentence at tryOffset — fall back to offset 0
-          const fallback = await getSentenceFromCloud({ word: word.simp, offset: 0 });
-          const fb = fallback.data.sentence;
+          const { sentence: fb } = await getSegmentedSentence(word.simp, charSet, 0);
           if (fb && !isDuplicate(fb.chinese.sentence, fb.english.sentence)) {
             updateState({ loading: false, originalChinese: fb.chinese.sentence, englishPrompt: fb.english.sentence });
           } else {
@@ -242,8 +236,10 @@ const SentenceWrite: React.FC<Props> = ({
     if (nextIndex < words.length) {
       const nextOffset = (seenOffsets?.[words[nextIndex].simp]?.offset ?? -1) + 1;
       fetchSentence(nextIndex, nextOffset);
+    } else {
+      onComplete?.();
     }
-  }, [fetchSentence, seenOffsets, words]);
+  }, [fetchSentence, onComplete, seenOffsets, words]);
 
   const onNoClicked = useCallback((): void => {
     if (stateRef.current.useSound) fail.play();
@@ -295,25 +291,6 @@ const SentenceWrite: React.FC<Props> = ({
     document.getElementById('answerInput')?.blur();
     updateState({ submitted: true, message: '' });
   };
-
-  // Summary screen
-  if (state.wordIndex >= words.length && state.results.length > 0) {
-    const headings = ['Original', 'Your attempt', 'Pinyin', 'English'];
-
-    const rows = state.results.map((result, index) => (
-      <TableRow key={index}>
-        {[result.original, result.attempt, pinyin(result.original).join(' '), result.english]}
-      </TableRow>
-    ));
-
-    return (
-      <Modal show>
-        <Typography variant="h5" component="h2">Finished!</Typography>
-        <Table headings={headings}>{rows}</Table>
-        <Button clicked={onHomeClicked}>Home</Button>
-      </Modal>
-    );
-  }
 
   // Loading state
   if (state.loading) {
