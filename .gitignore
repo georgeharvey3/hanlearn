@@ -48,6 +48,9 @@ claude-tasks/done/
 web-client/playwright-report/
 web-client/test-results/
 
+# Test coverage reports
+web-client/coverage/
+
 # Python
 __pycache__
 *.pyc
