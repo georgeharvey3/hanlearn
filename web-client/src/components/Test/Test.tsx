@@ -2,13 +2,10 @@ import React from 'react';
 import { withRouter } from 'react-router-dom';
 import { connect } from 'react-redux';
 
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, CircularProgress, Paper, Typography } from '@mui/material';
 
-import Modal from '../UI/Modal/Modal';
-import Backdrop from '../UI/Backdrop/Backdrop';
-import Button from '../UI/Buttons/Button/Button';
+
 import ProgressBar from './ProgressBar/ProgressBar';
-import TestSummary from './TestSummary/TestSummary';
 import QuestionDisplay from './QuestionDisplay';
 import AnswerInput, { getVerb } from './AnswerInput';
 import TestActions from './TestActions';
@@ -38,7 +35,6 @@ const Test: React.FC<Props> = (props) => {
   const {
     state,
     setStateMerged,
-    onClickAddWords,
     onFocusEntry,
     onInputChanged,
     onKeyPress,
@@ -58,14 +54,21 @@ const Test: React.FC<Props> = (props) => {
   if (state.testSet.length !== 0 || props.isDemo) {
     return (
       <>
-        <Backdrop show={state.testFinished} />
-        <Modal show={state.testFinished}>
-          <TestSummary
-            continueAvailable={(state.sentenceWords.length > 0 && !props.finalStage) || props.isDemo}
-            continueClicked={() => props.startSentenceRead?.(state.sentenceWords)}
-            scores={state.scoreList}
-          />
-        </Modal>
+        {state.testFinished && state.sentenceCheckStatus === 'pending' && (
+          <Box
+            sx={{
+              position: 'fixed',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: 'rgba(255,255,255,0.75)',
+              zIndex: 1200,
+            }}
+          >
+            <CircularProgress />
+          </Box>
+        )}
         <Box
           sx={{
             width: '90%',
@@ -170,12 +173,7 @@ const Test: React.FC<Props> = (props) => {
     );
   }
 
-  return (
-    <Modal show={state.showErrorMessage}>
-      <p>You have no words due for testing!</p>
-      <Button clicked={onClickAddWords}>Add Words</Button>
-    </Modal>
-  );
+  return null;
 };
 
 export default withRouter(connector(Test));
