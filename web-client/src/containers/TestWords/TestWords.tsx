@@ -4,23 +4,25 @@ import { RouteComponentProps, withRouter, Redirect } from 'react-router-dom';
 
 import * as wordActions from '../../store/actions/index';
 
-import Modal from '../../components/UI/Modal/Modal';
 import Button from '../../components/UI/Buttons/Button/Button';
 import Spinner from '../../components/UI/Spinner/Spinner';
 import Test from '../../components/Test/Test';
 import SentenceWrite from '../../components/Test/SentenceWrite/SentenceWrite';
 import SentenceRead from '../../components/Test/SentenceRead/SentenceRead';
 import NewWords from '../../components/Test/NewWords/NewWords';
+import TestSummary from '../../components/Test/TestSummary/TestSummary';
 
 import * as testLogic from '../../components/Test/Logic/TestLogic';
 import { RootState } from '../../types/store';
-import { Word } from '../../types/models';
+import { Word, WordScore } from '../../types/models';
 import { getDevTestConfig, DevTestConfig } from '../../utils/devTestMode';
+
+import { Box, Stepper, Step, StepLabel, Typography } from '@mui/material';
 
 // Dev test mode config - loaded once on mount
 const devConfig: DevTestConfig | null = getDevTestConfig();
 
-type Stage = 'new' | 'vocab' | 'read' | 'write';
+type Stage = 'new' | 'vocab' | 'read' | 'write' | 'summary';
 
 interface TestWordsState {
   sentenceWords: Word[];
@@ -34,6 +36,7 @@ interface TestWordsState {
   devTestFinished: boolean; // For testing TestSummary directly
   practiceMode: boolean; // Practice mode ignores due dates and doesn't update them
   seenOffsets: Record<string, { offset: number; text: string; english: string }>;
+  wordScores: WordScore[];
 }
 
 interface OwnProps {
@@ -75,15 +78,16 @@ const TestWords: React.FC<Props> = ({
   const [state, setState] = useState<TestWordsState>({
     sentenceWords: [],
     stage: getInitialStage(),
-    numWords: parseInt(localStorage.getItem('numWords') || '5', 10),
+    numWords: isDemo ? 5 : parseInt(localStorage.getItem('numWords') || '5', 10),
     newWords: [],
     selectedWords: [],
-    newWordsEnabled: localStorage.getItem('newWords') === 'false' ? false : true,
-    sentenceReadEnabled: localStorage.getItem('sentenceRead') === 'false' ? false : true,
-    sentenceWriteEnabled: localStorage.getItem('sentenceWrite') === 'false' ? false : true,
+    newWordsEnabled: isDemo ? true : localStorage.getItem('newWords') !== 'false',
+    sentenceReadEnabled: isDemo ? true : localStorage.getItem('sentenceRead') !== 'false',
+    sentenceWriteEnabled: isDemo ? true : localStorage.getItem('sentenceWrite') !== 'false',
     devTestFinished: devConfig?.testFinished ?? false,
     practiceMode: false,
     seenOffsets: {},
+    wordScores: [],
   });
 
   const prevWordsLength = useRef(words.length);
@@ -208,17 +212,19 @@ const TestWords: React.FC<Props> = ({
     setState((prev) => ({ ...prev, stage: 'vocab' }));
   };
 
-  const onStartSentenceRead = (sentenceWords: Word[]): void => {
+  const onStartSentenceRead = (sentenceWords: Word[], scores?: WordScore[]): void => {
     if (state.sentenceReadEnabled) {
       setState((prev) => ({
         ...prev,
-        sentenceWords: sentenceWords,
+        sentenceWords,
+        wordScores: scores ?? prev.wordScores,
         stage: 'read',
       }));
     } else {
       setState((prev) => ({
         ...prev,
-        sentenceWords: sentenceWords,
+        sentenceWords,
+        wordScores: scores ?? prev.wordScores,
         stage: 'write',
       }));
     }
@@ -227,7 +233,17 @@ const TestWords: React.FC<Props> = ({
   const onStartSentenceWrite = (seenOffsets: Record<string, { offset: number; text: string; english: string }>): void => {
     if (state.sentenceWriteEnabled) {
       setState((prev) => ({ ...prev, stage: 'write', seenOffsets }));
+    } else {
+      setState((prev) => ({ ...prev, stage: 'summary' }));
     }
+  };
+
+  const onVocabComplete = (scores: WordScore[]): void => {
+    setState((prev) => ({ ...prev, wordScores: scores, stage: 'summary' }));
+  };
+
+  const onSentenceWriteComplete = (): void => {
+    setState((prev) => ({ ...prev, stage: 'summary' }));
   };
 
   // All dev stages require auth since they use real words from user's bank
@@ -253,7 +269,8 @@ const TestWords: React.FC<Props> = ({
           <Test
             isDemo={isDemo || !!devConfig}
             words={state.selectedWords}
-            startSentenceRead={(sentenceWords: Word[]) => onStartSentenceRead(sentenceWords)}
+            startSentenceRead={(sentenceWords: Word[], scores?: WordScore[]) => onStartSentenceRead(sentenceWords, scores)}
+            onVocabComplete={onVocabComplete}
             finalStage={!state.sentenceReadEnabled && !state.sentenceWriteEnabled}
             devTestFinished={state.devTestFinished}
             practiceMode={state.practiceMode}
@@ -267,17 +284,33 @@ const TestWords: React.FC<Props> = ({
             words={state.sentenceWords}
             startSentenceWrite={onStartSentenceWrite}
             sentenceWriteEnabled={state.sentenceWriteEnabled}
+            isDemo={isDemo}
           />
         );
         break;
       case 'write':
-        content = <SentenceWrite words={state.sentenceWords} seenOffsets={state.seenOffsets} />;
+        content = (
+          <SentenceWrite
+            words={state.sentenceWords}
+            seenOffsets={state.seenOffsets}
+            onComplete={onSentenceWriteComplete}
+            isDemo={isDemo}
+          />
+        );
+        break;
+      case 'summary':
+        content = (
+          <Box sx={{ width: '90%', maxWidth: 400, mx: 'auto', py: 4 }}>
+            <TestSummary scores={state.wordScores} />
+          </Box>
+        );
         break;
       default:
         content = (
           <Test
             words={state.selectedWords}
-            startSentenceRead={(sentenceWords: Word[]) => onStartSentenceRead(sentenceWords)}
+            startSentenceRead={(sentenceWords: Word[], scores?: WordScore[]) => onStartSentenceRead(sentenceWords, scores)}
+            onVocabComplete={onVocabComplete}
             finalStage={!state.sentenceReadEnabled && !state.sentenceWriteEnabled}
             practiceMode={state.practiceMode}
           />
@@ -292,19 +325,55 @@ const TestWords: React.FC<Props> = ({
     const hasWordsInBank = nonChengyus.length > 0;
 
     content = (
-      <Modal show>
-        <p>You have no words due for testing!</p>
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+      <Box sx={{ width: '90%', maxWidth: 400, mx: 'auto', py: 8, textAlign: 'center' }}>
+        <Typography variant="h6" sx={{ mb: 3, color: 'text.secondary' }}>
+          No words due for testing
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center' }}>
           <Button clicked={onClickAddWords}>Add Words</Button>
           {hasWordsInBank && (
             <Button type='ghost' clicked={onStartPractice}>Practice</Button>
           )}
-        </div>
-      </Modal>
+        </Box>
+      </Box>
     );
   }
 
-  return content;
+  // Build progress stepper (only when a session is active)
+  let stepper: React.ReactNode = null;
+  if (state.selectedWords.length > 0) {
+    const steps: string[] = [];
+    if (state.newWords.length > 0 && state.newWordsEnabled) steps.push('Learn');
+    steps.push('Test');
+    if (state.sentenceReadEnabled || state.sentenceWriteEnabled) steps.push('Practice');
+    steps.push('Done');
+
+    const stageToStep: Partial<Record<Stage, number>> = {
+      new: steps.indexOf('Learn'),
+      vocab: steps.indexOf('Test'),
+      read: steps.indexOf('Practice'),
+      write: steps.indexOf('Practice'),
+      summary: steps.indexOf('Done'),
+    };
+    const activeStep = stageToStep[state.stage] ?? 0;
+
+    stepper = (
+      <Stepper activeStep={activeStep} alternativeLabel sx={{ pt: 2, pb: 1 }}>
+        {steps.map((label) => (
+          <Step key={label}>
+            <StepLabel>{label}</StepLabel>
+          </Step>
+        ))}
+      </Stepper>
+    );
+  }
+
+  return (
+    <>
+      {stepper}
+      {content}
+    </>
+  );
 };
 
 export default withRouter(connector(TestWords));
