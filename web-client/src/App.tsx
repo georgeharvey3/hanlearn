@@ -38,14 +38,18 @@ const App: React.FC<Props> = ({
   onSetLang,
 }) => {
   const setSpeech = useCallback((): Promise<SpeechSynthesisVoice[]> => {
-    return new Promise(function (resolve) {
+    return new Promise(function (resolve, reject) {
       const synth = window.speechSynthesis;
-      let id: NodeJS.Timeout;
+      let elapsed = 0;
 
-      id = setInterval(() => {
+      const id = setInterval(() => {
+        elapsed += 10;
         if (synth.getVoices().length !== 0) {
           resolve(synth.getVoices());
           clearInterval(id);
+        } else if (elapsed >= 5000) {
+          clearInterval(id);
+          reject(new Error('Speech synthesis voices not available'));
         }
       }, 10);
     });
@@ -76,6 +80,8 @@ const App: React.FC<Props> = ({
       } else {
         onSetSynthAvailable(false);
       }
+    }).catch(() => {
+      onSetSynthAvailable(false);
     });
   }, [onSetLang, onSetSynthAvailable, onSetVoice, setSpeech]);
 

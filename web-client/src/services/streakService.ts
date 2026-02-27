@@ -46,6 +46,16 @@ export const getStreakData = async (userId: string): Promise<{ date: string; tes
 };
 
 /**
+ * Parse a YYYY-MM-DD string as local midnight (not UTC).
+ * new Date("2026-02-26") parses as UTC midnight which causes timezone bugs
+ * in positive-offset timezones where local midnight is ahead of UTC midnight.
+ */
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+/**
  * Calculate current streak from an array of completion date strings (already sorted desc).
  */
 export const calculateStreak = (dates: string[]): number => {
@@ -54,17 +64,14 @@ export const calculateStreak = (dates: string[]): number => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const mostRecent = new Date(dates[0]);
-  mostRecent.setHours(0, 0, 0, 0);
+  const mostRecent = parseLocalDate(dates[0]);
   const diffFromToday = Math.floor((today.getTime() - mostRecent.getTime()) / (1000 * 60 * 60 * 24));
   if (diffFromToday > 1) return 0;
 
   let streak = 1;
   for (let i = 1; i < dates.length; i++) {
-    const prev = new Date(dates[i - 1]);
-    const curr = new Date(dates[i]);
-    prev.setHours(0, 0, 0, 0);
-    curr.setHours(0, 0, 0, 0);
+    const prev = parseLocalDate(dates[i - 1]);
+    const curr = parseLocalDate(dates[i]);
     const diff = Math.floor((prev.getTime() - curr.getTime()) / (1000 * 60 * 60 * 24));
     if (diff === 1) {
       streak++;

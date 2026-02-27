@@ -157,7 +157,8 @@ export const postUpdateMeaning = (
 };
 
 /**
- * Submit test results and update word banks in Firestore
+ * Submit test results and update word banks in Firestore.
+ * Re-fetches the full word list so Redux state reflects the new bank levels and due dates.
  */
 export const finishTest = (
   scores: { word_id: number; score: number }[]
@@ -167,8 +168,15 @@ export const finishTest = (
     if (!auth.userId) return;
 
     try {
-      const newDates = await wordService.finishTest(auth.userId, scores);
-      console.log('Test finished, new dates:', newDates);
+      await wordService.finishTest(auth.userId, scores);
+
+      // Re-fetch words so the local store has updated bank levels and due dates
+      try {
+        const updatedWords = await wordService.getUserWords(auth.userId);
+        dispatch(setWords(updatedWords));
+      } catch (fetchError) {
+        console.error('Failed to refresh words after test:', fetchError);
+      }
 
       try {
         await recordTestCompletion(auth.userId);

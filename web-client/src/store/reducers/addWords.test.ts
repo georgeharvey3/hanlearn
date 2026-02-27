@@ -99,6 +99,26 @@ describe('addWords reducer', () => {
       expect(state.words[0].bank).toBe(1);
       expect(state.words[0].due_date).toBe(formatToday(new Date()));
     });
+
+    it('sets due_date to tomorrow when more than 9 words exist (regression)', () => {
+      const wordsArray: Word[] = Array.from({ length: 10 }, (_, i) => ({
+        id: i,
+        simp: `字${i}`,
+        trad: `字${i}`,
+        pinyin: `zì${i}`,
+        meaning: `char${i}`,
+      }));
+
+      const stateWith10 = { ...initialState, words: wordsArray };
+      const state = reducer(stateWith10, {
+        type: actionTypes.ADD_CUSTOM_WORD,
+        word: sampleWord,
+      });
+
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      expect(state.words[0].due_date).toBe(formatToday(tomorrow));
+    });
   });
 
   describe('REMOVE_WORD', () => {
