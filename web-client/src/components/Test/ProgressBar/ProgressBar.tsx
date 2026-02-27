@@ -11,6 +11,7 @@ const ProgressBar: React.FC<ProgressBarProps> = (props) => (
     <LinearProgress
       variant="determinate"
       value={100 - (props.progress || 0)}
+      aria-label={`Test progress: ${100 - (props.progress || 0)}% complete`}
       sx={{
         height: 10,
         borderRadius: 5,

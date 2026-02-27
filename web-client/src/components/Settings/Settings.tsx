@@ -172,6 +172,7 @@ const Settings: React.FC<PropsFromRedux> = ({
           max={20}
           size="small"
           color="primary"
+          aria-label="Characters per test"
         />
       </Box>
       <Divider sx={{ my: 1 }} />

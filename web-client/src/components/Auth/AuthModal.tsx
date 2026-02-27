@@ -193,19 +193,23 @@ const AuthModal: React.FC<Props> = ({
         <Box sx={{ mt: 3 }}>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-            <Typography
-              component="span"
-              variant="body2"
+            <Box
+              component="button"
+              onClick={() => onSwitchMode(mode === 'login' ? 'register' : 'login')}
               sx={{
                 color: '#1a5c40',
                 cursor: 'pointer',
                 fontWeight: 600,
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                font: 'inherit',
+                fontSize: 'inherit',
                 '&:hover': { textDecoration: 'underline' },
               }}
-              onClick={() => onSwitchMode(mode === 'login' ? 'register' : 'login')}
             >
               {mode === 'login' ? 'Sign Up' : 'Log In'}
-            </Typography>
+            </Box>
           </Typography>
         </Box>
       </Box>

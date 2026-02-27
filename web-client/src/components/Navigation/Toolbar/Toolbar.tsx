@@ -53,7 +53,11 @@ const Toolbar: React.FC<ToolbarProps> = (props) => {
         <DrawerToggle clicked={props.drawerToggleClicked} textColor={colors.text} />
         <Box sx={{ display: { xs: 'flex', sm: 'none' }, flexGrow: 1 }} />
         <Typography
+          component="a"
+          role="link"
+          tabIndex={0}
           onClick={() => props.history.push('/')}
+          onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter') props.history.push('/'); }}
           sx={{
             fontFamily: "'Spell of Asia', sans-serif",
             color: colors.text,
@@ -63,6 +67,7 @@ const Toolbar: React.FC<ToolbarProps> = (props) => {
             transition: 'font-size 0.1s ease-out',
             overflow: 'visible',
             whiteSpace: 'nowrap',
+            textDecoration: 'none',
           }}
         >
           HanLearn

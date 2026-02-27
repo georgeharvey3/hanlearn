@@ -167,6 +167,9 @@ const TestChengyusTest: React.FC<Props> = ({
     );
   }
 
+  // TODO: Design review — this component uses a custom boxShadow and secondary.main
+  // bgcolor that doesn't match the NewWord card style. Consider aligning with the
+  // Paper + border pattern used in NewWord/Test components for consistency.
   return (
     <Box sx={{ width: '90%', maxWidth: 400, textAlign: 'center', mx: 'auto', py: '30px', color: 'secondary.main' }}>
       <Typography variant="subtitle1" component="h4">Click on a character to see information</Typography>

@@ -331,7 +331,7 @@ const AddWords: React.FC<Props> = ({
 
   // Wait for auth to initialize before redirecting
   if (!authInitialized) {
-    return null;
+    return <Spinner />;
   }
   if (userId === null) {
     return <Redirect to="/" />;
@@ -472,6 +472,7 @@ const AddWords: React.FC<Props> = ({
         <h3>Word not found - Enter meaning...</h3>
         <Input
           id="meaning"
+          aria-label="Enter word meaning"
           value={state.meaning}
           changed={meaningChanged}
           keyPressed={meaningKeyPressed}

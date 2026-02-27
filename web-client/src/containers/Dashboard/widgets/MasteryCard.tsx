@@ -21,6 +21,7 @@ const MasteryCard: React.FC<MasteryCardProps> = ({ masteredCount, totalWords }) 
           value={100}
           size={80}
           thickness={4}
+          aria-hidden="true"
           sx={{ color: colors.divider, position: 'absolute' }}
         />
         <CircularProgress
@@ -28,6 +29,7 @@ const MasteryCard: React.FC<MasteryCardProps> = ({ masteredCount, totalWords }) 
           value={percentage}
           size={80}
           thickness={4}
+          aria-label={`Mastery: ${percentage}%`}
           sx={{ color: colors.primaryDark }}
         />
         <Box

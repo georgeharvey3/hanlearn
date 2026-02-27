@@ -537,6 +537,7 @@ const SentenceRead: React.FC<Props> = ({
           <PictureButton
             type="secondary"
             src={speakerPic}
+            aria-label="Play sentence"
             clicked={() => onSpeakPinyin(currentSentence.chinese.sentence)}
           />
           <Typography variant="caption" sx={{ color: 'text.secondary', letterSpacing: 0.3 }}>
@@ -663,11 +664,13 @@ const SentenceRead: React.FC<Props> = ({
             style={{ width: 56, height: 56 }}
             clicked={onYesClicked}
             src={likePic}
+            aria-label="I got it right"
           />
           <PictureButton
             style={{ width: 56, height: 56 }}
             clicked={onNoClicked}
             src={dislikePic}
+            aria-label="I got it wrong"
           />
         </Stack>
       </Stack>
@@ -680,7 +683,7 @@ const SentenceRead: React.FC<Props> = ({
             {state.message}
           </Typography>
         )}
-        <PictureButton type="secondary" src={micPic} clicked={onListenPinyin} />
+        <PictureButton type="secondary" src={micPic} aria-label="Record speech" clicked={onListenPinyin} />
       </Stack>
     ) : null;
 

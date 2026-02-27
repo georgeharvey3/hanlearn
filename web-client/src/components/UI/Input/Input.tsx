@@ -4,6 +4,7 @@ import TextField from '@mui/material/TextField';
 interface InputProps {
   id?: string;
   placeholder?: string;
+  'aria-label'?: string;
   changed?: (e: ChangeEvent<HTMLInputElement>) => void;
   keyPressed?: (e: KeyboardEvent<HTMLInputElement>) => void;
   value?: string;
@@ -32,6 +33,7 @@ const Input: React.FC<InputProps> = (props) => (
     size="small"
     slotProps={{
       htmlInput: {
+        'aria-label': props['aria-label'],
         autoCorrect: props.autoCorrect,
         autoCapitalize: props.autoCapitalize,
         spellCheck: props.spellCheck,

@@ -21,6 +21,7 @@ const Modal: React.FC<ModalProps> = (props) => {
       <Box sx={{ position: 'relative', p: 3 }}>
         <IconButton
           onClick={props.modalClosed}
+          aria-label="Close dialog"
           sx={{
             position: 'absolute',
             top: 8,
