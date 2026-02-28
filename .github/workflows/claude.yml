@@ -7,8 +7,8 @@ on:
     types: [labeled]
 
 jobs:
-  claude:
-    if: github.event.label.name == 'claude'
+  claude-opus:
+    if: github.event.label.name == 'claude-opus'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -23,7 +23,28 @@ jobs:
           fetch-depth: 1
 
       - name: Run Claude Code
-        id: claude
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: "--model claude-opus-4-6"
+
+  claude-sonnet:
+    if: github.event.label.name == 'claude-sonnet'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: "--model claude-sonnet-4-6"
