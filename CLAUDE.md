@@ -163,13 +163,6 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 - Mobile native app (web app is sufficient for now)
 - Social/multiplayer features
 
-## Decision Log
-
-| Date | Proposal | Decision | Reasoning |
-|------|----------|----------|-----------|
-| 2026-02 | Autonomous workflow setup | Accepted | Local tmux runner preferred over GitHub Actions cron |
-| — | — | — | Add entries here as Claude proposes and you accept/reject |
-
 ## Testing Conventions
 
 ### Unit / Integration Tests (Vitest + React Testing Library)
