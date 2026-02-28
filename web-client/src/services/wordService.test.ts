@@ -79,7 +79,9 @@ import {
   addWordToBank,
   removeWordFromBank,
   updateWordMeaning,
+  addCustomWord,
 } from './wordService';
+import { lookupCharacter, lookupCharacterByTrad } from './dictionaryService';
 
 // Bank intervals defined in wordService (duplicated here for assertion purposes)
 const BANK_INTERVALS: Record<number, number> = { 1: 1, 2: 3, 3: 7, 4: 30, 5: 60 };
@@ -461,5 +463,103 @@ describe('updateWordMeaning', () => {
     await updateWordMeaning('user-2', 7, 'meaning');
 
     expect(mockDoc).toHaveBeenCalledWith(expect.anything(), 'users', 'user-2', 'userWords', '7');
+  });
+});
+
+// ─── addCustomWord ────────────────────────────────────────────────────────────
+describe('addCustomWord', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // addWordToBank (called internally) needs getDocs + setDoc
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([]));
+    mockSetDoc.mockResolvedValue(undefined);
+  });
+
+  it('assembles simp/trad/pinyin by looking up each character (charSet=simp)', async () => {
+    vi.mocked(lookupCharacter)
+      .mockResolvedValueOnce({ pinyin: 'nǐ', trad: '你' })
+      .mockResolvedValueOnce({ pinyin: 'hǎo', trad: '好' });
+
+    const word = await addCustomWord('user-1', '你好', 'hello');
+
+    expect(word.simp).toBe('你好');
+    expect(word.trad).toBe('你好');
+    expect(word.pinyin).toBe('nǐ hǎo');
+    expect(word.meaning).toBe('hello');
+  });
+
+  it('assembles simp/trad/pinyin by looking up each character (charSet=trad)', async () => {
+    vi.mocked(lookupCharacterByTrad)
+      .mockResolvedValueOnce({ pinyin: 'xué', simp: '学' })
+      .mockResolvedValueOnce({ pinyin: 'xí', simp: '习' });
+
+    const word = await addCustomWord('user-1', '學習', 'to study', 'trad');
+
+    expect(word.simp).toBe('学习');
+    expect(word.trad).toBe('學習');
+    expect(word.pinyin).toBe('xué xí');
+    expect(word.meaning).toBe('to study');
+  });
+
+  it('falls back to the raw char for simp/trad when lookupCharacter returns null', async () => {
+    vi.mocked(lookupCharacter).mockResolvedValue(null);
+
+    const word = await addCustomWord('user-1', '好', 'good');
+
+    expect(word.simp).toBe('好');
+    expect(word.trad).toBe('好');
+    expect(word.pinyin).toBe('');
+  });
+
+  it('falls back to the raw char when lookupCharacterByTrad returns null (charSet=trad)', async () => {
+    vi.mocked(lookupCharacterByTrad).mockResolvedValue(null);
+
+    const word = await addCustomWord('user-1', '習', 'to practice', 'trad');
+
+    expect(word.simp).toBe('習');
+    expect(word.trad).toBe('習');
+    expect(word.pinyin).toBe('');
+  });
+
+  it('handles multi-char word where some chars are found and some are not', async () => {
+    vi.mocked(lookupCharacter)
+      .mockResolvedValueOnce({ pinyin: 'nǐ', trad: '你' })
+      .mockResolvedValueOnce(null); // second char not found
+
+    const word = await addCustomWord('user-1', '你X', 'hello X');
+
+    expect(word.simp).toBe('你X');
+    expect(word.trad).toBe('你X');
+    expect(word.pinyin).toBe('nǐ'); // only pinyin from the found char
+  });
+
+  it('returns a word with a negative id (avoids collision with dictionary IDs)', async () => {
+    vi.mocked(lookupCharacter).mockResolvedValue(null);
+
+    const word = await addCustomWord('user-1', '好', 'good');
+
+    expect(word.id).toBeLessThan(0);
+  });
+
+  it('calls setDoc (via addWordToBank) with the constructed word data', async () => {
+    vi.mocked(lookupCharacter).mockResolvedValue({ pinyin: 'shū', trad: '書' });
+
+    await addCustomWord('user-1', '书', 'book');
+
+    expect(mockSetDoc).toHaveBeenCalledOnce();
+    const setDocArg = mockSetDoc.mock.calls[0][1];
+    expect(setDocArg.wordData.simp).toBe('书');
+    expect(setDocArg.wordData.trad).toBe('書');
+    expect(setDocArg.wordData.meaning).toBe('book');
+  });
+
+  it('uses trad char as trad fallback when lookupCharacter has no trad field', async () => {
+    // lookupCharacter returns trad: undefined-ish — simulate with empty string fallback
+    vi.mocked(lookupCharacter).mockResolvedValue({ pinyin: 'hǎo', trad: '' });
+
+    const word = await addCustomWord('user-1', '好', 'good');
+
+    // trad falls back to the original char when trad is falsy
+    expect(word.trad).toBe('好');
   });
 });
