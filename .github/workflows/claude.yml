@@ -30,8 +30,9 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          label_trigger: "claude-opus"
           claude_args: "--model claude-opus-4-6"
-          prompt: "Please work on this GitHub issue. Read the issue description carefully, implement the requested changes following the conventions in CLAUDE.md, and open a pull request."
+          prompt: "Implement the changes described in this issue following the conventions in CLAUDE.md, then open a pull request."
 
   claude-sonnet:
     if: github.event.label.name == 'claude-sonnet'
@@ -52,8 +53,9 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          label_trigger: "claude-sonnet"
           claude_args: "--model claude-sonnet-4-6"
-          prompt: "Please work on this GitHub issue. Read the issue description carefully, implement the requested changes following the conventions in CLAUDE.md, and open a pull request."
+          prompt: "Implement the changes described in this issue following the conventions in CLAUDE.md, then open a pull request."
 
   claude-mention:
     if: |
