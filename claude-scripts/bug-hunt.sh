@@ -3,7 +3,18 @@
 # Usage: ./claude-scripts/bug-hunt.sh
 # Outputs a PR to branch claude/bug-fixes-YYYYMMDD
 
-claude -p "Read CLAUDE.md for full project context. Perform a two-phase bug hunt:
+PROGRESS_LOG="${TASK_PROGRESS_LOG:-$(cd "$(dirname "$0")/.." && pwd)/claude-tasks/logs/$(basename "$0").progress.md}"
+HISTORY=$(cat "$PROGRESS_LOG" 2>/dev/null || echo "No previous runs.")
+RUN_DATE=$(date '+%Y-%m-%d %H:%M')
+
+claude -p "Read CLAUDE.md for full project context.
+
+PREVIOUS RUNS (last 5):
+$HISTORY
+
+---
+
+Perform a two-phase bug hunt:
 
 PHASE 1 — STATIC ANALYSIS:
 Review the entire codebase (web-client/src/, functions/src/, firestore.rules) for:
@@ -27,10 +38,25 @@ For each bug found:
 Before starting: git checkout main && git pull
 Branch: claude/bug-fixes-\$(date +%Y%m%d)
 Commit all fixes to this branch with a summary commit message.
-Run the full test suite (npm run test:run) before the final commit to ensure nothing is broken." \
+Run the full test suite (npm run test:run) before the final commit to ensure nothing is broken.
+
+PROGRESS LOG:
+After completing your work, update the progress log at: $PROGRESS_LOG
+Append a new entry in this exact format (including the trailing ---):
+
+## $RUN_DATE
+**Areas reviewed:** [list files/components examined]
+**Bugs found:** [brief description of each bug, or 'None']
+**Changes made:** [brief description of fixes, or 'None']
+**Notes for next run:** [areas already covered thoroughly, anything to focus on next time]
+
+---
+
+Then trim the file so only the 5 most recent entries remain (delete older ones)." \
   --allowedTools "Bash,Read,Write,Edit" || exit 1
 
 BRANCH=$(git -C "$(dirname "$0")/.." rev-parse --abbrev-ref HEAD)
+git -C "$(dirname "$0")/.." push -u origin "$BRANCH"
 gh pr create \
   --title "fix: automated bug fixes ($(date +%Y-%m-%d))" \
   --body "Automated bug hunt and fixes by Claude Code.

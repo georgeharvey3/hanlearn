@@ -37,8 +37,8 @@ migration/*.json
 !migration/package.json
 
 # Claude task runner
-claude-tasks/logs/
-claude-tasks/done/
+claude-tasks/
+claude-tasks/
 # Keep the directory structure but not its runtime contents
 !claude-tasks/.gitkeep
 !claude-tasks/done/.gitkeep

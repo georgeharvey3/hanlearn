@@ -3,7 +3,16 @@
 # Usage: ./claude-scripts/design-review.sh
 # Outputs a PR to branch claude/design-review-YYYYMMDD
 
+PROGRESS_LOG="${TASK_PROGRESS_LOG:-$(cd "$(dirname "$0")/.." && pwd)/claude-tasks/logs/$(basename "$0").progress.md}"
+HISTORY=$(cat "$PROGRESS_LOG" 2>/dev/null || echo "No previous runs.")
+RUN_DATE=$(date '+%Y-%m-%d %H:%M')
+
 claude -p "Read CLAUDE.md for full project context (especially the Design Principles section).
+
+PREVIOUS RUNS (last 5):
+$HISTORY
+
+---
 
 Review the UI/UX across web-client/src/components/ and web-client/src/containers/ for:
 
@@ -34,10 +43,25 @@ Run npm run test:run after to ensure nothing is broken.
 
 Before starting: git checkout main && git pull
 Branch: claude/design-review-\$(date +%Y%m%d)
-Commit all changes to this branch." \
+Commit all changes to this branch.
+
+PROGRESS LOG:
+After completing your work, update the progress log at: $PROGRESS_LOG
+Append a new entry in this exact format (including the trailing ---):
+
+## $RUN_DATE
+**Areas reviewed:** [list components/files examined]
+**Issues fixed:** [brief description of each fix, or 'None']
+**TODOs added:** [any // TODO comments added for design input, or 'None']
+**Notes for next run:** [components already thoroughly reviewed, areas to focus on next time]
+
+---
+
+Then trim the file so only the 5 most recent entries remain (delete older ones)." \
   --allowedTools "Bash,Read,Write,Edit" || exit 1
 
 BRANCH=$(git -C "$(dirname "$0")/.." rev-parse --abbrev-ref HEAD)
+git -C "$(dirname "$0")/.." push -u origin "$BRANCH"
 gh pr create \
   --title "ux: automated design/accessibility review ($(date +%Y-%m-%d))" \
   --body "Automated UI/UX and accessibility review by Claude Code.

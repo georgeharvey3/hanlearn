@@ -8,9 +8,11 @@
 #   *.md  — plain text prompt, passed directly to: claude -p "<content>"
 #   *.sh  — shell script, executed directly (must call claude itself)
 #
-# To queue a task:
-#   cp claude-scripts/bug-hunt.sh claude-tasks/01-bug-hunt.sh
-#   echo "Fix the login error message" > claude-tasks/02-custom.md
+# Scripts cycle indefinitely in alphabetical order, 30 minutes apart.
+# To add a script to the rotation:
+#   cp claude-scripts/bug-hunt.sh claude-tasks/bug-hunt.sh
+# To remove it from rotation, just delete it from claude-tasks/.
+# Per-script progress logs (last 5 runs) are kept in claude-tasks/logs/*.progress.md
 
 # Always resolve paths relative to this script's location
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,23 +24,32 @@ mkdir -p "$DONE_DIR" "$LOG_DIR"
 
 echo "$(date): Claude task runner started."
 echo "$(date): Repo: $REPO_DIR"
-echo "$(date): Watching: $TASK_DIR"
-echo "$(date): Drop .md or .sh files into claude-tasks/ to queue work."
+echo "$(date): Cycling scripts in: $TASK_DIR"
+echo "$(date): 30 minutes between each run."
 echo ""
 
-while true; do
-    # Pick the first task file (alphabetical), either .md or .sh
-    TASK=$(find "$TASK_DIR" -maxdepth 1 \( -name "*.md" -o -name "*.sh" \) | sort | head -1)
+INDEX=0
 
-    if [ -z "$TASK" ]; then
-        echo "$(date): No tasks found. Sleeping 30 minutes..."
+while true; do
+    # Reload task list each iteration so additions/removals are picked up
+    mapfile -t TASKS < <(find "$TASK_DIR" -maxdepth 1 \( -name "*.md" -o -name "*.sh" \) | sort)
+
+    if [ ${#TASKS[@]} -eq 0 ]; then
+        echo "$(date): No tasks in rotation. Sleeping 30 minutes..."
         sleep 1800
+        INDEX=0
         continue
     fi
 
+    # Wrap index if the list shrank
+    if [ $INDEX -ge ${#TASKS[@]} ]; then
+        INDEX=0
+    fi
+
+    TASK="${TASKS[$INDEX]}"
     TASK_NAME=$(basename "$TASK")
     echo "$(date): ─────────────────────────────────────"
-    echo "$(date): Starting task: $TASK_NAME"
+    echo "$(date): Running task $((INDEX + 1))/${#TASKS[@]}: $TASK_NAME"
     echo "$(date): ─────────────────────────────────────"
 
     # Run from the repo root so relative paths in scripts/prompts work
@@ -46,6 +57,7 @@ while true; do
 
     if [[ "$TASK" == *.sh ]]; then
         # Shell script: execute it directly (script calls claude itself)
+        export TASK_PROGRESS_LOG="$LOG_DIR/$TASK_NAME.progress.md"
         bash "$TASK" 2>&1 | tee "$LOG_DIR/$TASK_NAME.log"
     else
         # Plain text .md: pass content as the prompt
@@ -57,9 +69,11 @@ while true; do
     EXIT_CODE=${PIPESTATUS[0]}
 
     if [ $EXIT_CODE -eq 0 ]; then
-        mv "$TASK" "$DONE_DIR/"
         echo "$(date): ✓ Completed: $TASK_NAME"
         echo "$(date): Log: $LOG_DIR/$TASK_NAME.log"
+        INDEX=$((INDEX + 1))
+        echo "$(date): Sleeping 30 minutes before next task..."
+        sleep 1800
     else
         if grep -qi "rate limit\|quota\|too many requests\|overloaded\|529" \
             "$LOG_DIR/$TASK_NAME.log"; then
@@ -73,9 +87,11 @@ while true; do
                 echo "$(date): Still rate limited. Waiting another 15 minutes..."
             done
         else
-            echo "$(date): ✗ Failed (non-quota). Skipping: $TASK_NAME"
-            mv "$TASK" "$DONE_DIR/FAILED-$TASK_NAME"
+            echo "$(date): ✗ Failed: $TASK_NAME (kept in rotation)"
             echo "$(date): Check: $LOG_DIR/$TASK_NAME.log"
+            INDEX=$((INDEX + 1))
+            echo "$(date): Sleeping 30 minutes before next task..."
+            sleep 1800
         fi
     fi
 
