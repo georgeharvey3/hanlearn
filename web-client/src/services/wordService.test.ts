@@ -72,7 +72,14 @@ vi.mock('./dictionaryService', () => ({
   lookupCharacterByTrad: vi.fn(),
 }));
 
-import { finishTest } from './wordService';
+import {
+  finishTest,
+  getUserWords,
+  getDueUserWords,
+  addWordToBank,
+  removeWordFromBank,
+  updateWordMeaning,
+} from './wordService';
 
 // Bank intervals defined in wordService (duplicated here for assertion purposes)
 const BANK_INTERVALS: Record<number, number> = { 1: 1, 2: 3, 3: 7, 4: 30, 5: 60 };
@@ -247,5 +254,212 @@ describe('finishTest — spaced repetition bank logic', () => {
     const result = await finishTest('user-1', [{ word_id: 1, score: 4 }]);
 
     expect(result).toEqual({});
+  });
+});
+
+// ─── Helper to make fake getDocs snapshot ────────────────────────────────────
+function makeFakeSnapshot(docs: Array<{ id: string; data: object }>) {
+  return {
+    docs: docs.map((d) => ({
+      id: d.id,
+      data: () => d.data,
+    })),
+    size: docs.length,
+  };
+}
+
+function makeWordDoc(overrides: Partial<{
+  id: string; simp: string; trad: string; pinyin: string;
+  meaning: string; amendedMeaning: string | null; bank: number;
+}> = {}) {
+  const {
+    id = '42', simp = '学习', trad = '學習', pinyin = 'xué xí',
+    meaning = 'to study', amendedMeaning = null, bank = 2,
+  } = overrides;
+  return {
+    id,
+    data: {
+      wordId: id,
+      wordData: { simp, trad, pinyin, meaning },
+      amendedMeaning,
+      bank,
+      dueDate: { toDate: () => new Date(2026, 2, 5) },
+      addedAt: { toDate: () => new Date(2026, 1, 1) },
+    },
+  };
+}
+
+// ─── getUserWords ─────────────────────────────────────────────────────────────
+describe('getUserWords', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('returns mapped Word objects sorted by due date', async () => {
+    const doc1 = makeWordDoc({ id: '1', simp: '你好', trad: '你好', pinyin: 'nǐ hǎo', meaning: 'hello', bank: 1 });
+    const doc2 = makeWordDoc({ id: '2', simp: '谢谢', trad: '謝謝', pinyin: 'xiè xiè', meaning: 'thank you', bank: 3 });
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([doc1, doc2]));
+
+    const words = await getUserWords('user-1');
+
+    expect(words).toHaveLength(2);
+    expect(words[0]).toMatchObject({ id: 1, simp: '你好', pinyin: 'nǐ hǎo', meaning: 'hello', bank: 1 });
+    expect(words[1]).toMatchObject({ id: 2, simp: '谢谢', bank: 3 });
+  });
+
+  it('uses amendedMeaning when present', async () => {
+    const doc = makeWordDoc({ amendedMeaning: 'custom meaning' });
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([doc]));
+
+    const words = await getUserWords('user-1');
+
+    expect(words[0].meaning).toBe('custom meaning');
+    expect(words[0].ammended_meaning).toBe('custom meaning');
+  });
+
+  it('falls back to wordData.meaning when amendedMeaning is null', async () => {
+    const doc = makeWordDoc({ meaning: 'original', amendedMeaning: null });
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([doc]));
+
+    const words = await getUserWords('user-1');
+
+    expect(words[0].meaning).toBe('original');
+    expect(words[0].ammended_meaning).toBeUndefined();
+  });
+
+  it('returns empty array when user has no words', async () => {
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([]));
+
+    const words = await getUserWords('user-1');
+
+    expect(words).toEqual([]);
+  });
+
+  it('includes due_date as formatted YYYY/MM/DD string', async () => {
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([makeWordDoc()]));
+
+    const words = await getUserWords('user-1');
+
+    expect(words[0].due_date).toMatch(/^\d{4}\/\d{2}\/\d{2}$/);
+  });
+});
+
+// ─── getDueUserWords ──────────────────────────────────────────────────────────
+describe('getDueUserWords', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('returns mapped Word objects without due_date field', async () => {
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([makeWordDoc({ id: '5', simp: '水', bank: 2 })]));
+
+    const words = await getDueUserWords('user-1');
+
+    expect(words).toHaveLength(1);
+    expect(words[0]).toMatchObject({ id: 5, simp: '水', bank: 2 });
+    expect(words[0].due_date).toBeUndefined();
+  });
+
+  it('uses where query with dueDate <= now', async () => {
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([]));
+
+    await getDueUserWords('user-1');
+
+    expect(mockWhere).toHaveBeenCalledWith('dueDate', '<=', expect.anything());
+    expect(mockQuery).toHaveBeenCalled();
+  });
+
+  it('returns empty array when no words are due', async () => {
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([]));
+
+    const words = await getDueUserWords('user-1');
+
+    expect(words).toEqual([]);
+  });
+});
+
+// ─── addWordToBank ────────────────────────────────────────────────────────────
+describe('addWordToBank', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const sampleWord = { id: 99, simp: '书', trad: '書', pinyin: 'shū', meaning: 'book' };
+
+  it('calls setDoc with bank=1 and correct word data', async () => {
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([])); // 0 existing words
+    mockSetDoc.mockResolvedValue(undefined);
+
+    await addWordToBank('user-1', sampleWord);
+
+    expect(mockSetDoc).toHaveBeenCalledOnce();
+    const setDocArg = mockSetDoc.mock.calls[0][1];
+    expect(setDocArg.bank).toBe(1);
+    expect(setDocArg.wordData.simp).toBe('书');
+    expect(setDocArg.amendedMeaning).toBeNull();
+  });
+
+  it('sets due date to today when word count <= 9', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 1, 28));
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot(
+      Array.from({ length: 5 }, (_, i) => makeWordDoc({ id: String(i) }))
+    ));
+    mockSetDoc.mockResolvedValue(undefined);
+
+    await addWordToBank('user-1', sampleWord);
+
+    const setDocArg = mockSetDoc.mock.calls[0][1];
+    const dueDateArg: Date = mockTimestampFromDate.mock.calls[0][0];
+    expect(dueDateArg.getDate()).toBe(new Date(2026, 1, 28).getDate());
+
+    vi.useRealTimers();
+  });
+
+  it('sets due date to tomorrow when word count > 9', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 1, 28));
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot(
+      Array.from({ length: 10 }, (_, i) => makeWordDoc({ id: String(i) }))
+    ));
+    mockSetDoc.mockResolvedValue(undefined);
+
+    await addWordToBank('user-1', sampleWord);
+
+    const dueDateArg: Date = mockTimestampFromDate.mock.calls[0][0];
+    const expectedTomorrow = new Date(2026, 1, 29);
+    expect(dueDateArg.getDate()).toBe(expectedTomorrow.getDate());
+
+    vi.useRealTimers();
+  });
+});
+
+// ─── removeWordFromBank ───────────────────────────────────────────────────────
+describe('removeWordFromBank', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('calls deleteDoc with the correct document reference', async () => {
+    mockDeleteDoc.mockResolvedValue(undefined);
+
+    await removeWordFromBank('user-1', 42);
+
+    expect(mockDeleteDoc).toHaveBeenCalledOnce();
+    expect(mockDoc).toHaveBeenCalledWith(expect.anything(), 'users', 'user-1', 'userWords', '42');
+  });
+});
+
+// ─── updateWordMeaning ────────────────────────────────────────────────────────
+describe('updateWordMeaning', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('calls updateDoc with amendedMeaning', async () => {
+    mockUpdateDoc.mockResolvedValue(undefined);
+
+    await updateWordMeaning('user-1', 42, 'new meaning');
+
+    expect(mockUpdateDoc).toHaveBeenCalledOnce();
+    expect(mockUpdateDoc.mock.calls[0][1]).toEqual({ amendedMeaning: 'new meaning' });
+  });
+
+  it('passes the correct document path', async () => {
+    mockUpdateDoc.mockResolvedValue(undefined);
+
+    await updateWordMeaning('user-2', 7, 'meaning');
+
+    expect(mockDoc).toHaveBeenCalledWith(expect.anything(), 'users', 'user-2', 'userWords', '7');
   });
 });
