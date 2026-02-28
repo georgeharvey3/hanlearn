@@ -15,7 +15,6 @@ echo
 # --- Issue 1: Error Boundaries ---
 gh issue create --repo "$REPO" \
   --title "Add React error boundaries to component tree" \
-  --label "bug" --label "enhancement" \
   --body "$(cat <<'ISSUE_EOF'
 ## Problem
 
@@ -57,7 +56,6 @@ echo "✓ Issue 1 created: Error boundaries"
 # --- Issue 2: Accessibility ---
 gh issue create --repo "$REPO" \
   --title "Improve accessibility: semantic HTML and keyboard navigation" \
-  --label "accessibility" --label "enhancement" \
   --body "$(cat <<'ISSUE_EOF'
 ## Problem
 
@@ -96,7 +94,6 @@ echo "✓ Issue 2 created: Accessibility"
 # --- Issue 3: getDailyChengyu Performance ---
 gh issue create --repo "$REPO" \
   --title "Optimize getDailyChengyu: full collection scan on every call" \
-  --label "performance" --label "backend" \
   --body "$(cat <<'ISSUE_EOF'
 ## Problem
 
@@ -141,7 +138,6 @@ echo "✓ Issue 3 created: getDailyChengyu performance"
 # --- Issue 4: Memoization ---
 gh issue create --repo "$REPO" \
   --title "Add React.memo / useMemo / useCallback to frequently-rendering components" \
-  --label "performance" --label "enhancement" \
   --body "$(cat <<'ISSUE_EOF'
 ## Problem
 
@@ -178,7 +174,6 @@ echo "✓ Issue 4 created: Memoization"
 # --- Issue 5: Rate Limiting ---
 gh issue create --repo "$REPO" \
   --title "Add rate limiting to Cloud Functions (translateWithDeepL)" \
-  --label "security" --label "backend" \
   --body "$(cat <<'ISSUE_EOF'
 ## Problem
 
