@@ -12,6 +12,7 @@ import SentenceRead from '../../components/Test/SentenceRead/SentenceRead';
 import NewWords from '../../components/Test/NewWords/NewWords';
 import TestSummary from '../../components/Test/TestSummary/TestSummary';
 
+import ErrorBoundary from '../../components/ErrorBoundary/ErrorBoundary';
 import * as testLogic from '../../components/Test/Logic/TestLogic';
 import { RootState } from '../../types/store';
 import { Word, WordScore } from '../../types/models';
@@ -261,41 +262,49 @@ const TestWords: React.FC<Props> = ({
     switch (state.stage) {
       case 'new':
         content = (
-          <NewWords words={state.newWords} startTest={onStartVocab} isDemo={isDemo || !!devConfig} />
+          <ErrorBoundary>
+            <NewWords words={state.newWords} startTest={onStartVocab} isDemo={isDemo || !!devConfig} />
+          </ErrorBoundary>
         );
         break;
       case 'vocab':
         content = (
-          <Test
-            isDemo={isDemo || !!devConfig}
-            words={state.selectedWords}
-            startSentenceRead={(sentenceWords: Word[], scores?: WordScore[]) => onStartSentenceRead(sentenceWords, scores)}
-            onVocabComplete={onVocabComplete}
-            finalStage={!state.sentenceReadEnabled && !state.sentenceWriteEnabled}
-            devTestFinished={state.devTestFinished}
-            practiceMode={state.practiceMode}
-          />
+          <ErrorBoundary>
+            <Test
+              isDemo={isDemo || !!devConfig}
+              words={state.selectedWords}
+              startSentenceRead={(sentenceWords: Word[], scores?: WordScore[]) => onStartSentenceRead(sentenceWords, scores)}
+              onVocabComplete={onVocabComplete}
+              finalStage={!state.sentenceReadEnabled && !state.sentenceWriteEnabled}
+              devTestFinished={state.devTestFinished}
+              practiceMode={state.practiceMode}
+            />
+          </ErrorBoundary>
         );
 
         break;
       case 'read':
         content = (
-          <SentenceRead
-            words={state.sentenceWords}
-            startSentenceWrite={onStartSentenceWrite}
-            sentenceWriteEnabled={state.sentenceWriteEnabled}
-            isDemo={isDemo}
-          />
+          <ErrorBoundary>
+            <SentenceRead
+              words={state.sentenceWords}
+              startSentenceWrite={onStartSentenceWrite}
+              sentenceWriteEnabled={state.sentenceWriteEnabled}
+              isDemo={isDemo}
+            />
+          </ErrorBoundary>
         );
         break;
       case 'write':
         content = (
-          <SentenceWrite
-            words={state.sentenceWords}
-            seenOffsets={state.seenOffsets}
-            onComplete={onSentenceWriteComplete}
-            isDemo={isDemo}
-          />
+          <ErrorBoundary>
+            <SentenceWrite
+              words={state.sentenceWords}
+              seenOffsets={state.seenOffsets}
+              onComplete={onSentenceWriteComplete}
+              isDemo={isDemo}
+            />
+          </ErrorBoundary>
         );
         break;
       case 'summary':

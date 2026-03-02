@@ -12,6 +12,7 @@ import StreakCard from './widgets/StreakCard';
 import BankDistributionCard from './widgets/BankDistributionCard';
 import MasteryCard from './widgets/MasteryCard';
 import Chengyu from '../../components/Home/Chengyu/Chengyu';
+import ErrorBoundary from '../../components/ErrorBoundary/ErrorBoundary';
 
 const mapStateToProps = (state: RootState) => ({
   userId: state.auth.userId,
@@ -91,7 +92,9 @@ const Dashboard: React.FC<PropsFromRedux> = ({ userId }) => {
           <MasteryCard masteredCount={stats?.masteredCount ?? 0} totalWords={stats?.totalWords ?? 0} />
         </Grid>
       </Grid>
-      <Chengyu />
+      <ErrorBoundary>
+        <Chengyu />
+      </ErrorBoundary>
     </Box>
   );
 };

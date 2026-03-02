@@ -11,6 +11,7 @@ import AddWords from './containers/AddWords/AddWords';
 import TestWords from './containers/TestWords/TestWords';
 import SettingsPage from './containers/SettingsPage/SettingsPage';
 import AuthModal from './components/Auth/AuthModal';
+import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import * as actions from './store/actions/index';
 
 const mapDispatchToProps = {
@@ -127,13 +128,27 @@ const App: React.FC<Props> = ({
   return (
     <Box sx={{ textAlign: 'center', height: '100%' }}>
       <Layout>
-        <Switch>
-          <Route path="/" exact render={() => (isAuthenticated ? <Dashboard /> : <Home />)} />
-          <Route path="/add-words" component={AddWords} />
-          <Route path="/test-words" component={TestWords} />
-          <Route path="/settings" component={SettingsPage} />
-          <Route path="/tryout" render={() => <TestWords isDemo />} />
-        </Switch>
+        <ErrorBoundary>
+          <Switch>
+            <Route path="/" exact render={() => (
+              <ErrorBoundary>
+                {isAuthenticated ? <Dashboard /> : <Home />}
+              </ErrorBoundary>
+            )} />
+            <Route path="/add-words" render={() => (
+              <ErrorBoundary><AddWords /></ErrorBoundary>
+            )} />
+            <Route path="/test-words" render={() => (
+              <ErrorBoundary><TestWords /></ErrorBoundary>
+            )} />
+            <Route path="/settings" render={() => (
+              <ErrorBoundary><SettingsPage /></ErrorBoundary>
+            )} />
+            <Route path="/tryout" render={() => (
+              <ErrorBoundary><TestWords isDemo /></ErrorBoundary>
+            )} />
+          </Switch>
+        </ErrorBoundary>
       </Layout>
       <AuthModal />
     </Box>
