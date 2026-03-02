@@ -33,7 +33,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           label_trigger: "claude-opus"
-          claude_args: "--model claude-opus-4-6"
+          claude_args: "--model claude-opus-4-6 --dangerouslySkipPermissions"
           prompt: "Run `gh issue view $GITHUB_ISSUE_NUMBER` to read the issue details, then implement the requested changes following the conventions in CLAUDE.md, and open a pull request."
 
   claude-sonnet:
@@ -58,7 +58,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           label_trigger: "claude-sonnet"
-          claude_args: "--model claude-sonnet-4-6"
+          claude_args: "--model claude-sonnet-4-6 --dangerouslySkipPermissions"
           prompt: "Run `gh issue view $GITHUB_ISSUE_NUMBER` to read the issue details, then implement the requested changes following the conventions in CLAUDE.md, and open a pull request."
 
   claude-mention:
