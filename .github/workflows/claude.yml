@@ -33,6 +33,12 @@ jobs:
           label_trigger: "claude-opus"
           claude_args: "--model claude-opus-4-6"
           prompt: "Implement the changes described in this issue following the conventions in CLAUDE.md, then open a pull request."
+          settings: |
+            {
+              "permissions": {
+                "allow": ["Bash(gh *)"]
+              }
+            }
 
   claude-sonnet:
     if: github.event.label.name == 'claude-sonnet'
@@ -56,6 +62,12 @@ jobs:
           label_trigger: "claude-sonnet"
           claude_args: "--model claude-sonnet-4-6"
           prompt: "Implement the changes described in this issue following the conventions in CLAUDE.md, then open a pull request."
+          settings: |
+            {
+              "permissions": {
+                "allow": ["Bash(gh *)"]
+              }
+            }
 
   claude-mention:
     if: |
@@ -78,3 +90,9 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: |
+            {
+              "permissions": {
+                "allow": ["Bash(gh *)"]
+              }
+            }
