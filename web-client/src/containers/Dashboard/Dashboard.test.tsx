@@ -1,0 +1,143 @@
+import React from 'react';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
+
+import Dashboard from './Dashboard';
+import { renderWithProviders, authenticatedState, createTestStore } from '../../test/utils';
+
+vi.mock('../../services/dashboardService', () => ({
+  getDashboardStats: vi.fn(),
+}));
+
+// Chengyu makes async calls to local data — mock it to keep tests focused
+vi.mock('../../components/Home/Chengyu/Chengyu', () => ({
+  default: () => React.createElement('div', { 'data-testid': 'chengyu-mock' }),
+}));
+
+import { getDashboardStats } from '../../services/dashboardService';
+const mockGetDashboardStats = getDashboardStats as ReturnType<typeof vi.fn>;
+
+const sampleStats = {
+  totalWords: 50,
+  dueWords: 12,
+  streak: 5,
+  bankDistribution: { 1: 10, 2: 10, 3: 10, 4: 10, 5: 10 },
+  masteredCount: 10,
+};
+
+describe('Dashboard container', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('shows a spinner while loading', () => {
+    mockGetDashboardStats.mockImplementation(() => new Promise(() => {}));
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(authenticatedState()),
+    });
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+  });
+
+  it('renders the heading and stat cards after a successful load', async () => {
+    mockGetDashboardStats.mockResolvedValue(sampleStats);
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(authenticatedState()),
+    });
+    await waitFor(() =>
+      expect(screen.getByText('Dashboard')).toBeInTheDocument()
+    );
+    expect(screen.getByText('12')).toBeInTheDocument();   // dueWords
+    expect(screen.getByText('Words Due')).toBeInTheDocument();
+    expect(screen.getByText(/out of 50 total/i)).toBeInTheDocument();
+    expect(screen.getByText('5')).toBeInTheDocument();    // streak
+  });
+
+  it('calls getDashboardStats with the correct userId', async () => {
+    mockGetDashboardStats.mockResolvedValue(sampleStats);
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(authenticatedState('uid-xyz')),
+    });
+    await waitFor(() =>
+      expect(mockGetDashboardStats).toHaveBeenCalledWith('uid-xyz')
+    );
+  });
+
+  it('shows an error message when the stats load fails', async () => {
+    mockGetDashboardStats.mockRejectedValue(new Error('offline'));
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(authenticatedState()),
+    });
+    await waitFor(() =>
+      expect(
+        screen.getByText(/could not load dashboard data/i)
+      ).toBeInTheDocument()
+    );
+    expect(screen.getByText(/try again/i)).toBeInTheDocument();
+  });
+
+  it('retries loading when "Try again" is clicked and shows stats on success', async () => {
+    const user = userEvent.setup();
+    mockGetDashboardStats
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(sampleStats);
+
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(authenticatedState()),
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText(/try again/i)).toBeInTheDocument()
+    );
+    await user.click(screen.getByText(/try again/i));
+
+    await waitFor(() =>
+      expect(screen.getByText('Dashboard')).toBeInTheDocument()
+    );
+    expect(mockGetDashboardStats).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not call getDashboardStats when userId is null', async () => {
+    const unauthState = {
+      auth: {
+        userId: null,
+        loading: false,
+        error: null,
+        newSignUp: false,
+        initialized: true,
+        modalOpen: false,
+        modalMode: 'login' as const,
+      },
+      addWords: { words: [], error: false, loading: false },
+      settings: { speechAvailable: false, synthAvailable: false },
+    };
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(unauthState),
+    });
+    // Spinner stays because loading never resolves; getDashboardStats must not be called
+    await waitFor(() =>
+      expect(mockGetDashboardStats).not.toHaveBeenCalled()
+    );
+  });
+
+  it('shows the "Test Now" link when words are due', async () => {
+    mockGetDashboardStats.mockResolvedValue(sampleStats);
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(authenticatedState()),
+    });
+    await waitFor(() =>
+      expect(screen.getByText('Test Now')).toBeInTheDocument()
+    );
+  });
+
+  it('hides the "Test Now" link when no words are due', async () => {
+    mockGetDashboardStats.mockResolvedValue({ ...sampleStats, dueWords: 0 });
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(authenticatedState()),
+    });
+    await waitFor(() =>
+      expect(screen.getByText('Dashboard')).toBeInTheDocument()
+    );
+    expect(screen.queryByText('Test Now')).not.toBeInTheDocument();
+  });
+});
