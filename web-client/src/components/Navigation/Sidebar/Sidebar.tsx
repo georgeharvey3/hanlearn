@@ -52,7 +52,7 @@ const Sidebar: React.FC<PropsFromRedux> = ({ onLogout }) => {
         },
       }}
     >
-      <Box sx={{ overflow: 'auto' }}>
+      <Box component="nav" aria-label="Main navigation" sx={{ overflow: 'auto' }}>
         <List>
           {links.map((link) => (
             <ListItem key={link.to} disablePadding>

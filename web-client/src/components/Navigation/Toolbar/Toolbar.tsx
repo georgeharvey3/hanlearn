@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { withRouter, RouteComponentProps } from 'react-router-dom';
+import { withRouter, RouteComponentProps, Link } from 'react-router-dom';
 import AppBar from '@mui/material/AppBar';
 import MuiToolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
@@ -53,15 +53,11 @@ const Toolbar: React.FC<ToolbarProps> = (props) => {
         <DrawerToggle clicked={props.drawerToggleClicked} textColor={colors.text} />
         <Box sx={{ display: { xs: 'flex', sm: 'none' }, flexGrow: 1 }} />
         <Typography
-          component="a"
-          role="link"
-          tabIndex={0}
-          onClick={() => props.history.push('/')}
-          onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter') props.history.push('/'); }}
+          component={Link}
+          to="/"
           sx={{
             fontFamily: "'Spell of Asia', sans-serif",
             color: colors.text,
-            cursor: 'pointer',
             fontSize: `${logoSize}px`,
             lineHeight: 1,
             transition: 'font-size 0.1s ease-out',
@@ -74,7 +70,7 @@ const Toolbar: React.FC<ToolbarProps> = (props) => {
         </Typography>
         <Box sx={{ display: { xs: 'none', sm: 'flex' }, flexGrow: 1 }} />
         {!props.isAuth && (
-          <Box sx={{ display: { xs: 'none', sm: 'flex' }, height: '100%' }}>
+          <Box component="nav" aria-label="Main navigation" sx={{ display: { xs: 'none', sm: 'flex' }, height: '100%' }}>
             <NavigationItems authenticated={props.isAuth} textColor={colors.text} />
           </Box>
         )}
