@@ -7,6 +7,7 @@ import Button from '../UI/Buttons/Button/Button';
 
 import { RootState } from '../../types/store';
 import { Word } from '../../types/models';
+import { parseMeanings } from '../../utils/meaningUtils';
 
 interface CharData {
   simp: string;
@@ -162,7 +163,7 @@ const TestChengyusTest: React.FC<Props> = ({
       <>
         <Typography sx={{ fontSize: '3em', m: 0 }}>{state.charData.simp}</Typography>
         <Typography sx={{ fontSize: '1.5em', m: 0 }}>({state.charData.pinyins.join('/')})</Typography>
-        <Typography sx={{ fontSize: '1.1em', m: 0 }}>{state.charData.meanings.join(' / ')}</Typography>
+        <Typography sx={{ fontSize: '1.1em', m: 0 }}>{state.charData.meanings.filter((m) => !m.startsWith('CL:')).join(' / ')}</Typography>
       </>
     );
   }
@@ -213,7 +214,7 @@ const TestChengyusTest: React.FC<Props> = ({
         {state.showChengyuMeaning ? (
           <>
             <p style={{ fontSize: '0.6em' }}>({words[state.wordIndex].pinyin})</p>
-            <p style={{ fontSize: '1.1em' }}>{words[state.wordIndex].meaning}</p>
+            <p style={{ fontSize: '1.1em' }}>{parseMeanings(words[state.wordIndex].meaning).join(' / ')}</p>
           </>
         ) : null}
       </Paper>

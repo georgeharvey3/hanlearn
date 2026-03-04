@@ -1,4 +1,5 @@
 import { Word, TestPerm, QuestionCategory } from '../../../types/models';
+import { parseMeanings } from '../../../utils/meaningUtils';
 
 export const chooseTestSet = (allWords: Word[], numWords: number): Word[] => {
   const today = new Date();
@@ -118,7 +119,7 @@ export const assignQA = (
     Ax = ranWord.pinyin;
     ACs = 'pinyin';
   } else {
-    Ax = ranWord.meaning.split('/');
+    Ax = parseMeanings(ranWord.meaning);
     ACs = 'meaning';
   }
 
@@ -129,7 +130,7 @@ export const assignQA = (
     Qx = ranWord.pinyin;
     QCs = 'pinyin';
   } else {
-    Qx = ranWord.meaning.split('/');
+    Qx = parseMeanings(ranWord.meaning);
     QCs = 'meaning';
   }
 

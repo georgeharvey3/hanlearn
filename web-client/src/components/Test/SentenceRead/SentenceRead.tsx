@@ -25,6 +25,7 @@ import { Word } from '../../../types/models';
 import { AppDispatch } from '../../../types/actions';
 import { searchWord } from '../../../services/dictionaryService';
 import { getSegmentedSentence } from '../../../services/sentenceService';
+import { parseMeanings } from '../../../utils/meaningUtils';
 
 const beep = new Howl({ src: [successSound], volume: 0.5 });
 const fail = new Howl({ src: [failSound], volume: 0.7 });
@@ -584,7 +585,7 @@ const SentenceRead: React.FC<Props> = ({
               <Typography variant="subtitle2" sx={{ m: 0, fontWeight: 'bold' }}>Pinyin:</Typography>
               <Typography variant="body2">{word.pinyin}</Typography>
               <Typography variant="subtitle2" sx={{ m: 0, fontWeight: 'bold' }}>Meaning:</Typography>
-              <Typography variant="body2">{word.meaning.split('/').join(' / ')}</Typography>
+              <Typography variant="body2">{parseMeanings(word.meaning).join(' / ')}</Typography>
               {addedWords.find((aw) => aw.id === word.id) ? (
                 <Button disabled>Added!</Button>
               ) : (
