@@ -389,9 +389,6 @@ const SentenceWrite: React.FC<Props> = ({
           gap: 2,
         }}
       >
-        <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: 1 }}>
-          Translate into Chinese
-        </Typography>
         <Typography
           sx={{ fontSize: '1.25rem', fontWeight: 400, lineHeight: 1.5, color: 'text.primary' }}
         >
