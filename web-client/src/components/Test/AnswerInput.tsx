@@ -80,19 +80,28 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
     </Button>
   );
 
-  // TODO: UX — the handwriting canvas is an empty div with no visible affordance.
-  // Consider adding a placeholder label like "Draw here" and a border to indicate
-  // it's an interactive area. Needs design input for the drawing library integration.
   const characterInput = (
     <div
       id="character-target-div"
+      role="img"
+      aria-label="Handwriting input area — draw the character here"
       style={{
         backgroundColor: colors.divider,
         width: '150px',
         margin: '0 auto',
         borderRadius: '8px',
+        border: `2px dashed ${colors.primaryDark ?? colors.primary}`,
+        minHeight: '150px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: colors.text,
+        fontSize: '0.875rem',
+        opacity: 0.6,
       }}
-    ></div>
+    >
+      Draw here
+    </div>
   );
 
   const micInput = (
