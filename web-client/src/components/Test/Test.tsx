@@ -1,15 +1,17 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { withRouter } from 'react-router-dom';
 import { connect } from 'react-redux';
 
-import { Box, CircularProgress, Paper, Typography } from '@mui/material';
-
+import { Box, CircularProgress, IconButton, Paper, Typography } from '@mui/material';
+import SettingsIcon from '@mui/icons-material/Settings';
 
 import ProgressBar from './ProgressBar/ProgressBar';
 import QuestionDisplay from './QuestionDisplay';
 import AnswerInput, { getVerb } from './AnswerInput';
 import TestActions from './TestActions';
+import AudioSettingsDrawer from './AudioSettingsDrawer/AudioSettingsDrawer';
 import { useTestEngine } from './useTestEngine';
+import { AudioSettings } from '../../utils/audioSettings';
 
 import { RootState } from '../../types/store';
 import { AppDispatch } from '../../types/actions';
@@ -46,7 +48,15 @@ const Test: React.FC<Props> = (props) => {
     onShowAnswer,
     onToggleShowPinyin,
     showCharacter,
+    refreshSettings,
   } = useTestEngine(props);
+
+  const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
+
+  const handleSettingsClose = useCallback((updated: AudioSettings) => {
+    setSettingsDrawerOpen(false);
+    refreshSettings(updated);
+  }, [refreshSettings]);
 
   const progressNum = Math.floor((state.permList.length / state.initNumPerms) * 100) || 0;
   const verb = getVerb(state);
@@ -93,7 +103,19 @@ const Test: React.FC<Props> = (props) => {
             },
           }}
         >
-          <ProgressBar progress={progressNum} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ flex: 1 }}>
+              <ProgressBar progress={progressNum} />
+            </Box>
+            <IconButton
+              size="small"
+              onClick={() => setSettingsDrawerOpen(true)}
+              aria-label="Audio settings"
+              sx={{ color: 'text.secondary' }}
+            >
+              <SettingsIcon fontSize="small" />
+            </IconButton>
+          </Box>
           <h3 id="q-phrase-box">
             {verb}
             <span>{state.answerCategory}</span> for...
@@ -169,6 +191,12 @@ const Test: React.FC<Props> = (props) => {
             showCharacter={showCharacter}
           />
         </Box>
+        <AudioSettingsDrawer
+          open={settingsDrawerOpen}
+          onClose={handleSettingsClose}
+          speechAvailable={props.speechAvailable}
+          synthAvailable={props.synthAvailable}
+        />
       </>
     );
   }

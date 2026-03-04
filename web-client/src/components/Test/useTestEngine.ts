@@ -1,3 +1,4 @@
+import { AudioSettings } from '../../utils/audioSettings';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import pinyin from 'pinyin';
 
@@ -963,6 +964,16 @@ export const useTestEngine = (props: Props) => {
     }
   }, [state.qNum, getState, onListen, onSpeak, setHanziWriter, setStateMerged]);
 
+  const refreshSettings = useCallback((updated: AudioSettings): void => {
+    setStateMerged({
+      useSound: updated.useSound && Boolean(props.synthAvailable),
+      useChineseSpeechRecognition: updated.useChineseSpeechRecognition && Boolean(props.speechAvailable),
+      useEnglishSpeechRecognition: updated.useEnglishSpeechRecognition && Boolean(props.speechAvailable),
+      useAutoRecord: updated.useAutoRecord,
+      useFlashcards: updated.useFlashcards,
+    });
+  }, [props.speechAvailable, props.synthAvailable, setStateMerged]);
+
   return {
     state,
     setStateMerged,
@@ -980,5 +991,6 @@ export const useTestEngine = (props: Props) => {
     onShowAnswer,
     onToggleShowPinyin,
     showCharacter,
+    refreshSettings,
   };
 };

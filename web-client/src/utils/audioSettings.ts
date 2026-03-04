@@ -1,0 +1,68 @@
+export interface AudioSettings {
+  useSound: boolean;
+  useChineseSpeechRecognition: boolean;
+  useEnglishSpeechRecognition: boolean;
+  useAutoRecord: boolean;
+  useFlashcards: boolean;
+}
+
+export const getAudioSettings = (): AudioSettings => ({
+  useSound: localStorage.getItem('useSound') !== 'false',
+  useChineseSpeechRecognition: localStorage.getItem('useChineseSpeechRecognition') !== 'false',
+  useEnglishSpeechRecognition: localStorage.getItem('useEnglishSpeechRecognition') !== 'false',
+  useAutoRecord: localStorage.getItem('useAutoRecord') !== 'false',
+  useFlashcards: localStorage.getItem('useFlashcards') !== 'false',
+});
+
+export const setAudioSetting = (
+  key: keyof AudioSettings,
+  value: boolean
+): AudioSettings => {
+  localStorage.setItem(key, String(value));
+
+  if (key === 'useEnglishSpeechRecognition' && value) {
+    localStorage.setItem('useFlashcards', 'false');
+  }
+  if (key === 'useFlashcards' && value) {
+    localStorage.setItem('useEnglishSpeechRecognition', 'false');
+  }
+
+  return getAudioSettings();
+};
+
+export interface AudioSettingItem {
+  key: keyof AudioSettings;
+  label: string;
+  disabled: boolean;
+}
+
+export const getAudioSettingItems = (
+  speechAvailable: boolean,
+  synthAvailable: boolean
+): AudioSettingItem[] => [
+  {
+    key: 'useSound',
+    label: 'Sound',
+    disabled: !synthAvailable,
+  },
+  {
+    key: 'useChineseSpeechRecognition',
+    label: 'Chinese speech recognition',
+    disabled: !speechAvailable,
+  },
+  {
+    key: 'useEnglishSpeechRecognition',
+    label: 'English speech recognition',
+    disabled: !speechAvailable,
+  },
+  {
+    key: 'useAutoRecord',
+    label: 'Automatic recording',
+    disabled: false,
+  },
+  {
+    key: 'useFlashcards',
+    label: 'Meaning flashcards',
+    disabled: false,
+  },
+];
