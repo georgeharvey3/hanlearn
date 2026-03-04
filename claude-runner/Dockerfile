@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     ca-certificates \
+    jq \
   && rm -rf /var/lib/apt/lists/*
 
 # Install GitHub CLI
@@ -19,13 +20,22 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
 # Install Claude Code CLI
 RUN npm install -g @anthropic-ai/claude-code
 
-# Configure git identity for commits
+# Create non-root user (Claude Code won't run --dangerously-skip-permissions as root)
+RUN useradd -m -s /bin/bash claude \
+  && mkdir -p /home/claude/.config \
+  && chown -R claude:claude /home/claude
+
+# Configure git identity for commits (as the claude user)
+USER claude
 RUN git config --global user.name "HanLearn Bot" \
   && git config --global user.email "bot@hanlearn.dev"
 
 # Working directory for scripts
 WORKDIR /app
-COPY entrypoint.sh process-issue.sh ./
-RUN chmod +x entrypoint.sh process-issue.sh
+USER root
+COPY entrypoint.sh process-issue.sh plan-issue.sh ./
+RUN chmod +x entrypoint.sh process-issue.sh plan-issue.sh \
+  && chown claude:claude entrypoint.sh process-issue.sh plan-issue.sh
 
+USER claude
 ENTRYPOINT ["./entrypoint.sh"]
