@@ -129,7 +129,8 @@ const MeaningEditor: React.FC<MeaningEditorProps> = ({
             sx={{
               cursor: readOnly ? 'default' : 'pointer',
               maxWidth: '100%',
-              '& .MuiChip-label': { whiteSpace: 'normal', lineHeight: 1.3 },
+              height: 'auto',
+              '& .MuiChip-label': { whiteSpace: 'normal', lineHeight: 1.3, py: 0.75 },
             }}
           />
         )
