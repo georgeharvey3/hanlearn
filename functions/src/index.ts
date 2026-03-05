@@ -1,11 +1,7 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import { Translate } from '@google-cloud/translate/build/src/v2';
 
 admin.initializeApp();
-
-// Initialize Google Cloud Translation client
-const translate = new Translate();
 
 const db = admin.firestore();
 
@@ -21,41 +17,6 @@ function verifyAuth(context: functions.https.CallableContext): string {
   }
   return context.auth.uid;
 }
-
-/**
- * Translate text using Google Cloud Translation API
- * Keeps the same function name for frontend compatibility
- */
-export const translateWithDeepL = functions.https.onCall(
-  async (data: { text: string; targetLang: string }, context) => {
-    verifyAuth(context);
-
-    const { text, targetLang } = data;
-
-    if (!text || !targetLang) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'text and targetLang are required'
-      );
-    }
-
-    // Map DeepL language codes to Google codes
-    const googleLang = targetLang === 'EN' ? 'en' : 'zh-CN';
-
-    try {
-      const [translation] = await translate.translate(text, googleLang);
-
-      // Return in same format as DeepL for frontend compatibility
-      return { translations: [{ text: translation }] };
-    } catch (error) {
-      console.error('Google Translation error:', error);
-      throw new functions.https.HttpsError(
-        'internal',
-        'Translation failed'
-      );
-    }
-  }
-);
 
 /**
  * Get the daily chengyu challenge

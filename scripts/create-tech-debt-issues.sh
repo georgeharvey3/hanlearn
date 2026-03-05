@@ -171,44 +171,5 @@ ISSUE_EOF
 )"
 echo "✓ Issue 4 created: Memoization"
 
-# --- Issue 5: Rate Limiting ---
-gh issue create --repo "$REPO" \
-  --title "Add rate limiting to Cloud Functions (translateWithDeepL)" \
-  --body "$(cat <<'ISSUE_EOF'
-## Problem
-
-The `translateWithDeepL` Cloud Function (`functions/src/index.ts:29-58`) has no rate limiting or request size limits. While it does verify authentication (line 31), any authenticated user can call it as frequently as they want.
-
-### Specific Gaps
-
-- No per-user rate limiting on translation requests
-- No input size validation (text field length is unchecked beyond non-empty check)
-- No daily/monthly quota per user
-- Translation API costs are borne by the project — a single user could generate significant costs
-
-## Impact
-
-- **Cost risk**: An authenticated user (or compromised account) could rack up translation API charges
-- **Abuse**: Automated scripts could use the endpoint as a free translation proxy
-- **Availability**: High call volume from one user could affect others
-
-## Proposed Solution
-
-1. Add per-user rate limiting (e.g., 50 translations/hour) using Firestore counters or Firebase Rate Limiter extension
-2. Add input size validation (e.g., max 500 characters per request)
-3. Consider adding a daily translation quota per user
-4. Log translation usage for monitoring
-
-## Files Affected
-
-- `functions/src/index.ts` — translateWithDeepL function
-
-## Priority
-
-Medium — low probability but high potential impact. Simple to implement.
-ISSUE_EOF
-)"
-echo "✓ Issue 5 created: Rate limiting"
-
 echo
-echo "All 5 issues created successfully!"
+echo "All 4 issues created successfully!"
