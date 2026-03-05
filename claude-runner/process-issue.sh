@@ -4,6 +4,7 @@ set -euo pipefail
 REPO="$1"
 NUMBER="$2"
 WORK_DIR="/tmp/work-${NUMBER}"
+BACKUP_DIR="/app/claude-tasks/backups"
 
 # Log function with timestamp
 log() {
@@ -18,6 +19,52 @@ cleanup() {
   rm -rf "$WORK_DIR"
 }
 
+# Backup any unpushed work before cleanup
+backup_work() {
+  mkdir -p "$BACKUP_DIR"
+
+  if [ -d "$WORK_DIR/.git" ]; then
+    cd "$WORK_DIR"
+
+    # Check for unpushed commits (commits ahead of origin/main)
+    UNPUSHED=$(git log --oneline origin/main..HEAD 2>/dev/null | wc -l || echo 0)
+
+    # Check for uncommitted changes
+    UNCOMMITTED=$(git status --porcelain 2>/dev/null | wc -l || echo 0)
+
+    if [ "$UNPUSHED" -gt 0 ] || [ "$UNCOMMITTED" -gt 0 ]; then
+      BACKUP_NAME="issue-${NUMBER}-$(date +%Y%m%d-%H%M%S)"
+      BUNDLE_PATH="$BACKUP_DIR/${BACKUP_NAME}.bundle"
+
+      log "Saving backup: $UNPUSHED unpushed commit(s), $UNCOMMITTED uncommitted change(s)"
+
+      # Commit any uncommitted changes so they're included in the bundle
+      if [ "$UNCOMMITTED" -gt 0 ]; then
+        git add -A
+        git commit -m "WIP: uncommitted changes at task failure" --no-verify 2>/dev/null || true
+      fi
+
+      # Create a git bundle containing all commits not in origin/main
+      CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "HEAD")
+      if git bundle create "$BUNDLE_PATH" origin/main.."$CURRENT_BRANCH" 2>/dev/null; then
+        log "Backup saved to: $BUNDLE_PATH"
+        log "To restore: git clone $BUNDLE_PATH restored-work"
+      else
+        # Fallback: bundle the entire branch if origin/main comparison fails
+        if git bundle create "$BUNDLE_PATH" "$CURRENT_BRANCH" 2>/dev/null; then
+          log "Full branch backup saved to: $BUNDLE_PATH"
+        else
+          log_error "Failed to create git bundle backup"
+        fi
+      fi
+    else
+      log "No unpushed work to backup."
+    fi
+
+    cd /app
+  fi
+}
+
 fail() {
   local msg="$1"
   log_error "FAILED: $msg"
@@ -27,6 +74,7 @@ fail() {
   gh issue edit "$NUMBER" --repo "$REPO" --remove-label "in-progress" 2>&1 || true
   gh issue edit "$NUMBER" --repo "$REPO" --add-label "dev-ready" 2>&1 || true
 
+  backup_work
   cleanup
   return 1
 }
