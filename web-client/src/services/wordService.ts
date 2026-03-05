@@ -45,7 +45,7 @@ interface UserWordDocument {
 
 function mapDocumentToWord(
   doc: { id: string; data: () => UserWordDocument },
-  includeDueDate = false
+  includeDueDate = false,
 ): Word {
   const data = doc.data();
   const word: Word = {

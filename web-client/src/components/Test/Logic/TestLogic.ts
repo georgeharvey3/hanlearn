@@ -1,7 +1,7 @@
 import { Word, TestPerm, QuestionCategory } from '../../../types/models';
 import { parseMeanings } from '../../../utils/meaningUtils';
 
-const pickRandom = <T,>(array: T[], n: number): T[] => {
+const pickRandom = <T>(array: T[], n: number): T[] => {
   const remaining = [...array];
   const selected: T[] = [];
   const count = Math.min(n, remaining.length);
@@ -14,9 +14,7 @@ const pickRandom = <T,>(array: T[], n: number): T[] => {
 
 export const chooseTestSet = (allWords: Word[], numWords: number): Word[] => {
   const today = new Date();
-  const dueWords = allWords.filter(
-    (word) => word.due_date && new Date(word.due_date) <= today
-  );
+  const dueWords = allWords.filter((word) => word.due_date && new Date(word.due_date) <= today);
   return pickRandom(dueWords, numWords);
 };
 
