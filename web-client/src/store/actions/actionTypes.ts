@@ -20,6 +20,7 @@ export const REGISTER_SUCCESS = 'REGISTER_SUCCESS' as const;
 export const OPEN_AUTH_MODAL = 'OPEN_AUTH_MODAL' as const;
 export const CLOSE_AUTH_MODAL = 'CLOSE_AUTH_MODAL' as const;
 export const SET_AUTH_MODAL_MODE = 'SET_AUTH_MODAL_MODE' as const;
+export const PASSWORD_RESET_SENT = 'PASSWORD_RESET_SENT' as const;
 
 export const SET_SPEECH_AVAILABLE = 'SET_SPEECH_AVAILABLE' as const;
 export const SET_SYNTH_AVAILABLE = 'SET_SYNTH_AVAILABLE' as const;

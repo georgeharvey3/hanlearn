@@ -10,6 +10,7 @@ const initialState: AuthState = {
   initialized: false,
   modalOpen: false,
   modalMode: 'login',
+  resetEmailSent: false,
 };
 
 const reducer = (state = initialState, action: AuthAction): AuthState => {
@@ -68,12 +69,21 @@ const reducer = (state = initialState, action: AuthAction): AuthState => {
         modalOpen: false,
         error: null,
         loading: false,
+        resetEmailSent: false,
       };
     case actionTypes.SET_AUTH_MODAL_MODE:
       return {
         ...state,
         modalMode: action.mode,
         error: null,
+        resetEmailSent: false,
+      };
+    case actionTypes.PASSWORD_RESET_SENT:
+      return {
+        ...state,
+        loading: false,
+        error: null,
+        resetEmailSent: true,
       };
     default:
       return state;

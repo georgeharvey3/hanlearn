@@ -10,6 +10,7 @@ vi.mock('../../firebase/auth', () => ({
   registerUser: vi.fn(),
   logoutUser: vi.fn(),
   signInWithGoogle: vi.fn(),
+  resetPassword: vi.fn(),
   subscribeToAuthChanges: vi.fn(() => vi.fn()),
   getCurrentUser: vi.fn(() => null),
 }));
@@ -30,7 +31,11 @@ import * as firebaseAuth from '../../firebase/auth';
 
 const mockedAuth = vi.mocked(firebaseAuth);
 
-function renderModal(mode: 'login' | 'register' = 'login', error: string | null = null) {
+function renderModal(
+  mode: 'login' | 'register' | 'forgot-password' = 'login',
+  error: string | null = null,
+  resetEmailSent = false,
+) {
   const store = createTestStore({
     auth: {
       userId: null,
@@ -40,6 +45,7 @@ function renderModal(mode: 'login' | 'register' = 'login', error: string | null 
       initialized: true,
       modalOpen: true,
       modalMode: mode,
+      resetEmailSent,
     },
     addWords: { words: [], error: false, loading: false },
     settings: { speechAvailable: false, synthAvailable: false },
@@ -96,6 +102,11 @@ describe('AuthModal — login mode', () => {
   it('shows "Sign Up" link to switch to register mode', () => {
     renderModal('login');
     expect(screen.getByRole('button', { name: /sign up/i })).toBeInTheDocument();
+  });
+
+  it('shows "Forgot password?" link in login mode', () => {
+    renderModal('login');
+    expect(screen.getByRole('button', { name: /forgot password/i })).toBeInTheDocument();
   });
 });
 
@@ -158,5 +169,67 @@ describe('AuthModal — Google sign-in', () => {
     await waitFor(() => {
       expect(mockedAuth.signInWithGoogle).toHaveBeenCalled();
     });
+  });
+});
+
+describe('AuthModal — forgot-password mode', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('shows "Reset Password" heading', () => {
+    renderModal('forgot-password');
+    expect(screen.getByText(/reset password/i)).toBeInTheDocument();
+  });
+
+  it('shows only email field, no password field', () => {
+    renderModal('forgot-password');
+    expect(screen.getByPlaceholderText(/email/i)).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/password/i)).not.toBeInTheDocument();
+  });
+
+  it('does not show Google sign-in button', () => {
+    renderModal('forgot-password');
+    expect(screen.queryByRole('button', { name: /continue with google/i })).not.toBeInTheDocument();
+  });
+
+  it('"Send Reset Link" button is disabled until email is valid', async () => {
+    renderModal('forgot-password');
+    const submitBtn = screen.getByRole('button', { name: /send reset link/i });
+    expect(submitBtn).toBeDisabled();
+
+    await userEvent.type(screen.getByPlaceholderText(/email/i), 'user@example.com');
+
+    await waitFor(() => {
+      expect(submitBtn).not.toBeDisabled();
+    });
+  });
+
+  it('calls resetPassword on submit', async () => {
+    mockedAuth.resetPassword.mockResolvedValue(undefined);
+    renderModal('forgot-password');
+
+    await userEvent.type(screen.getByPlaceholderText(/email/i), 'user@example.com');
+    await userEvent.click(screen.getByRole('button', { name: /send reset link/i }));
+
+    await waitFor(() => {
+      expect(mockedAuth.resetPassword).toHaveBeenCalledWith('user@example.com');
+    });
+  });
+
+  it('shows confirmation message after successful send', () => {
+    renderModal('forgot-password', null, true);
+    expect(screen.getByText(/check your email/i)).toBeInTheDocument();
+    expect(screen.getByText(/password reset link/i)).toBeInTheDocument();
+  });
+
+  it('"Back to Log In" link is present in forgot-password mode', () => {
+    renderModal('forgot-password');
+    expect(screen.getByRole('button', { name: /back to log in/i })).toBeInTheDocument();
+  });
+
+  it('shows error message on failure', () => {
+    renderModal('forgot-password', 'Too many failed attempts. Please try again later');
+    expect(screen.getByText(/too many failed attempts/i)).toBeInTheDocument();
   });
 });

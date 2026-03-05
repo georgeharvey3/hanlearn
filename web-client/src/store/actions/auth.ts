@@ -9,6 +9,7 @@ import {
   OpenAuthModalAction,
   CloseAuthModalAction,
   SetAuthModalModeAction,
+  PasswordResetSentAction,
   AppThunk,
 } from '../../types/actions';
 import {
@@ -17,6 +18,7 @@ import {
   logoutUser,
   signInWithGoogle,
   subscribeToAuthChanges,
+  resetPassword,
 } from '../../firebase/auth';
 import { FirebaseError } from 'firebase/app';
 
@@ -52,7 +54,7 @@ export const authInitialized = (): AuthInitializedAction => {
   };
 };
 
-export const openAuthModal = (mode: 'login' | 'register' = 'login'): OpenAuthModalAction => ({
+export const openAuthModal = (mode: 'login' | 'register' | 'forgot-password' = 'login'): OpenAuthModalAction => ({
   type: actionTypes.OPEN_AUTH_MODAL,
   mode,
 });
@@ -61,10 +63,32 @@ export const closeAuthModal = (): CloseAuthModalAction => ({
   type: actionTypes.CLOSE_AUTH_MODAL,
 });
 
-export const setAuthModalMode = (mode: 'login' | 'register'): SetAuthModalModeAction => ({
+export const setAuthModalMode = (mode: 'login' | 'register' | 'forgot-password'): SetAuthModalModeAction => ({
   type: actionTypes.SET_AUTH_MODAL_MODE,
   mode,
 });
+
+export const sendPasswordReset = (email: string): AppThunk => {
+  return async (dispatch) => {
+    dispatch(authStart());
+    try {
+      await resetPassword(email);
+      dispatch({ type: actionTypes.PASSWORD_RESET_SENT } as PasswordResetSentAction);
+    } catch (error) {
+      if (error instanceof Error && 'code' in error) {
+        const code = (error as FirebaseError).code;
+        // Prevent email enumeration: show success even if user not found
+        if (code === 'auth/user-not-found') {
+          dispatch({ type: actionTypes.PASSWORD_RESET_SENT } as PasswordResetSentAction);
+        } else {
+          dispatch(authFail(getErrorMessage(error as FirebaseError)));
+        }
+      } else {
+        dispatch(authFail('Failed to send reset email'));
+      }
+    }
+  };
+};
 
 export const logout = (): AppThunk => {
   return async (dispatch) => {

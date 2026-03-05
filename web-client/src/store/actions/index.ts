@@ -15,5 +15,6 @@ export {
   closeAuthModal,
   setAuthModalMode,
   googleSignIn,
+  sendPasswordReset,
 } from './auth';
 export { setSpeechAvailable, setSynthAvailable, setVoice, setLang } from './settings';
