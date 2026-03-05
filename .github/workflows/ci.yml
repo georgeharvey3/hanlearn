@@ -5,6 +5,30 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: web-client
+
+      - name: Lint
+        run: npm run lint
+        working-directory: web-client
+
+      - name: Format check
+        run: npm run format:check
+        working-directory: web-client
+
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
