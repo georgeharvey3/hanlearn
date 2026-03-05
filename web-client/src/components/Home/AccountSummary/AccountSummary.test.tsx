@@ -25,7 +25,9 @@ describe('AccountSummary', () => {
     const addWordsClicked = vi.fn();
     render(<AccountSummary numDue={0} numTot={0} addWordsClicked={addWordsClicked} />);
 
-    expect(screen.getByText('No words in your bank yet. Start by adding some words!')).toBeInTheDocument();
+    expect(
+      screen.getByText('No words in your bank yet. Start by adding some words!'),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Test' })).not.toBeInTheDocument();
 
     const addButton = screen.getByRole('button', { name: 'Add Words' });
