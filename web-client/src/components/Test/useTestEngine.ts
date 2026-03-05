@@ -409,7 +409,7 @@ export const useTestEngine = (props: Props) => {
           sentence = 'Try a different tone...';
         }
 
-        if (current.numSpeakTries > -1) {
+        if (current.numSpeakTries > 0) {
           setStateMerged({
             result: `We heard: '${submission}', which is wrong. ${sentence}`,
             showInput: true,
@@ -427,7 +427,7 @@ export const useTestEngine = (props: Props) => {
         if (current.useSound) {
           fail.play();
         }
-        if (current.numSpeakTries > -1) {
+        if (current.numSpeakTries > 0) {
           setStateMerged({
             result: `We heard: '${submission}', which is wrong. Try again...`,
             showInput: true,
@@ -565,6 +565,7 @@ export const useTestEngine = (props: Props) => {
             idkDisabled: false,
             result: '',
             answerInput: '',
+            numSpeakTries: 0,
             redoChar: redoChar,
             qNum: prevState.qNum + 1,
           }));
@@ -633,6 +634,7 @@ export const useTestEngine = (props: Props) => {
         idkDisabled: false,
         result: '',
         answerInput: '',
+        numSpeakTries: 0,
         qNum: prevState.qNum + 1,
         showInput: false,
         submitDisabled: false,

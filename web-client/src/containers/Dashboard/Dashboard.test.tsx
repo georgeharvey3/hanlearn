@@ -114,10 +114,37 @@ describe('Dashboard container', () => {
     renderWithProviders(<Dashboard />, {
       store: createTestStore(unauthState),
     });
-    // Spinner stays because loading never resolves; getDashboardStats must not be called
     await waitFor(() =>
       expect(mockGetDashboardStats).not.toHaveBeenCalled()
     );
+  });
+
+  it('loading resolves (not stuck) when userId is null — regression', async () => {
+    // Regression: loadStats previously returned early without calling setLoading(false),
+    // so a retry triggered while unauthenticated would leave the spinner showing forever.
+    // After the fix, loading becomes false even when userId is null, so the
+    // Dashboard heading (not the spinner) is eventually rendered.
+    const unauthState = {
+      auth: {
+        userId: null,
+        loading: false,
+        error: null,
+        newSignUp: false,
+        initialized: true,
+        modalOpen: false,
+        modalMode: 'login' as const,
+      },
+      addWords: { words: [], error: false, loading: false },
+      settings: { speechAvailable: false, synthAvailable: false },
+    };
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(unauthState),
+    });
+    // The Dashboard heading appears once loading resolves to false.
+    await waitFor(() =>
+      expect(screen.getByText('Dashboard')).toBeInTheDocument()
+    );
+    expect(mockGetDashboardStats).not.toHaveBeenCalled();
   });
 
   it('shows the "Test Now" link when words are due', async () => {

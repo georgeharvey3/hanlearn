@@ -27,7 +27,7 @@ const Dashboard: React.FC<PropsFromRedux> = ({ userId }) => {
   const [error, setError] = useState(false);
 
   const loadStats = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) { setLoading(false); return; }
     setError(false);
     try {
       const data = await getDashboardStats(userId);
