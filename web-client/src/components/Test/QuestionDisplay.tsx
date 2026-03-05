@@ -31,14 +31,20 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
   onToggleShowPinyin,
 }) => {
   const questionText =
-    questionCategory === 'meaning' && Array.isArray(question)
-      ? question.join(' / ')
-      : question;
+    questionCategory === 'meaning' && Array.isArray(question) ? question.join(' / ') : question;
 
   if (questionCategory === 'pinyin' && useSound && !showPinyin) {
     return (
       <>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', height: '100px' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            height: '100px',
+          }}
+        >
           {synthLoading ? (
             <Spinner style={{ overflow: 'hidden', margin: '0 auto' }} />
           ) : (
@@ -50,7 +56,9 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
             />
           )}
         </div>
-        {showQuestionPinyin ? <p style={{ color: colors.text, margin: '4px 0' }}>{question}</p> : null}
+        {showQuestionPinyin ? (
+          <p style={{ color: colors.text, margin: '4px 0' }}>{question}</p>
+        ) : null}
         <Box
           component="button"
           onClick={onToggleShowPinyin}

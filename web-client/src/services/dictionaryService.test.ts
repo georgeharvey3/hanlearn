@@ -173,7 +173,7 @@ describe('dictionaryService', () => {
       } as Response);
 
       await expect(mod.searchWord('你好', 'simp')).rejects.toThrow(
-        'Failed to load dictionary: 500'
+        'Failed to load dictionary: 500',
       );
     });
 

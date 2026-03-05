@@ -16,7 +16,7 @@ const SignUpBanner: React.FC<SignUpBannerProps> = (props) => (
       py: { xs: 5, sm: 6 },
       px: 3,
       textAlign: 'center',
-      borderRadius: 2
+      borderRadius: 2,
     }}
   >
     <Typography variant="h4" sx={{ color: 'common.white', fontWeight: 600 }}>

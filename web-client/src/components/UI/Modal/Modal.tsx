@@ -12,12 +12,7 @@ interface ModalProps {
 
 const Modal: React.FC<ModalProps> = (props) => {
   return (
-    <Dialog
-      open={!!props.show}
-      onClose={props.modalClosed}
-      maxWidth="sm"
-      fullWidth
-    >
+    <Dialog open={!!props.show} onClose={props.modalClosed} maxWidth="sm" fullWidth>
       <Box sx={{ position: 'relative', p: 3 }}>
         <IconButton
           onClick={props.modalClosed}

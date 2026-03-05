@@ -83,7 +83,11 @@ describe('registerUser', () => {
 
     const result = await registerUser('test@example.com', 'password123');
 
-    expect(mockCreateUser).toHaveBeenCalledWith(expect.anything(), 'test@example.com', 'password123');
+    expect(mockCreateUser).toHaveBeenCalledWith(
+      expect.anything(),
+      'test@example.com',
+      'password123',
+    );
     expect(result).toBe(user);
   });
 

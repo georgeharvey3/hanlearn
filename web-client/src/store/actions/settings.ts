@@ -6,18 +6,14 @@ import {
   SetLangAction,
 } from '../../types/actions';
 
-export const setSpeechAvailable = (
-  available: boolean
-): SetSpeechAvailableAction => {
+export const setSpeechAvailable = (available: boolean): SetSpeechAvailableAction => {
   return {
     type: actionTypes.SET_SPEECH_AVAILABLE,
     available: available,
   };
 };
 
-export const setSynthAvailable = (
-  available: boolean
-): SetSynthAvailableAction => {
+export const setSynthAvailable = (available: boolean): SetSynthAvailableAction => {
   return {
     type: actionTypes.SET_SYNTH_AVAILABLE,
     available: available,

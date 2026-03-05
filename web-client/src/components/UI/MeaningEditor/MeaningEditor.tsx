@@ -93,7 +93,16 @@ const MeaningEditor: React.FC<MeaningEditorProps> = ({
   const chipSize = size === 'small' ? 'small' : 'medium';
 
   return (
-    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center', justifyContent: readOnly ? 'center' : undefined, width: '100%' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 0.5,
+        alignItems: 'center',
+        justifyContent: readOnly ? 'center' : undefined,
+        width: '100%',
+      }}
+    >
       {meanings.map((meaning, index) =>
         !readOnly && editingIndex === index ? (
           <TextField
@@ -133,10 +142,10 @@ const MeaningEditor: React.FC<MeaningEditorProps> = ({
               '& .MuiChip-label': { whiteSpace: 'normal', lineHeight: 1.3, py: 0.75 },
             }}
           />
-        )
+        ),
       )}
-      {!readOnly && (
-        isAdding ? (
+      {!readOnly &&
+        (isAdding ? (
           <TextField
             inputRef={addInputRef}
             size="small"
@@ -168,8 +177,7 @@ const MeaningEditor: React.FC<MeaningEditorProps> = ({
             onClick={() => setIsAdding(true)}
             sx={{ cursor: 'pointer', borderStyle: 'dashed' }}
           />
-        )
-      )}
+        ))}
     </Box>
   );
 };

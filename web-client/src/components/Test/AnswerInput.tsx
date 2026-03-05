@@ -107,7 +107,12 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
   const micInput = (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
       <div style={{ display: 'flex', alignItems: 'center' }}>
-        <PictureButton type="secondary" src={micPic} aria-label="Record speech" clicked={() => onListen()} />
+        <PictureButton
+          type="secondary"
+          src={micPic}
+          aria-label="Record speech"
+          clicked={() => onListen()}
+        />
         <Toggle
           checked={state.useAutoRecord}
           changed={(event) => {
@@ -187,7 +192,9 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
 export function getVerb(state: TestState): string {
   switch (state.answerCategory) {
     case 'pinyin':
-      return state.useChineseSpeechRecognition && !state.useTypingInput ? 'Speak the ' : 'Enter the ';
+      return state.useChineseSpeechRecognition && !state.useTypingInput
+        ? 'Speak the '
+        : 'Enter the ';
     case 'character':
       return 'Draw the ';
     case 'meaning':

@@ -74,19 +74,12 @@ const SectionGroup: React.FC<{ label: string; children: React.ReactNode }> = ({
   </Box>
 );
 
-const Settings: React.FC<PropsFromRedux> = ({
-  speechAvailable,
-  synthAvailable,
-}) => {
+const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable }) => {
   const [state, setState] = useState<SettingsState>(() => {
     const localCharSet = localStorage.getItem('charSet');
     const localNumWords = localStorage.getItem('numWords');
-    const useChineseSpeechRecognition = localStorage.getItem(
-      'useChineseSpeechRecognition'
-    );
-    const useEnglishSpeechRecognition = localStorage.getItem(
-      'useEnglishSpeechRecognition'
-    );
+    const useChineseSpeechRecognition = localStorage.getItem('useChineseSpeechRecognition');
+    const useEnglishSpeechRecognition = localStorage.getItem('useEnglishSpeechRecognition');
     const useHandwriting = localStorage.getItem('useHandwriting');
     const useSound = localStorage.getItem('useSound');
     const useAutoRecord = localStorage.getItem('useAutoRecord');
@@ -100,10 +93,8 @@ const Settings: React.FC<PropsFromRedux> = ({
     return {
       charSet: localCharSet || 'simp',
       numWords: localNumWords ? parseInt(localNumWords) : 5,
-      useChineseSpeechRecognition:
-        useChineseSpeechRecognition === 'false' ? false : true,
-      useEnglishSpeechRecognition:
-        useEnglishSpeechRecognition === 'false' ? false : true,
+      useChineseSpeechRecognition: useChineseSpeechRecognition === 'false' ? false : true,
+      useEnglishSpeechRecognition: useEnglishSpeechRecognition === 'false' ? false : true,
       useHandwriting: useHandwriting === 'false' ? false : true,
       useSound: useSound === 'false' ? false : true,
       useAutoRecord: useAutoRecord === 'false' ? false : true,
@@ -116,86 +107,77 @@ const Settings: React.FC<PropsFromRedux> = ({
     };
   });
 
-  const onRadioChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>): void => {
-      const { name, value } = e.target;
-      setState((prev) => {
-        const nextState: SettingsState = {
-          ...prev,
-          [name]: value,
-        } as SettingsState;
-
-        if (name === 'priority' && value === 'none') {
-          nextState.onlyPriority = false;
-        }
-
-        return nextState;
-      });
-      localStorage.setItem(name, value);
+  const onRadioChange = useCallback((e: ChangeEvent<HTMLInputElement>): void => {
+    const { name, value } = e.target;
+    setState((prev) => {
+      const nextState: SettingsState = {
+        ...prev,
+        [name]: value,
+      } as SettingsState;
 
       if (name === 'priority' && value === 'none') {
-        localStorage.setItem('onlyPriority', 'false');
+        nextState.onlyPriority = false;
       }
-    },
-    []
-  );
 
-  const onSliderChange = useCallback(
-    (_e: Event, value: number | number[]): void => {
-      const numValue = value as number;
-      setState((prev) => ({
+      return nextState;
+    });
+    localStorage.setItem(name, value);
+
+    if (name === 'priority' && value === 'none') {
+      localStorage.setItem('onlyPriority', 'false');
+    }
+  }, []);
+
+  const onSliderChange = useCallback((_e: Event, value: number | number[]): void => {
+    const numValue = value as number;
+    setState((prev) => ({
+      ...prev,
+      numWords: numValue,
+    }));
+    localStorage.setItem('numWords', String(numValue));
+  }, []);
+
+  const onCheckChange = useCallback((e: ChangeEvent<HTMLInputElement>): void => {
+    const key = e.target.value as keyof SettingsState;
+    const checked = e.target.checked;
+
+    setState((prev) => {
+      const nextState: SettingsState = {
         ...prev,
-        numWords: numValue,
-      }));
-      localStorage.setItem('numWords', String(numValue));
-    },
-    []
-  );
+        [key]: !prev[key],
+      } as SettingsState;
 
-  const onCheckChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>): void => {
-      const key = e.target.value as keyof SettingsState;
-      const checked = e.target.checked;
-
-      setState((prev) => {
-        const nextState: SettingsState = {
-          ...prev,
-          [key]: !Boolean(prev[key]),
-        } as SettingsState;
-
-        if (key === 'useEnglishSpeechRecognition' && checked) {
-          nextState.useFlashcards = false;
-        }
-
-        if (key === 'useFlashcards' && checked) {
-          nextState.useEnglishSpeechRecognition = false;
-        }
-
-        if (key === 'useHandwriting' && !checked) {
-          nextState.priority = 'none';
-          nextState.onlyPriority = false;
-        }
-
-        return nextState;
-      });
-
-      localStorage.setItem(e.target.value, String(checked));
-
-      if (e.target.value === 'useEnglishSpeechRecognition' && checked) {
-        localStorage.setItem('useFlashcards', 'false');
+      if (key === 'useEnglishSpeechRecognition' && checked) {
+        nextState.useFlashcards = false;
       }
 
-      if (e.target.value === 'useFlashcards' && checked) {
-        localStorage.setItem('useEnglishSpeechRecognition', 'false');
+      if (key === 'useFlashcards' && checked) {
+        nextState.useEnglishSpeechRecognition = false;
       }
 
-      if (e.target.value === 'useHandwriting' && !checked) {
-        localStorage.setItem('priority', 'none');
-        localStorage.setItem('onlyPriority', 'false');
+      if (key === 'useHandwriting' && !checked) {
+        nextState.priority = 'none';
+        nextState.onlyPriority = false;
       }
-    },
-    []
-  );
+
+      return nextState;
+    });
+
+    localStorage.setItem(e.target.value, String(checked));
+
+    if (e.target.value === 'useEnglishSpeechRecognition' && checked) {
+      localStorage.setItem('useFlashcards', 'false');
+    }
+
+    if (e.target.value === 'useFlashcards' && checked) {
+      localStorage.setItem('useEnglishSpeechRecognition', 'false');
+    }
+
+    if (e.target.value === 'useHandwriting' && !checked) {
+      localStorage.setItem('priority', 'none');
+      localStorage.setItem('onlyPriority', 'false');
+    }
+  }, []);
 
   const checkboxItems = [
     {
@@ -276,16 +258,8 @@ const Settings: React.FC<PropsFromRedux> = ({
             row
             sx={{ gap: 1 }}
           >
-            <FormControlLabel
-              value="simp"
-              control={<Radio size="small" />}
-              label="Simplified"
-            />
-            <FormControlLabel
-              value="trad"
-              control={<Radio size="small" />}
-              label="Traditional"
-            />
+            <FormControlLabel value="simp" control={<Radio size="small" />} label="Simplified" />
+            <FormControlLabel value="trad" control={<Radio size="small" />} label="Traditional" />
           </RadioGroup>
         </Box>
       </SectionGroup>
@@ -353,11 +327,7 @@ const Settings: React.FC<PropsFromRedux> = ({
       </SectionGroup>
 
       <SectionGroup label="Priority">
-        <RadioGroup
-          name="priority"
-          value={state.priority}
-          onChange={onRadioChange}
-        >
+        <RadioGroup name="priority" value={state.priority} onChange={onRadioChange}>
           {priorityItems.map(({ value, label, disabled }) => (
             <Box key={value} sx={rowSx}>
               <FormControlLabel

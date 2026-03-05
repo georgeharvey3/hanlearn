@@ -49,10 +49,10 @@ describe('AudioSettingsDrawer', () => {
     const user = userEvent.setup();
     render(<AudioSettingsDrawer {...defaultProps} />);
     const soundCheckbox = screen.getByRole('checkbox', { name: 'Sound' });
-    
+
     // Default is checked (localStorage has no 'false' value)
     expect(soundCheckbox).toBeChecked();
-    
+
     await user.click(soundCheckbox);
     expect(localStorage.getItem('useSound')).toBe('false');
   });
@@ -61,14 +61,14 @@ describe('AudioSettingsDrawer', () => {
     const user = userEvent.setup();
     localStorage.setItem('useEnglishSpeechRecognition', 'false');
     render(<AudioSettingsDrawer {...defaultProps} />);
-    
+
     const flashcards = screen.getByRole('checkbox', { name: 'Meaning flashcards' });
     const english = screen.getByRole('checkbox', { name: 'English speech recognition' });
-    
+
     // Flashcards is checked, English is unchecked
     expect(flashcards).toBeChecked();
     expect(english).not.toBeChecked();
-    
+
     // Enable English → flashcards should become unchecked
     await user.click(english);
     expect(localStorage.getItem('useFlashcards')).toBe('false');

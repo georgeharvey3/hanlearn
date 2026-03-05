@@ -134,10 +134,7 @@ export const auth = (email: string, password: string): AppThunk => {
   };
 };
 
-export const register = (
-  email: string,
-  password: string
-): AppThunk => {
+export const register = (email: string, password: string): AppThunk => {
   return async (dispatch) => {
     dispatch(authStart());
     try {

@@ -171,7 +171,7 @@ describe('AddWords — remove words from bank', () => {
     await waitFor(() => {
       expect(mockedWordService.removeWordFromBank).toHaveBeenCalledWith(
         'test-user-123',
-        sampleWord.id
+        sampleWord.id,
       );
     });
   });

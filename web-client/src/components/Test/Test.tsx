@@ -53,10 +53,13 @@ const Test: React.FC<Props> = (props) => {
 
   const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
 
-  const handleSettingsClose = useCallback((updated: AudioSettings) => {
-    setSettingsDrawerOpen(false);
-    refreshSettings(updated);
-  }, [refreshSettings]);
+  const handleSettingsClose = useCallback(
+    (updated: AudioSettings) => {
+      setSettingsDrawerOpen(false);
+      refreshSettings(updated);
+    },
+    [refreshSettings],
+  );
 
   const progressNum = Math.floor((state.permList.length / state.initNumPerms) * 100) || 0;
   const verb = getVerb(state);
@@ -152,17 +155,24 @@ const Test: React.FC<Props> = (props) => {
               onToggleShowPinyin={onToggleShowPinyin}
             />
           </Paper>
-          <Typography sx={{
-            minHeight: 30,
-            mt: 1.5,
-            fontSize: '0.95rem',
-            fontWeight: 500,
-            color: state.result === 'Correct' || state.result === 'Finished!'
-              ? 'success.main'
-              : (state.result.startsWith('Answer was') && !state.showAnswer) || state.result.startsWith('Try') || state.result === 'Incorrect tones'
-                ? 'error.main'
-                : 'text.primary',
-          }}>{state.result}</Typography>
+          <Typography
+            sx={{
+              minHeight: 30,
+              mt: 1.5,
+              fontSize: '0.95rem',
+              fontWeight: 500,
+              color:
+                state.result === 'Correct' || state.result === 'Finished!'
+                  ? 'success.main'
+                  : (state.result.startsWith('Answer was') && !state.showAnswer) ||
+                      state.result.startsWith('Try') ||
+                      state.result === 'Incorrect tones'
+                    ? 'error.main'
+                    : 'text.primary',
+            }}
+          >
+            {state.result}
+          </Typography>
           <Box
             sx={{
               minHeight: 160,

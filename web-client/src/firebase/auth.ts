@@ -34,14 +34,11 @@ const ensureUserDocument = async (user: User): Promise<void> => {
  * Register a new user with email and password.
  * Also creates a user document in Firestore.
  */
-export const registerUser = async (
-  email: string,
-  password: string
-): Promise<User> => {
+export const registerUser = async (email: string, password: string): Promise<User> => {
   const userCredential: UserCredential = await createUserWithEmailAndPassword(
     auth,
     email,
-    password
+    password,
   );
 
   await ensureUserDocument(userCredential.user);
@@ -66,15 +63,8 @@ export const signInWithGoogle = async (): Promise<User> => {
 /**
  * Sign in an existing user with email and password.
  */
-export const loginUser = async (
-  email: string,
-  password: string
-): Promise<User> => {
-  const userCredential: UserCredential = await signInWithEmailAndPassword(
-    auth,
-    email,
-    password
-  );
+export const loginUser = async (email: string, password: string): Promise<User> => {
+  const userCredential: UserCredential = await signInWithEmailAndPassword(auth, email, password);
   return userCredential.user;
 };
 
@@ -87,9 +77,7 @@ export const logoutUser = (): Promise<void> => signOut(auth);
  * Subscribe to authentication state changes.
  * Returns an unsubscribe function.
  */
-export const subscribeToAuthChanges = (
-  callback: (user: User | null) => void
-): (() => void) => {
+export const subscribeToAuthChanges = (callback: (user: User | null) => void): (() => void) => {
   return onAuthStateChanged(auth, callback);
 };
 

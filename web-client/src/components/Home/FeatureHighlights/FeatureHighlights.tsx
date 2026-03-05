@@ -24,8 +24,7 @@ const features: Feature[] = [
   {
     icon: DrawRounded,
     heading: 'Handwriting Input',
-    description:
-      'Practise writing characters by hand — not just recognising them on screen.',
+    description: 'Practise writing characters by hand — not just recognising them on screen.',
   },
   {
     icon: TuneRounded,
@@ -61,10 +60,7 @@ const FeatureHighlights: React.FC = () => (
                 }}
               >
                 <Icon sx={{ fontSize: 48, color: 'primary.dark', mb: 2 }} />
-                <Typography
-                  variant="h6"
-                  sx={{ color: 'text.primary', fontWeight: 600, mb: 1 }}
-                >
+                <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, mb: 1 }}>
                   {feature.heading}
                 </Typography>
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>

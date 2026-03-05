@@ -7,7 +7,7 @@ interface Window {
     create(
       target: string | HTMLElement,
       character: string,
-      options?: HanziWriterOptions
+      options?: HanziWriterOptions,
     ): HanziWriterInstance;
   };
 }

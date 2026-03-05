@@ -17,8 +17,11 @@ vi.mock('./services/streakService', () => ({
 }));
 vi.mock('./services/dashboardService', () => ({
   getDashboardStats: vi.fn().mockResolvedValue({
-    totalWords: 0, dueWords: 0, streak: 0,
-    bankDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, masteredCount: 0,
+    totalWords: 0,
+    dueWords: 0,
+    streak: 0,
+    bankDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+    masteredCount: 0,
   }),
 }));
 vi.mock('./services/sentenceService', () => ({
@@ -52,6 +55,6 @@ test('renders app without crashing', () => {
       <BrowserRouter>
         <App />
       </BrowserRouter>
-    </Provider>
+    </Provider>,
   );
 });

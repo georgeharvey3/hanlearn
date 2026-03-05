@@ -162,7 +162,7 @@ describe('recordTestCompletion', () => {
       'users',
       'user-42',
       'testCompletions',
-      '2026-03-01'
+      '2026-03-01',
     );
   });
 });
@@ -206,7 +206,7 @@ describe('getStreakData', () => {
       expect.anything(),
       'users',
       'user-99',
-      'testCompletions'
+      'testCompletions',
     );
   });
 

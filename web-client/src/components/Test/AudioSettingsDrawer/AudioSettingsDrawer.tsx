@@ -1,12 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import {
-  Box,
-  Checkbox,
-  Drawer,
-  FormControlLabel,
-  FormGroup,
-  Typography,
-} from '@mui/material';
+import { Box, Checkbox, Drawer, FormControlLabel, FormGroup, Typography } from '@mui/material';
 import {
   AudioSettings,
   getAudioSettings,
@@ -34,7 +27,7 @@ const AudioSettingsDrawer: React.FC<AudioSettingsDrawerProps> = ({
       const updated = setAudioSetting(key, checked);
       setSettings(updated);
     },
-    []
+    [],
   );
 
   const handleClose = useCallback(() => {

@@ -58,7 +58,7 @@ export const useTestEngine = (props: Props) => {
       current.recognition?.abort();
       setStateMerged({ answerInput: e.target.value, pauseAutoRecord: true });
     },
-    [getState, setStateMerged]
+    [getState, setStateMerged],
   );
 
   // --- Speech ---
@@ -146,7 +146,7 @@ export const useTestEngine = (props: Props) => {
       synth.cancel();
       synth.speak(utterThis);
     },
-    [getState, onListen, props.lang, props.voice, setStateMerged]
+    [getState, onListen, props.lang, props.voice, setStateMerged],
   );
 
   // --- Score sending ---
@@ -156,7 +156,7 @@ export const useTestEngine = (props: Props) => {
       if (props.isDemo) return;
       props.onFinishTest(testResults);
     },
-    [props.isDemo, props.onFinishTest]
+    [props.isDemo, props.onFinishTest],
   );
 
   // --- Test flow ---
@@ -238,8 +238,8 @@ export const useTestEngine = (props: Props) => {
         sentenceWords.map((w) =>
           checkSentenceAvailability(w.simp, current.charSet)
             .then((available) => (available ? w : null))
-            .catch(() => null)
-        )
+            .catch(() => null),
+        ),
       ).then((results) => {
         const available = results.filter((w): w is import('../../types/models').Word => w !== null);
         if (available.length > 0 && !props.finalStage) {
@@ -257,7 +257,16 @@ export const useTestEngine = (props: Props) => {
         }
       });
     }
-  }, [getState, onSendScores, props.isDemo, props.practiceMode, props.finalStage, props.onVocabComplete, props.startSentenceRead, setStateMerged]);
+  }, [
+    getState,
+    onSendScores,
+    props.isDemo,
+    props.practiceMode,
+    props.finalStage,
+    props.onVocabComplete,
+    props.startSentenceRead,
+    setStateMerged,
+  ]);
 
   const onCorrectAnswer = useCallback(
     (usedSpeech?: boolean): void => {
@@ -288,7 +297,7 @@ export const useTestEngine = (props: Props) => {
           current.testSet,
           newPermList,
           current.charSet,
-          current.priority
+          current.priority,
         );
         setTimeout(() => {
           setStateMerged((prevState) => ({
@@ -313,28 +322,31 @@ export const useTestEngine = (props: Props) => {
         setStateMerged({ result: 'Finished!' });
       }
     },
-    [getState, setStateMerged, onFinishTest]
+    [getState, setStateMerged, onFinishTest],
   );
 
-  const checkAnswer = useCallback((cleanInput: string): boolean => {
-    const current = getState();
-    cleanInput = testLogic.removePunctuation(cleanInput.trim());
+  const checkAnswer = useCallback(
+    (cleanInput: string): boolean => {
+      const current = getState();
+      cleanInput = testLogic.removePunctuation(cleanInput.trim());
 
-    if (current.answerCategory === 'pinyin' && typeof current.answer === 'string') {
-      let cleanAnswer = testLogic.removePunctuation(current.answer);
-      cleanInput = cleanInput.replace(/ /g, '').replace(/5/g, '');
-      cleanAnswer = cleanAnswer.replace(/ /g, '').replace(/5/g, '');
-      return cleanInput === cleanAnswer;
-    } else if (Array.isArray(current.answer)) {
-      let match = false;
-      current.answer.forEach((meaning) => {
-        const cleanAnswer = testLogic.removePunctuation(meaning);
-        match = match || cleanInput === cleanAnswer;
-      });
-      return match;
-    }
-    return false;
-  }, [getState]);
+      if (current.answerCategory === 'pinyin' && typeof current.answer === 'string') {
+        let cleanAnswer = testLogic.removePunctuation(current.answer);
+        cleanInput = cleanInput.replace(/ /g, '').replace(/5/g, '');
+        cleanAnswer = cleanAnswer.replace(/ /g, '').replace(/5/g, '');
+        return cleanInput === cleanAnswer;
+      } else if (Array.isArray(current.answer)) {
+        let match = false;
+        current.answer.forEach((meaning) => {
+          const cleanAnswer = testLogic.removePunctuation(meaning);
+          match = match || cleanInput === cleanAnswer;
+        });
+        return match;
+      }
+      return false;
+    },
+    [getState],
+  );
 
   const onSubmitAnswer = useCallback((): void => {
     const current = getState();
@@ -368,7 +380,17 @@ export const useTestEngine = (props: Props) => {
     (speech: string): void => {
       const current = getState();
       const numToPinMap = [
-        'ling3', 'yi1', 'er4', 'san1', 'si4', 'wu3', 'liu4', 'qi1', 'ba1', 'jiu3', 'shi2',
+        'ling3',
+        'yi1',
+        'er4',
+        'san1',
+        'si4',
+        'wu3',
+        'liu4',
+        'qi1',
+        'ba1',
+        'jiu3',
+        'shi2',
       ];
 
       let submission: string;
@@ -443,7 +465,7 @@ export const useTestEngine = (props: Props) => {
         }
       }
     },
-    [getState, onCorrectAnswer, setStateMerged]
+    [getState, onCorrectAnswer, setStateMerged],
   );
 
   useEffect(() => {
@@ -473,24 +495,30 @@ export const useTestEngine = (props: Props) => {
               try {
                 const el = document.getElementById('character-target-div');
                 if (el) el.innerHTML = '';
-              } catch (e) {}
+              } catch (e) {
+                // ignore
+              }
               onCorrectAnswer();
             }, 1000);
           }
         },
       });
     },
-    [onCorrectAnswer, setStateMerged]
+    [onCorrectAnswer, setStateMerged],
   );
 
-  const updateHanziWriterQuiz = (writer: HanziWriterInstance, char: string, index: number): void => {
+  const updateHanziWriterQuiz = (
+    writer: HanziWriterInstance,
+    char: string,
+    index: number,
+  ): void => {
     writer.setCharacter(char[index]);
     quizWriter(writer, char, index);
   };
 
   const setHanziWriter = useCallback(
     (char: string): void => {
-      let index = 0;
+      const index = 0;
       const flashChar = false;
       let numBeforeHint = 5;
 
@@ -501,7 +529,9 @@ export const useTestEngine = (props: Props) => {
       try {
         const el = document.getElementById('character-target-div');
         if (el) el.innerHTML = '';
-      } catch (e) {}
+      } catch (e) {
+        // ignore
+      }
 
       const writer = window.HanziWriter.create('character-target-div', char[index], {
         width: 150,
@@ -517,10 +547,14 @@ export const useTestEngine = (props: Props) => {
       setStateMerged({ writer });
       quizWriter(writer, char, index);
     },
-    [props.isDemo, quizWriter, setStateMerged]
+    [props.isDemo, quizWriter, setStateMerged],
   );
 
-  const updateHanziWriterAnimate = (writer: HanziWriterInstance, char: string, index: number): void => {
+  const updateHanziWriterAnimate = (
+    writer: HanziWriterInstance,
+    char: string,
+    index: number,
+  ): void => {
     writer.setCharacter(char[index]);
     animateWriter(writer, char, index);
   };
@@ -535,7 +569,9 @@ export const useTestEngine = (props: Props) => {
           try {
             const el = document.getElementById('character-target-div');
             if (el) el.innerHTML = '';
-          } catch (e) {}
+          } catch (e) {
+            // ignore
+          }
           setStateMerged((prevState) => {
             const idkChar = prevState.perm
               ? prevState.testSet[parseInt(prevState.perm.index)][prevState.charSet]
@@ -550,7 +586,7 @@ export const useTestEngine = (props: Props) => {
             latest.testSet,
             latest.permList,
             latest.charSet,
-            latest.priority
+            latest.priority,
           );
 
           const redoChar = newQuestion.perm === latest.perm;
@@ -572,18 +608,18 @@ export const useTestEngine = (props: Props) => {
         }
       });
     },
-    [getState, setStateMerged]
+    [getState, setStateMerged],
   );
 
   const onIdkChar = useCallback(
     (writer: HanziWriterInstance, char: string): void => {
       setStateMerged({ idkDisabled: true });
       writer.cancelQuiz();
-      let index = 0;
+      const index = 0;
       writer.setCharacter(char[index]);
       animateWriter(writer, char, index);
     },
-    [animateWriter, setStateMerged]
+    [animateWriter, setStateMerged],
   );
 
   // --- I Don't Know ---
@@ -620,7 +656,7 @@ export const useTestEngine = (props: Props) => {
       current.testSet,
       current.permList,
       current.charSet,
-      current.priority
+      current.priority,
     );
 
     setTimeout(() => {
@@ -655,7 +691,7 @@ export const useTestEngine = (props: Props) => {
       onSubmitAnswer();
       setStateMerged({ answerInput: '' });
     },
-    [getState, onSubmitAnswer, setStateMerged]
+    [getState, onSubmitAnswer, setStateMerged],
   );
 
   // --- Hints ---
@@ -663,31 +699,33 @@ export const useTestEngine = (props: Props) => {
   const showSentenceHint = useCallback(
     (word: string): void => {
       setStateMerged({ hintLoading: true });
-      getHintSentence(word).then((sentence) => {
-        const current = getState();
-        if (!sentence) {
-          setStateMerged({ result: 'No example sentence found', hintLoading: false });
-          return;
-        }
-        if (current.useSound) {
-          onSpeak(sentence.chinese);
-          setStateMerged({ hintLoading: false });
-        } else {
-          const pinyinResult = pinyin(sentence.chinese, {
-            style: pinyin.STYLE_TONE2,
-            segment: true,
-          });
-          setStateMerged({
-            result: pinyinResult.map((p) => p.join('')).join(' '),
-            showHint: true,
-            hintLoading: false,
-          });
-        }
-      }).catch(() => {
-        setStateMerged({ result: 'Could not load hint', hintLoading: false });
-      });
+      getHintSentence(word)
+        .then((sentence) => {
+          const current = getState();
+          if (!sentence) {
+            setStateMerged({ result: 'No example sentence found', hintLoading: false });
+            return;
+          }
+          if (current.useSound) {
+            onSpeak(sentence.chinese);
+            setStateMerged({ hintLoading: false });
+          } else {
+            const pinyinResult = pinyin(sentence.chinese, {
+              style: pinyin.STYLE_TONE2,
+              segment: true,
+            });
+            setStateMerged({
+              result: pinyinResult.map((p) => p.join('')).join(' '),
+              showHint: true,
+              hintLoading: false,
+            });
+          }
+        })
+        .catch(() => {
+          setStateMerged({ result: 'Could not load hint', hintLoading: false });
+        });
     },
-    [getState, onSpeak, setStateMerged]
+    [getState, onSpeak, setStateMerged],
   );
 
   const onHint = useCallback((): void => {
@@ -742,13 +780,13 @@ export const useTestEngine = (props: Props) => {
         props.words,
         useHandwriting,
         current.priority,
-        current.onlyPriority
+        current.onlyPriority,
       );
       const initialVals = testLogic.assignQA(
         props.words,
         permList,
         current.charSet,
-        current.priority
+        current.priority,
       );
       setStateMerged((prevState) => ({
         testSet: props.words,
@@ -764,7 +802,7 @@ export const useTestEngine = (props: Props) => {
         qNum: prevState.qNum + 1,
       }));
     },
-    [getState, props.words, setStateMerged]
+    [getState, props.words, setStateMerged],
   );
 
   const initialiseSettings = useCallback((): void => {
@@ -792,7 +830,13 @@ export const useTestEngine = (props: Props) => {
     });
 
     onInitialiseTestSet(useHandwriting);
-  }, [onInitialiseTestSet, props.isDemo, props.speechAvailable, props.synthAvailable, setStateMerged]);
+  }, [
+    onInitialiseTestSet,
+    props.isDemo,
+    props.speechAvailable,
+    props.synthAvailable,
+    setStateMerged,
+  ]);
 
   // --- Keyboard shortcuts ---
 
@@ -916,7 +960,21 @@ export const useTestEngine = (props: Props) => {
         }
       }
     },
-    [getState, onCorrectAnswer, onHint, onHomeClicked, onIDontKnow, onListen, onShowAnswer, onSpeak, onToggleShowPinyin, props.finalStage, props.isDemo, props.startSentenceRead, setStateMerged]
+    [
+      getState,
+      onCorrectAnswer,
+      onHint,
+      onHomeClicked,
+      onIDontKnow,
+      onListen,
+      onShowAnswer,
+      onSpeak,
+      onToggleShowPinyin,
+      props.finalStage,
+      props.isDemo,
+      props.startSentenceRead,
+      setStateMerged,
+    ],
   );
 
   // --- Effects ---
@@ -951,7 +1009,11 @@ export const useTestEngine = (props: Props) => {
       onSpeak(current.chosenCharacter, current.useAutoRecord);
     }
 
-    if (current.useAutoRecord && !current.useTypingInput && !(current.questionCategory === 'pinyin' && current.useSound)) {
+    if (
+      current.useAutoRecord &&
+      !current.useTypingInput &&
+      !(current.questionCategory === 'pinyin' && current.useSound)
+    ) {
       if (current.answerCategory === 'pinyin') {
         onListen();
       }
@@ -966,15 +1028,20 @@ export const useTestEngine = (props: Props) => {
     }
   }, [state.qNum, getState, onListen, onSpeak, setHanziWriter, setStateMerged]);
 
-  const refreshSettings = useCallback((updated: AudioSettings): void => {
-    setStateMerged({
-      useSound: updated.useSound && Boolean(props.synthAvailable),
-      useChineseSpeechRecognition: updated.useChineseSpeechRecognition && Boolean(props.speechAvailable),
-      useEnglishSpeechRecognition: updated.useEnglishSpeechRecognition && Boolean(props.speechAvailable),
-      useAutoRecord: updated.useAutoRecord,
-      useFlashcards: updated.useFlashcards,
-    });
-  }, [props.speechAvailable, props.synthAvailable, setStateMerged]);
+  const refreshSettings = useCallback(
+    (updated: AudioSettings): void => {
+      setStateMerged({
+        useSound: updated.useSound && Boolean(props.synthAvailable),
+        useChineseSpeechRecognition:
+          updated.useChineseSpeechRecognition && Boolean(props.speechAvailable),
+        useEnglishSpeechRecognition:
+          updated.useEnglishSpeechRecognition && Boolean(props.speechAvailable),
+        useAutoRecord: updated.useAutoRecord,
+        useFlashcards: updated.useFlashcards,
+      });
+    },
+    [props.speechAvailable, props.synthAvailable, setStateMerged],
+  );
 
   return {
     state,

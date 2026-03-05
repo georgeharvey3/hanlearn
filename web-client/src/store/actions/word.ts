@@ -46,10 +46,7 @@ export const fetchWordsFailed = (): FetchWordsFailedAction => {
   };
 };
 
-export const updateMeaning = (
-  wordID: number,
-  newMeaning: string
-): UpdateMeaningAction => {
+export const updateMeaning = (wordID: number, newMeaning: string): UpdateMeaningAction => {
   return {
     type: actionTypes.UPDATE_MEANING,
     wordID: wordID,
@@ -98,9 +95,11 @@ export const postWord = (word: Word): AppThunk => {
 /**
  * Add a custom word (not in dictionary) to Firestore
  */
-export const postCustomWord = (
-  word: { text: string; meaning: string; charSet: 'simp' | 'trad' }
-): AppThunk => {
+export const postCustomWord = (word: {
+  text: string;
+  meaning: string;
+  charSet: 'simp' | 'trad';
+}): AppThunk => {
   return async (dispatch, getState) => {
     const { auth } = getState();
     if (!auth.userId) return;
@@ -110,7 +109,7 @@ export const postCustomWord = (
         auth.userId,
         word.text,
         word.meaning,
-        word.charSet
+        word.charSet,
       );
       dispatch(addCustomWord(newWord));
     } catch (error) {
@@ -139,10 +138,7 @@ export const deleteWord = (wordID: number): AppThunk => {
 /**
  * Update the meaning for a word in Firestore
  */
-export const postUpdateMeaning = (
-  wordID: number,
-  newMeaning: string
-): AppThunk => {
+export const postUpdateMeaning = (wordID: number, newMeaning: string): AppThunk => {
   return async (dispatch, getState) => {
     const { auth } = getState();
     if (!auth.userId) return;
@@ -160,9 +156,7 @@ export const postUpdateMeaning = (
  * Submit test results and update word banks in Firestore.
  * Re-fetches the full word list so Redux state reflects the new bank levels and due dates.
  */
-export const finishTest = (
-  scores: { word_id: number; score: number }[]
-): AppThunk => {
+export const finishTest = (scores: { word_id: number; score: number }[]): AppThunk => {
   return async (dispatch, getState) => {
     const { auth } = getState();
     if (!auth.userId) return;

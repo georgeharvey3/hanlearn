@@ -57,33 +57,32 @@ const App: React.FC<Props> = ({
   }, []);
 
   const loadVoices = useCallback((): void => {
-    setSpeech().then((voices) => {
-      let chineseVoicezh: SpeechSynthesisVoice | undefined;
-      let chineseVoicezhCN: SpeechSynthesisVoice | undefined;
+    setSpeech()
+      .then((voices) => {
+        const chineseVoicezhCN = voices.filter((voice) => voice.lang.indexOf('zh-CN') === 0)[0];
+        const chineseVoicezh = voices.filter((voice) => voice.lang.indexOf('zh') === 0)[0];
+        if (chineseVoicezhCN || chineseVoicezh) {
+          let voice: SpeechSynthesisVoice;
+          let lang: string;
 
-      chineseVoicezhCN = voices.filter((voice) => voice.lang.indexOf('zh-CN') === 0)[0];
-      chineseVoicezh = voices.filter((voice) => voice.lang.indexOf('zh') === 0)[0];
-      if (chineseVoicezhCN || chineseVoicezh) {
-        let voice: SpeechSynthesisVoice;
-        let lang: string;
+          if (chineseVoicezhCN) {
+            voice = chineseVoicezhCN;
+            lang = 'zh-CN';
+          } else {
+            voice = chineseVoicezh!;
+            lang = 'zh';
+          }
 
-        if (chineseVoicezhCN) {
-          voice = chineseVoicezhCN;
-          lang = 'zh-CN';
+          onSetVoice(voice);
+          onSetLang(lang);
+          onSetSynthAvailable(true);
         } else {
-          voice = chineseVoicezh!;
-          lang = 'zh';
+          onSetSynthAvailable(false);
         }
-
-        onSetVoice(voice);
-        onSetLang(lang);
-        onSetSynthAvailable(true);
-      } else {
+      })
+      .catch(() => {
         onSetSynthAvailable(false);
-      }
-    }).catch(() => {
-      onSetSynthAvailable(false);
-    });
+      });
   }, [onSetLang, onSetSynthAvailable, onSetVoice, setSpeech]);
 
   useEffect(() => {
@@ -130,23 +129,45 @@ const App: React.FC<Props> = ({
       <Layout>
         <ErrorBoundary>
           <Switch>
-            <Route path="/" exact render={() => (
-              <ErrorBoundary>
-                {isAuthenticated ? <Dashboard /> : <Home />}
-              </ErrorBoundary>
-            )} />
-            <Route path="/add-words" render={() => (
-              <ErrorBoundary><AddWords /></ErrorBoundary>
-            )} />
-            <Route path="/test-words" render={() => (
-              <ErrorBoundary><TestWords /></ErrorBoundary>
-            )} />
-            <Route path="/settings" render={() => (
-              <ErrorBoundary><SettingsPage /></ErrorBoundary>
-            )} />
-            <Route path="/tryout" render={() => (
-              <ErrorBoundary><TestWords isDemo /></ErrorBoundary>
-            )} />
+            <Route
+              path="/"
+              exact
+              render={() => (
+                <ErrorBoundary>{isAuthenticated ? <Dashboard /> : <Home />}</ErrorBoundary>
+              )}
+            />
+            <Route
+              path="/add-words"
+              render={() => (
+                <ErrorBoundary>
+                  <AddWords />
+                </ErrorBoundary>
+              )}
+            />
+            <Route
+              path="/test-words"
+              render={() => (
+                <ErrorBoundary>
+                  <TestWords />
+                </ErrorBoundary>
+              )}
+            />
+            <Route
+              path="/settings"
+              render={() => (
+                <ErrorBoundary>
+                  <SettingsPage />
+                </ErrorBoundary>
+              )}
+            />
+            <Route
+              path="/tryout"
+              render={() => (
+                <ErrorBoundary>
+                  <TestWords isDemo />
+                </ErrorBoundary>
+              )}
+            />
           </Switch>
         </ErrorBoundary>
       </Layout>

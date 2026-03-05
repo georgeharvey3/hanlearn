@@ -6,14 +6,18 @@ import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 
-import { getDailyChengyu, convertDailyChengyu, lookupCharacterMeanings } from '../../../data/chengyus';
+import {
+  getDailyChengyu,
+  convertDailyChengyu,
+  lookupCharacterMeanings,
+} from '../../../data/chengyus';
 
 const Chengyu: React.FC = () => {
   const [finished, setFinished] = useState(false);
   const [incorrect, setIncorrect] = useState<number[]>([]);
   const [charMeanings, setCharMeanings] = useState<Map<string, string>>(new Map());
   const [charSet] = useState<'simp' | 'trad'>(
-    (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp'
+    (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
   );
   const [displayChengyu, setDisplayChengyu] = useState<string | null>(null);
   const [displayCharPinyins, setDisplayCharPinyins] = useState<
@@ -75,9 +79,7 @@ const Chengyu: React.FC = () => {
                 <Typography sx={{ fontSize: '1.5em', m: '3px auto', fontWeight: 'normal' }}>
                   {c.char}
                 </Typography>
-                <Typography sx={{ fontSize: '0.9em', mb: '5px' }}>
-                  ({c.pinyin})
-                </Typography>
+                <Typography sx={{ fontSize: '0.9em', mb: '5px' }}>({c.pinyin})</Typography>
                 {meaning && (
                   <Typography sx={{ fontSize: '0.85em', fontStyle: 'italic', opacity: 0.8 }}>
                     {meaning}
@@ -121,9 +123,15 @@ const Chengyu: React.FC = () => {
         fontSize: { xs: '1.1em', sm: '1.4em' },
       }}
     >
-      <Typography variant="h5" sx={{ m: '5px 0' }}>Chengyu Of The Day</Typography>
-      <Typography variant="h4" fontWeight="bold">{displayChengyu || dailyChengyu.chengyu}</Typography>
-      <Typography variant="body1" sx={{ m: '5px 0', fontSize: { xs: '1.1em', sm: '1.3em' } }}>Choose the correct translation:</Typography>
+      <Typography variant="h5" sx={{ m: '5px 0' }}>
+        Chengyu Of The Day
+      </Typography>
+      <Typography variant="h4" fontWeight="bold">
+        {displayChengyu || dailyChengyu.chengyu}
+      </Typography>
+      <Typography variant="body1" sx={{ m: '5px 0', fontSize: { xs: '1.1em', sm: '1.3em' } }}>
+        Choose the correct translation:
+      </Typography>
       <List sx={{ p: 0, width: '100%', maxWidth: 600 }}>
         {dailyChengyu.options.map((op, index) => {
           const isCorrect = op === dailyChengyu.correct;
@@ -143,7 +151,8 @@ const Chengyu: React.FC = () => {
                 m: isHidden ? 0 : '5px',
                 p: isHidden ? 0 : '15px',
                 overflow: 'hidden',
-                transition: 'opacity 0.25s ease-out, max-height 0.5s ease-out, margin 0.5s ease-out, padding 0.5s ease-out',
+                transition:
+                  'opacity 0.25s ease-out, max-height 0.5s ease-out, margin 0.5s ease-out, padding 0.5s ease-out',
                 justifyContent: 'center',
                 backgroundColor: isIncorrect
                   ? 'error.main'

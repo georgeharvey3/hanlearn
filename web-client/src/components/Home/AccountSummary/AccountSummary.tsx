@@ -15,11 +15,7 @@ const AccountSummary: React.FC<AccountSummaryProps> = (props) => (
     <Typography variant="h5" sx={{ color: 'text.primary' }}>
       You have {props.numDue}/{props.numTot} words due for testing...
     </Typography>
-    <Button
-      disabled={props.numTot === 0}
-      type="primary"
-      clicked={props.testClicked}
-    >
+    <Button disabled={props.numTot === 0} type="primary" clicked={props.testClicked}>
       Test
     </Button>
   </Paper>

@@ -62,7 +62,12 @@ describe('auth reducer', () => {
 
   describe('AUTH_LOGOUT', () => {
     it('clears userId, sets initialized=true and newSignUp=false', () => {
-      const before: AuthState = { ...initialState, userId: 'uid-1', newSignUp: true, initialized: true };
+      const before: AuthState = {
+        ...initialState,
+        userId: 'uid-1',
+        newSignUp: true,
+        initialized: true,
+      };
       const state = reducer(before, { type: 'AUTH_LOGOUT' });
       expect(state.userId).toBeNull();
       expect(state.initialized).toBe(true);
@@ -131,7 +136,12 @@ describe('auth reducer', () => {
     });
 
     it('does not change userId or initialized', () => {
-      const before: AuthState = { ...initialState, userId: 'uid-1', initialized: true, modalOpen: true };
+      const before: AuthState = {
+        ...initialState,
+        userId: 'uid-1',
+        initialized: true,
+        modalOpen: true,
+      };
       const state = reducer(before, { type: 'CLOSE_AUTH_MODAL' });
       expect(state.userId).toBe('uid-1');
       expect(state.initialized).toBe(true);

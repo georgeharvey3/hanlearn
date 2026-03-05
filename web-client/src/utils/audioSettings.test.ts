@@ -74,22 +74,22 @@ describe('audioSettings', () => {
 
     it('disables sound when synthAvailable is false', () => {
       const items = getAudioSettingItems(true, false);
-      const sound = items.find(i => i.key === 'useSound');
+      const sound = items.find((i) => i.key === 'useSound');
       expect(sound?.disabled).toBe(true);
     });
 
     it('disables speech recognition when speechAvailable is false', () => {
       const items = getAudioSettingItems(false, true);
-      const chinese = items.find(i => i.key === 'useChineseSpeechRecognition');
-      const english = items.find(i => i.key === 'useEnglishSpeechRecognition');
+      const chinese = items.find((i) => i.key === 'useChineseSpeechRecognition');
+      const english = items.find((i) => i.key === 'useEnglishSpeechRecognition');
       expect(chinese?.disabled).toBe(true);
       expect(english?.disabled).toBe(true);
     });
 
     it('does not disable autoRecord or flashcards based on availability', () => {
       const items = getAudioSettingItems(false, false);
-      const auto = items.find(i => i.key === 'useAutoRecord');
-      const flash = items.find(i => i.key === 'useFlashcards');
+      const auto = items.find((i) => i.key === 'useAutoRecord');
+      const flash = items.find((i) => i.key === 'useFlashcards');
       expect(auto?.disabled).toBe(false);
       expect(flash?.disabled).toBe(false);
     });

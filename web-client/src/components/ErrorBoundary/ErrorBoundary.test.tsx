@@ -20,7 +20,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary>
         <div>Hello</div>
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
     expect(screen.getByText('Hello')).toBeTruthy();
   });
@@ -29,7 +29,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary>
         <ThrowingComponent />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
     expect(screen.getByText('Something went wrong')).toBeTruthy();
     expect(screen.getByText('Try Again')).toBeTruthy();
@@ -40,7 +40,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary fallback={<div>Custom error</div>}>
         <ThrowingComponent />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
     expect(screen.getByText('Custom error')).toBeTruthy();
   });
@@ -50,7 +50,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary onError={onError}>
         <ThrowingComponent />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError.mock.calls[0][0]).toBeInstanceOf(Error);
@@ -61,7 +61,7 @@ describe('ErrorBoundary', () => {
     const { rerender } = render(
       <ErrorBoundary>
         <ThrowingComponent shouldThrow />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
     expect(screen.getByText('Something went wrong')).toBeTruthy();
 
@@ -69,7 +69,7 @@ describe('ErrorBoundary', () => {
     rerender(
       <ErrorBoundary>
         <ThrowingComponent shouldThrow={false} />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
     fireEvent.click(screen.getByText('Try Again'));
     expect(screen.getByText('All good')).toBeTruthy();

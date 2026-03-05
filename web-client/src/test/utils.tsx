@@ -24,10 +24,7 @@ interface WrapperProps {
 
 export function renderWithProviders(
   ui: ReactElement,
-  {
-    store = createTestStore(),
-    ...renderOptions
-  }: WrapperProps & RenderOptions = {}
+  { store = createTestStore(), ...renderOptions }: WrapperProps & RenderOptions = {},
 ) {
   function Wrapper({ children }: { children: React.ReactNode }) {
     return (

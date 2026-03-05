@@ -30,7 +30,7 @@ export const ActionTypes = {
   SET_LANG: 'SET_LANG',
 } as const;
 
-export type ActionType = typeof ActionTypes[keyof typeof ActionTypes];
+export type ActionType = (typeof ActionTypes)[keyof typeof ActionTypes];
 
 // Word actions
 export interface AddWordAction {
@@ -165,11 +165,6 @@ export type SettingsAction =
 export type AppAction = WordAction | AuthAction | SettingsAction;
 
 // Thunk types
-export type AppThunk<ReturnType = void> = ThunkAction<
-  ReturnType,
-  RootState,
-  unknown,
-  AnyAction
->;
+export type AppThunk<ReturnType = void> = ThunkAction<ReturnType, RootState, unknown, AnyAction>;
 
 export type AppDispatch = ThunkDispatch<RootState, unknown, AnyAction>;

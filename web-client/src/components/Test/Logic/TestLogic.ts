@@ -3,9 +3,7 @@ import { parseMeanings } from '../../../utils/meaningUtils';
 
 export const chooseTestSet = (allWords: Word[], numWords: number): Word[] => {
   const today = new Date();
-  const dueWords = allWords.filter(
-    (word) => word.due_date && new Date(word.due_date) <= today
-  );
+  const dueWords = allWords.filter((word) => word.due_date && new Date(word.due_date) <= today);
   let actualNumWords = numWords;
   if (actualNumWords > dueWords.length) {
     actualNumWords = dueWords.length;
@@ -44,7 +42,7 @@ export const setPermList = (
   testSet: Word[],
   includeHandwriting: boolean,
   priority: string = 'none',
-  onlyPriority: boolean = false
+  onlyPriority: boolean = false,
 ): TestPerm[] => {
   const nums = Array.from(Array(testSet.length).keys());
 
@@ -70,16 +68,14 @@ export const setPermList = (
 
   if (priority !== 'none' && onlyPriority) {
     permList = permList.filter(
-      (perm) =>
-        perm.aCategory === priority[0] && perm.qCategory === priority[1]
+      (perm) => perm.aCategory === priority[0] && perm.qCategory === priority[1],
     );
   }
 
   return permList;
 };
 
-const ranChoice = <T,>(array: T[]): T =>
-  array[Math.floor(Math.random() * array.length)];
+const ranChoice = <T>(array: T[]): T => array[Math.floor(Math.random() * array.length)];
 
 export interface AssignQAResult {
   perm: TestPerm;
@@ -94,17 +90,15 @@ export const assignQA = (
   testSet: Word[],
   permList: TestPerm[],
   charSet: 'simp' | 'trad',
-  priority: string = 'none'
+  priority: string = 'none',
 ): AssignQAResult => {
   let priorityPerms: TestPerm[] = [];
   if (priority !== 'none') {
     priorityPerms = permList.filter(
-      (perm) =>
-        perm.aCategory === priority[0] && perm.qCategory === priority[1]
+      (perm) => perm.aCategory === priority[0] && perm.qCategory === priority[1],
     );
   }
-  const perm =
-    priorityPerms.length > 0 ? ranChoice(priorityPerms) : ranChoice(permList);
+  const perm = priorityPerms.length > 0 ? ranChoice(priorityPerms) : ranChoice(permList);
   const ranWord = testSet[parseInt(perm.index)];
 
   let Ax: string | string[];

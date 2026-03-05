@@ -12,11 +12,11 @@
   },
   "lint-staged": {
     "web-client/src/**/*.{ts,tsx}": [
-      "eslint --config web-client/eslint.config.mjs",
-      "prettier --config web-client/.prettierrc --write"
+      "npx --prefix web-client eslint --config web-client/eslint.config.mjs",
+      "npx --prefix web-client prettier --config web-client/.prettierrc --write"
     ],
     "web-client/src/**/*.{css,json}": [
-      "prettier --config web-client/.prettierrc --write"
+      "npx --prefix web-client prettier --config web-client/.prettierrc --write"
     ]
   },
   "devDependencies": {

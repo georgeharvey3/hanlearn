@@ -71,17 +71,16 @@ const AuthModal: React.FC<Props> = ({
     return '';
   };
 
-  const handleChange = (field: 'email' | 'password') => (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const value = e.target.value;
-    const errorMessage =
-      field === 'email' ? validateEmail(value) : validatePassword(value);
-    setForm((prev) => ({
-      ...prev,
-      [field]: { value, valid: !errorMessage, touched: true, errorMessage },
-    }));
-  };
+  const handleChange =
+    (field: 'email' | 'password') =>
+    (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+      const value = e.target.value;
+      const errorMessage = field === 'email' ? validateEmail(value) : validatePassword(value);
+      setForm((prev) => ({
+        ...prev,
+        [field]: { value, valid: !errorMessage, touched: true, errorMessage },
+      }));
+    };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -107,9 +106,7 @@ const AuthModal: React.FC<Props> = ({
         </Typography>
 
         {error && (
-          <Typography sx={{ color: 'error.main', mb: 2, fontSize: '0.875rem' }}>
-            {error}
-          </Typography>
+          <Typography sx={{ color: 'error.main', mb: 2, fontSize: '0.875rem' }}>{error}</Typography>
         )}
 
         <Button
@@ -133,9 +130,7 @@ const AuthModal: React.FC<Props> = ({
 
         <Box sx={{ display: 'flex', alignItems: 'center', my: 2.5 }}>
           <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
-          <Typography sx={{ px: 2, color: 'text.secondary', fontSize: '0.8rem' }}>
-            or
-          </Typography>
+          <Typography sx={{ px: 2, color: 'text.secondary', fontSize: '0.8rem' }}>or</Typography>
           <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
         </Box>
 

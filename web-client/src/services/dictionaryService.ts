@@ -19,8 +19,8 @@ interface DictionaryEntry {
 let dictionaryLoaded = false;
 let loadingPromise: Promise<void> | null = null;
 let entries: DictionaryEntry[] = [];
-let simpIndex: Map<string, DictionaryEntry[]> = new Map();
-let tradIndex: Map<string, DictionaryEntry[]> = new Map();
+const simpIndex: Map<string, DictionaryEntry[]> = new Map();
+const tradIndex: Map<string, DictionaryEntry[]> = new Map();
 
 /**
  * Load the dictionary from the static JSON file.
@@ -77,10 +77,7 @@ async function loadDictionary(): Promise<void> {
  * Tries the selected charSet index first, falls back to the other index
  * so searches work regardless of whether the user typed simplified or traditional.
  */
-export async function searchWord(
-  character: string,
-  charSet: 'simp' | 'trad'
-): Promise<Word[]> {
+export async function searchWord(character: string, charSet: 'simp' | 'trad'): Promise<Word[]> {
   await loadDictionary();
 
   const primaryIndex = charSet === 'simp' ? simpIndex : tradIndex;
@@ -105,7 +102,7 @@ export async function searchWord(
  * Used when constructing custom words character by character.
  */
 export async function lookupCharacter(
-  char: string
+  char: string,
 ): Promise<{ pinyin: string; trad: string } | null> {
   await loadDictionary();
 
@@ -126,7 +123,7 @@ export async function lookupCharacter(
  * Used when constructing custom words from traditional character input.
  */
 export async function lookupCharacterByTrad(
-  char: string
+  char: string,
 ): Promise<{ pinyin: string; simp: string } | null> {
   await loadDictionary();
 
@@ -147,10 +144,7 @@ export async function lookupCharacterByTrad(
  * Converts character by character using dictionary lookups.
  * Characters not found in the dictionary pass through unchanged.
  */
-export async function convertText(
-  text: string,
-  toCharSet: 'simp' | 'trad'
-): Promise<string> {
+export async function convertText(text: string, toCharSet: 'simp' | 'trad'): Promise<string> {
   await loadDictionary();
 
   const fromIndex = toCharSet === 'trad' ? simpIndex : tradIndex;

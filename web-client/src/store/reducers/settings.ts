@@ -7,10 +7,7 @@ const initialState: SettingsState = {
   synthAvailable: true,
 };
 
-const reducer = (
-  state = initialState,
-  action: SettingsAction
-): SettingsState => {
+const reducer = (state = initialState, action: SettingsAction): SettingsState => {
   switch (action.type) {
     case actionTypes.SET_SPEECH_AVAILABLE:
       return {

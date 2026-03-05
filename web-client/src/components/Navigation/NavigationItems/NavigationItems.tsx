@@ -72,9 +72,7 @@ const NavigationItems: React.FC<Props> = (props) => {
       );
     }
 
-    const unauthLinks = [
-      { to: '/', label: 'Home' },
-    ];
+    const unauthLinks = [{ to: '/', label: 'Home' }];
 
     return (
       <List>
@@ -123,14 +121,17 @@ const NavigationItems: React.FC<Props> = (props) => {
   if (props.authenticated) {
     return (
       <Stack direction="row" alignItems="center" sx={{ height: '100%' }}>
-        <NavigationItem link="/" textColor={props.textColor}>Home</NavigationItem>
-        <NavigationItem link="/add-words" textColor={props.textColor}>Add</NavigationItem>
-        <NavigationItem link="/test-words" textColor={props.textColor}>Test</NavigationItem>
+        <NavigationItem link="/" textColor={props.textColor}>
+          Home
+        </NavigationItem>
+        <NavigationItem link="/add-words" textColor={props.textColor}>
+          Add
+        </NavigationItem>
+        <NavigationItem link="/test-words" textColor={props.textColor}>
+          Test
+        </NavigationItem>
         <Dropdown textColor={props.textColor} />
-        <Button
-          onClick={() => props.onLogout()}
-          sx={{ color: props.textColor, mx: 1 }}
-        >
+        <Button onClick={() => props.onLogout()} sx={{ color: props.textColor, mx: 1 }}>
           Logout
         </Button>
       </Stack>

@@ -87,11 +87,7 @@ const Home: React.FC<Props> = ({
         tryOutClicked={!isAuthenticated ? onTryOutClicked : undefined}
       />
       {isAuthenticated && (
-        <AccountSummary
-          numDue={numDue}
-          numTot={numTot}
-          testClicked={onTestClicked}
-        />
+        <AccountSummary numDue={numDue} numTot={numTot} testClicked={onTestClicked} />
       )}
       {isAuthenticated && <Chengyu />}
       <HowItWorks />
