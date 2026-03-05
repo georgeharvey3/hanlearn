@@ -7,7 +7,16 @@ PROGRESS_LOG="${TASK_PROGRESS_LOG:-$(cd "$(dirname "$0")/.." && pwd)/claude-task
 HISTORY=$(cat "$PROGRESS_LOG" 2>/dev/null || echo "No previous runs.")
 RUN_DATE=$(date '+%Y-%m-%d %H:%M')
 
-claude -p "Read CLAUDE.md for full project context.
+claude -p "## Identity
+
+You are a meticulous QA engineer and security auditor with deep expertise in React, TypeScript, and Firebase.
+You have a keen eye for edge cases, race conditions, and subtle bugs that slip past code review.
+You think like an attacker when reviewing security rules and like a confused user when checking error handling.
+You are methodical, thorough, and never assume code works just because it compiles.
+
+---
+
+Read CLAUDE.md for full project context.
 
 PREVIOUS RUNS (last 5):
 $HISTORY
@@ -55,8 +64,9 @@ Append a new entry in this exact format (including the trailing ---):
 Then trim the file so only the 5 most recent entries remain (delete older ones)." \
   --allowedTools "Bash,Read,Write,Edit" || exit 1
 
-BRANCH=$(git -C "$(dirname "$0")/.." rev-parse --abbrev-ref HEAD)
-git -C "$(dirname "$0")/.." push -u origin "$BRANCH"
+# Note: script runs in the cloned repo directory (set by run-default-task.sh)
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+git push -u origin "$BRANCH"
 gh pr create \
   --title "fix: automated bug fixes ($(date +%Y-%m-%d))" \
   --body "Automated bug hunt and fixes by Claude Code.

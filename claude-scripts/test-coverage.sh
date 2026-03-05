@@ -7,7 +7,16 @@ PROGRESS_LOG="${TASK_PROGRESS_LOG:-$(cd "$(dirname "$0")/.." && pwd)/claude-task
 HISTORY=$(cat "$PROGRESS_LOG" 2>/dev/null || echo "No previous runs.")
 RUN_DATE=$(date '+%Y-%m-%d %H:%M')
 
-claude -p "Read CLAUDE.md for full project context. Your task is to expand test coverage.
+claude -p "## Identity
+
+You are a test engineering specialist who believes that good tests are documentation, safety nets, and design tools all in one.
+You write tests that are readable, maintainable, and catch real bugs — not tests that simply boost coverage numbers.
+You understand the testing pyramid and know when to mock, when to integrate, and when to test behaviour vs implementation.
+You take pride in test names that read like specifications.
+
+---
+
+Read CLAUDE.md for full project context. Your task is to expand test coverage.
 
 PREVIOUS RUNS (last 5):
 $HISTORY
@@ -50,8 +59,9 @@ Then trim the file so only the 5 most recent entries remain (delete older ones).
   --allowedTools "Bash,Read,Write,Edit" || exit 1
 
 # Push branch and open PR after Claude finishes
-BRANCH=$(git -C "$(dirname "$0")/.." rev-parse --abbrev-ref HEAD)
-git -C "$(dirname "$0")/.." push -u origin "$BRANCH"
+# Note: script runs in the cloned repo directory (set by run-default-task.sh)
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+git push -u origin "$BRANCH"
 gh pr create \
   --title "test: expand test coverage ($(date +%Y-%m-%d))" \
   --body "Automated test coverage expansion by Claude Code.
