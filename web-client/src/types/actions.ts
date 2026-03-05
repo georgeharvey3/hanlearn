@@ -171,6 +171,11 @@ export type SettingsAction =
 export type AppAction = WordAction | AuthAction | SettingsAction;
 
 // Thunk types
-export type AppThunk<ReturnType = void> = ThunkAction<ReturnType, RootState, unknown, UnknownAction>;
+export type AppThunk<ReturnType = void> = ThunkAction<
+  ReturnType,
+  RootState,
+  unknown,
+  UnknownAction
+>;
 
 export type AppDispatch = ThunkDispatch<RootState, unknown, UnknownAction>;
