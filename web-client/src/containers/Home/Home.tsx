@@ -39,6 +39,7 @@ const Home: React.FC<Props> = ({
 }) => {
   const [numDue, setNumDue] = useState(0);
   const [numTot, setNumTot] = useState(0);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   const getDueWords = useCallback(async (): Promise<void> => {
     if (!userId) return;
@@ -62,8 +63,8 @@ const Home: React.FC<Props> = ({
 
   useEffect(() => {
     if (isAuthenticated && userId) {
-      getDueWords();
-      getUserWords();
+      setStatsLoading(true);
+      Promise.all([getDueWords(), getUserWords()]).finally(() => setStatsLoading(false));
       onInitWords();
     }
   }, [getDueWords, getUserWords, isAuthenticated, onInitWords, userId]);
@@ -87,7 +88,12 @@ const Home: React.FC<Props> = ({
         tryOutClicked={!isAuthenticated ? onTryOutClicked : undefined}
       />
       {isAuthenticated && (
-        <AccountSummary numDue={numDue} numTot={numTot} testClicked={onTestClicked} />
+        <AccountSummary
+          numDue={numDue}
+          numTot={numTot}
+          testClicked={onTestClicked}
+          loading={statsLoading}
+        />
       )}
       {isAuthenticated && <Chengyu />}
       <HowItWorks />

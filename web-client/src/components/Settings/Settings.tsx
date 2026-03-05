@@ -8,6 +8,7 @@ import Checkbox from '@mui/material/Checkbox';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import FormGroup from '@mui/material/FormGroup';
+import Tooltip from '@mui/material/Tooltip';
 
 import { RootState } from '../../types/store';
 import { colors } from '../../theme';
@@ -185,36 +186,42 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
       label: 'Sound',
       checked: state.useSound && synthAvailable,
       disabled: !synthAvailable,
+      disabledTooltip: 'Speech synthesis is not available in this browser',
     },
     {
       value: 'useChineseSpeechRecognition',
       label: 'Chinese speech recognition',
       checked: state.useChineseSpeechRecognition && speechAvailable,
       disabled: !speechAvailable,
+      disabledTooltip: 'Speech recognition is not available in this browser',
     },
     {
       value: 'useEnglishSpeechRecognition',
       label: 'English speech recognition',
       checked: state.useEnglishSpeechRecognition && speechAvailable,
       disabled: !speechAvailable,
+      disabledTooltip: 'Speech recognition is not available in this browser',
     },
     {
       value: 'useAutoRecord',
       label: 'Automatic recording',
       checked: state.useAutoRecord,
       disabled: false,
+      disabledTooltip: '',
     },
     {
       value: 'useFlashcards',
       label: 'Meaning flashcards',
       checked: state.useFlashcards,
       disabled: false,
+      disabledTooltip: '',
     },
     {
       value: 'useHandwriting',
       label: 'Handwriting input',
       checked: state.useHandwriting,
       disabled: false,
+      disabledTooltip: '',
     },
   ];
 
@@ -232,18 +239,21 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
       label: 'New Words',
       checked: state.newWords,
       disabled: !synthAvailable,
+      disabledTooltip: 'Requires speech synthesis support in this browser',
     },
     {
       value: 'sentenceRead',
       label: 'Translate Sentences',
       checked: state.sentenceRead,
       disabled: !speechAvailable,
+      disabledTooltip: 'Requires speech recognition support in this browser',
     },
     {
       value: 'sentenceWrite',
       label: 'Make Sentences',
       checked: state.sentenceWrite,
       disabled: false,
+      disabledTooltip: '',
     },
   ];
 
@@ -306,21 +316,30 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
 
       <SectionGroup label="Test Settings">
         <FormGroup>
-          {checkboxItems.map(({ value, label, checked, disabled }) => (
+          {checkboxItems.map(({ value, label, checked, disabled, disabledTooltip }) => (
             <Box key={value} sx={rowSx}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    size="small"
-                    value={value}
-                    checked={checked}
-                    onChange={onCheckChange}
-                    disabled={disabled}
+              <Tooltip
+                title={disabled ? disabledTooltip : ''}
+                placement="right"
+                disableHoverListener={!disabled}
+                disableFocusListener={!disabled}
+              >
+                <span>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        size="small"
+                        value={value}
+                        checked={checked}
+                        onChange={onCheckChange}
+                        disabled={disabled}
+                      />
+                    }
+                    label={label}
+                    sx={{ width: '100%', my: 0.25 }}
                   />
-                }
-                label={label}
-                sx={{ width: '100%', my: 0.25 }}
-              />
+                </span>
+              </Tooltip>
             </Box>
           ))}
         </FormGroup>
@@ -366,21 +385,30 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
 
       <SectionGroup label="Stages">
         <FormGroup>
-          {stageItems.map(({ value, label, checked, disabled }) => (
+          {stageItems.map(({ value, label, checked, disabled, disabledTooltip }) => (
             <Box key={value} sx={rowSx}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    size="small"
-                    value={value}
-                    checked={checked}
-                    onChange={onCheckChange}
-                    disabled={disabled}
+              <Tooltip
+                title={disabled ? disabledTooltip : ''}
+                placement="right"
+                disableHoverListener={!disabled}
+                disableFocusListener={!disabled}
+              >
+                <span>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        size="small"
+                        value={value}
+                        checked={checked}
+                        onChange={onCheckChange}
+                        disabled={disabled}
+                      />
+                    }
+                    label={label}
+                    sx={{ width: '100%', my: 0.25 }}
                   />
-                }
-                label={label}
-                sx={{ width: '100%', my: 0.25 }}
-              />
+                </span>
+              </Tooltip>
             </Box>
           ))}
         </FormGroup>

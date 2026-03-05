@@ -62,7 +62,7 @@ const Chengyu: React.FC = () => {
 
   if (finished) {
     details = (
-      <List sx={{ m: 0, p: 0 }}>
+      <List sx={{ m: 0, p: 0 }} aria-label="Character breakdown">
         {charPinyins.map((c, index) => {
           const meaning = charMeanings.get(c.char) || '';
           return (
@@ -132,16 +132,42 @@ const Chengyu: React.FC = () => {
       <Typography variant="body1" sx={{ m: '5px 0', fontSize: { xs: '1.1em', sm: '1.3em' } }}>
         Choose the correct translation:
       </Typography>
-      <List sx={{ p: 0, width: '100%', maxWidth: 600 }}>
+      <Box
+        aria-live="polite"
+        aria-atomic="true"
+        sx={{
+          position: 'absolute',
+          left: -9999,
+          top: 'auto',
+          width: 1,
+          height: 1,
+          overflow: 'hidden',
+        }}
+      >
+        {finished
+          ? `Correct! The answer is: ${dailyChengyu.correct}`
+          : incorrect.length > 0
+            ? 'Incorrect. Try again.'
+            : ''}
+      </Box>
+      <List sx={{ p: 0, width: '100%', maxWidth: 600 }} aria-label="Answer options">
         {dailyChengyu.options.map((op, index) => {
           const isCorrect = op === dailyChengyu.correct;
           const isIncorrect = incorrect.includes(index);
           const isHidden = finished && !isCorrect;
 
+          const ariaLabel = isIncorrect
+            ? `${op} — incorrect`
+            : finished && isCorrect
+              ? `${op} — correct`
+              : op;
+
           return (
             <ListItemButton
               key={index}
               onClick={(event) => optionClicked(event, index)}
+              aria-label={ariaLabel}
+              aria-disabled={isHidden || undefined}
               sx={{
                 listStyle: 'none',
                 borderRadius: '5px',
