@@ -91,7 +91,6 @@ Security rules in [firestore.rules](firestore.rules): users can only access thei
 #### Cloud Functions
 
 [functions/src/index.ts](functions/src/index.ts) - Callable functions for server-side operations:
-- `translateWithDeepL` - Translation with server-side API key
 - `getDailyChengyu` - Rotates through chengyus daily
 - `lookupChengyuChar` - Character details for chengyu quiz
 
