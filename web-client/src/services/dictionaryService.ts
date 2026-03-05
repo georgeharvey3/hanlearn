@@ -163,6 +163,61 @@ export async function convertText(text: string, toCharSet: 'simp' | 'trad'): Pro
 }
 
 /**
+ * Decompose a Chinese text string into dictionary-matched substrings using
+ * greedy forward maximum matching.  For each position, tries the longest
+ * possible substring that exists in the dictionary, then advances past it.
+ * Characters with no dictionary entry get a synthetic Word with empty
+ * pinyin/meaning so callers always receive full coverage of the input.
+ */
+export async function substringMatch(
+  text: string,
+  charSet: 'simp' | 'trad'
+): Promise<Word[]> {
+  await loadDictionary();
+
+  const primaryIndex = charSet === 'simp' ? simpIndex : tradIndex;
+  const fallbackIndex = charSet === 'simp' ? tradIndex : simpIndex;
+  const results: Word[] = [];
+  let i = 0;
+
+  while (i < text.length) {
+    let matched = false;
+    for (let len = text.length - i; len >= 1; len--) {
+      const substr = text.slice(i, i + len);
+      let entries = primaryIndex.get(substr);
+      if (!entries || entries.length === 0) {
+        entries = fallbackIndex.get(substr);
+      }
+      if (entries && entries.length > 0) {
+        const e = entries[0];
+        results.push({
+          id: e.id,
+          simp: e.simp,
+          trad: e.trad,
+          pinyin: e.pinyin,
+          meaning: e.meaning,
+        });
+        i += len;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      // Single character not in dictionary — create minimal entry
+      results.push({
+        id: -1,
+        simp: text[i],
+        trad: text[i],
+        pinyin: '',
+        meaning: '',
+      });
+      i += 1;
+    }
+  }
+  return results;
+}
+
+/**
  * Check if the dictionary is loaded.
  */
 export function isDictionaryLoaded(): boolean {
