@@ -1,0 +1,199 @@
+/**
+ * Tests for AddWords container — the user-facing word search and add-to-bank flow.
+ * Firebase service layer is mocked at the service level (not Firebase SDK).
+ */
+import { vi, describe, it, expect, beforeEach } from 'vitest';
+
+vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('../../services/wordService');
+vi.mock('../../services/streakService', () => ({
+  recordTestCompletion: vi.fn(),
+  getStreakData: vi.fn().mockResolvedValue([]),
+  calculateStreak: vi.fn().mockReturnValue(0),
+}));
+
+import React from 'react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+
+import AddWords from './AddWords';
+import { renderWithProviders, authenticatedState, createTestStore } from '../../test/utils';
+import * as wordService from '../../services/wordService';
+import { Word } from '../../types/models';
+
+const mockedWordService = vi.mocked(wordService);
+
+const sampleWord: Word = {
+  id: 42,
+  simp: '学习',
+  trad: '學習',
+  pinyin: 'xué xí',
+  meaning: 'to study',
+  bank: 1,
+  due_date: '2026/03/10',
+};
+
+/** Submit the search form by finding the form ancestor of the given input. */
+function submitSearch(input: HTMLElement) {
+  const form = input.closest('form');
+  if (form) fireEvent.submit(form);
+}
+
+describe('AddWords — word search and add flow', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedWordService.getUserWords.mockResolvedValue([]);
+    mockedWordService.addWordToBank.mockResolvedValue(undefined);
+    mockedWordService.searchWord.mockResolvedValue([]);
+  });
+
+  it('renders the word search input', () => {
+    const store = createTestStore({ ...authenticatedState() });
+    renderWithProviders(<AddWords />, { store });
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
+  });
+
+  it('shows "Add words to start learning" when user has no words', async () => {
+    const store = createTestStore({ ...authenticatedState() });
+    renderWithProviders(<AddWords />, { store });
+    await waitFor(() => {
+      expect(screen.getByText(/add words to start learning/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows word bank entries when words exist in the store', () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: { words: [sampleWord], error: false, loading: false },
+    });
+    renderWithProviders(<AddWords />, { store });
+    expect(screen.getByText('学习')).toBeInTheDocument();
+    expect(screen.getByText('xué xí')).toBeInTheDocument();
+  });
+
+  it('searching for a single-result word shows the confirm modal', async () => {
+    mockedWordService.searchWord.mockResolvedValue([sampleWord]);
+    const store = createTestStore({ ...authenticatedState() });
+    renderWithProviders(<AddWords />, { store });
+
+    const input = screen.getByRole('textbox');
+    await userEvent.type(input, '学习');
+    submitSearch(input);
+
+    await waitFor(() => {
+      expect(screen.getByText(/add to word bank/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows a duplicate error when the searched word is already in the bank', async () => {
+    mockedWordService.searchWord.mockResolvedValue([sampleWord]);
+    // getUserWords returns the word so initWords doesn't clear the store
+    mockedWordService.getUserWords.mockResolvedValue([sampleWord]);
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: { words: [sampleWord], error: false, loading: false },
+    });
+    renderWithProviders(<AddWords />, { store });
+
+    const input = screen.getByRole('textbox');
+    await userEvent.type(input, '学习');
+    submitSearch(input);
+
+    await waitFor(() => {
+      expect(screen.getByText(/already in your bank/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows custom meaning input when search returns no dictionary match', async () => {
+    mockedWordService.searchWord.mockResolvedValue([]);
+    const store = createTestStore({ ...authenticatedState() });
+    renderWithProviders(<AddWords />, { store });
+
+    const input = screen.getByRole('textbox');
+    await userEvent.type(input, 'xyz');
+    submitSearch(input);
+
+    await waitFor(() => {
+      expect(screen.getByText(/word not found/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows clash table when search returns multiple matches', async () => {
+    const word2: Word = { ...sampleWord, id: 43, pinyin: 'xué', meaning: 'to learn' };
+    mockedWordService.searchWord.mockResolvedValue([sampleWord, word2]);
+    const store = createTestStore({ ...authenticatedState() });
+    renderWithProviders(<AddWords />, { store });
+
+    const input = screen.getByRole('textbox');
+    await userEvent.type(input, '学');
+    submitSearch(input);
+
+    await waitFor(() => {
+      expect(screen.getByText(/select entry for/i)).toBeInTheDocument();
+    });
+  });
+
+  it('closes confirm modal when Cancel is clicked', async () => {
+    mockedWordService.searchWord.mockResolvedValue([sampleWord]);
+    const store = createTestStore({ ...authenticatedState() });
+    renderWithProviders(<AddWords />, { store });
+
+    const input = screen.getByRole('textbox');
+    await userEvent.type(input, '学习');
+    submitSearch(input);
+
+    await waitFor(() => screen.getByRole('button', { name: /cancel/i }));
+    await userEvent.click(screen.getByRole('button', { name: /cancel/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText(/add to word bank/i)).not.toBeInTheDocument();
+    });
+  });
+});
+
+describe('AddWords — remove words from bank', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedWordService.getUserWords.mockResolvedValue([sampleWord]);
+    mockedWordService.removeWordFromBank.mockResolvedValue(undefined);
+  });
+
+  it('calls removeWordFromBank when the Remove icon button is clicked', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: { words: [sampleWord], error: false, loading: false },
+    });
+    renderWithProviders(<AddWords />, { store });
+
+    const removeButton = await screen.findByRole('button', { name: /remove word/i });
+    await userEvent.click(removeButton);
+
+    await waitFor(() => {
+      expect(mockedWordService.removeWordFromBank).toHaveBeenCalledWith(
+        'test-user-123',
+        sampleWord.id
+      );
+    });
+  });
+});
+
+describe('AddWords — unauthenticated state', () => {
+  it('shows a spinner while auth is initializing', () => {
+    const store = createTestStore({
+      auth: {
+        userId: null,
+        loading: false,
+        error: null,
+        newSignUp: false,
+        initialized: false,
+        modalOpen: false,
+        modalMode: 'login' as const,
+      },
+      addWords: { words: [], error: false, loading: false },
+      settings: { speechAvailable: false, synthAvailable: false },
+    });
+    renderWithProviders(<AddWords />, { store });
+    // Spinner renders an SVG while auth initializes
+    expect(document.querySelector('svg')).toBeTruthy();
+  });
+});
