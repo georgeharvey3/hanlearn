@@ -169,10 +169,7 @@ export async function convertText(text: string, toCharSet: 'simp' | 'trad'): Pro
  * Characters with no dictionary entry get a synthetic Word with empty
  * pinyin/meaning so callers always receive full coverage of the input.
  */
-export async function substringMatch(
-  text: string,
-  charSet: 'simp' | 'trad'
-): Promise<Word[]> {
+export async function substringMatch(text: string, charSet: 'simp' | 'trad'): Promise<Word[]> {
   await loadDictionary();
 
   const primaryIndex = charSet === 'simp' ? simpIndex : tradIndex;

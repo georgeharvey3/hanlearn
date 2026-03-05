@@ -121,7 +121,7 @@ async function resolveSentence(cloudSentence: CloudSentence): Promise<ResolvedSe
         pinyin: w.pinyin,
         meaning: w.meaning,
       }));
-    })
+    }),
   );
 
   return {
@@ -624,13 +624,12 @@ const SentenceRead: React.FC<Props> = ({
               <Typography variant="body2">
                 {w.meaning ? parseMeanings(w.meaning).join(' / ') : 'No definition found'}
               </Typography>
-              {w.id !== -1 && (
-                addedWords.find((aw) => aw.id === w.id) ? (
+              {w.id !== -1 &&
+                (addedWords.find((aw) => aw.id === w.id) ? (
                   <Button disabled>Added!</Button>
                 ) : (
                   <Button clicked={() => onPostWord(w as Word)}>Add to bank</Button>
-                )
-              )}
+                ))}
             </Box>
           </Box>
         );
@@ -640,7 +639,11 @@ const SentenceRead: React.FC<Props> = ({
           return (
             <React.Fragment key={index}>
               {word.map((subWord, subIndex) =>
-                renderWordPopup(subWord, `${subWord.id}-${index}-${subIndex}-popup`, `${index}-${subIndex}`)
+                renderWordPopup(
+                  subWord,
+                  `${subWord.id}-${index}-${subIndex}-popup`,
+                  `${index}-${subIndex}`,
+                ),
               )}
             </React.Fragment>
           );
