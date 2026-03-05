@@ -70,6 +70,10 @@ const Home: React.FC<Props> = ({
     history.push('/test-words');
   };
 
+  const onAddWordsClicked = (): void => {
+    history.push('/add-words');
+  };
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <MainBanner
@@ -81,6 +85,7 @@ const Home: React.FC<Props> = ({
           numDue={numDue}
           numTot={numTot}
           testClicked={onTestClicked}
+          addWordsClicked={onAddWordsClicked}
           loading={wordsLoading}
         />
       )}
