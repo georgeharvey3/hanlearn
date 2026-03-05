@@ -125,6 +125,7 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
       {state.showInput ? (
         <Input
           id="secondary-input"
+          aria-label="Type your answer"
           keyPressed={onKeyPress}
           value={state.answerInput}
           changed={onInputChanged}

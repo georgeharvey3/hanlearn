@@ -195,7 +195,7 @@ const AddWords: React.FC<Props> = ({
   }, [onKeyUp]);
 
   const onInputChangedHandler = (event: ChangeEvent<HTMLInputElement>): void => {
-    updateState({ newWord: event.target.value });
+    updateState({ newWord: event.target.value, addError: false });
   };
 
   const handleSearchResult = (res: Word[], searchedWord: string): void => {
@@ -374,14 +374,6 @@ const AddWords: React.FC<Props> = ({
     );
   }
 
-  if (state.addError) {
-    table = (
-      <Typography sx={{ fontSize: '20px', color: 'error.main' }}>
-        Error: Could not search for word
-      </Typography>
-    );
-  }
-
   let clashTableRows: React.ReactNode = null;
 
   if (state.clashWords.length > 0) {
@@ -467,6 +459,14 @@ const AddWords: React.FC<Props> = ({
         submitClicked={searchForWord}
         loading={state.loading}
       />
+      {state.addError && (
+        <Typography
+          role="alert"
+          sx={{ fontSize: '1rem', color: 'error.main', textAlign: 'center', mb: 2 }}
+        >
+          Could not search for word. Please check your connection and try again.
+        </Typography>
+      )}
       {words.length > 0 ? (
         <>
           <Box sx={{ mb: 4, '& h3': { color: 'text.primary' } }}>{table}</Box>
