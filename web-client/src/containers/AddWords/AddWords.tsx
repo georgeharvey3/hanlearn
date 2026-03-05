@@ -20,6 +20,7 @@ import NewWord from '../../components/Test/NewWords/NewWord/NewWord';
 import { RootState } from '../../types/store';
 import { Word } from '../../types/models';
 import * as wordService from '../../services/wordService';
+import { formatRelativeDueDate } from '../../utils/formatRelativeDueDate';
 
 interface AddWordsState {
   newWord: string;
@@ -272,14 +273,6 @@ const AddWords: React.FC<Props> = ({
     history.push('/test-words');
   };
 
-  const convertDateString = (initial: string): string => {
-    const year = initial.slice(0, 4);
-    const month = initial.slice(5, 7);
-    const day = initial.slice(8);
-
-    return [day, month, year].join('/');
-  };
-
   const toggleWords = (): void => {
     setState((prevState) => ({
       ...prevState,
@@ -346,7 +339,7 @@ const AddWords: React.FC<Props> = ({
               textAlign: 'center',
             }}
           >
-            {convertDateString(row.due_date || '')}
+            {formatRelativeDueDate(row.due_date || '')}
           </TableCell>
           <TableCell sx={{ textAlign: 'center' }}>
             <Remove clicked={() => onDeleteWord(row.id)} />
@@ -356,9 +349,7 @@ const AddWords: React.FC<Props> = ({
     });
 
     table = (
-      <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due Date (D/M/Y)', 'Remove']}>
-        {tableRows}
-      </Table>
+      <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due', 'Remove']}>{tableRows}</Table>
     );
   }
 
