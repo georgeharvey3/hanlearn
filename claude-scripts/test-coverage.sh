@@ -58,14 +58,11 @@ Append a new entry in this exact format (including the trailing ---):
 Then trim the file so only the 5 most recent entries remain (delete older ones)." \
   --allowedTools "Bash,Read,Write,Edit" || exit 1
 
-# Push branch and open PR after Claude finishes
+# Verify CI checks, push branch, and open PR
 # Note: script runs in the cloned repo directory (set by run-default-task.sh)
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
-git push -u origin "$BRANCH"
-gh pr create \
-  --title "test: expand test coverage ($(date +%Y-%m-%d))" \
-  --body "Automated test coverage expansion by Claude Code.
+source "$PWD/claude-scripts/lib/verify-and-push.sh"
+verify_and_push \
+  "test: expand test coverage ($(date +%Y-%m-%d))" \
+  "Automated test coverage expansion by Claude Code.
 
-See commit messages for details of which gaps were covered." \
-  --base main \
-  --head "$BRANCH"
+See commit messages for details of which gaps were covered."

@@ -22,10 +22,19 @@ fail() {
   local msg="$1"
   log_error "FAILED: $msg"
 
-  # Remove in-progress, restore dev-ready so it can be retried
-  log "Updating issue labels (removing in-progress, restoring dev-ready)..."
+  # Post failure comment to the issue
+  log "Posting failure comment..."
+  gh issue comment "$NUMBER" --repo "$REPO" --body "## Agent Failed
+
+**Error:** $msg
+
+---
+*To retry, remove the \`agent-failed\` label and add \`dev-ready\`.*" 2>&1 || true
+
+  # Remove in-progress, add agent-failed for review
+  log "Updating issue labels (removing in-progress, adding agent-failed)..."
   gh issue edit "$NUMBER" --repo "$REPO" --remove-label "in-progress" 2>&1 || true
-  gh issue edit "$NUMBER" --repo "$REPO" --add-label "dev-ready" 2>&1 || true
+  gh issue edit "$NUMBER" --repo "$REPO" --add-label "agent-failed" 2>&1 || true
 
   cleanup
   return 1
@@ -144,15 +153,112 @@ if [ "$COMMIT_COUNT" -eq 0 ]; then
 fi
 log "Claude made $COMMIT_COUNT commit(s)."
 
-# ── Step 7: Push the branch ──
-log "Step 7: Pushing branch..."
+# ── Step 7: Verify CI checks pass ──
+log "Step 7: Verifying CI checks..."
+cd "$WORK_DIR/web-client"
+
+# Install dependencies
+log "  Installing dependencies..."
+if ! npm install --cache "$WORK_DIR/.npm-cache" 2>&1; then
+  fail "npm install failed"
+fi
+
+# Run lint check
+log "  Running lint..."
+set +e
+LINT_OUTPUT=$(npm run lint 2>&1)
+LINT_EXIT=$?
+set -e
+
+# Run format check
+log "  Running format check..."
+set +e
+FORMAT_OUTPUT=$(npm run format:check 2>&1)
+FORMAT_EXIT=$?
+set -e
+
+# Run build
+log "  Running build..."
+set +e
+BUILD_OUTPUT=$(npm run build 2>&1)
+BUILD_EXIT=$?
+set -e
+
+# If any check failed, invoke Claude to fix
+if [ $LINT_EXIT -ne 0 ] || [ $FORMAT_EXIT -ne 0 ] || [ $BUILD_EXIT -ne 0 ]; then
+  log "CI checks failed - invoking Claude to fix..."
+
+  ERRORS=""
+  if [ $LINT_EXIT -ne 0 ]; then
+    ERRORS="${ERRORS}
+
+## Lint errors (npm run lint):
+${LINT_OUTPUT}"
+  fi
+  if [ $FORMAT_EXIT -ne 0 ]; then
+    ERRORS="${ERRORS}
+
+## Format errors (npm run format:check):
+${FORMAT_OUTPUT}"
+  fi
+  if [ $BUILD_EXIT -ne 0 ]; then
+    ERRORS="${ERRORS}
+
+## Build errors (npm run build):
+${BUILD_OUTPUT}"
+  fi
+
+  cd "$WORK_DIR"
+
+  FIX_PROMPT="The CI checks are failing. Fix all errors before the code can be pushed.
+${ERRORS}
+
+## Instructions:
+1. Read the error messages and fix each issue
+2. For lint errors: fix the code issues, or if available run 'cd web-client && npm run lint:fix'
+3. For format errors: run 'cd web-client && npm run format' to auto-fix formatting
+4. For build errors: fix the TypeScript/compilation issues
+5. Verify all checks pass:
+   cd web-client && npm run lint && npm run format:check && npm run build
+6. Commit your fixes with: git commit -am \"fix: resolve lint/format/build errors\"
+
+All checks must pass before you're done."
+
+  if ! claude -p "$FIX_PROMPT" \
+    --model "$MODEL" \
+    --dangerously-skip-permissions \
+    --allowed-tools "Bash,Read,Write,Edit,Grep,Glob" 2>&1; then
+    fail "Claude Code failed to fix CI errors"
+  fi
+
+  # Verify all checks pass now
+  cd "$WORK_DIR/web-client"
+  if ! npm run lint 2>&1; then
+    fail "Lint still failing after fix attempt"
+  fi
+  if ! npm run format:check 2>&1; then
+    fail "Format check still failing after fix attempt"
+  fi
+  if ! npm run build 2>&1; then
+    fail "Build still failing after fix attempt"
+  fi
+
+  log "CI checks fixed successfully."
+else
+  log "All CI checks passed."
+fi
+
+cd "$WORK_DIR"
+
+# ── Step 8: Push the branch ──
+log "Step 8: Pushing branch..."
 if ! git push -u origin "$BRANCH" 2>&1; then
   fail "Push failed"
 fi
 log "Branch pushed successfully."
 
-# ── Step 8: Open a Pull Request ──
-log "Step 8: Opening pull request..."
+# ── Step 9: Open a Pull Request ──
+log "Step 9: Opening pull request..."
 
 # Read PR description from file if Claude created it
 if [ -f "PR_DESCRIPTION.md" ]; then
@@ -181,8 +287,8 @@ if ! PR_URL=$(gh pr create \
 fi
 log "PR opened: $PR_URL"
 
-# ── Step 9: Update labels ──
-log "Step 9: Removing in-progress label..."
+# ── Step 10: Update labels ──
+log "Step 10: Removing in-progress label..."
 gh issue edit "$NUMBER" --repo "$REPO" --remove-label "in-progress" 2>&1 || true
 log "Label removed."
 

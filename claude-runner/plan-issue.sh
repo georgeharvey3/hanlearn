@@ -22,10 +22,19 @@ fail() {
   local msg="$1"
   log_error "FAILED: $msg"
 
-  # Remove in-progress, restore needs-plan so it can be retried
-  log "Updating issue labels (removing in-progress, restoring needs-plan)..."
+  # Post failure comment to the issue
+  log "Posting failure comment..."
+  gh issue comment "$NUMBER" --repo "$REPO" --body "## Agent Failed (Planning)
+
+**Error:** $msg
+
+---
+*To retry, remove the \`agent-failed\` label and add \`needs-plan\`.*" 2>&1 || true
+
+  # Remove in-progress, add agent-failed for review
+  log "Updating issue labels (removing in-progress, adding agent-failed)..."
   gh issue edit "$NUMBER" --repo "$REPO" --remove-label "in-progress" 2>&1 || true
-  gh issue edit "$NUMBER" --repo "$REPO" --add-label "needs-plan" 2>&1 || true
+  gh issue edit "$NUMBER" --repo "$REPO" --add-label "agent-failed" 2>&1 || true
 
   cleanup
   return 1
