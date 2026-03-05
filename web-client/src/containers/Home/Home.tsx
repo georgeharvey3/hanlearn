@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { RouteComponentProps, withRouter } from 'react-router-dom';
 
@@ -13,12 +13,13 @@ import FeatureHighlights from '../../components/Home/FeatureHighlights/FeatureHi
 
 import * as actions from '../../store/actions/index';
 import { RootState } from '../../types/store';
-import * as wordService from '../../services/wordService';
 
 const mapStateToProps = (state: RootState) => ({
   isAuthenticated: state.auth.userId !== null,
   userId: state.auth.userId,
   lang: state.settings.lang,
+  words: state.addWords.words,
+  wordsLoading: state.addWords.loading,
 });
 
 const mapDispatchToProps = {
@@ -33,41 +34,29 @@ type Props = PropsFromRedux & RouteComponentProps;
 const Home: React.FC<Props> = ({
   isAuthenticated,
   userId,
+  words,
+  wordsLoading,
   onInitWords,
   onOpenAuthModal,
   history,
 }) => {
-  const [numDue, setNumDue] = useState(0);
-  const [numTot, setNumTot] = useState(0);
-  const [statsLoading, setStatsLoading] = useState(false);
-
-  const getDueWords = useCallback(async (): Promise<void> => {
-    if (!userId) return;
-    try {
-      const dueWords = await wordService.getDueUserWords(userId);
-      setNumDue(dueWords.length);
-    } catch (error) {
-      console.error('Failed to get due words:', error);
-    }
-  }, [userId]);
-
-  const getUserWords = useCallback(async (): Promise<void> => {
-    if (!userId) return;
-    try {
-      const words = await wordService.getUserWords(userId);
-      setNumTot(words.length);
-    } catch (error) {
-      console.error('Failed to get user words:', error);
-    }
-  }, [userId]);
+  const numTot = words.length;
+  const numDue = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return words.filter((w) => {
+      if (!w.due_date) return true;
+      const due = new Date(w.due_date);
+      due.setHours(0, 0, 0, 0);
+      return due <= now;
+    }).length;
+  }, [words]);
 
   useEffect(() => {
     if (isAuthenticated && userId) {
-      setStatsLoading(true);
-      Promise.all([getDueWords(), getUserWords()]).finally(() => setStatsLoading(false));
       onInitWords();
     }
-  }, [getDueWords, getUserWords, isAuthenticated, onInitWords, userId]);
+  }, [isAuthenticated, onInitWords, userId]);
 
   const onClickSignUp = (): void => {
     onOpenAuthModal('register');
@@ -92,7 +81,7 @@ const Home: React.FC<Props> = ({
           numDue={numDue}
           numTot={numTot}
           testClicked={onTestClicked}
-          loading={statsLoading}
+          loading={wordsLoading}
         />
       )}
       {isAuthenticated && <Chengyu />}
