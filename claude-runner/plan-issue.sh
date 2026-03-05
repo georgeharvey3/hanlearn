@@ -149,9 +149,10 @@ fi
 log "Plan posted as comment."
 
 # ── Step 7: Update labels ──
-log "Step 7: Removing in-progress label..."
+log "Step 7: Updating labels..."
 gh issue edit "$NUMBER" --repo "$REPO" --remove-label "in-progress" 2>&1 || true
-log "Label removed."
+gh issue edit "$NUMBER" --repo "$REPO" --add-label "review-plan" 2>&1 || true
+log "Labels updated."
 
 # ── Cleanup ──
 cleanup

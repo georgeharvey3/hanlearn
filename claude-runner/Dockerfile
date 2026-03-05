@@ -33,9 +33,16 @@ RUN git config --global user.name "HanLearn Bot" \
 # Working directory for scripts
 WORKDIR /app
 USER root
-COPY entrypoint.sh process-issue.sh plan-issue.sh ./
-RUN chmod +x entrypoint.sh process-issue.sh plan-issue.sh \
-  && chown claude:claude entrypoint.sh process-issue.sh plan-issue.sh
+
+# Copy runner scripts
+COPY entrypoint.sh process-issue.sh plan-issue.sh run-default-task.sh ./
+RUN chmod +x entrypoint.sh process-issue.sh plan-issue.sh run-default-task.sh \
+  && chown claude:claude entrypoint.sh process-issue.sh plan-issue.sh run-default-task.sh
+
+# Create directories for mounted volumes (task config and state)
+# These will be mounted from the host via docker-compose
+RUN mkdir -p ./claude-tasks/logs ./claude-scripts \
+  && chown -R claude:claude ./claude-tasks ./claude-scripts
 
 USER claude
 ENTRYPOINT ["./entrypoint.sh"]

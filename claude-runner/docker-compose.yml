@@ -3,3 +3,12 @@ services:
     build: .
     env_file: .env
     restart: unless-stopped
+    volumes:
+      # Mount task registry and scripts from repo root
+      - ../claude-tasks:/app/claude-tasks
+      - ../claude-scripts:/app/claude-scripts:ro
+      # Cache npm packages between runs to speed up npm install
+      - npm-cache:/home/claude/.npm
+
+volumes:
+  npm-cache:
