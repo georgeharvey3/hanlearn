@@ -14,7 +14,8 @@ export interface AuthState {
   newSignUp: boolean;
   initialized: boolean;
   modalOpen: boolean;
-  modalMode: 'login' | 'register';
+  modalMode: 'login' | 'register' | 'forgot-password';
+  resetEmailSent: boolean;
 }
 
 export interface SettingsState {
