@@ -72,7 +72,7 @@ vi.mock('../../services/sentenceService', () => ({
 
 vi.mock('pinyin', () => {
   const pinyinFn = vi.fn((text: string) => text.split('').map((c: string) => [c]));
-  pinyinFn.STYLE_TONE2 = 'STYLE_TONE2';
+  (pinyinFn as unknown as Record<string, unknown>).STYLE_TONE2 = 'STYLE_TONE2';
   return { default: pinyinFn };
 });
 

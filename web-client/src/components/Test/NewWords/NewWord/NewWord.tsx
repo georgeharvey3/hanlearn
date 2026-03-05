@@ -58,21 +58,24 @@ const NewWord: React.FC<Props> = ({
     localStorage.getItem('useSound') === 'false' || !synthAvailable ? false : true,
   );
 
-  const onSpeakPinyin = useCallback((pinyinWord: string): void => {
-    const synth = window.speechSynthesis;
-    const utterThis = new SpeechSynthesisUtterance(pinyinWord);
-    utterThis.lang = lang || 'zh-CN';
-    if (voice) {
-      utterThis.voice = voice;
-    }
-    utterThis.onerror = (e) => {
-      if (e.error === 'synthesis-failed') {
-        setErrorMessage('Error playing pinyin');
+  const onSpeakPinyin = useCallback(
+    (pinyinWord: string): void => {
+      const synth = window.speechSynthesis;
+      const utterThis = new SpeechSynthesisUtterance(pinyinWord);
+      utterThis.lang = lang || 'zh-CN';
+      if (voice) {
+        utterThis.voice = voice;
       }
-    };
-    synth.cancel();
-    synth.speak(utterThis);
-  }, [lang, voice]);
+      utterThis.onerror = (e) => {
+        if (e.error === 'synthesis-failed') {
+          setErrorMessage('Error playing pinyin');
+        }
+      };
+      synth.cancel();
+      synth.speak(utterThis);
+    },
+    [lang, voice],
+  );
 
   const onDisplayMeaning = useCallback(async (char: string): Promise<void> => {
     try {
@@ -90,13 +93,16 @@ const NewWord: React.FC<Props> = ({
     }
   }, []);
 
-  const onCharacterClick = useCallback((char: string): void => {
-    setClickedChar(char);
-    onDisplayMeaning(char);
-    if (useSound || (isDemo && synthAvailable)) {
-      onSpeakPinyin(char);
-    }
-  }, [onDisplayMeaning, useSound, isDemo, synthAvailable, onSpeakPinyin]);
+  const onCharacterClick = useCallback(
+    (char: string): void => {
+      setClickedChar(char);
+      onDisplayMeaning(char);
+      if (useSound || (isDemo && synthAvailable)) {
+        onSpeakPinyin(char);
+      }
+    },
+    [onDisplayMeaning, useSound, isDemo, synthAvailable, onSpeakPinyin],
+  );
 
   useEffect(() => {
     if (useSound) {
@@ -199,11 +205,7 @@ const NewWord: React.FC<Props> = ({
         </Typography>
         {isAddedWord ? (
           <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
-            <MeaningEditor
-              value={editedMeaning}
-              onChange={handleMeaningChange}
-              size="small"
-            />
+            <MeaningEditor value={editedMeaning} onChange={handleMeaningChange} size="small" />
           </Box>
         ) : (
           <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
