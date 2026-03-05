@@ -27,22 +27,19 @@ const steps: Step[] = [
     number: 2,
     icon: TranslateRounded,
     heading: 'Understand the Characters',
-    description:
-      'See pinyin, meaning, and the building blocks behind every word.',
+    description: 'See pinyin, meaning, and the building blocks behind every word.',
   },
   {
     number: 3,
     icon: QuizRounded,
     heading: 'Test Every Angle',
-    description:
-      'Match characters to pinyin, pinyin to meaning, and every combination in between.',
+    description: 'Match characters to pinyin, pinyin to meaning, and every combination in between.',
   },
   {
     number: 4,
     icon: EditNoteRounded,
     heading: 'Use Words in Sentences',
-    description:
-      'Practise reading and creating sentences to cement your understanding.',
+    description: 'Practise reading and creating sentences to cement your understanding.',
   },
 ];
 
@@ -88,10 +85,7 @@ const HowItWorks: React.FC = () => (
               >
                 Step {step.number}
               </Typography>
-              <Typography
-                variant="h6"
-                sx={{ color: 'text.primary', fontWeight: 600, mb: 1 }}
-              >
+              <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, mb: 1 }}>
                 {step.heading}
               </Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>

@@ -16,9 +16,4 @@ export {
   setAuthModalMode,
   googleSignIn,
 } from './auth';
-export {
-  setSpeechAvailable,
-  setSynthAvailable,
-  setVoice,
-  setLang,
-} from './settings';
+export { setSpeechAvailable, setSynthAvailable, setVoice, setLang } from './settings';

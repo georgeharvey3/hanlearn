@@ -7,7 +7,12 @@ interface RemoveProps {
 }
 
 const Remove: React.FC<RemoveProps> = (props) => (
-  <IconButton onClick={props.clicked} aria-label="Remove word" size="small" sx={{ color: 'error.main' }}>
+  <IconButton
+    onClick={props.clicked}
+    aria-label="Remove word"
+    size="small"
+    sx={{ color: 'error.main' }}
+  >
     <CloseIcon fontSize="small" />
   </IconButton>
 );

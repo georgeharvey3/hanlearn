@@ -18,9 +18,7 @@ const reducer = (state = initialState, action: WordAction): AddWordsState => {
         today.setDate(today.getDate() + 1);
       }
       const todayDay =
-        today.getDate() >= 10
-          ? today.getDate().toString()
-          : '0' + today.getDate().toString();
+        today.getDate() >= 10 ? today.getDate().toString() : '0' + today.getDate().toString();
       const todayMonth =
         today.getMonth() >= 9
           ? (today.getMonth() + 1).toString()
@@ -51,8 +49,7 @@ const reducer = (state = initialState, action: WordAction): AddWordsState => {
           ? (todayCustom.getMonth() + 1).toString()
           : '0' + (todayCustom.getMonth() + 1).toString();
       const todayYearCustom = todayCustom.getFullYear().toString();
-      const todayStringCustom =
-        todayYearCustom + '/' + todayMonthCustom + '/' + todayDayCustom;
+      const todayStringCustom = todayYearCustom + '/' + todayMonthCustom + '/' + todayDayCustom;
       customWord.due_date = todayStringCustom;
       customWord.bank = 1;
 
@@ -71,9 +68,7 @@ const reducer = (state = initialState, action: WordAction): AddWordsState => {
     }
     case actionTypes.UPDATE_MEANING: {
       const newWordsMeaning = state.words.map((word) =>
-        word.id === action.wordID
-          ? { ...word, meaning: action.newMeaning }
-          : word
+        word.id === action.wordID ? { ...word, meaning: action.newMeaning } : word,
       );
       return {
         ...state,

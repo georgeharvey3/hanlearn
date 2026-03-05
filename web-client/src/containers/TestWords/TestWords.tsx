@@ -93,16 +93,19 @@ const TestWords: React.FC<Props> = ({
 
   const prevWordsLength = useRef(words.length);
 
-  const selectTestWords = useCallback((ignoreDueDates = false): Word[] => {
-    const allWords = words.slice();
-    const nonChengyus = allWords.filter((word) => word.simp.length < 4);
-    const actualNumWords =
-      nonChengyus.length >= state.numWords ? state.numWords : nonChengyus.length;
-    if (ignoreDueDates) {
-      return testLogic.chooseRandomTestSet(nonChengyus, actualNumWords);
-    }
-    return testLogic.chooseTestSet(nonChengyus, actualNumWords);
-  }, [state.numWords, words]);
+  const selectTestWords = useCallback(
+    (ignoreDueDates = false): Word[] => {
+      const allWords = words.slice();
+      const nonChengyus = allWords.filter((word) => word.simp.length < 4);
+      const actualNumWords =
+        nonChengyus.length >= state.numWords ? state.numWords : nonChengyus.length;
+      if (ignoreDueDates) {
+        return testLogic.chooseRandomTestSet(nonChengyus, actualNumWords);
+      }
+      return testLogic.chooseTestSet(nonChengyus, actualNumWords);
+    },
+    [state.numWords, words],
+  );
 
   const setSelectedWords = useCallback((): void => {
     if (isDemo) {
@@ -231,7 +234,9 @@ const TestWords: React.FC<Props> = ({
     }
   };
 
-  const onStartSentenceWrite = (seenOffsets: Record<string, { offset: number; text: string; english: string }>): void => {
+  const onStartSentenceWrite = (
+    seenOffsets: Record<string, { offset: number; text: string; english: string }>,
+  ): void => {
     if (state.sentenceWriteEnabled) {
       setState((prev) => ({ ...prev, stage: 'write', seenOffsets }));
     } else {
@@ -263,7 +268,11 @@ const TestWords: React.FC<Props> = ({
       case 'new':
         content = (
           <ErrorBoundary>
-            <NewWords words={state.newWords} startTest={onStartVocab} isDemo={isDemo || !!devConfig} />
+            <NewWords
+              words={state.newWords}
+              startTest={onStartVocab}
+              isDemo={isDemo || !!devConfig}
+            />
           </ErrorBoundary>
         );
         break;
@@ -273,7 +282,9 @@ const TestWords: React.FC<Props> = ({
             <Test
               isDemo={isDemo || !!devConfig}
               words={state.selectedWords}
-              startSentenceRead={(sentenceWords: Word[], scores?: WordScore[]) => onStartSentenceRead(sentenceWords, scores)}
+              startSentenceRead={(sentenceWords: Word[], scores?: WordScore[]) =>
+                onStartSentenceRead(sentenceWords, scores)
+              }
               onVocabComplete={onVocabComplete}
               finalStage={!state.sentenceReadEnabled && !state.sentenceWriteEnabled}
               devTestFinished={state.devTestFinished}
@@ -318,7 +329,9 @@ const TestWords: React.FC<Props> = ({
         content = (
           <Test
             words={state.selectedWords}
-            startSentenceRead={(sentenceWords: Word[], scores?: WordScore[]) => onStartSentenceRead(sentenceWords, scores)}
+            startSentenceRead={(sentenceWords: Word[], scores?: WordScore[]) =>
+              onStartSentenceRead(sentenceWords, scores)
+            }
             onVocabComplete={onVocabComplete}
             finalStage={!state.sentenceReadEnabled && !state.sentenceWriteEnabled}
             practiceMode={state.practiceMode}
@@ -341,7 +354,9 @@ const TestWords: React.FC<Props> = ({
         <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center' }}>
           <Button clicked={onClickAddWords}>Add Words</Button>
           {hasWordsInBank && (
-            <Button type='ghost' clicked={onStartPractice}>Practice</Button>
+            <Button type="ghost" clicked={onStartPractice}>
+              Practice
+            </Button>
           )}
         </Box>
       </Box>

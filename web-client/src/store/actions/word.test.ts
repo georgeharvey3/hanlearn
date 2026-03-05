@@ -88,10 +88,7 @@ describe('word action thunks', () => {
 
       await store.dispatch(wordActions.postWord(sampleWord) as any);
 
-      expect(mockedWordService.addWordToBank).toHaveBeenCalledWith(
-        'test-user-123',
-        sampleWord
-      );
+      expect(mockedWordService.addWordToBank).toHaveBeenCalledWith('test-user-123', sampleWord);
       expect(store.getState().addWords.words).toHaveLength(1);
       expect(store.getState().addWords.words[0].simp).toBe('你好');
     });
@@ -128,10 +125,7 @@ describe('word action thunks', () => {
 
       await store.dispatch(wordActions.deleteWord(1) as any);
 
-      expect(mockedWordService.removeWordFromBank).toHaveBeenCalledWith(
-        'test-user-123',
-        1
-      );
+      expect(mockedWordService.removeWordFromBank).toHaveBeenCalledWith('test-user-123', 1);
       expect(store.getState().addWords.words).toHaveLength(0);
     });
   });
@@ -149,7 +143,7 @@ describe('word action thunks', () => {
       expect(mockedWordService.updateWordMeaning).toHaveBeenCalledWith(
         'test-user-123',
         1,
-        'hi there'
+        'hi there',
       );
       expect(store.getState().addWords.words[0].meaning).toBe('hi there');
     });
@@ -162,36 +156,25 @@ describe('word action thunks', () => {
     ];
 
     it('calls wordService.finishTest, re-fetches words, and records streak', async () => {
-      const updatedWords = [
-        { ...sampleWord, bank: 2, due_date: '2026/03/05' },
-      ];
-      mockedWordService.finishTest.mockResolvedValue({ '你好': '2026/03/05' });
+      const updatedWords = [{ ...sampleWord, bank: 2, due_date: '2026/03/05' }];
+      mockedWordService.finishTest.mockResolvedValue({ 你好: '2026/03/05' });
       mockedWordService.getUserWords.mockResolvedValue(updatedWords);
       mockedStreakService.recordTestCompletion.mockResolvedValue(undefined);
       const store = createTestStore(authenticatedState());
 
       await store.dispatch(wordActions.finishTest(scores) as any);
 
-      expect(mockedWordService.finishTest).toHaveBeenCalledWith(
-        'test-user-123',
-        scores
-      );
-      expect(mockedWordService.getUserWords).toHaveBeenCalledWith(
-        'test-user-123'
-      );
+      expect(mockedWordService.finishTest).toHaveBeenCalledWith('test-user-123', scores);
+      expect(mockedWordService.getUserWords).toHaveBeenCalledWith('test-user-123');
       // Verify the store was updated with refreshed words
       expect(store.getState().addWords.words).toEqual(updatedWords);
-      expect(mockedStreakService.recordTestCompletion).toHaveBeenCalledWith(
-        'test-user-123'
-      );
+      expect(mockedStreakService.recordTestCompletion).toHaveBeenCalledWith('test-user-123');
     });
 
     it('still succeeds if streak recording fails', async () => {
-      mockedWordService.finishTest.mockResolvedValue({ '你好': '2026/03/05' });
+      mockedWordService.finishTest.mockResolvedValue({ 你好: '2026/03/05' });
       mockedWordService.getUserWords.mockResolvedValue(sampleWords);
-      mockedStreakService.recordTestCompletion.mockRejectedValue(
-        new Error('streak error')
-      );
+      mockedStreakService.recordTestCompletion.mockRejectedValue(new Error('streak error'));
       const store = createTestStore(authenticatedState());
 
       // Should not throw
@@ -202,7 +185,7 @@ describe('word action thunks', () => {
     });
 
     it('still records streak if word refresh fails', async () => {
-      mockedWordService.finishTest.mockResolvedValue({ '你好': '2026/03/05' });
+      mockedWordService.finishTest.mockResolvedValue({ 你好: '2026/03/05' });
       mockedWordService.getUserWords.mockRejectedValue(new Error('fetch failed'));
       mockedStreakService.recordTestCompletion.mockResolvedValue(undefined);
       const store = createTestStore(authenticatedState());
@@ -252,14 +235,14 @@ describe('word action thunks', () => {
           text: '学习',
           meaning: 'to study',
           charSet: 'simp',
-        }) as any
+        }) as any,
       );
 
       expect(mockedWordService.addCustomWord).toHaveBeenCalledWith(
         'test-user-123',
         '学习',
         'to study',
-        'simp'
+        'simp',
       );
       expect(store.getState().addWords.words).toHaveLength(1);
       expect(store.getState().addWords.words[0].simp).toBe('学习');

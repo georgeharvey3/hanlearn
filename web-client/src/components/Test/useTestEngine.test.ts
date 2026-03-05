@@ -98,7 +98,13 @@ const makeProps = (overrides: Partial<Props> = {}): Props => ({
   synthAvailable: false,
   isDemo: false,
   onFinishTest: vi.fn(),
-  history: { push: vi.fn(), replace: vi.fn(), go: vi.fn(), goBack: vi.fn(), goForward: vi.fn() } as any,
+  history: {
+    push: vi.fn(),
+    replace: vi.fn(),
+    go: vi.fn(),
+    goBack: vi.fn(),
+    goForward: vi.fn(),
+  } as any,
   location: { pathname: '/', search: '', hash: '', state: undefined } as any,
   match: { isExact: true, params: {}, path: '/', url: '/' } as any,
   ...overrides,
@@ -137,7 +143,7 @@ afterEach(() => {
  */
 function renderEngineWithState(
   stateOverrides: Record<string, unknown>,
-  propsOverrides: Partial<Props> = {}
+  propsOverrides: Partial<Props> = {},
 ) {
   const props = makeProps(propsOverrides);
   const { result } = renderHook(() => useTestEngine(props));
@@ -157,7 +163,9 @@ describe('useTestEngine — checkAnswer for pinyin answers', () => {
       answerInput: 'nǐ hǎo',
     });
 
-    act(() => { result.current.onSubmitAnswer(); });
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
 
     expect(result.current.state.result).toBe('Correct');
     expect(result.current.state.idkDisabled).toBe(true);
@@ -170,7 +178,9 @@ describe('useTestEngine — checkAnswer for pinyin answers', () => {
       answerInput: 'ni3hao3',
     });
 
-    act(() => { result.current.onSubmitAnswer(); });
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
 
     expect(result.current.state.result).toBe('Correct');
   });
@@ -184,7 +194,9 @@ describe('useTestEngine — checkAnswer for pinyin answers', () => {
       recognition: null,
     });
 
-    act(() => { result.current.onSubmitAnswer(); });
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
 
     expect(result.current.state.result).toBe('Try again');
   });
@@ -198,7 +210,9 @@ describe('useTestEngine — checkAnswer for pinyin answers', () => {
       recognition: null,
     });
 
-    act(() => { result.current.onSubmitAnswer(); });
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
 
     expect(result.current.state.result).toBe('Incorrect tones');
   });
@@ -212,7 +226,9 @@ describe('useTestEngine — checkAnswer for meaning answers', () => {
       answerInput: 'hi',
     });
 
-    act(() => { result.current.onSubmitAnswer(); });
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
 
     expect(result.current.state.result).toBe('Correct');
   });
@@ -226,7 +242,9 @@ describe('useTestEngine — checkAnswer for meaning answers', () => {
       recognition: null,
     });
 
-    act(() => { result.current.onSubmitAnswer(); });
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
 
     expect(result.current.state.result).toBe('Try again');
   });
@@ -238,7 +256,9 @@ describe('useTestEngine — checkAnswer for meaning answers', () => {
       answerInput: 'Hello',
     });
 
-    act(() => { result.current.onSubmitAnswer(); });
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
 
     expect(result.current.state.result).toBe('Correct');
   });
@@ -250,13 +270,15 @@ describe('useTestEngine — checkAnswer for meaning answers', () => {
       answerInput: 'hello!',
     });
 
-    act(() => { result.current.onSubmitAnswer(); });
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
 
     expect(result.current.state.result).toBe('Correct');
   });
 });
 
-describe('useTestEngine — I-don\'t-know flow', () => {
+describe("useTestEngine — I-don't-know flow", () => {
   it('adds the chosen character to idkList when IDK is triggered', () => {
     const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
@@ -274,7 +296,9 @@ describe('useTestEngine — I-don\'t-know flow', () => {
       writer: null,
     });
 
-    act(() => { result.current.onIDontKnow(); });
+    act(() => {
+      result.current.onIDontKnow();
+    });
 
     expect(result.current.state.idkList).toContain('你好');
     expect(result.current.state.idkDisabled).toBe(true);
@@ -297,13 +321,15 @@ describe('useTestEngine — I-don\'t-know flow', () => {
       writer: null,
     });
 
-    act(() => { result.current.onIDontKnow(); });
+    act(() => {
+      result.current.onIDontKnow();
+    });
 
     expect(result.current.state.result).toContain('nǐ hǎo');
     expect(result.current.state.result).toContain('Answer was');
   });
 
-  it('accumulates multiple IDK entries in idkList (each IDK = +1 to that word\'s score)', () => {
+  it("accumulates multiple IDK entries in idkList (each IDK = +1 to that word's score)", () => {
     const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const testWord = makeWord();
 
@@ -321,7 +347,9 @@ describe('useTestEngine — I-don\'t-know flow', () => {
       writer: null,
     });
 
-    act(() => { result.current.onIDontKnow(); });
+    act(() => {
+      result.current.onIDontKnow();
+    });
 
     expect(result.current.state.idkList.filter((c) => c === '你好')).toHaveLength(2);
   });
@@ -335,7 +363,9 @@ describe('useTestEngine — onShowAnswer', () => {
       showAnswer: false,
     });
 
-    act(() => { result.current.onShowAnswer(); });
+    act(() => {
+      result.current.onShowAnswer();
+    });
 
     expect(result.current.state.result).toContain('nǐ hǎo');
     expect(result.current.state.showAnswer).toBe(true);
@@ -348,7 +378,9 @@ describe('useTestEngine — onShowAnswer', () => {
       showAnswer: false,
     });
 
-    act(() => { result.current.onShowAnswer(); });
+    act(() => {
+      result.current.onShowAnswer();
+    });
 
     expect(result.current.state.result).toContain('hello / hi');
     expect(result.current.state.showAnswer).toBe(true);
@@ -363,7 +395,9 @@ describe('useTestEngine — pinyin hint', () => {
       showHint: false,
     });
 
-    act(() => { result.current.onHint(); });
+    act(() => {
+      result.current.onHint();
+    });
 
     expect(result.current.state.result).toMatch(/Hint:/);
     expect(result.current.state.showHint).toBe(true);
@@ -377,7 +411,9 @@ describe('useTestEngine — pinyin hint', () => {
       result: 'Hint: ni3__ hao3__',
     });
 
-    act(() => { result.current.onHint(); });
+    act(() => {
+      result.current.onHint();
+    });
 
     expect(result.current.state.showHint).toBe(false);
     expect(result.current.state.result).toBe('');
@@ -400,7 +436,7 @@ describe('useTestEngine — submitSpeech first-attempt behaviour (regression)', 
       testSet: [makeWord()],
       permList: [perm],
       charSet: 'simp',
-      numSpeakTries: 0,  // first attempt
+      numSpeakTries: 0, // first attempt
       useAutoRecord: false,
       useTypingInput: false,
     });

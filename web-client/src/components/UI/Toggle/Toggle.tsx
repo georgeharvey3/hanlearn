@@ -10,13 +10,7 @@ interface ToggleProps {
 const Toggle: React.FC<ToggleProps> = (props) => {
   return (
     <FormControlLabel
-      control={
-        <Switch
-          checked={props.checked}
-          onChange={props.changed}
-          color="primary"
-        />
-      }
+      control={<Switch checked={props.checked} onChange={props.changed} color="primary" />}
       label="Auto Record:"
       labelPlacement="start"
       sx={{ color: 'text.primary' }}

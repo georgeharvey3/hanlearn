@@ -93,10 +93,7 @@ export const getDueUserWords = async (userId: string): Promise<Word[]> => {
 /**
  * Add a word from the dictionary to the user's word bank
  */
-export const addWordToBank = async (
-  userId: string,
-  word: Word
-): Promise<void> => {
+export const addWordToBank = async (userId: string, word: Word): Promise<void> => {
   // Get count of existing words to determine initial due date
   const userWordsRef = collection(db, 'users', userId, 'userWords');
   const snapshot = await getDocs(userWordsRef);
@@ -127,10 +124,7 @@ export const addWordToBank = async (
 /**
  * Remove a word from the user's word bank
  */
-export const removeWordFromBank = async (
-  userId: string,
-  wordId: number
-): Promise<void> => {
+export const removeWordFromBank = async (userId: string, wordId: number): Promise<void> => {
   const wordRef = doc(db, 'users', userId, 'userWords', wordId.toString());
   await deleteDoc(wordRef);
 };
@@ -141,7 +135,7 @@ export const removeWordFromBank = async (
 export const updateWordMeaning = async (
   userId: string,
   wordId: number,
-  newMeaning: string
+  newMeaning: string,
 ): Promise<void> => {
   const wordRef = doc(db, 'users', userId, 'userWords', wordId.toString());
   await updateDoc(wordRef, { amendedMeaning: newMeaning });
@@ -152,7 +146,7 @@ export const updateWordMeaning = async (
  */
 export const finishTest = async (
   userId: string,
-  scores: { word_id: number; score: number }[]
+  scores: { word_id: number; score: number }[],
 ): Promise<Record<string, string>> => {
   const newDates: Record<string, string> = {};
   const batch = writeBatch(db);
@@ -193,10 +187,7 @@ export const finishTest = async (
  * Search for a word in the dictionary by character.
  * Uses static dictionary JSON instead of Firestore for cost efficiency.
  */
-export const searchWord = async (
-  character: string,
-  charSet: 'simp' | 'trad'
-): Promise<Word[]> => {
+export const searchWord = async (character: string, charSet: 'simp' | 'trad'): Promise<Word[]> => {
   return searchDictionary(character, charSet);
 };
 
@@ -209,7 +200,7 @@ export const addCustomWord = async (
   userId: string,
   text: string,
   meaning: string,
-  charSet: 'simp' | 'trad' = 'simp'
+  charSet: 'simp' | 'trad' = 'simp',
 ): Promise<Word> => {
   let pinyin = '';
   let simp = '';

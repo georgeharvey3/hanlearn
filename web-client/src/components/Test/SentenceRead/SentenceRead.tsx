@@ -66,13 +66,10 @@ interface ResolvedSentence {
   };
 }
 
-
 /**
  * Resolve segmented word strings to full word objects using the static dictionary.
  */
-async function resolveSentence(
-  cloudSentence: CloudSentence
-): Promise<ResolvedSentence> {
+async function resolveSentence(cloudSentence: CloudSentence): Promise<ResolvedSentence> {
   // Collect unique non-target segments
   const uniqueSegments = new Set<string>();
   cloudSentence.chinese.segments.forEach((seg, i) => {
@@ -87,7 +84,7 @@ async function resolveSentence(
     segmentArray.map(async (seg) => {
       const results = await searchWord(seg, 'simp');
       return { seg, word: results.length > 0 ? results[0] : null };
-    })
+    }),
   );
 
   const wordMap = new Map<string, SentenceWord>();
@@ -156,7 +153,9 @@ type PropsFromRedux = ConnectedProps<typeof connector>;
 interface OwnProps {
   words: Word[];
   sentenceWriteEnabled?: boolean;
-  startSentenceWrite?: (seenOffsets: Record<string, { offset: number; text: string; english: string }>) => void;
+  startSentenceWrite?: (
+    seenOffsets: Record<string, { offset: number; text: string; english: string }>,
+  ) => void;
   isDemo?: boolean;
 }
 
@@ -246,7 +245,8 @@ const SentenceRead: React.FC<Props> = ({
     const useSound =
       synthAvailable && (localStorage.getItem('useSound') !== 'false' || Boolean(isDemo));
     const useEnglishSpeechRecognition =
-      synthAvailable && (localStorage.getItem('useEnglishSpeechRecognition') !== 'false' || Boolean(isDemo));
+      synthAvailable &&
+      (localStorage.getItem('useEnglishSpeechRecognition') !== 'false' || Boolean(isDemo));
 
     updateState({ useSound, useEnglishSpeechRecognition });
   }, [isDemo, synthAvailable, updateState]);
@@ -263,7 +263,7 @@ const SentenceRead: React.FC<Props> = ({
       synth.cancel();
       synth.speak(utterThis);
     },
-    [lang, voice]
+    [lang, voice],
   );
 
   const onListenPinyin = useCallback((): void => {
@@ -300,81 +300,91 @@ const SentenceRead: React.FC<Props> = ({
     }
   }, [history, sentenceWriteEnabled, startSentenceWrite]);
 
-  const fetchSentence = useCallback(async (offset: number, isNewWord: boolean): Promise<void> => {
-    if (isNewWord) {
-      updateState({ loading: true });
-    } else {
-      updateState({ sentenceLoading: true });
-    }
+  const fetchSentence = useCallback(
+    async (offset: number, isNewWord: boolean): Promise<void> => {
+      if (isNewWord) {
+        updateState({ loading: true });
+      } else {
+        updateState({ sentenceLoading: true });
+      }
 
-    const currentWord = words[stateRef.current.wordIndex].simp;
+      const currentWord = words[stateRef.current.wordIndex].simp;
 
-    try {
-      const { sentence: cloudSentence, totalCount } = await getSegmentedSentence(currentWord, stateRef.current.charSet, offset);
+      try {
+        const { sentence: cloudSentence, totalCount } = await getSegmentedSentence(
+          currentWord,
+          stateRef.current.charSet,
+          offset,
+        );
 
-      if (!cloudSentence) {
+        if (!cloudSentence) {
+          if (isNewWord) {
+            // No sentences found for this word, try next word
+            console.warn(`No sentences found for word: ${currentWord}`);
+            if (stateRef.current.wordIndex >= words.length - 1) {
+              onEndStage();
+            } else {
+              setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
+            }
+          }
+          return;
+        }
+
+        const resolved = await resolveSentence(cloudSentence);
+
+        setState((prevState) => {
+          const newSentences = isNewWord ? [resolved] : [...prevState.sentences, resolved];
+          return {
+            ...prevState,
+            sentences: newSentences,
+            totalCount,
+            sentenceIndex: offset,
+            loading: false,
+            sentenceLoading: false,
+            showText: false,
+          };
+        });
+
+        if (stateRef.current.useSound) {
+          onSpeakPinyin(resolved.chinese.sentence);
+        }
+      } catch (error) {
+        console.error('Error fetching sentence:', error);
         if (isNewWord) {
-          // No sentences found for this word, try next word
-          console.warn(`No sentences found for word: ${currentWord}`);
+          // On error, try next word instead of getting stuck
           if (stateRef.current.wordIndex >= words.length - 1) {
             onEndStage();
           } else {
             setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
           }
-        }
-        return;
-      }
-
-      const resolved = await resolveSentence(cloudSentence);
-
-      setState((prevState) => {
-        const newSentences = isNewWord ? [resolved] : [...prevState.sentences, resolved];
-        return {
-          ...prevState,
-          sentences: newSentences,
-          totalCount,
-          sentenceIndex: offset,
-          loading: false,
-          sentenceLoading: false,
-          showText: false,
-        };
-      });
-
-      if (stateRef.current.useSound) {
-        onSpeakPinyin(resolved.chinese.sentence);
-      }
-    } catch (error) {
-      console.error('Error fetching sentence:', error);
-      if (isNewWord) {
-        // On error, try next word instead of getting stuck
-        if (stateRef.current.wordIndex >= words.length - 1) {
-          onEndStage();
         } else {
-          setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
+          updateState({ sentenceLoading: false });
         }
-      } else {
-        updateState({ sentenceLoading: false });
       }
-    }
-  }, [onEndStage, onSpeakPinyin, updateState, words]);
+    },
+    [onEndStage, onSpeakPinyin, updateState, words],
+  );
 
-  const onChangeSentence = useCallback((direction: number): void => {
-    const newIndex = stateRef.current.sentenceIndex + direction;
+  const onChangeSentence = useCallback(
+    (direction: number): void => {
+      const newIndex = stateRef.current.sentenceIndex + direction;
 
-    if (newIndex < 0 || newIndex >= stateRef.current.totalCount) return;
+      if (newIndex < 0 || newIndex >= stateRef.current.totalCount) return;
 
-    // If we already have this sentence cached, just navigate
-    if (stateRef.current.sentences[newIndex]) {
-      setState((prevState) => ({
-        ...prevState,
-        sentenceIndex: newIndex,
-        showText: false,
-      }));
-    } else {
-      // Fetch the next sentence from the cloud
-      fetchSentence(newIndex, false);
-    }
-  }, [fetchSentence]);
+      // If we already have this sentence cached, just navigate
+      if (stateRef.current.sentences[newIndex]) {
+        setState((prevState) => ({
+          ...prevState,
+          sentenceIndex: newIndex,
+          showText: false,
+        }));
+      } else {
+        // Fetch the next sentence from the cloud
+        fetchSentence(newIndex, false);
+      }
+    },
+    [fetchSentence],
+  );
 
   const onYesClicked = (): void => {
     if (stateRef.current.useSound) beep.play();
@@ -433,7 +443,11 @@ const SentenceRead: React.FC<Props> = ({
         onNoClicked();
       }
 
-      if (event.key === 'ArrowLeft' && !stateRef.current.submitted && stateRef.current.sentenceIndex > 0) {
+      if (
+        event.key === 'ArrowLeft' &&
+        !stateRef.current.submitted &&
+        stateRef.current.sentenceIndex > 0
+      ) {
         onChangeSentence(-1);
       }
 
@@ -445,7 +459,7 @@ const SentenceRead: React.FC<Props> = ({
         onChangeSentence(1);
       }
     },
-    [onChangeSentence, onNoClicked, onYesClicked]
+    [onChangeSentence, onNoClicked, onYesClicked],
   );
 
   const onToggleText = (): void => {
@@ -582,9 +596,13 @@ const SentenceRead: React.FC<Props> = ({
           >
             {word[state.charSet]}
             <Box component="span" data-popup-text id={word.id + 'popup'} style={popupTextStyle}>
-              <Typography variant="subtitle2" sx={{ m: 0, fontWeight: 'bold' }}>Pinyin:</Typography>
+              <Typography variant="subtitle2" sx={{ m: 0, fontWeight: 'bold' }}>
+                Pinyin:
+              </Typography>
               <Typography variant="body2">{word.pinyin}</Typography>
-              <Typography variant="subtitle2" sx={{ m: 0, fontWeight: 'bold' }}>Meaning:</Typography>
+              <Typography variant="subtitle2" sx={{ m: 0, fontWeight: 'bold' }}>
+                Meaning:
+              </Typography>
               <Typography variant="body2">{parseMeanings(word.meaning).join(' / ')}</Typography>
               {addedWords.find((aw) => aw.id === word.id) ? (
                 <Button disabled>Added!</Button>
@@ -597,9 +615,7 @@ const SentenceRead: React.FC<Props> = ({
       });
 
       sentenceCardContent = (
-        <Box sx={{ lineHeight: 1.8, fontSize: '1.5em', letterSpacing: 2 }}>
-          {renderedWords}
-        </Box>
+        <Box sx={{ lineHeight: 1.8, fontSize: '1.5em', letterSpacing: 2 }}>{renderedWords}</Box>
       );
     }
   }
@@ -679,14 +695,22 @@ const SentenceRead: React.FC<Props> = ({
             {state.message}
           </Typography>
         )}
-        <PictureButton type="secondary" src={micPic} aria-label="Record speech" clicked={onListenPinyin} />
+        <PictureButton
+          type="secondary"
+          src={micPic}
+          aria-label="Record speech"
+          clicked={onListenPinyin}
+        />
       </Stack>
     ) : null;
 
     mainContent = (
       <Stack spacing={2} alignItems="center">
         <Box sx={{ width: '100%' }}>
-          <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: 1, display: 'block', mb: 0.5 }}>
+          <Typography
+            variant="overline"
+            sx={{ color: 'text.secondary', letterSpacing: 1, display: 'block', mb: 0.5 }}
+          >
             English translation
           </Typography>
           <Input
@@ -703,7 +727,13 @@ const SentenceRead: React.FC<Props> = ({
         {micButton}
 
         {/* Navigation row */}
-        <Stack direction="row" spacing={1} justifyContent="center" alignItems="center" flexWrap="wrap">
+        <Stack
+          direction="row"
+          spacing={1}
+          justifyContent="center"
+          alignItems="center"
+          flexWrap="wrap"
+        >
           <Button
             clicked={() => onChangeSentence(-1)}
             disabled={state.sentenceIndex < 1}
@@ -757,7 +787,16 @@ const SentenceRead: React.FC<Props> = ({
           textAlign: 'center',
         }}
       >
-        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', minHeight: 72 }}>
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            minHeight: 72,
+          }}
+        >
           {sentenceCardContent}
         </Box>
         {/* Helper text – always occupies space to prevent layout shift */}
@@ -769,7 +808,9 @@ const SentenceRead: React.FC<Props> = ({
             display: 'block',
             mt: 1,
             visibility:
-              (!state.useSound || state.showText) && !!state.sentences[state.sentenceIndex] && !state.loading
+              (!state.useSound || state.showText) &&
+              !!state.sentences[state.sentenceIndex] &&
+              !state.loading
                 ? 'visible'
                 : 'hidden',
           }}

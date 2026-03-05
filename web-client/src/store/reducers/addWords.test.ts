@@ -19,12 +19,11 @@ const sampleWord: Word = {
 };
 
 function formatToday(date: Date): string {
-  const day = date.getDate() >= 10
-    ? date.getDate().toString()
-    : '0' + date.getDate().toString();
-  const month = date.getMonth() >= 9
-    ? (date.getMonth() + 1).toString()
-    : '0' + (date.getMonth() + 1).toString();
+  const day = date.getDate() >= 10 ? date.getDate().toString() : '0' + date.getDate().toString();
+  const month =
+    date.getMonth() >= 9
+      ? (date.getMonth() + 1).toString()
+      : '0' + (date.getMonth() + 1).toString();
   return date.getFullYear() + '/' + month + '/' + day;
 }
 

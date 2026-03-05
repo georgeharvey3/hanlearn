@@ -57,8 +57,7 @@ const TestChengyusTest: React.FC<Props> = ({
     charData: null,
     errorMessage: '',
     showChengyuMeaning: false,
-    useSound:
-      localStorage.getItem('useSound') === 'false' || !synthAvailable ? false : true,
+    useSound: localStorage.getItem('useSound') === 'false' || !synthAvailable ? false : true,
   }));
 
   const onSpeakPinyin = useCallback(
@@ -77,7 +76,7 @@ const TestChengyusTest: React.FC<Props> = ({
       synth.cancel();
       synth.speak(utterThis);
     },
-    [lang, voice]
+    [lang, voice],
   );
 
   const onDisplayMeaning = (char: string): void => {
@@ -128,7 +127,7 @@ const TestChengyusTest: React.FC<Props> = ({
         onToggleAnswer();
       }
     },
-    [onChangeWord, onToggleAnswer, startTest, state.wordIndex, words.length]
+    [onChangeWord, onToggleAnswer, startTest, state.wordIndex, words.length],
   );
 
   const onCharacterClick = (char: string): void => {
@@ -162,8 +161,12 @@ const TestChengyusTest: React.FC<Props> = ({
     charInfo = (
       <>
         <Typography sx={{ fontSize: '3em', m: 0 }}>{state.charData.simp}</Typography>
-        <Typography sx={{ fontSize: '1.5em', m: 0 }}>({state.charData.pinyins.join('/')})</Typography>
-        <Typography sx={{ fontSize: '1.1em', m: 0 }}>{state.charData.meanings.filter((m) => !m.startsWith('CL:')).join(' / ')}</Typography>
+        <Typography sx={{ fontSize: '1.5em', m: 0 }}>
+          ({state.charData.pinyins.join('/')})
+        </Typography>
+        <Typography sx={{ fontSize: '1.1em', m: 0 }}>
+          {state.charData.meanings.filter((m) => !m.startsWith('CL:')).join(' / ')}
+        </Typography>
       </>
     );
   }
@@ -172,8 +175,19 @@ const TestChengyusTest: React.FC<Props> = ({
   // bgcolor that doesn't match the NewWord card style. Consider aligning with the
   // Paper + border pattern used in NewWord/Test components for consistency.
   return (
-    <Box sx={{ width: '90%', maxWidth: 400, textAlign: 'center', mx: 'auto', py: '30px', color: 'secondary.main' }}>
-      <Typography variant="subtitle1" component="h4">Click on a character to see information</Typography>
+    <Box
+      sx={{
+        width: '90%',
+        maxWidth: 400,
+        textAlign: 'center',
+        mx: 'auto',
+        py: '30px',
+        color: 'secondary.main',
+      }}
+    >
+      <Typography variant="subtitle1" component="h4">
+        Click on a character to see information
+      </Typography>
       <Paper
         sx={{
           width: '70%',
@@ -204,9 +218,7 @@ const TestChengyusTest: React.FC<Props> = ({
                   },
                 }}
               >
-                <p onClick={() => onCharacterClick(char)}>
-                  {char}
-                </p>
+                <p onClick={() => onCharacterClick(char)}>{char}</p>
               </Box>
             );
           })}
@@ -214,7 +226,9 @@ const TestChengyusTest: React.FC<Props> = ({
         {state.showChengyuMeaning ? (
           <>
             <p style={{ fontSize: '0.6em' }}>({words[state.wordIndex].pinyin})</p>
-            <p style={{ fontSize: '1.1em' }}>{parseMeanings(words[state.wordIndex].meaning).join(' / ')}</p>
+            <p style={{ fontSize: '1.1em' }}>
+              {parseMeanings(words[state.wordIndex].meaning).join(' / ')}
+            </p>
           </>
         ) : null}
       </Paper>
@@ -234,10 +248,7 @@ const TestChengyusTest: React.FC<Props> = ({
       <Button clicked={() => onChangeWord(-1)} disabled={state.wordIndex < 1}>
         Previous
       </Button>
-      <Button
-        clicked={() => onChangeWord(1)}
-        disabled={state.wordIndex === words.length - 1}
-      >
+      <Button clicked={() => onChangeWord(1)} disabled={state.wordIndex === words.length - 1}>
         Next
       </Button>
     </Box>

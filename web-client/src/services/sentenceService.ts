@@ -16,7 +16,7 @@ interface SentenceExample {
 
 // Fixed sentences for demo/tryout words — bypasses Firestore and AI entirely.
 const DEMO_SENTENCES: Record<string, SentenceExample[]> = {
-  '你好': [
+  你好: [
     {
       chinese: '你好，欢迎来到这里！',
       english: 'Hello, welcome here!',
@@ -100,14 +100,21 @@ Requirements:
 
   if (!Array.isArray(parsed)) return [];
 
-  return (parsed as Array<{ chinese?: unknown; english?: unknown; segments?: unknown; targetIndex?: unknown }>)
+  return (
+    parsed as Array<{
+      chinese?: unknown;
+      english?: unknown;
+      segments?: unknown;
+      targetIndex?: unknown;
+    }>
+  )
     .filter(
       (item) =>
         typeof item.chinese === 'string' &&
         typeof item.english === 'string' &&
         Array.isArray(item.segments) &&
         typeof item.targetIndex === 'number' &&
-        item.chinese.includes(word)
+        item.chinese.includes(word),
     )
     .map((item) => ({
       chinese: item.chinese as string,
@@ -150,7 +157,7 @@ async function getOrGenerateSentences(word: string): Promise<SentenceExample[]> 
 export async function getSegmentedSentence(
   word: string,
   charSet: 'simp' | 'trad',
-  offset: number
+  offset: number,
 ): Promise<SegmentedSentenceResult> {
   const examples = await getOrGenerateSentences(word);
 
@@ -162,7 +169,7 @@ export async function getSegmentedSentence(
   const convertedWord = charSet === 'trad' ? toTraditional(word) : word;
   const convertedChinese = charSet === 'trad' ? toTraditional(example.chinese) : example.chinese;
   const convertedSegments = example.segments.map((seg) =>
-    charSet === 'trad' ? toTraditional(seg) : seg
+    charSet === 'trad' ? toTraditional(seg) : seg,
   );
   const highlight = calculateHighlightIndices(convertedChinese, convertedWord);
 
@@ -184,7 +191,7 @@ export async function getSegmentedSentence(
 }
 
 export async function getHintSentence(
-  word: string
+  word: string,
 ): Promise<{ chinese: string; english: string } | null> {
   const examples = await getOrGenerateSentences(word);
   if (examples.length === 0) return null;
@@ -195,7 +202,7 @@ export async function getHintSentence(
 
 export async function checkSentenceAvailability(
   word: string,
-  charSet: 'simp' | 'trad'
+  charSet: 'simp' | 'trad',
 ): Promise<boolean> {
   const result = await getSegmentedSentence(word, charSet, 0);
   return result.sentence !== null;

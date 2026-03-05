@@ -44,13 +44,11 @@ describe('Dashboard container', () => {
     renderWithProviders(<Dashboard />, {
       store: createTestStore(authenticatedState()),
     });
-    await waitFor(() =>
-      expect(screen.getByText('Dashboard')).toBeInTheDocument()
-    );
-    expect(screen.getByText('12')).toBeInTheDocument();   // dueWords
+    await waitFor(() => expect(screen.getByText('Dashboard')).toBeInTheDocument());
+    expect(screen.getByText('12')).toBeInTheDocument(); // dueWords
     expect(screen.getByText('Words Due')).toBeInTheDocument();
     expect(screen.getByText(/out of 50 total/i)).toBeInTheDocument();
-    expect(screen.getByText('5')).toBeInTheDocument();    // streak
+    expect(screen.getByText('5')).toBeInTheDocument(); // streak
   });
 
   it('calls getDashboardStats with the correct userId', async () => {
@@ -58,9 +56,7 @@ describe('Dashboard container', () => {
     renderWithProviders(<Dashboard />, {
       store: createTestStore(authenticatedState('uid-xyz')),
     });
-    await waitFor(() =>
-      expect(mockGetDashboardStats).toHaveBeenCalledWith('uid-xyz')
-    );
+    await waitFor(() => expect(mockGetDashboardStats).toHaveBeenCalledWith('uid-xyz'));
   });
 
   it('shows an error message when the stats load fails', async () => {
@@ -69,9 +65,7 @@ describe('Dashboard container', () => {
       store: createTestStore(authenticatedState()),
     });
     await waitFor(() =>
-      expect(
-        screen.getByText(/could not load dashboard data/i)
-      ).toBeInTheDocument()
+      expect(screen.getByText(/could not load dashboard data/i)).toBeInTheDocument(),
     );
     expect(screen.getByText(/try again/i)).toBeInTheDocument();
   });
@@ -86,14 +80,10 @@ describe('Dashboard container', () => {
       store: createTestStore(authenticatedState()),
     });
 
-    await waitFor(() =>
-      expect(screen.getByText(/try again/i)).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText(/try again/i)).toBeInTheDocument());
     await user.click(screen.getByText(/try again/i));
 
-    await waitFor(() =>
-      expect(screen.getByText('Dashboard')).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('Dashboard')).toBeInTheDocument());
     expect(mockGetDashboardStats).toHaveBeenCalledTimes(2);
   });
 
@@ -114,9 +104,7 @@ describe('Dashboard container', () => {
     renderWithProviders(<Dashboard />, {
       store: createTestStore(unauthState),
     });
-    await waitFor(() =>
-      expect(mockGetDashboardStats).not.toHaveBeenCalled()
-    );
+    await waitFor(() => expect(mockGetDashboardStats).not.toHaveBeenCalled());
   });
 
   it('loading resolves (not stuck) when userId is null — regression', async () => {
@@ -141,9 +129,7 @@ describe('Dashboard container', () => {
       store: createTestStore(unauthState),
     });
     // The Dashboard heading appears once loading resolves to false.
-    await waitFor(() =>
-      expect(screen.getByText('Dashboard')).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('Dashboard')).toBeInTheDocument());
     expect(mockGetDashboardStats).not.toHaveBeenCalled();
   });
 
@@ -152,9 +138,7 @@ describe('Dashboard container', () => {
     renderWithProviders(<Dashboard />, {
       store: createTestStore(authenticatedState()),
     });
-    await waitFor(() =>
-      expect(screen.getByText('Test Now')).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('Test Now')).toBeInTheDocument());
   });
 
   it('hides the "Test Now" link when no words are due', async () => {
@@ -162,9 +146,7 @@ describe('Dashboard container', () => {
     renderWithProviders(<Dashboard />, {
       store: createTestStore(authenticatedState()),
     });
-    await waitFor(() =>
-      expect(screen.getByText('Dashboard')).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText('Dashboard')).toBeInTheDocument());
     expect(screen.queryByText('Test Now')).not.toBeInTheDocument();
   });
 });

@@ -127,7 +127,7 @@ describe('sentenceService', () => {
       expect(mockGenerateContent).toHaveBeenCalledTimes(1);
       expect(mockSetDoc).toHaveBeenCalledWith(
         'mock-doc-ref',
-        expect.objectContaining({ sentences: AI_SENTENCES })
+        expect.objectContaining({ sentences: AI_SENTENCES }),
       );
     });
 

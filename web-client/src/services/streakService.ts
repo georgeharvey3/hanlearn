@@ -25,7 +25,11 @@ export const recordTestCompletion = async (userId: string): Promise<void> => {
   const existing = await getDoc(docRef);
 
   if (existing.exists()) {
-    await setDoc(docRef, { testsCount: increment(1), completedAt: Timestamp.now() }, { merge: true });
+    await setDoc(
+      docRef,
+      { testsCount: increment(1), completedAt: Timestamp.now() },
+      { merge: true },
+    );
   } else {
     await setDoc(docRef, { completedAt: Timestamp.now(), testsCount: 1 });
   }
@@ -34,7 +38,9 @@ export const recordTestCompletion = async (userId: string): Promise<void> => {
 /**
  * Get all test completion documents for a user (sorted by date desc).
  */
-export const getStreakData = async (userId: string): Promise<{ date: string; testsCount: number }[]> => {
+export const getStreakData = async (
+  userId: string,
+): Promise<{ date: string; testsCount: number }[]> => {
   const colRef = collection(db, 'users', userId, 'testCompletions');
   const q = query(colRef, orderBy('completedAt', 'desc'));
   const snapshot = await getDocs(q);
@@ -65,7 +71,9 @@ export const calculateStreak = (dates: string[]): number => {
   today.setHours(0, 0, 0, 0);
 
   const mostRecent = parseLocalDate(dates[0]);
-  const diffFromToday = Math.floor((today.getTime() - mostRecent.getTime()) / (1000 * 60 * 60 * 24));
+  const diffFromToday = Math.floor(
+    (today.getTime() - mostRecent.getTime()) / (1000 * 60 * 60 * 24),
+  );
   if (diffFromToday > 1) return 0;
 
   let streak = 1;

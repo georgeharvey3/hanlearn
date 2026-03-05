@@ -37,7 +37,7 @@ describe('AnswerInput — handwriting canvas', () => {
         onCorrectAnswer={noop}
         onIDontKnow={noop}
         setStateMerged={noop as any}
-      />
+      />,
     );
     const canvas = document.getElementById('character-target-div');
     expect(canvas).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe('AnswerInput — handwriting canvas', () => {
         onCorrectAnswer={noop}
         onIDontKnow={noop}
         setStateMerged={noop as any}
-      />
+      />,
     );
     expect(screen.getByText(/draw here/i)).toBeInTheDocument();
   });

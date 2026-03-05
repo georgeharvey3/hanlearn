@@ -21,7 +21,6 @@ import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
 import { getSegmentedSentence } from '../../../services/sentenceService';
 
-
 const beep = new Howl({ src: [successSound], volume: 0.5 });
 const fail = new Howl({ src: [failSound], volume: 0.7 });
 
@@ -81,7 +80,8 @@ const SentenceWrite: React.FC<Props> = ({
     wordIndex: 0,
     charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
     useChineseSpeechRecognition:
-      (localStorage.getItem('useChineseSpeechRecognition') !== 'false' || Boolean(isDemo)) && speechAvailable,
+      (localStorage.getItem('useChineseSpeechRecognition') !== 'false' || Boolean(isDemo)) &&
+      speechAvailable,
     useSound: (localStorage.getItem('useSound') !== 'false' || Boolean(isDemo)) && synthAvailable,
     loading: false,
     originalChinese: null,
@@ -147,7 +147,11 @@ const SentenceWrite: React.FC<Props> = ({
           // No sentence at tryOffset — fall back to offset 0
           const { sentence: fb } = await getSegmentedSentence(word.simp, charSet, 0);
           if (fb && !isDuplicate(fb.chinese.sentence, fb.english.sentence)) {
-            updateState({ loading: false, originalChinese: fb.chinese.sentence, englishPrompt: fb.english.sentence });
+            updateState({
+              loading: false,
+              originalChinese: fb.chinese.sentence,
+              englishPrompt: fb.english.sentence,
+            });
           } else {
             skipToNextWord();
           }
@@ -174,7 +178,7 @@ const SentenceWrite: React.FC<Props> = ({
         updateState({ loading: false });
       }
     },
-    [seenOffsets, updateState, words]
+    [seenOffsets, updateState, words],
   );
 
   const hasInitialized = useRef(false);
@@ -276,7 +280,7 @@ const SentenceWrite: React.FC<Props> = ({
         onNoClicked();
       }
     },
-    [onHomeClicked, onListenPinyin, onNoClicked, onYesClicked, words.length]
+    [onHomeClicked, onListenPinyin, onNoClicked, onYesClicked, words.length],
   );
 
   useEffect(() => {
@@ -331,10 +335,20 @@ const SentenceWrite: React.FC<Props> = ({
             </Typography>
             <Paper
               variant="outlined"
-              sx={{ p: '12px 16px', borderRadius: 2, bgcolor: '#f9f9f9', textAlign: 'left', minHeight: 48 }}
+              sx={{
+                p: '12px 16px',
+                borderRadius: 2,
+                bgcolor: '#f9f9f9',
+                textAlign: 'left',
+                minHeight: 48,
+              }}
             >
               <Typography sx={{ color: 'text.primary', fontSize: '1.1rem', letterSpacing: 1 }}>
-                {state.entered || <Box component="span" sx={{ color: 'text.disabled' }}>—</Box>}
+                {state.entered || (
+                  <Box component="span" sx={{ color: 'text.disabled' }}>
+                    —
+                  </Box>
+                )}
               </Typography>
             </Paper>
           </Stack>
@@ -345,7 +359,13 @@ const SentenceWrite: React.FC<Props> = ({
             </Typography>
             <Paper
               variant="outlined"
-              sx={{ p: '12px 16px', borderRadius: 2, bgcolor: '#f0f7f4', textAlign: 'left', minHeight: 48 }}
+              sx={{
+                p: '12px 16px',
+                borderRadius: 2,
+                bgcolor: '#f0f7f4',
+                textAlign: 'left',
+                minHeight: 48,
+              }}
             >
               <Typography sx={{ color: 'text.primary', fontSize: '1.1rem', letterSpacing: 1 }}>
                 {state.originalChinese}
@@ -357,8 +377,18 @@ const SentenceWrite: React.FC<Props> = ({
             How did you do?
           </Typography>
           <Stack direction="row" spacing={3} justifyContent="center">
-            <PictureButton style={{ width: 56, height: 56 }} clicked={onYesClicked} src={likePic} aria-label="I got it right" />
-            <PictureButton style={{ width: 56, height: 56 }} clicked={onNoClicked} src={dislikePic} aria-label="I got it wrong" />
+            <PictureButton
+              style={{ width: 56, height: 56 }}
+              clicked={onYesClicked}
+              src={likePic}
+              aria-label="I got it right"
+            />
+            <PictureButton
+              style={{ width: 56, height: 56 }}
+              clicked={onNoClicked}
+              src={dislikePic}
+              aria-label="I got it wrong"
+            />
           </Stack>
         </Stack>
       </Box>
@@ -409,7 +439,15 @@ const SentenceWrite: React.FC<Props> = ({
           <Typography variant="caption" sx={{ color: '#fff', lineHeight: 1 }}>
             must use:
           </Typography>
-          <Typography sx={{ fontWeight: 400, fontSize: '1.1rem', letterSpacing: 1, lineHeight: 1, color: '#fff' }}>
+          <Typography
+            sx={{
+              fontWeight: 400,
+              fontSize: '1.1rem',
+              letterSpacing: 1,
+              lineHeight: 1,
+              color: '#fff',
+            }}
+          >
             {currentWord?.[state.charSet]}
           </Typography>
         </Box>
@@ -436,7 +474,12 @@ const SentenceWrite: React.FC<Props> = ({
                 {state.message}
               </Typography>
             )}
-            <PictureButton type="secondary" src={micPic} aria-label="Record speech" clicked={onListenPinyin} />
+            <PictureButton
+              type="secondary"
+              src={micPic}
+              aria-label="Record speech"
+              clicked={onListenPinyin}
+            />
           </Stack>
         )}
       </Stack>

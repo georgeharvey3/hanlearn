@@ -33,7 +33,11 @@ const PictureButton: React.FC<PictureButtonProps> = (props) => {
         height: 40,
       }}
     >
-      <img src={props.src} alt="" style={{ width: 20, height: 20, filter: invert ? 'brightness(0) invert(1)' : undefined }} />
+      <img
+        src={props.src}
+        alt=""
+        style={{ width: 20, height: 20, filter: invert ? 'brightness(0) invert(1)' : undefined }}
+      />
     </IconButton>
   );
 };

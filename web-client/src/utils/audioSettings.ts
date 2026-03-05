@@ -14,10 +14,7 @@ export const getAudioSettings = (): AudioSettings => ({
   useFlashcards: localStorage.getItem('useFlashcards') !== 'false',
 });
 
-export const setAudioSetting = (
-  key: keyof AudioSettings,
-  value: boolean
-): AudioSettings => {
+export const setAudioSetting = (key: keyof AudioSettings, value: boolean): AudioSettings => {
   localStorage.setItem(key, String(value));
 
   if (key === 'useEnglishSpeechRecognition' && value) {
@@ -38,7 +35,7 @@ export interface AudioSettingItem {
 
 export const getAudioSettingItems = (
   speechAvailable: boolean,
-  synthAvailable: boolean
+  synthAvailable: boolean,
 ): AudioSettingItem[] => [
   {
     key: 'useSound',

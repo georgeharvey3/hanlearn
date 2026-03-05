@@ -42,14 +42,25 @@ const Toolbar: React.FC<ToolbarProps> = (props) => {
     <AppBar
       position="fixed"
       sx={{
-        backgroundColor: isHomePage ? (scrollProgress > 0 ? colors.primary : 'transparent') : colors.primary,
+        backgroundColor: isHomePage
+          ? scrollProgress > 0
+            ? colors.primary
+            : 'transparent'
+          : colors.primary,
         boxShadow: isHomePage && scrollProgress === 0 ? 0 : 1,
         borderBottom: isHomePage && scrollProgress === 0 ? 'none' : `1px solid ${colors.divider}`,
         transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
         overflow: 'visible',
       }}
     >
-      <MuiToolbar sx={{ minHeight: 56, overflow: 'visible', alignItems: isHomePage && logoSize > 56 ? 'flex-start' : 'center', pt: isHomePage && logoSize > 56 ? '14px' : 0 }}>
+      <MuiToolbar
+        sx={{
+          minHeight: 56,
+          overflow: 'visible',
+          alignItems: isHomePage && logoSize > 56 ? 'flex-start' : 'center',
+          pt: isHomePage && logoSize > 56 ? '14px' : 0,
+        }}
+      >
         <DrawerToggle clicked={props.drawerToggleClicked} textColor={colors.text} />
         <Box sx={{ display: { xs: 'flex', sm: 'none' }, flexGrow: 1 }} />
         <Typography
@@ -70,7 +81,11 @@ const Toolbar: React.FC<ToolbarProps> = (props) => {
         </Typography>
         <Box sx={{ display: { xs: 'none', sm: 'flex' }, flexGrow: 1 }} />
         {!props.isAuth && (
-          <Box component="nav" aria-label="Main navigation" sx={{ display: { xs: 'none', sm: 'flex' }, height: '100%' }}>
+          <Box
+            component="nav"
+            aria-label="Main navigation"
+            sx={{ display: { xs: 'none', sm: 'flex' }, height: '100%' }}
+          >
             <NavigationItems authenticated={props.isAuth} textColor={colors.text} />
           </Box>
         )}

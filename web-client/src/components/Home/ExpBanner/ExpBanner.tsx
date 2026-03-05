@@ -14,14 +14,26 @@ interface ExpBannerProps {
 const ExpBanner: React.FC<ExpBannerProps> = (props) => {
   const textSection = (
     <Grid size={{ xs: 12, sm: 6 }} sx={{ p: 1 }}>
-      <Typography variant="h5" sx={{ mb: 1 }}>{props.heading}</Typography>
-      <Typography variant="body1" sx={{ fontSize: '1.2em' }}>{props.children}</Typography>
+      <Typography variant="h5" sx={{ mb: 1 }}>
+        {props.heading}
+      </Typography>
+      <Typography variant="body1" sx={{ fontSize: '1.2em' }}>
+        {props.children}
+      </Typography>
     </Grid>
   );
 
   const imageSection = (
-    <Grid size={{ xs: 12, sm: 6 }} sx={{ display: { xs: 'none', sm: 'block' }, textAlign: 'center', p: 1 }}>
-      <Box component="img" src={props.img} alt={props.heading || 'Feature screenshot'} sx={{ width: '90%', maxHeight: 400, maxWidth: 400 }} />
+    <Grid
+      size={{ xs: 12, sm: 6 }}
+      sx={{ display: { xs: 'none', sm: 'block' }, textAlign: 'center', p: 1 }}
+    >
+      <Box
+        component="img"
+        src={props.img}
+        alt={props.heading || 'Feature screenshot'}
+        sx={{ width: '90%', maxHeight: 400, maxWidth: 400 }}
+      />
     </Grid>
   );
 

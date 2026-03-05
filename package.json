@@ -7,9 +7,21 @@
     "dev:client": "npm --prefix web-client run dev",
     "emulators": "firebase emulators:start --export-on-exit=./emulator-data --import=./emulator-data",
     "build": "npm --prefix web-client run build:all",
-    "deploy": "npm run build && firebase deploy --only hosting"
+    "deploy": "npm run build && firebase deploy --only hosting",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "web-client/src/**/*.{ts,tsx}": [
+      "npx --prefix web-client eslint --config web-client/eslint.config.mjs",
+      "npx --prefix web-client prettier --config web-client/.prettierrc --write"
+    ],
+    "web-client/src/**/*.{css,json}": [
+      "npx --prefix web-client prettier --config web-client/.prettierrc --write"
+    ]
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.3.2"
   }
 }

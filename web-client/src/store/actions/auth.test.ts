@@ -49,7 +49,7 @@ describe('auth action thunks', () => {
     it('dispatches AUTH_FAIL with friendly message on invalid-credential', async () => {
       const firebaseError = new FirebaseError(
         'auth/invalid-credential',
-        'Firebase: Error (auth/invalid-credential).'
+        'Firebase: Error (auth/invalid-credential).',
       );
       mockedAuth.loginUser.mockRejectedValue(firebaseError);
       const store = createTestStore(defaultStoreState);
@@ -87,7 +87,7 @@ describe('auth action thunks', () => {
     it('dispatches AUTH_FAIL for weak-password', async () => {
       const firebaseError = new FirebaseError(
         'auth/weak-password',
-        'Firebase: Password should be at least 6 characters (auth/weak-password).'
+        'Firebase: Password should be at least 6 characters (auth/weak-password).',
       );
       mockedAuth.registerUser.mockRejectedValue(firebaseError);
       const store = createTestStore(defaultStoreState);
@@ -100,7 +100,7 @@ describe('auth action thunks', () => {
     it('dispatches AUTH_FAIL for email-already-in-use', async () => {
       const firebaseError = new FirebaseError(
         'auth/email-already-in-use',
-        'Firebase: Error (auth/email-already-in-use).'
+        'Firebase: Error (auth/email-already-in-use).',
       );
       mockedAuth.registerUser.mockRejectedValue(firebaseError);
       const store = createTestStore(defaultStoreState);
@@ -159,7 +159,7 @@ describe('auth action thunks', () => {
     it('suppresses error for popup-closed-by-user', async () => {
       const firebaseError = new FirebaseError(
         'auth/popup-closed-by-user',
-        'Firebase: Error (auth/popup-closed-by-user).'
+        'Firebase: Error (auth/popup-closed-by-user).',
       );
       mockedAuth.signInWithGoogle.mockRejectedValue(firebaseError);
       const store = createTestStore(defaultStoreState);

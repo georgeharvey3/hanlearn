@@ -51,8 +51,7 @@ const TestChengyus: React.FC<Props> = ({
   const selectTestWords = useCallback((): Word[] => {
     const allWords = words.slice();
     const chengyus = allWords.filter((word) => word.simp.length >= 4);
-    const actualNumWords =
-      chengyus.length >= state.numWords ? state.numWords : chengyus.length;
+    const actualNumWords = chengyus.length >= state.numWords ? state.numWords : chengyus.length;
     const selectedWords = testLogic.chooseTestSet(chengyus, actualNumWords);
 
     return selectedWords;

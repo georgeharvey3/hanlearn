@@ -44,11 +44,7 @@ const MainBanner: React.FC<MainBannerProps> = ({
     setText('Add words to your bank...');
   };
 
-  let button: React.ReactNode = (
-    <Button disabled={submitDisabled}>
-      Submit
-    </Button>
-  );
+  let button: React.ReactNode = <Button disabled={submitDisabled}>Submit</Button>;
 
   if (loading) {
     button = <Spinner />;
@@ -63,7 +59,9 @@ const MainBanner: React.FC<MainBannerProps> = ({
 
   return (
     <Box sx={{ p: '30px', color: 'text.primary' }}>
-      <Typography variant="h5" sx={{ height: '30px' }}>{text}</Typography>
+      <Typography variant="h5" sx={{ height: '30px' }}>
+        {text}
+      </Typography>
       <form onSubmit={handleSubmit}>
         <Box
           sx={{

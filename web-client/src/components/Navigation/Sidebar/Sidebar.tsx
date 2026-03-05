@@ -68,9 +68,7 @@ const Sidebar: React.FC<PropsFromRedux> = ({ onLogout }) => {
                   },
                 }}
               >
-                <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>
-                  {link.icon}
-                </ListItemIcon>
+                <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>{link.icon}</ListItemIcon>
                 <ListItemText primary={link.label} />
               </ListItemButton>
             </ListItem>

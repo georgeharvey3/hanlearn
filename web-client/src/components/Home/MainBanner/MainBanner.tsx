@@ -129,7 +129,7 @@ const MainBanner: React.FC<MainBannerProps> = ({ signUpClicked, tryOutClicked })
                 }}
               >
                 <Typography
-                  variant='h3'
+                  variant="h3"
                   sx={{ fontSize: { xs: '1.6rem', sm: '2.2rem', md: undefined } }}
                 >
                   {text}
@@ -162,9 +162,14 @@ const MainBanner: React.FC<MainBannerProps> = ({ signUpClicked, tryOutClicked })
             >
               <Typography
                 variant="h3"
-                sx={{ color: 'common.white', fontWeight: 600, mb: 4, fontSize: { xs: '1.6rem', sm: '2.2rem', md: undefined } }}
+                sx={{
+                  color: 'common.white',
+                  fontWeight: 600,
+                  mb: 4,
+                  fontSize: { xs: '1.6rem', sm: '2.2rem', md: undefined },
+                }}
               >
-                Start learning — it's free
+                Start learning — it&apos;s free
               </Typography>
               <Stack direction="row" justifyContent="center" spacing={2}>
                 <MuiButton

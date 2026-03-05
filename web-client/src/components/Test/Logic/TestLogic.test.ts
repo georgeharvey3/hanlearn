@@ -53,7 +53,7 @@ describe('chooseTestSet', () => {
 
   it('excludes words with no due_date', () => {
     const words = [
-      makeWord(1, '你'),           // no due_date
+      makeWord(1, '你'), // no due_date
       makeWord(2, '好', '2026/02/20'), // past - due
     ];
     const result = chooseTestSet(words, 10);
@@ -62,9 +62,7 @@ describe('chooseTestSet', () => {
   });
 
   it('caps result at numWords', () => {
-    const words = Array.from({ length: 10 }, (_, i) =>
-      makeWord(i, `字${i}`, '2026/02/20')
-    );
+    const words = Array.from({ length: 10 }, (_, i) => makeWord(i, `字${i}`, '2026/02/20'));
     const result = chooseTestSet(words, 5);
     expect(result).toHaveLength(5);
   });
@@ -76,27 +74,19 @@ describe('chooseTestSet', () => {
   });
 
   it('returns all words when numWords matches due words exactly', () => {
-    const words = [
-      makeWord(1, '你', '2026/02/20'),
-      makeWord(2, '好', '2026/02/21'),
-    ];
+    const words = [makeWord(1, '你', '2026/02/20'), makeWord(2, '好', '2026/02/21')];
     const result = chooseTestSet(words, 2);
     expect(result).toHaveLength(2);
   });
 
   it('returns empty array when no words are due', () => {
-    const words = [
-      makeWord(1, '你', '2026/03/01'),
-      makeWord(2, '好', '2026/03/02'),
-    ];
+    const words = [makeWord(1, '你', '2026/03/01'), makeWord(2, '好', '2026/03/02')];
     const result = chooseTestSet(words, 10);
     expect(result).toHaveLength(0);
   });
 
   it('returns distinct words (no duplicates)', () => {
-    const words = Array.from({ length: 5 }, (_, i) =>
-      makeWord(i, `字${i}`, '2026/02/20')
-    );
+    const words = Array.from({ length: 5 }, (_, i) => makeWord(i, `字${i}`, '2026/02/20'));
     const result = chooseTestSet(words, 5);
     const ids = result.map((w) => w.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -107,7 +97,7 @@ describe('chooseRandomTestSet', () => {
   it('includes all words regardless of due_date', () => {
     const words = [
       makeWord(1, '你', '2099/01/01'), // far future
-      makeWord(2, '好'),               // no due_date
+      makeWord(2, '好'), // no due_date
       makeWord(3, '学', '2020/01/01'), // past
     ];
     const result = chooseRandomTestSet(words, 3);

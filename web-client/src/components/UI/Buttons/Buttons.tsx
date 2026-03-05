@@ -14,7 +14,13 @@ const Buttons: React.FC<ButtonsProps> = (props) => {
     </Button>
   ));
   return (
-    <Stack direction="row" justifyContent="center" alignItems="center" sx={{ py: 3 }} flexWrap="wrap">
+    <Stack
+      direction="row"
+      justifyContent="center"
+      alignItems="center"
+      sx={{ py: 3 }}
+      flexWrap="wrap"
+    >
       {buttonElems}
     </Stack>
   );

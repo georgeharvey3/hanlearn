@@ -16,13 +16,22 @@ export const fail = new Howl({
   volume: 0.7,
 });
 
-export const buttonStyle = { display: 'inline-block', width: '50px', height: '50px', margin: '10px 20px' };
-export const activeButtonStyle = { ...buttonStyle, boxShadow: '0px 0px', transform: 'translateY(3px)' };
+export const buttonStyle = {
+  display: 'inline-block',
+  width: '50px',
+  height: '50px',
+  margin: '10px 20px',
+};
+export const activeButtonStyle = {
+  ...buttonStyle,
+  boxShadow: '0px 0px',
+  transform: 'translateY(3px)',
+};
 
 export const createInitialState = (props: Props): TestState => {
   const numWords = parseInt(localStorage.getItem('numWords') || '5');
   const charSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp';
-  const priority = props.isDemo ? 'none' : (localStorage.getItem('priority') || 'none');
+  const priority = props.isDemo ? 'none' : localStorage.getItem('priority') || 'none';
   const onlyPriority = props.isDemo ? false : localStorage.getItem('onlyPriority') === 'true';
 
   const devScoreList: WordScore[] = props.devTestFinished

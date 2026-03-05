@@ -27,7 +27,10 @@ const Dashboard: React.FC<PropsFromRedux> = ({ userId }) => {
   const [error, setError] = useState(false);
 
   const loadStats = useCallback(async () => {
-    if (!userId) { setLoading(false); return; }
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
     setError(false);
     try {
       const data = await getDashboardStats(userId);
@@ -51,12 +54,13 @@ const Dashboard: React.FC<PropsFromRedux> = ({ userId }) => {
   if (error) {
     return (
       <Box sx={{ textAlign: 'center', py: 4 }}>
-        <Typography sx={{ color: 'error.main', mb: 2 }}>
-          Could not load dashboard data.
-        </Typography>
+        <Typography sx={{ color: 'error.main', mb: 2 }}>Could not load dashboard data.</Typography>
         <Typography
           component="button"
-          onClick={() => { setLoading(true); loadStats(); }}
+          onClick={() => {
+            setLoading(true);
+            loadStats();
+          }}
           sx={{
             color: 'primary.dark',
             background: 'none',
@@ -89,7 +93,10 @@ const Dashboard: React.FC<PropsFromRedux> = ({ userId }) => {
           <BankDistributionCard distribution={stats?.bankDistribution ?? {}} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <MasteryCard masteredCount={stats?.masteredCount ?? 0} totalWords={stats?.totalWords ?? 0} />
+          <MasteryCard
+            masteredCount={stats?.masteredCount ?? 0}
+            totalWords={stats?.totalWords ?? 0}
+          />
         </Grid>
       </Grid>
       <ErrorBoundary>

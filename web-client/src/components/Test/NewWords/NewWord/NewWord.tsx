@@ -51,11 +51,11 @@ const NewWord: React.FC<Props> = ({
   const [clickedChar, setClickedChar] = useState<string>('');
   const [editedMeaning, setEditedMeaning] = useState(word.meaning);
   const [charSet] = useState<'simp' | 'trad'>(
-    (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp'
+    (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
   );
   const [, setErrorMessage] = useState('');
   const [useSound] = useState(
-    localStorage.getItem('useSound') === 'false' || !synthAvailable ? false : true
+    localStorage.getItem('useSound') === 'false' || !synthAvailable ? false : true,
   );
 
   const onSpeakPinyin = (pinyinWord: string): void => {
@@ -108,23 +108,34 @@ const NewWord: React.FC<Props> = ({
 
   const chars = word[charSet].split('');
 
-  let charInfo: React.ReactNode = charData === null ? (
-    <Typography sx={{ color: 'text.disabled', fontSize: '0.85em', textAlign: 'center', py: 3, fontStyle: 'italic' }}>
-      Tap a character above to see its details
-    </Typography>
-  ) : (
-    <Box sx={{ textAlign: 'center', py: 1.5 }}>
-      <Typography sx={{ fontSize: '2.8em', fontWeight: 500, lineHeight: 1.2, color: 'text.primary' }}>
-        {clickedChar || charData.simp}
+  const charInfo: React.ReactNode =
+    charData === null ? (
+      <Typography
+        sx={{
+          color: 'text.disabled',
+          fontSize: '0.85em',
+          textAlign: 'center',
+          py: 3,
+          fontStyle: 'italic',
+        }}
+      >
+        Tap a character above to see its details
       </Typography>
-      <Typography sx={{ fontSize: '1.2em', color: 'primary.dark', fontWeight: 500, mt: 0.5 }}>
-        {charData.pinyins.join(' / ')}
-      </Typography>
-      <Box sx={{ mt: 0.5, display: 'flex', justifyContent: 'center' }}>
-        <MeaningEditor value={charData.meanings.join('/')} readOnly size="small" />
+    ) : (
+      <Box sx={{ textAlign: 'center', py: 1.5 }}>
+        <Typography
+          sx={{ fontSize: '2.8em', fontWeight: 500, lineHeight: 1.2, color: 'text.primary' }}
+        >
+          {clickedChar || charData.simp}
+        </Typography>
+        <Typography sx={{ fontSize: '1.2em', color: 'primary.dark', fontWeight: 500, mt: 0.5 }}>
+          {charData.pinyins.join(' / ')}
+        </Typography>
+        <Box sx={{ mt: 0.5, display: 'flex', justifyContent: 'center' }}>
+          <MeaningEditor value={charData.meanings.join('/')} readOnly size="small" />
+        </Box>
       </Box>
-    </Box>
-  );
+    );
 
   return (
     <Box>
@@ -168,14 +179,14 @@ const NewWord: React.FC<Props> = ({
                   },
                 }}
               >
-                <Typography sx={{ fontSize: 'inherit', lineHeight: 1.3 }}>
-                  {char}
-                </Typography>
+                <Typography sx={{ fontSize: 'inherit', lineHeight: 1.3 }}>{char}</Typography>
               </Box>
             );
           })}
         </Box>
-        <Typography sx={{ fontSize: '0.55em', textAlign: 'center', color: 'text.secondary', mt: 0.5 }}>
+        <Typography
+          sx={{ fontSize: '0.55em', textAlign: 'center', color: 'text.secondary', mt: 0.5 }}
+        >
           {word.pinyin}
         </Typography>
         {isAddedWord ? (
