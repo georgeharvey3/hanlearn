@@ -98,21 +98,18 @@ Append a new entry in this exact format (including the trailing ---):
 Then trim the file so only the 5 most recent entries remain (delete older ones)." \
   --allowedTools "Bash,Read,Write,Edit" || exit 1
 
-# Check if there were any commits
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
+# Verify CI checks, push branch, and create PR if there are commits
 COMMITS=$(git log --oneline origin/main..HEAD 2>/dev/null | wc -l || echo 0)
 
 if [ "$COMMITS" -gt 0 ]; then
   echo "Pushing branch with $COMMITS commit(s)..."
-  git push -u origin "$BRANCH"
-  gh pr create \
-    --title "chore: architectural improvements ($(date +%Y-%m-%d))" \
-    --body "Automated architectural review by Claude Code.
+  source "$PWD/claude-scripts/lib/verify-and-push.sh"
+  verify_and_push \
+    "chore: architectural improvements ($(date +%Y-%m-%d))" \
+    "Automated architectural review by Claude Code.
 
 See commit messages for details of changes made.
-Related issues may have been created for items requiring discussion." \
-    --base main \
-    --head "$BRANCH"
+Related issues may have been created for items requiring discussion."
 else
   echo "No commits made (issues may have been created instead)."
 fi

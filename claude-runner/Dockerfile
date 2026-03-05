@@ -22,7 +22,7 @@ RUN npm install -g @anthropic-ai/claude-code
 
 # Create non-root user (Claude Code won't run --dangerously-skip-permissions as root)
 RUN useradd -m -s /bin/bash claude \
-  && mkdir -p /home/claude/.config \
+  && mkdir -p /home/claude/.config /home/claude/.npm \
   && chown -R claude:claude /home/claude
 
 # Configure git identity for commits (as the claude user)
@@ -35,9 +35,9 @@ WORKDIR /app
 USER root
 
 # Copy runner scripts
-COPY entrypoint.sh process-issue.sh plan-issue.sh run-default-task.sh ./
-RUN chmod +x entrypoint.sh process-issue.sh plan-issue.sh run-default-task.sh \
-  && chown claude:claude entrypoint.sh process-issue.sh plan-issue.sh run-default-task.sh
+COPY entrypoint.sh process-issue.sh plan-issue.sh run-default-task.sh fix-conflict-pr.sh ./
+RUN chmod +x entrypoint.sh process-issue.sh plan-issue.sh run-default-task.sh fix-conflict-pr.sh \
+  && chown claude:claude entrypoint.sh process-issue.sh plan-issue.sh run-default-task.sh fix-conflict-pr.sh
 
 # Create directories for mounted volumes (task config and state)
 # These will be mounted from the host via docker-compose

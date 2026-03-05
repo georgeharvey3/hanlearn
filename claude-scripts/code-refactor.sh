@@ -95,21 +95,18 @@ Append a new entry in this exact format (including the trailing ---):
 Then trim the file so only the 5 most recent entries remain." \
   --allowedTools "Bash,Read,Write,Edit" || exit 1
 
-# Push and create PR if there are commits
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
+# Verify CI checks, push branch, and create PR if there are commits
 COMMITS=$(git log --oneline origin/main..HEAD 2>/dev/null | wc -l || echo 0)
 
 if [ "$COMMITS" -gt 0 ]; then
   echo "Pushing branch with $COMMITS commit(s)..."
-  git push -u origin "$BRANCH"
-  gh pr create \
-    --title "refactor: code quality improvements ($(date +%Y-%m-%d))" \
-    --body "Automated refactoring by Claude Code.
+  source "$PWD/claude-scripts/lib/verify-and-push.sh"
+  verify_and_push \
+    "refactor: code quality improvements ($(date +%Y-%m-%d))" \
+    "Automated refactoring by Claude Code.
 
 All changes are behavior-preserving and validated by the test suite.
-See commit messages for details of each refactoring." \
-    --base main \
-    --head "$BRANCH"
+See commit messages for details of each refactoring."
 else
   echo "No refactoring opportunities found that met safety criteria."
 fi

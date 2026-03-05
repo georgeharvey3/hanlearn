@@ -64,13 +64,11 @@ Append a new entry in this exact format (including the trailing ---):
 Then trim the file so only the 5 most recent entries remain (delete older ones)." \
   --allowedTools "Bash,Read,Write,Edit" || exit 1
 
+# Verify CI checks, push branch, and open PR
 # Note: script runs in the cloned repo directory (set by run-default-task.sh)
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
-git push -u origin "$BRANCH"
-gh pr create \
-  --title "fix: automated bug fixes ($(date +%Y-%m-%d))" \
-  --body "Automated bug hunt and fixes by Claude Code.
+source "$PWD/claude-scripts/lib/verify-and-push.sh"
+verify_and_push \
+  "fix: automated bug fixes ($(date +%Y-%m-%d))" \
+  "Automated bug hunt and fixes by Claude Code.
 
-See commit messages for details of each fix." \
-  --base main \
-  --head "$BRANCH"
+See commit messages for details of each fix."

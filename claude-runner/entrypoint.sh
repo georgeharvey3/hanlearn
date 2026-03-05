@@ -87,12 +87,17 @@ check_incomplete_tasks() {
     task_id=$(echo "$last_entry" | sed -E 's/.*PLANNING (#[0-9]+).*/\1/')
     activity "⚠ ABORTED $task_id — container stopped during execution"
     log "Detected incomplete planning from previous run: $task_id (marked as aborted)"
+  elif echo "$last_entry" | grep -qE '^\[.*\] REBASING PR#[0-9]+'; then
+    task_id=$(echo "$last_entry" | sed -E 's/.*REBASING (PR#[0-9]+).*/\1/')
+    activity "⚠ ABORTED $task_id — container stopped during execution"
+    log "Detected incomplete rebase from previous run: $task_id (marked as aborted)"
   fi
 }
 
 echo "=== HanLearn Claude Runner ==="
 echo "Repo: $REPO"
-echo "Polling every ${POLL_INTERVAL}s for issues labeled 'dev-ready' or 'needs-plan'"
+echo "Polling every ${POLL_INTERVAL}s"
+echo "Priority: fix-conflict PRs > dev-ready issues > needs-plan issues > default tasks"
 echo ""
 
 # Verify credentials
@@ -122,15 +127,66 @@ echo ""
 check_incomplete_tasks
 
 while true; do
+  # ══════════════════════════════════════════════════════════════════════════════
+  # PRIORITY 1: Check for PRs with "fix-conflict" label (conflict resolution)
+  # ══════════════════════════════════════════════════════════════════════════════
+  CONFLICT_PRS_RAW=$(gh pr list \
+    --repo "$REPO" \
+    --search "label:fix-conflict is:open sort:created-desc" \
+    --json number,title,labels \
+    --limit 10 2>&1) || true
+
+  # Validate JSON
+  if ! echo "$CONFLICT_PRS_RAW" | jq empty 2>/dev/null; then
+    log_error "Invalid JSON response from gh pr list (fix-conflict)"
+    CONFLICT_PRS="[]"
+  else
+    CONFLICT_PRS="$CONFLICT_PRS_RAW"
+  fi
+
+  # Filter out PRs that have "in-progress" or "agent-failed" labels
+  CONFLICT_PRS=$(echo "$CONFLICT_PRS" | jq '[.[] | select(.labels | map(.name) | (index("in-progress") or index("agent-failed")) | not)]' 2>/dev/null || echo "[]")
+
+  CONFLICT_COUNT=$(echo "$CONFLICT_PRS" | jq 'length' 2>/dev/null || echo "0")
+
+  if [ "$CONFLICT_COUNT" -gt 0 ]; then
+    # Process the oldest conflict PR (only one at a time)
+    PR_NUMBER=$(echo "$CONFLICT_PRS" | jq -r '.[0].number')
+    PR_TITLE=$(echo "$CONFLICT_PRS" | jq -r '.[0].title')
+
+    activity "REBASING PR#$PR_NUMBER"
+    log "── Conflict Resolution PR #$PR_NUMBER: $PR_TITLE ──"
+
+    # Capture output for error logging
+    set +e
+    /app/fix-conflict-pr.sh "$REPO" "$PR_NUMBER" 2>&1 | tee "$ISSUE_OUTPUT"
+    CONFLICT_EXIT=${PIPESTATUS[0]}
+    set -e
+
+    if [ "$CONFLICT_EXIT" -eq 0 ]; then
+      activity "✓ REBASED PR#$PR_NUMBER"
+      log "── PR #$PR_NUMBER conflict resolution completed ──"
+    else
+      activity "✗ REBASED PR#$PR_NUMBER — exit $CONFLICT_EXIT"
+      log_error "── PR #$PR_NUMBER conflict resolution failed ──"
+      log_error_details "REBASING PR#$PR_NUMBER" "$CONFLICT_EXIT" "$ISSUE_OUTPUT"
+      log "Error details written to: $ERROR_LOG"
+    fi
+    rm -f "$ISSUE_OUTPUT"
+
+    sleep "$POLL_INTERVAL"
+    continue
+  fi
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # PRIORITY 2: Check for issues with "dev-ready" label
+  # ══════════════════════════════════════════════════════════════════════════════
   # Fetch open issues with "dev-ready" label assigned to glawge-agent, excluding any already "in-progress"
   # Sorted by oldest first (FIFO queue)
   ISSUES_RAW=$(gh issue list \
     --repo "$REPO" \
-    --label "dev-ready" \
-    --assignee "glawge-agent" \
-    --state open \
+    --search "label:dev-ready assignee:glawge-agent is:open sort:created-asc" \
     --json number,title,body,labels \
-    --order asc \
     --limit 10 2>&1) || true
 
   # Validate JSON
@@ -141,8 +197,8 @@ while true; do
     ISSUES="$ISSUES_RAW"
   fi
 
-  # Filter out issues that also have "in-progress" label
-  ISSUES=$(echo "$ISSUES" | jq '[.[] | select(.labels | map(.name) | index("in-progress") | not)]' 2>/dev/null || echo "[]")
+  # Filter out issues that have "in-progress" or "agent-failed" labels
+  ISSUES=$(echo "$ISSUES" | jq '[.[] | select(.labels | map(.name) | (index("in-progress") or index("agent-failed")) | not)]' 2>/dev/null || echo "[]")
 
   COUNT=$(echo "$ISSUES" | jq 'length' 2>/dev/null || echo "0")
 
@@ -152,11 +208,8 @@ while true; do
     # Sorted by oldest first (FIFO queue)
     PLAN_ISSUES_RAW=$(gh issue list \
       --repo "$REPO" \
-      --label "needs-plan" \
-      --assignee "glawge-agent" \
-      --state open \
+      --search "label:needs-plan assignee:glawge-agent is:open sort:created-asc" \
       --json number,title,labels \
-      --order asc \
       --limit 10 2>&1) || true
 
     # Validate JSON
@@ -167,8 +220,8 @@ while true; do
       PLAN_ISSUES="$PLAN_ISSUES_RAW"
     fi
 
-    # Filter out issues that also have "in-progress" label
-    PLAN_ISSUES=$(echo "$PLAN_ISSUES" | jq '[.[] | select(.labels | map(.name) | index("in-progress") | not)]' 2>/dev/null || echo "[]")
+    # Filter out issues that have "in-progress" or "agent-failed" labels
+    PLAN_ISSUES=$(echo "$PLAN_ISSUES" | jq '[.[] | select(.labels | map(.name) | (index("in-progress") or index("agent-failed")) | not)]' 2>/dev/null || echo "[]")
 
     PLAN_COUNT=$(echo "$PLAN_ISSUES" | jq 'length' 2>/dev/null || echo "0")
 
