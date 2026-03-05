@@ -13,6 +13,7 @@ const initialState: AuthState = {
   initialized: false,
   modalOpen: false,
   modalMode: 'login',
+  resetEmailSent: false,
 };
 
 describe('auth reducer', () => {
