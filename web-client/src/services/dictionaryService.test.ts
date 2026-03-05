@@ -163,6 +163,65 @@ describe('dictionaryService', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // substringMatch
+  // ---------------------------------------------------------------------------
+  describe('substringMatch', () => {
+    it('returns the exact entry when the full string is in the dictionary', async () => {
+      const results = await mod.substringMatch('你好', 'simp');
+      expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({ simp: '你好', pinyin: 'nǐ hǎo' });
+    });
+
+    it('decomposes a compound into dictionary-matched substrings using greedy longest match', async () => {
+      // '学习' exists as a 2-char entry; greedy should prefer it over '学' + '习'
+      const results = await mod.substringMatch('学习', 'simp');
+      expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({ simp: '学习' });
+    });
+
+    it('decomposes when the full string is not in the dictionary', async () => {
+      // '你好学习' is not in the dictionary, but '你好' and '学习' are
+      const results = await mod.substringMatch('你好学习', 'simp');
+      expect(results).toHaveLength(2);
+      expect(results[0]).toMatchObject({ simp: '你好' });
+      expect(results[1]).toMatchObject({ simp: '学习' });
+    });
+
+    it('falls back to single characters when no multi-char match exists', async () => {
+      // '学' and '习' are separate single-char entries
+      // Construct a string that won't match as compound: '习学' is not an entry
+      const results = await mod.substringMatch('习学', 'simp');
+      expect(results).toHaveLength(2);
+      expect(results[0]).toMatchObject({ simp: '习' });
+      expect(results[1]).toMatchObject({ simp: '学' });
+    });
+
+    it('creates a synthetic entry for characters not in the dictionary', async () => {
+      const results = await mod.substringMatch('z', 'simp');
+      expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({ id: -1, simp: 'z', trad: 'z', pinyin: '', meaning: '' });
+    });
+
+    it('handles a mix of known and unknown characters', async () => {
+      const results = await mod.substringMatch('你好z', 'simp');
+      expect(results).toHaveLength(2);
+      expect(results[0]).toMatchObject({ simp: '你好' });
+      expect(results[1]).toMatchObject({ id: -1, simp: 'z' });
+    });
+
+    it('respects the charSet parameter for traditional lookups', async () => {
+      const results = await mod.substringMatch('學習', 'trad');
+      expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({ trad: '學習' });
+    });
+
+    it('returns empty array for empty string', async () => {
+      const results = await mod.substringMatch('', 'simp');
+      expect(results).toHaveLength(0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Error handling
   // ---------------------------------------------------------------------------
   describe('error handling', () => {

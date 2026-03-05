@@ -23,7 +23,7 @@ import * as wordActions from '../../../store/actions/index';
 import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
 import { AppDispatch } from '../../../types/actions';
-import { searchWord } from '../../../services/dictionaryService';
+import { searchWord, substringMatch } from '../../../services/dictionaryService';
 import { getSegmentedSentence } from '../../../services/sentenceService';
 import { parseMeanings } from '../../../utils/meaningUtils';
 
@@ -56,7 +56,7 @@ interface CloudSentence {
 interface ResolvedSentence {
   chinese: {
     sentence: string;
-    words: (string | SentenceWord)[];
+    words: (string | SentenceWord | SentenceWord[])[];
     highlight: number[][];
     targetIndex: number;
   };
@@ -100,12 +100,29 @@ async function resolveSentence(cloudSentence: CloudSentence): Promise<ResolvedSe
     }
   }
 
-  const words: (SentenceWord | string)[] = cloudSentence.chinese.segments.map((seg, i) => {
-    if (i === cloudSentence.chinese.targetIndex) {
-      return seg; // Target word stays as string marker
-    }
-    return wordMap.get(seg) || seg; // Resolved word or plain string fallback
-  });
+  const words: (SentenceWord | string | SentenceWord[])[] = await Promise.all(
+    cloudSentence.chinese.segments.map(async (seg, i) => {
+      if (i === cloudSentence.chinese.targetIndex) {
+        return seg; // Target word stays as string marker
+      }
+      const resolved = wordMap.get(seg);
+      if (resolved) return resolved;
+
+      // No exact match — decompose into smaller dictionary-matched substrings
+      const subWords = await substringMatch(seg, 'simp');
+      if (subWords.length === 1 && subWords[0].id === -1) {
+        // Single unknown character — keep as plain string
+        return seg;
+      }
+      return subWords.map((w) => ({
+        id: w.id,
+        simp: w.simp,
+        trad: w.trad,
+        pinyin: w.pinyin,
+        meaning: w.meaning,
+      }));
+    }),
+  );
 
   return {
     chinese: {
@@ -582,36 +599,57 @@ const SentenceRead: React.FC<Props> = ({
           return <React.Fragment key={index}>{word}</React.Fragment>;
         }
 
-        return (
+        // Helper to render a single clickable word with popup
+        const renderWordPopup = (w: SentenceWord, popupId: string, key: string | number) => (
           <Box
             component="span"
             data-popup
             onClick={(event: React.MouseEvent) => {
               if ((event.target as HTMLElement).hasAttribute('data-popup')) {
-                onShowPopup(word.id + 'popup', word[state.charSet]);
+                onShowPopup(popupId, w[state.charSet]);
               }
             }}
-            key={index}
+            key={key}
             sx={popupBaseSx}
           >
-            {word[state.charSet]}
-            <Box component="span" data-popup-text id={word.id + 'popup'} style={popupTextStyle}>
+            {w[state.charSet]}
+            <Box component="span" data-popup-text id={popupId} style={popupTextStyle}>
               <Typography variant="subtitle2" sx={{ m: 0, fontWeight: 'bold' }}>
                 Pinyin:
               </Typography>
-              <Typography variant="body2">{word.pinyin}</Typography>
+              <Typography variant="body2">{w.pinyin || '—'}</Typography>
               <Typography variant="subtitle2" sx={{ m: 0, fontWeight: 'bold' }}>
                 Meaning:
               </Typography>
-              <Typography variant="body2">{parseMeanings(word.meaning).join(' / ')}</Typography>
-              {addedWords.find((aw) => aw.id === word.id) ? (
-                <Button disabled>Added!</Button>
-              ) : (
-                <Button clicked={() => onPostWord(word as Word)}>Add to bank</Button>
-              )}
+              <Typography variant="body2">
+                {w.meaning ? parseMeanings(w.meaning).join(' / ') : 'No definition found'}
+              </Typography>
+              {w.id !== -1 &&
+                (addedWords.find((aw) => aw.id === w.id) ? (
+                  <Button disabled>Added!</Button>
+                ) : (
+                  <Button clicked={() => onPostWord(w as Word)}>Add to bank</Button>
+                ))}
             </Box>
           </Box>
         );
+
+        // Decomposed segment — render each sub-word as clickable
+        if (Array.isArray(word)) {
+          return (
+            <React.Fragment key={index}>
+              {word.map((subWord, subIndex) =>
+                renderWordPopup(
+                  subWord,
+                  `${subWord.id}-${index}-${subIndex}-popup`,
+                  `${index}-${subIndex}`,
+                ),
+              )}
+            </React.Fragment>
+          );
+        }
+
+        return renderWordPopup(word, `${word.id}-${index}-popup`, index);
       });
 
       sentenceCardContent = (
