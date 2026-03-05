@@ -83,4 +83,4 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
   return <h2>{questionText}</h2>;
 };
 
-export default QuestionDisplay;
+export default React.memo(QuestionDisplay);

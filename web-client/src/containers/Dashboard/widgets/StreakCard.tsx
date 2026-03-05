@@ -25,4 +25,4 @@ const StreakCard: React.FC<StreakCardProps> = ({ streak }) => (
   </Paper>
 );
 
-export default StreakCard;
+export default React.memo(StreakCard);

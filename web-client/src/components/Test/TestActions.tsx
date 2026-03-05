@@ -62,4 +62,4 @@ const TestActions: React.FC<TestActionsProps> = ({ state, onIDontKnow, onHint, s
   );
 };
 
-export default TestActions;
+export default React.memo(TestActions);

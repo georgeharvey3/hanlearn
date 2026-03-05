@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 
 import { Box, Paper, Typography } from '@mui/material';
@@ -58,7 +58,7 @@ const NewWord: React.FC<Props> = ({
     localStorage.getItem('useSound') === 'false' || !synthAvailable ? false : true,
   );
 
-  const onSpeakPinyin = (pinyinWord: string): void => {
+  const onSpeakPinyin = useCallback((pinyinWord: string): void => {
     const synth = window.speechSynthesis;
     const utterThis = new SpeechSynthesisUtterance(pinyinWord);
     utterThis.lang = lang || 'zh-CN';
@@ -72,9 +72,9 @@ const NewWord: React.FC<Props> = ({
     };
     synth.cancel();
     synth.speak(utterThis);
-  };
+  }, [lang, voice]);
 
-  const onDisplayMeaning = async (char: string): Promise<void> => {
+  const onDisplayMeaning = useCallback(async (char: string): Promise<void> => {
     try {
       const charSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp';
       const results = await searchWord(char, charSet);
@@ -88,15 +88,15 @@ const NewWord: React.FC<Props> = ({
     } catch {
       setErrorMessage('Error looking up character');
     }
-  };
+  }, []);
 
-  const onCharacterClick = (char: string): void => {
+  const onCharacterClick = useCallback((char: string): void => {
     setClickedChar(char);
     onDisplayMeaning(char);
     if (useSound || (isDemo && synthAvailable)) {
       onSpeakPinyin(char);
     }
-  };
+  }, [onDisplayMeaning, useSound, isDemo, synthAvailable, onSpeakPinyin]);
 
   useEffect(() => {
     if (useSound) {
@@ -106,7 +106,15 @@ const NewWord: React.FC<Props> = ({
     setClickedChar('');
   }, [charSet, useSound, word]);
 
-  const chars = word[charSet].split('');
+  const chars = useMemo(() => word[charSet].split(''), [word, charSet]);
+
+  const handleMeaningChange = useCallback(
+    (newValue: string) => {
+      setEditedMeaning(newValue);
+      onMeaningChange?.(newValue);
+    },
+    [onMeaningChange],
+  );
 
   const charInfo: React.ReactNode =
     charData === null ? (
@@ -193,10 +201,7 @@ const NewWord: React.FC<Props> = ({
           <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
             <MeaningEditor
               value={editedMeaning}
-              onChange={(newValue) => {
-                setEditedMeaning(newValue);
-                onMeaningChange?.(newValue);
-              }}
+              onChange={handleMeaningChange}
               size="small"
             />
           </Box>

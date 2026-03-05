@@ -1,4 +1,4 @@
-import React, { ChangeEvent, KeyboardEvent, useCallback, useEffect, useState } from 'react';
+import React, { ChangeEvent, KeyboardEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { RouteComponentProps, withRouter, Redirect } from 'react-router-dom';
 import Box from '@mui/material/Box';
@@ -195,11 +195,11 @@ const AddWords: React.FC<Props> = ({
     };
   }, [onKeyUp]);
 
-  const onInputChangedHandler = (event: ChangeEvent<HTMLInputElement>): void => {
+  const onInputChangedHandler = useCallback((event: ChangeEvent<HTMLInputElement>): void => {
     updateState({ newWord: event.target.value, addError: false });
-  };
+  }, [updateState]);
 
-  const handleSearchResult = (res: Word[], searchedWord: string): void => {
+  const handleSearchResult = useCallback((res: Word[], searchedWord: string): void => {
     if (res.length === 0) {
       (document.getElementById('addInput') as HTMLInputElement | null)?.blur();
       updateState({
@@ -242,9 +242,9 @@ const AddWords: React.FC<Props> = ({
         showClashTable: true,
       });
     }
-  };
+  }, [words, state.charSet, updateState]);
 
-  const searchForWord = async (e: React.FormEvent): Promise<void> => {
+  const searchForWord = useCallback(async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (state.newWord === '') {
       return;
@@ -266,31 +266,25 @@ const AddWords: React.FC<Props> = ({
         newWord: '',
       });
     }
-  };
+  }, [state.newWord, state.charSet, updateState, handleSearchResult]);
 
-  const onTestHandler = (): void => {
+  const onTestHandler = useCallback((): void => {
     // Navigate to test page - practice mode is available there if no words are due
     history.push('/test-words');
-  };
+  }, [history]);
 
-  const toggleWords = (): void => {
+  const toggleWords = useCallback((): void => {
     setState((prevState) => ({
       ...prevState,
       showWords: !prevState.showWords,
     }));
-  };
+  }, []);
 
-  const meaningChanged = (event: ChangeEvent<HTMLInputElement>): void => {
+  const meaningChanged = useCallback((event: ChangeEvent<HTMLInputElement>): void => {
     updateState({ meaning: event.target.value });
-  };
+  }, [updateState]);
 
-  const meaningKeyPressed = (event: KeyboardEvent<HTMLInputElement>): void => {
-    if (event.key === 'Enter') {
-      meaningSubmitClicked();
-    }
-  };
-
-  const meaningSubmitClicked = (): void => {
+  const meaningSubmitClicked = useCallback((): void => {
     onPostCustomWord({
       text: state.newWord,
       meaning: state.meaning,
@@ -306,7 +300,13 @@ const AddWords: React.FC<Props> = ({
     if (mainInput) {
       mainInput.focus();
     }
-  };
+  }, [onPostCustomWord, state.newWord, state.meaning, state.charSet, updateState]);
+
+  const meaningKeyPressed = useCallback((event: KeyboardEvent<HTMLInputElement>): void => {
+    if (event.key === 'Enter') {
+      meaningSubmitClicked();
+    }
+  }, [meaningSubmitClicked]);
 
   // Wait for auth to initialize before redirecting
   if (!authInitialized) {
@@ -316,13 +316,9 @@ const AddWords: React.FC<Props> = ({
     return <Redirect to="/" />;
   }
 
-  let table: React.ReactNode = loading ? <Spinner /> : null;
-
-  const tableWords = words;
-
-  if (tableWords) {
-    const tableRows = tableWords.map((row) => {
-      return (
+  const tableRows = useMemo(
+    () =>
+      words.map((row) => (
         <TableRow key={row.id}>
           <TableCell sx={{ textAlign: 'center', fontWeight: 500 }}>{row[state.charSet]}</TableCell>
           <TableCell sx={{ textAlign: 'center' }}>{row.pinyin}</TableCell>
@@ -345,9 +341,13 @@ const AddWords: React.FC<Props> = ({
             <Remove clicked={() => onDeleteWord(row.id)} />
           </TableCell>
         </TableRow>
-      );
-    });
+      )),
+    [words, state.charSet, onPostMeaningUpdate, onDeleteWord],
+  );
 
+  let table: React.ReactNode = loading ? <Spinner /> : null;
+
+  if (words) {
     table = (
       <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due', 'Remove']}>{tableRows}</Table>
     );
@@ -365,11 +365,9 @@ const AddWords: React.FC<Props> = ({
     );
   }
 
-  let clashTableRows: React.ReactNode = null;
-
-  if (state.clashWords.length > 0) {
-    clashTableRows = state.clashWords.map((word, index) => {
-      return (
+  const clashTableRows = useMemo(
+    () =>
+      state.clashWords.map((word, index) => (
         <TableRow
           key={index}
           hover
@@ -386,9 +384,9 @@ const AddWords: React.FC<Props> = ({
           <TableCell>{word.pinyin}</TableCell>
           <TableCell>{word.meaning}</TableCell>
         </TableRow>
-      );
-    });
-  }
+      )),
+    [state.clashWords, state.charSet, handleSearchResult, updateState],
+  );
 
   const buttonText = state.showWords ? 'Hide Table' : 'Show Table';
 

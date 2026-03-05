@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Box, Checkbox, Drawer, FormControlLabel, FormGroup, Typography } from '@mui/material';
 import {
   AudioSettings,
@@ -34,7 +34,10 @@ const AudioSettingsDrawer: React.FC<AudioSettingsDrawerProps> = ({
     onClose(settings);
   }, [onClose, settings]);
 
-  const items = getAudioSettingItems(speechAvailable, synthAvailable);
+  const items = useMemo(
+    () => getAudioSettingItems(speechAvailable, synthAvailable),
+    [speechAvailable, synthAvailable],
+  );
 
   return (
     <Drawer
@@ -76,4 +79,4 @@ const AudioSettingsDrawer: React.FC<AudioSettingsDrawerProps> = ({
   );
 };
 
-export default AudioSettingsDrawer;
+export default React.memo(AudioSettingsDrawer);
