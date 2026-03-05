@@ -5,6 +5,7 @@ import * as wordService from '../../services/wordService';
 import * as streakService from '../../services/streakService';
 import { Word } from '../../types/models';
 
+vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
 vi.mock('../../services/wordService');
 vi.mock('../../services/streakService');
 

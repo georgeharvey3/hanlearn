@@ -4,6 +4,7 @@ import * as authActions from './auth';
 import * as firebaseAuth from '../../firebase/auth';
 import { FirebaseError } from 'firebase/app';
 
+vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
 vi.mock('../../firebase/auth');
 
 const mockedAuth = vi.mocked(firebaseAuth);
