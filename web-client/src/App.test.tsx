@@ -34,7 +34,7 @@ import { render } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 import { createStore, applyMiddleware, combineReducers } from 'redux';
-import thunk from 'redux-thunk';
+import { thunk } from 'redux-thunk';
 
 import App from './App';
 import wordsReducer from './store/reducers/addWords';

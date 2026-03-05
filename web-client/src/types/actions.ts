@@ -1,5 +1,5 @@
 import { ThunkAction, ThunkDispatch } from 'redux-thunk';
-import { AnyAction } from 'redux';
+import { UnknownAction } from 'redux';
 import { RootState } from './store';
 import { Word } from './models';
 
@@ -171,6 +171,6 @@ export type SettingsAction =
 export type AppAction = WordAction | AuthAction | SettingsAction;
 
 // Thunk types
-export type AppThunk<ReturnType = void> = ThunkAction<ReturnType, RootState, unknown, AnyAction>;
+export type AppThunk<ReturnType = void> = ThunkAction<ReturnType, RootState, unknown, UnknownAction>;
 
-export type AppDispatch = ThunkDispatch<RootState, unknown, AnyAction>;
+export type AppDispatch = ThunkDispatch<RootState, unknown, UnknownAction>;

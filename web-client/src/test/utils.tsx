@@ -3,7 +3,7 @@ import { render, RenderOptions } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 import { createStore, applyMiddleware, combineReducers } from 'redux';
-import thunk from 'redux-thunk';
+import { thunk } from 'redux-thunk';
 
 import wordsReducer from '../store/reducers/addWords';
 import authReducer from '../store/reducers/auth';
