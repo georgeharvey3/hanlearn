@@ -101,25 +101,34 @@ const AuthModal: React.FC<Props> = ({
 
   const getHeading = () => {
     switch (mode) {
-      case 'forgot-password': return 'Reset Password';
-      case 'register': return 'Create Account';
-      default: return 'Welcome Back';
+      case 'forgot-password':
+        return 'Reset Password';
+      case 'register':
+        return 'Create Account';
+      default:
+        return 'Welcome Back';
     }
   };
 
   const getSubheading = () => {
     switch (mode) {
-      case 'forgot-password': return "Enter your email and we'll send you a reset link";
-      case 'register': return 'Start mastering Mandarin today';
-      default: return 'Log in to continue your learning journey';
+      case 'forgot-password':
+        return "Enter your email and we'll send you a reset link";
+      case 'register':
+        return 'Start mastering Mandarin today';
+      default:
+        return 'Log in to continue your learning journey';
     }
   };
 
   const getSubmitLabel = () => {
     switch (mode) {
-      case 'forgot-password': return 'Send Reset Link';
-      case 'register': return 'Sign Up';
-      default: return 'Log In';
+      case 'forgot-password':
+        return 'Send Reset Link';
+      case 'register':
+        return 'Sign Up';
+      default:
+        return 'Log In';
     }
   };
 
@@ -132,7 +141,7 @@ const AuthModal: React.FC<Props> = ({
             Check Your Email
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
-            If an account exists with that email, we've sent a password reset link.
+            If an account exists with that email, we&apos;ve sent a password reset link.
           </Typography>
           <Button
             variant="contained"

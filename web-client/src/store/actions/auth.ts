@@ -54,7 +54,9 @@ export const authInitialized = (): AuthInitializedAction => {
   };
 };
 
-export const openAuthModal = (mode: 'login' | 'register' | 'forgot-password' = 'login'): OpenAuthModalAction => ({
+export const openAuthModal = (
+  mode: 'login' | 'register' | 'forgot-password' = 'login',
+): OpenAuthModalAction => ({
   type: actionTypes.OPEN_AUTH_MODAL,
   mode,
 });
@@ -63,7 +65,9 @@ export const closeAuthModal = (): CloseAuthModalAction => ({
   type: actionTypes.CLOSE_AUTH_MODAL,
 });
 
-export const setAuthModalMode = (mode: 'login' | 'register' | 'forgot-password'): SetAuthModalModeAction => ({
+export const setAuthModalMode = (
+  mode: 'login' | 'register' | 'forgot-password',
+): SetAuthModalModeAction => ({
   type: actionTypes.SET_AUTH_MODAL_MODE,
   mode,
 });
