@@ -1,4 +1,11 @@
-import React, { ChangeEvent, KeyboardEvent, useCallback, useEffect, useState } from 'react';
+import React, {
+  ChangeEvent,
+  KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { RouteComponentProps, withRouter, Redirect } from 'react-router-dom';
 import Box from '@mui/material/Box';
@@ -195,102 +202,108 @@ const AddWords: React.FC<Props> = ({
     };
   }, [onKeyUp]);
 
-  const onInputChangedHandler = (event: ChangeEvent<HTMLInputElement>): void => {
-    updateState({ newWord: event.target.value, addError: false });
-  };
+  const onInputChangedHandler = useCallback(
+    (event: ChangeEvent<HTMLInputElement>): void => {
+      updateState({ newWord: event.target.value, addError: false });
+    },
+    [updateState],
+  );
 
-  const handleSearchResult = (res: Word[], searchedWord: string): void => {
-    if (res.length === 0) {
-      (document.getElementById('addInput') as HTMLInputElement | null)?.blur();
-      updateState({
-        errorMessage: `The word ${searchedWord} could not be found`,
-        showMeaningInput: true,
-      });
+  const handleSearchResult = useCallback(
+    (res: Word[], searchedWord: string): void => {
+      if (res.length === 0) {
+        (document.getElementById('addInput') as HTMLInputElement | null)?.blur();
+        updateState({
+          errorMessage: `The word ${searchedWord} could not be found`,
+          showMeaningInput: true,
+        });
 
-      const input = document.querySelector('#meaning') as HTMLInputElement | null;
-      if (!input) {
-        return;
-      }
-      setTimeout(() => {
-        input.focus();
-      }, 1);
-      return;
-    }
-    if (res.length === 1) {
-      const word = res[0];
-      for (let i = 0; i < words.length; i++) {
-        if (words[i].id === word.id) {
-          updateState({
-            errorMessage: `The word ${searchedWord} is already in your bank`,
-            showErrorMessage: true,
-          });
+        const input = document.querySelector('#meaning') as HTMLInputElement | null;
+        if (!input) {
           return;
         }
+        setTimeout(() => {
+          input.focus();
+        }, 1);
+        return;
       }
-      updateState({
-        newWord: '',
-        pendingWord: word,
-        pendingMeaning: word.meaning,
-        showConfirmModal: true,
-      });
-    }
+      if (res.length === 1) {
+        const word = res[0];
+        for (let i = 0; i < words.length; i++) {
+          if (words[i].id === word.id) {
+            updateState({
+              errorMessage: `The word ${searchedWord} is already in your bank`,
+              showErrorMessage: true,
+            });
+            return;
+          }
+        }
+        updateState({
+          newWord: '',
+          pendingWord: word,
+          pendingMeaning: word.meaning,
+          showConfirmModal: true,
+        });
+      }
 
-    if (res.length > 1) {
-      updateState({
-        clashChar: res[0][state.charSet],
-        clashWords: res,
-        showClashTable: true,
-      });
-    }
-  };
+      if (res.length > 1) {
+        updateState({
+          clashChar: res[0][state.charSet],
+          clashWords: res,
+          showClashTable: true,
+        });
+      }
+    },
+    [words, state.charSet, updateState],
+  );
 
-  const searchForWord = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
-    if (state.newWord === '') {
-      return;
-    }
+  const searchForWord = useCallback(
+    async (e: React.FormEvent): Promise<void> => {
+      e.preventDefault();
+      if (state.newWord === '') {
+        return;
+      }
 
-    updateState({ loading: true });
-    try {
-      const words = await wordService.searchWord(state.newWord, state.charSet);
-      updateState({
-        loading: false,
-        addError: false,
-      });
-      handleSearchResult(words, state.newWord);
-    } catch (error) {
-      console.error('Failed to search for word:', error);
-      updateState({
-        loading: false,
-        addError: true,
-        newWord: '',
-      });
-    }
-  };
+      updateState({ loading: true });
+      try {
+        const words = await wordService.searchWord(state.newWord, state.charSet);
+        updateState({
+          loading: false,
+          addError: false,
+        });
+        handleSearchResult(words, state.newWord);
+      } catch (error) {
+        console.error('Failed to search for word:', error);
+        updateState({
+          loading: false,
+          addError: true,
+          newWord: '',
+        });
+      }
+    },
+    [state.newWord, state.charSet, updateState, handleSearchResult],
+  );
 
-  const onTestHandler = (): void => {
+  const onTestHandler = useCallback((): void => {
     // Navigate to test page - practice mode is available there if no words are due
     history.push('/test-words');
-  };
+  }, [history]);
 
-  const toggleWords = (): void => {
+  const toggleWords = useCallback((): void => {
     setState((prevState) => ({
       ...prevState,
       showWords: !prevState.showWords,
     }));
-  };
+  }, []);
 
-  const meaningChanged = (event: ChangeEvent<HTMLInputElement>): void => {
-    updateState({ meaning: event.target.value });
-  };
+  const meaningChanged = useCallback(
+    (event: ChangeEvent<HTMLInputElement>): void => {
+      updateState({ meaning: event.target.value });
+    },
+    [updateState],
+  );
 
-  const meaningKeyPressed = (event: KeyboardEvent<HTMLInputElement>): void => {
-    if (event.key === 'Enter') {
-      meaningSubmitClicked();
-    }
-  };
-
-  const meaningSubmitClicked = (): void => {
+  const meaningSubmitClicked = useCallback((): void => {
     onPostCustomWord({
       text: state.newWord,
       meaning: state.meaning,
@@ -306,23 +319,20 @@ const AddWords: React.FC<Props> = ({
     if (mainInput) {
       mainInput.focus();
     }
-  };
+  }, [onPostCustomWord, state.newWord, state.meaning, state.charSet, updateState]);
 
-  // Wait for auth to initialize before redirecting
-  if (!authInitialized) {
-    return <Spinner />;
-  }
-  if (userId === null) {
-    return <Redirect to="/" />;
-  }
+  const meaningKeyPressed = useCallback(
+    (event: KeyboardEvent<HTMLInputElement>): void => {
+      if (event.key === 'Enter') {
+        meaningSubmitClicked();
+      }
+    },
+    [meaningSubmitClicked],
+  );
 
-  let table: React.ReactNode = loading ? <Spinner /> : null;
-
-  const tableWords = words;
-
-  if (tableWords) {
-    const tableRows = tableWords.map((row) => {
-      return (
+  const tableRows = useMemo(
+    () =>
+      words.map((row) => (
         <TableRow key={row.id}>
           <TableCell sx={{ textAlign: 'center', fontWeight: 500 }}>{row[state.charSet]}</TableCell>
           <TableCell sx={{ textAlign: 'center' }}>{row.pinyin}</TableCell>
@@ -345,31 +355,13 @@ const AddWords: React.FC<Props> = ({
             <Remove clicked={() => onDeleteWord(row.id)} />
           </TableCell>
         </TableRow>
-      );
-    });
+      )),
+    [words, state.charSet, onPostMeaningUpdate, onDeleteWord],
+  );
 
-    table = (
-      <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due', 'Remove']}>{tableRows}</Table>
-    );
-  }
-
-  if (!state.showWords) {
-    table = null;
-  }
-
-  if (error) {
-    table = (
-      <Typography sx={{ fontSize: '20px', color: 'error.main' }}>
-        Error: Could not fetch words
-      </Typography>
-    );
-  }
-
-  let clashTableRows: React.ReactNode = null;
-
-  if (state.clashWords.length > 0) {
-    clashTableRows = state.clashWords.map((word, index) => {
-      return (
+  const clashTableRows = useMemo(
+    () =>
+      state.clashWords.map((word, index) => (
         <TableRow
           key={index}
           hover
@@ -386,8 +378,36 @@ const AddWords: React.FC<Props> = ({
           <TableCell>{word.pinyin}</TableCell>
           <TableCell>{word.meaning}</TableCell>
         </TableRow>
-      );
-    });
+      )),
+    [state.clashWords, state.charSet, handleSearchResult, updateState],
+  );
+
+  // Wait for auth to initialize before redirecting
+  if (!authInitialized) {
+    return <Spinner />;
+  }
+  if (userId === null) {
+    return <Redirect to="/" />;
+  }
+
+  let table: React.ReactNode = loading ? <Spinner /> : null;
+
+  if (words) {
+    table = (
+      <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due', 'Remove']}>{tableRows}</Table>
+    );
+  }
+
+  if (!state.showWords) {
+    table = null;
+  }
+
+  if (error) {
+    table = (
+      <Typography sx={{ fontSize: '20px', color: 'error.main' }}>
+        Error: Could not fetch words
+      </Typography>
+    );
   }
 
   const buttonText = state.showWords ? 'Hide Table' : 'Show Table';

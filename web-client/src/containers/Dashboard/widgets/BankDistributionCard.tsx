@@ -51,4 +51,4 @@ const BankDistributionCard: React.FC<BankDistributionCardProps> = ({ distributio
   );
 };
 
-export default BankDistributionCard;
+export default React.memo(BankDistributionCard);

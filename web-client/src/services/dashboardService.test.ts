@@ -30,9 +30,9 @@ describe('getDashboardStats', () => {
     // mock it to return a fixed value for determinism
     mockedStreakService.calculateStreak.mockReturnValue(3);
     mockedStreakService.getStreakData.mockResolvedValue([
-      { date: '2026-02-25' },
-      { date: '2026-02-26' },
-      { date: '2026-02-27' },
+      { date: '2026-02-25', testsCount: 1 },
+      { date: '2026-02-26', testsCount: 1 },
+      { date: '2026-02-27', testsCount: 1 },
     ]);
   });
 

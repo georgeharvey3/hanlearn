@@ -59,4 +59,4 @@ const MasteryCard: React.FC<MasteryCardProps> = ({ masteredCount, totalWords }) 
   );
 };
 
-export default MasteryCard;
+export default React.memo(MasteryCard);

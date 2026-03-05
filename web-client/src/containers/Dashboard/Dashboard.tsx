@@ -43,6 +43,11 @@ const Dashboard: React.FC<PropsFromRedux> = ({ userId }) => {
     }
   }, [userId]);
 
+  const retryLoadStats = useCallback(() => {
+    setLoading(true);
+    loadStats();
+  }, [loadStats]);
+
   useEffect(() => {
     loadStats();
   }, [loadStats]);
@@ -57,10 +62,7 @@ const Dashboard: React.FC<PropsFromRedux> = ({ userId }) => {
         <Typography sx={{ color: 'error.main', mb: 2 }}>Could not load dashboard data.</Typography>
         <Typography
           component="button"
-          onClick={() => {
-            setLoading(true);
-            loadStats();
-          }}
+          onClick={retryLoadStats}
           sx={{
             color: 'primary.dark',
             background: 'none',

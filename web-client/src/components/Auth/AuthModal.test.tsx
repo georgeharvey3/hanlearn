@@ -50,7 +50,7 @@ function renderModal(
     addWords: { words: [], error: false, loading: false },
     settings: { speechAvailable: false, synthAvailable: false },
   });
-  return { store, ...renderWithProviders(<AuthModal />, { store }) };
+  return renderWithProviders(<AuthModal />, { store });
 }
 
 describe('AuthModal — login mode', () => {

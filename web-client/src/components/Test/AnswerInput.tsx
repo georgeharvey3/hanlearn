@@ -207,4 +207,4 @@ export function getVerb(state: TestState): string {
   }
 }
 
-export default AnswerInput;
+export default React.memo(AnswerInput);

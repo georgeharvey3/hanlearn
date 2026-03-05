@@ -41,4 +41,4 @@ const WordsDueCard: React.FC<WordsDueCardProps> = ({ dueWords, totalWords }) => 
   </Paper>
 );
 
-export default WordsDueCard;
+export default React.memo(WordsDueCard);
