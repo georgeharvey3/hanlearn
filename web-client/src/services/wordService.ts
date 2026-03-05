@@ -43,6 +43,26 @@ interface UserWordDocument {
   addedAt: Timestamp;
 }
 
+function mapDocumentToWord(
+  doc: { id: string; data: () => UserWordDocument },
+  includeDueDate = false,
+): Word {
+  const data = doc.data();
+  const word: Word = {
+    id: parseInt(doc.id),
+    simp: data.wordData.simp,
+    trad: data.wordData.trad,
+    pinyin: data.wordData.pinyin,
+    meaning: data.amendedMeaning || data.wordData.meaning,
+    bank: data.bank,
+    ammended_meaning: data.amendedMeaning || undefined,
+  };
+  if (includeDueDate) {
+    word.due_date = formatDate(data.dueDate.toDate());
+  }
+  return word;
+}
+
 /**
  * Get all words in a user's word bank, sorted by due date
  */
@@ -50,21 +70,7 @@ export const getUserWords = async (userId: string): Promise<Word[]> => {
   const userWordsRef = collection(db, 'users', userId, 'userWords');
   const q = query(userWordsRef, orderBy('dueDate', 'asc'));
   const snapshot = await getDocs(q);
-
-  return snapshot.docs.map((doc) => {
-    const data = doc.data() as UserWordDocument;
-    const dueDate = data.dueDate.toDate();
-    return {
-      id: parseInt(doc.id),
-      simp: data.wordData.simp,
-      trad: data.wordData.trad,
-      pinyin: data.wordData.pinyin,
-      meaning: data.amendedMeaning || data.wordData.meaning,
-      due_date: formatDate(dueDate),
-      bank: data.bank,
-      ammended_meaning: data.amendedMeaning || undefined,
-    };
-  });
+  return snapshot.docs.map((doc) => mapDocumentToWord(doc as any, true));
 };
 
 /**
@@ -75,19 +81,7 @@ export const getDueUserWords = async (userId: string): Promise<Word[]> => {
   const now = Timestamp.now();
   const q = query(userWordsRef, where('dueDate', '<=', now));
   const snapshot = await getDocs(q);
-
-  return snapshot.docs.map((doc) => {
-    const data = doc.data() as UserWordDocument;
-    return {
-      id: parseInt(doc.id),
-      simp: data.wordData.simp,
-      trad: data.wordData.trad,
-      pinyin: data.wordData.pinyin,
-      meaning: data.amendedMeaning || data.wordData.meaning,
-      bank: data.bank,
-      ammended_meaning: data.amendedMeaning || undefined,
-    };
-  });
+  return snapshot.docs.map((doc) => mapDocumentToWord(doc as any));
 };
 
 /**
