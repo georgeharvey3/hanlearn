@@ -273,7 +273,6 @@ const AddWords: React.FC<Props> = ({
     history.push('/test-words');
   };
 
-
   const toggleWords = (): void => {
     setState((prevState) => ({
       ...prevState,
@@ -350,9 +349,7 @@ const AddWords: React.FC<Props> = ({
     });
 
     table = (
-      <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due', 'Remove']}>
-        {tableRows}
-      </Table>
+      <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due', 'Remove']}>{tableRows}</Table>
     );
   }
 
