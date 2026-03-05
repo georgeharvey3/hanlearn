@@ -47,7 +47,7 @@ The frontend uses **Vite**, **TypeScript**, and **Redux with thunks**:
 
 - **Entry Point**: [web-client/src/index.tsx](web-client/src/index.tsx) - Redux store setup with three reducers
 - **Routing**: [web-client/src/App.tsx](web-client/src/App.tsx) - React Router v5, speech API initialization
-- **Styling**: CSS Modules (`.module.css` files)
+- **Styling**: MUI component library (`@mui/material`) with the `sx` prop for inline styles; no CSS Modules are used
 
 #### State Management
 
@@ -137,9 +137,10 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 
 - Testing libraries upgraded to RTL v16, user-event v14, Vitest — 40 tests passing as of 2026-02-26
 - Redux `connect()` pattern is used throughout; consider migrating to hooks (`useSelector`/`useDispatch`) over time
-- `web-client/src/store/reducers/auth.ts` — auth reducer is missing from the source listing (needs audit)
 - React Router v5 is used; v6 migration would be beneficial but is a large refactor
-- No error boundaries in the component tree
+- `react-redux` is pinned to v7.2.1; should be updated to v9 for React 18 compatibility
+- `ammended_meaning` field on the `Word` model has a typo (double-m); threaded through models, service, and tests — fix requires coordinated rename
+- Error boundaries exist (`components/ErrorBoundary/`) but coverage is incomplete
 - Speech synthesis/recognition is browser-dependent with no consistent fallback UI
 
 ## Prioritised Roadmap
