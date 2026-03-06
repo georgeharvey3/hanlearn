@@ -97,30 +97,32 @@ const NewWord: React.FC<Props> = ({
     (char: string, index: number): void => {
       setClickedIndex(index);
       setCharData({ simp: char, pinyins: [], meanings: [] });
-      if (useSound || (isDemo && synthAvailable)) {
-        onSpeakPinyin(char);
+      onDisplayMeaning(char);
+      try {
+        if (useSound || (isDemo && synthAvailable)) {
+          onSpeakPinyin(char);
+        }
+      } catch {
+        // Speech synthesis can fail on mobile — don't let it break the click
       }
     },
-    [useSound, isDemo, synthAvailable, onSpeakPinyin],
+    [onDisplayMeaning, useSound, isDemo, synthAvailable, onSpeakPinyin],
   );
 
+  const wordId = `${word.simp}-${word.trad}`;
   useEffect(() => {
-    if (useSound) {
-      onSpeakPinyin(word[charSet]);
+    try {
+      if (useSound) {
+        onSpeakPinyin(word[charSet]);
+      }
+    } catch {
+      // Speech synthesis can fail on mobile
     }
     setCharData(null);
     setClickedIndex(null);
-  }, [charSet, useSound, word]);
+  }, [charSet, useSound, wordId]);
 
   const chars = useMemo(() => word[charSet].split(''), [word, charSet]);
-
-  // Trigger dictionary lookup when clicked character changes — decoupled from touch
-  // event handler for reliable mobile behaviour
-  useEffect(() => {
-    if (clickedIndex !== null) {
-      onDisplayMeaning(chars[clickedIndex]);
-    }
-  }, [clickedIndex, chars, onDisplayMeaning]);
 
   const handleMeaningChange = useCallback(
     (newValue: string) => {
@@ -184,7 +186,14 @@ const NewWord: React.FC<Props> = ({
             return (
               <ButtonBase
                 key={index}
-                onClick={() => onCharacterClick(char, index)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onCharacterClick(char, index);
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  onCharacterClick(char, index);
+                }}
                 sx={{
                   fontSize: 'inherit',
                   px: 1,
