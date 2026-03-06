@@ -46,9 +46,7 @@ describe('NewWord character interaction', () => {
   });
 
   it('clicking a character reveals its details', async () => {
-    mockSearchWord.mockResolvedValue([
-      { simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' },
-    ]);
+    mockSearchWord.mockResolvedValue([{ simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' }]);
 
     renderWithProviders(<NewWord word={makeWord('你好', 'nǐ hǎo', 'hello')} />);
 
@@ -62,12 +60,8 @@ describe('NewWord character interaction', () => {
 
   it('clicking a different character updates the details', async () => {
     mockSearchWord
-      .mockResolvedValueOnce([
-        { simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' },
-      ])
-      .mockResolvedValueOnce([
-        { simp: '好', trad: '好', pinyin: 'hǎo', meaning: 'good' },
-      ]);
+      .mockResolvedValueOnce([{ simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' }])
+      .mockResolvedValueOnce([{ simp: '好', trad: '好', pinyin: 'hǎo', meaning: 'good' }]);
 
     renderWithProviders(<NewWord word={makeWord('你好', 'nǐ hǎo', 'hello')} />);
 
@@ -86,9 +80,7 @@ describe('NewWord character interaction', () => {
   });
 
   it('duplicate characters can be independently selected', async () => {
-    mockSearchWord.mockResolvedValue([
-      { simp: '妈', trad: '媽', pinyin: 'mā', meaning: 'mother' },
-    ]);
+    mockSearchWord.mockResolvedValue([{ simp: '妈', trad: '媽', pinyin: 'mā', meaning: 'mother' }]);
 
     renderWithProviders(<NewWord word={makeWord('妈妈', 'māma', 'mother')} />);
 
