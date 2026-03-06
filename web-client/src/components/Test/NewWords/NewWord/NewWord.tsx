@@ -96,12 +96,12 @@ const NewWord: React.FC<Props> = ({
   const onCharacterClick = useCallback(
     (char: string, index: number): void => {
       setClickedIndex(index);
-      onDisplayMeaning(char);
+      setCharData({ simp: char, pinyins: [], meanings: [] });
       if (useSound || (isDemo && synthAvailable)) {
         onSpeakPinyin(char);
       }
     },
-    [onDisplayMeaning, useSound, isDemo, synthAvailable, onSpeakPinyin],
+    [useSound, isDemo, synthAvailable, onSpeakPinyin],
   );
 
   useEffect(() => {
@@ -113,6 +113,14 @@ const NewWord: React.FC<Props> = ({
   }, [charSet, useSound, word]);
 
   const chars = useMemo(() => word[charSet].split(''), [word, charSet]);
+
+  // Trigger dictionary lookup when clicked character changes — decoupled from touch
+  // event handler for reliable mobile behaviour
+  useEffect(() => {
+    if (clickedIndex !== null) {
+      onDisplayMeaning(chars[clickedIndex]);
+    }
+  }, [clickedIndex, chars, onDisplayMeaning]);
 
   const handleMeaningChange = useCallback(
     (newValue: string) => {
