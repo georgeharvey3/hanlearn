@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, ButtonBase, Paper, Typography } from '@mui/material';
 
 import MeaningEditor from '../../../UI/MeaningEditor/MeaningEditor';
 
@@ -48,7 +48,7 @@ const NewWord: React.FC<Props> = ({
   onMeaningChange,
 }) => {
   const [charData, setCharData] = useState<CharData | null>(null);
-  const [clickedChar, setClickedChar] = useState<string>('');
+  const [clickedIndex, setClickedIndex] = useState<number | null>(null);
   const [editedMeaning, setEditedMeaning] = useState(word.meaning);
   const [charSet] = useState<'simp' | 'trad'>(
     (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
@@ -94,8 +94,8 @@ const NewWord: React.FC<Props> = ({
   }, []);
 
   const onCharacterClick = useCallback(
-    (char: string): void => {
-      setClickedChar(char);
+    (char: string, index: number): void => {
+      setClickedIndex(index);
       onDisplayMeaning(char);
       if (useSound || (isDemo && synthAvailable)) {
         onSpeakPinyin(char);
@@ -109,7 +109,7 @@ const NewWord: React.FC<Props> = ({
       onSpeakPinyin(word[charSet]);
     }
     setCharData(null);
-    setClickedChar('');
+    setClickedIndex(null);
   }, [charSet, useSound, word]);
 
   const chars = useMemo(() => word[charSet].split(''), [word, charSet]);
@@ -140,7 +140,7 @@ const NewWord: React.FC<Props> = ({
         <Typography
           sx={{ fontSize: '2.8em', fontWeight: 500, lineHeight: 1.2, color: 'text.primary' }}
         >
-          {clickedChar || charData.simp}
+          {clickedIndex !== null ? chars[clickedIndex] : charData.simp}
         </Typography>
         <Typography sx={{ fontSize: '1.2em', color: 'primary.dark', fontWeight: 500, mt: 0.5 }}>
           {charData.pinyins.join(' / ')}
@@ -172,19 +172,21 @@ const NewWord: React.FC<Props> = ({
       >
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 0.5 }}>
           {chars.map((char, index) => {
-            const isActive = clickedChar === char;
+            const isActive = clickedIndex === index;
             return (
-              <Box
+              <ButtonBase
                 key={index}
-                onClick={() => onCharacterClick(char)}
+                onClick={() => onCharacterClick(char, index)}
                 sx={{
                   display: 'inline-block',
                   px: 1,
                   py: 0.5,
                   borderRadius: 1.5,
-                  cursor: 'pointer',
                   bgcolor: isActive ? 'primary.main' : 'transparent',
                   transition: 'background-color 0.15s, transform 0.1s',
+                  touchAction: 'manipulation',
+                  userSelect: 'none',
+                  WebkitTapHighlightColor: 'transparent',
                   '&:hover': {
                     bgcolor: isActive ? 'primary.main' : 'grey.100',
                   },
@@ -194,7 +196,7 @@ const NewWord: React.FC<Props> = ({
                 }}
               >
                 <Typography sx={{ fontSize: 'inherit', lineHeight: 1.3 }}>{char}</Typography>
-              </Box>
+              </ButtonBase>
             );
           })}
         </Box>
