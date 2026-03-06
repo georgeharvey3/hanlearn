@@ -19,17 +19,59 @@ function verifyAuth(context: functions.https.CallableContext): string {
 }
 
 /**
- * Get the daily chengyu challenge
+ * Fisher-Yates shuffle for unbiased random ordering
+ */
+function fisherYatesShuffle<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+const BASE_DATE = new Date('2021-05-24');
+
+/**
+ * Compute the date key for today (YYYY-MM-DD in UTC)
+ */
+function getTodayKey(): string {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+}
+
+/**
+ * Compute the days since the base date
+ */
+function getDaysSinceBase(): number {
+  const today = new Date();
+  return Math.floor(
+    (today.getTime() - BASE_DATE.getTime()) / (1000 * 60 * 60 * 24)
+  );
+}
+
+/**
+ * Get the daily chengyu challenge.
+ *
+ * Caches the selected chengyu and character data in a `dailyChengyu/{dateKey}`
+ * document so that only the first call of the day reads the full collection.
+ * Subsequent calls read a single cached document.
  */
 export const getDailyChengyu = functions.https.onCall(
   async (data, context) => {
     verifyAuth(context);
 
-    const BASE_DATE = new Date('2021-05-24');
-    const today = new Date();
-    const daysSinceBase = Math.floor(
-      (today.getTime() - BASE_DATE.getTime()) / (1000 * 60 * 60 * 24)
-    );
+    const dateKey = getTodayKey();
+    const cacheRef = db.collection('dailyChengyu').doc(dateKey);
+
+    // Try reading the cached document first (1 read instead of full scan)
+    const cacheDoc = await cacheRef.get();
+    if (cacheDoc.exists) {
+      return cacheDoc.data();
+    }
+
+    // Cache miss — compute today's chengyu
+    const daysSinceBase = getDaysSinceBase();
 
     // Get all chengyus
     const chengyusSnapshot = await db.collection('chengyus').get();
@@ -48,55 +90,80 @@ export const getDailyChengyu = functions.https.onCall(
       return { chengyu: null, options: [], correct: '', char_results: [] };
     }
 
-    // Select today's chengyu
+    // Select today's chengyu deterministically
     const index = daysSinceBase % chengyus.length;
     const todaysChengyu = chengyus[index];
 
-    // Get 3 random wrong options
+    // Get 3 random wrong options using Fisher-Yates
     const otherChengyus = chengyus.filter((_, i) => i !== index);
-    const shuffled = otherChengyus.sort(() => Math.random() - 0.5);
+    const shuffled = fisherYatesShuffle(otherChengyus);
     const wrongOptions = shuffled.slice(0, 3).map((c) => c.meaning);
 
-    // Shuffle all options
-    const allOptions = [todaysChengyu.meaning, ...wrongOptions].sort(
-      () => Math.random() - 0.5
+    // Shuffle all options using Fisher-Yates
+    const allOptions = fisherYatesShuffle([
+      todaysChengyu.meaning,
+      ...wrongOptions,
+    ]);
+
+    // Batch character lookups using 'in' query instead of one query per char
+    const chars = Array.from(todaysChengyu.characters).filter(
+      (c) => c !== '，' && c !== ','
     );
+    const uniqueChars = [...new Set(chars)];
 
-    // Look up character data
-    const charResults = [];
-    for (const char of todaysChengyu.characters) {
-      const wordsSnapshot = await db
-        .collection('words')
-        .where('simp', '==', char)
-        .get();
+    // Firestore 'in' queries support up to 30 values; chengyus are typically 4 chars
+    const wordsSnapshot = await db
+      .collection('words')
+      .where('simp', 'in', uniqueChars)
+      .get();
 
-      const trads: string[] = [];
-      const pinyins: string[] = [];
-      const meanings: string[] = [];
-
-      wordsSnapshot.docs.forEach((doc) => {
-        const data = doc.data();
-        if (data.trad && !trads.includes(data.trad)) trads.push(data.trad);
-        if (data.pinyin && !pinyins.includes(data.pinyin))
-          pinyins.push(data.pinyin);
-        if (data.meaning && !meanings.includes(data.meaning))
-          meanings.push(data.meaning);
-      });
-
-      charResults.push({
-        char,
-        trads: trads.slice(0, 10),
-        pinyins: pinyins.slice(0, 10),
-        meanings: meanings.slice(0, 10),
-      });
+    // Build a map of char -> aggregated data
+    const charDataMap = new Map<
+      string,
+      { trads: string[]; pinyins: string[]; meanings: string[] }
+    >();
+    for (const c of uniqueChars) {
+      charDataMap.set(c, { trads: [], pinyins: [], meanings: [] });
     }
 
-    return {
+    wordsSnapshot.docs.forEach((doc) => {
+      const wordData = doc.data();
+      const entry = charDataMap.get(wordData.simp);
+      if (!entry) return;
+      if (wordData.trad && !entry.trads.includes(wordData.trad))
+        entry.trads.push(wordData.trad);
+      if (wordData.pinyin && !entry.pinyins.includes(wordData.pinyin))
+        entry.pinyins.push(wordData.pinyin);
+      if (wordData.meaning && !entry.meanings.includes(wordData.meaning))
+        entry.meanings.push(wordData.meaning);
+    });
+
+    // Build char_results preserving original character order
+    const charResults = chars.map((char) => {
+      const entry = charDataMap.get(char) || {
+        trads: [],
+        pinyins: [],
+        meanings: [],
+      };
+      return {
+        char,
+        trads: entry.trads.slice(0, 10),
+        pinyins: entry.pinyins.slice(0, 10),
+        meanings: entry.meanings.slice(0, 10),
+      };
+    });
+
+    const result = {
       chengyu: todaysChengyu.characters,
       options: allOptions,
       correct: todaysChengyu.meaning,
       char_results: charResults,
     };
+
+    // Cache the result for subsequent calls today
+    await cacheRef.set(result);
+
+    return result;
   }
 );
 
