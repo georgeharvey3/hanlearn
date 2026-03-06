@@ -81,7 +81,9 @@ beforeEach(() => {
   });
   // Dictionary lookups return empty (segments shown as plain strings)
   mockedSearchWord.mockResolvedValue([]);
-  mockedSubstringMatch.mockResolvedValue([{ id: -1, simp: '—', trad: '—', pinyin: '', meaning: '' }]);
+  mockedSubstringMatch.mockResolvedValue([
+    { id: -1, simp: '—', trad: '—', pinyin: '', meaning: '' },
+  ]);
 });
 
 describe('SentenceRead — loading state', () => {
@@ -89,11 +91,7 @@ describe('SentenceRead — loading state', () => {
     // Never resolves during this test
     mockedGetSegmentedSentence.mockReturnValue(new Promise(() => {}));
     renderWithProviders(
-      <SentenceRead
-        words={[testWord]}
-        sentenceWriteEnabled={false}
-        startSentenceWrite={vi.fn()}
-      />,
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
       { store: makeStore() },
     );
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
@@ -101,11 +99,7 @@ describe('SentenceRead — loading state', () => {
 
   it('removes spinner after sentence loads', async () => {
     renderWithProviders(
-      <SentenceRead
-        words={[testWord]}
-        sentenceWriteEnabled={false}
-        startSentenceWrite={vi.fn()}
-      />,
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
       { store: makeStore() },
     );
     await waitFor(() => {
@@ -117,11 +111,7 @@ describe('SentenceRead — loading state', () => {
 describe('SentenceRead — sentence display', () => {
   it('renders the "Listen & translate" heading', async () => {
     renderWithProviders(
-      <SentenceRead
-        words={[testWord]}
-        sentenceWriteEnabled={false}
-        startSentenceWrite={vi.fn()}
-      />,
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
       { store: makeStore() },
     );
     await waitFor(() => {
@@ -131,11 +121,7 @@ describe('SentenceRead — sentence display', () => {
 
   it('shows the translation input field after load', async () => {
     renderWithProviders(
-      <SentenceRead
-        words={[testWord]}
-        sentenceWriteEnabled={false}
-        startSentenceWrite={vi.fn()}
-      />,
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
       { store: makeStore() },
     );
     await waitFor(() => {
@@ -145,11 +131,7 @@ describe('SentenceRead — sentence display', () => {
 
   it('shows Prev sentence button disabled when at sentence 0', async () => {
     renderWithProviders(
-      <SentenceRead
-        words={[testWord]}
-        sentenceWriteEnabled={false}
-        startSentenceWrite={vi.fn()}
-      />,
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
       { store: makeStore() },
     );
     await waitFor(() => {
@@ -160,11 +142,7 @@ describe('SentenceRead — sentence display', () => {
 
   it('shows Next sentence button enabled when totalCount > 1', async () => {
     renderWithProviders(
-      <SentenceRead
-        words={[testWord]}
-        sentenceWriteEnabled={false}
-        startSentenceWrite={vi.fn()}
-      />,
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
       { store: makeStore() },
     );
     await waitFor(() => {
@@ -178,11 +156,7 @@ describe('SentenceRead — submitting a translation', () => {
   it('shows comparison view after typing a translation and pressing Enter', async () => {
     const user = userEvent.setup();
     renderWithProviders(
-      <SentenceRead
-        words={[testWord]}
-        sentenceWriteEnabled={false}
-        startSentenceWrite={vi.fn()}
-      />,
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
       { store: makeStore() },
     );
 
@@ -198,11 +172,7 @@ describe('SentenceRead — submitting a translation', () => {
   it('shows "How did you do?" and like/dislike buttons after submission', async () => {
     const user = userEvent.setup();
     renderWithProviders(
-      <SentenceRead
-        words={[testWord]}
-        sentenceWriteEnabled={false}
-        startSentenceWrite={vi.fn()}
-      />,
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
       { store: makeStore() },
     );
 
@@ -218,11 +188,7 @@ describe('SentenceRead — submitting a translation', () => {
   it('resets to input view when No (I got it wrong) is clicked', async () => {
     const user = userEvent.setup();
     renderWithProviders(
-      <SentenceRead
-        words={[testWord]}
-        sentenceWriteEnabled={false}
-        startSentenceWrite={vi.fn()}
-      />,
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
       { store: makeStore() },
     );
 

@@ -76,18 +76,16 @@ beforeEach(() => {
 describe('SentenceWrite — loading state', () => {
   it('shows spinner while fetching the first sentence', () => {
     mockedGetSegmentedSentence.mockReturnValue(new Promise(() => {}));
-    renderWithProviders(
-      <SentenceWrite words={[testWord]} onComplete={vi.fn()} />,
-      { store: makeStore() },
-    );
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
   });
 
   it('hides spinner after sentence is loaded', async () => {
-    renderWithProviders(
-      <SentenceWrite words={[testWord]} onComplete={vi.fn()} />,
-      { store: makeStore() },
-    );
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
     await waitFor(() => {
       expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     });
@@ -96,20 +94,18 @@ describe('SentenceWrite — loading state', () => {
 
 describe('SentenceWrite — prompt display', () => {
   it('shows the English prompt text', async () => {
-    renderWithProviders(
-      <SentenceWrite words={[testWord]} onComplete={vi.fn()} />,
-      { store: makeStore() },
-    );
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
     await waitFor(() => {
       expect(screen.getByText('Hello, I am a student.')).toBeInTheDocument();
     });
   });
 
   it('shows the "must use" target word badge', async () => {
-    renderWithProviders(
-      <SentenceWrite words={[testWord]} onComplete={vi.fn()} />,
-      { store: makeStore() },
-    );
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
     await waitFor(() => {
       expect(screen.getByText('你好')).toBeInTheDocument();
       expect(screen.getByText(/must use/i)).toBeInTheDocument();
@@ -117,24 +113,20 @@ describe('SentenceWrite — prompt display', () => {
   });
 
   it('renders the "Write in Chinese" heading', async () => {
-    renderWithProviders(
-      <SentenceWrite words={[testWord]} onComplete={vi.fn()} />,
-      { store: makeStore() },
-    );
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
     await waitFor(() => {
       expect(screen.getByText(/write in chinese/i)).toBeInTheDocument();
     });
   });
 
   it('renders the answer input field', async () => {
-    renderWithProviders(
-      <SentenceWrite words={[testWord]} onComplete={vi.fn()} />,
-      { store: makeStore() },
-    );
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
     await waitFor(() => {
-      expect(
-        screen.getByPlaceholderText(/type chinese and press enter/i),
-      ).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/type chinese and press enter/i)).toBeInTheDocument();
     });
   });
 });
@@ -142,10 +134,9 @@ describe('SentenceWrite — prompt display', () => {
 describe('SentenceWrite — submitting an answer', () => {
   it('shows the comparison view after typing and pressing Enter', async () => {
     const user = userEvent.setup();
-    renderWithProviders(
-      <SentenceWrite words={[testWord]} onComplete={vi.fn()} />,
-      { store: makeStore() },
-    );
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
 
     const input = await screen.findByPlaceholderText(/type chinese and press enter/i);
     await user.type(input, '你好{Enter}');
@@ -158,10 +149,9 @@ describe('SentenceWrite — submitting an answer', () => {
 
   it('shows yes/no buttons after submission', async () => {
     const user = userEvent.setup();
-    renderWithProviders(
-      <SentenceWrite words={[testWord]} onComplete={vi.fn()} />,
-      { store: makeStore() },
-    );
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
 
     const input = await screen.findByPlaceholderText(/type chinese and press enter/i);
     await user.type(input, '你好{Enter}');
@@ -174,10 +164,9 @@ describe('SentenceWrite — submitting an answer', () => {
 
   it('resets to input view when No clicked', async () => {
     const user = userEvent.setup();
-    renderWithProviders(
-      <SentenceWrite words={[testWord]} onComplete={vi.fn()} />,
-      { store: makeStore() },
-    );
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
 
     const input = await screen.findByPlaceholderText(/type chinese and press enter/i);
     await user.type(input, '你好{Enter}');
@@ -186,18 +175,15 @@ describe('SentenceWrite — submitting an answer', () => {
     await user.click(noBtn);
 
     await waitFor(() => {
-      expect(
-        screen.getByPlaceholderText(/type chinese and press enter/i),
-      ).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/type chinese and press enter/i)).toBeInTheDocument();
     });
   });
 
   it('does NOT submit when Enter pressed with empty input', async () => {
     const user = userEvent.setup();
-    renderWithProviders(
-      <SentenceWrite words={[testWord]} onComplete={vi.fn()} />,
-      { store: makeStore() },
-    );
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
 
     const input = await screen.findByPlaceholderText(/type chinese and press enter/i);
     await user.type(input, '{Enter}');
@@ -213,10 +199,9 @@ describe('SentenceWrite — stage completion', () => {
   it('calls onComplete after Yes click on the last word', async () => {
     const user = userEvent.setup();
     const onComplete = vi.fn();
-    renderWithProviders(
-      <SentenceWrite words={[testWord]} onComplete={onComplete} />,
-      { store: makeStore() },
-    );
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={onComplete} />, {
+      store: makeStore(),
+    });
 
     const input = await screen.findByPlaceholderText(/type chinese and press enter/i);
     await user.type(input, '你好{Enter}');
@@ -232,10 +217,9 @@ describe('SentenceWrite — stage completion', () => {
     const secondWord: Word = { ...testWord, id: 2, simp: '学习', trad: '學習' };
     const onComplete = vi.fn();
 
-    renderWithProviders(
-      <SentenceWrite words={[testWord, secondWord]} onComplete={onComplete} />,
-      { store: makeStore() },
-    );
+    renderWithProviders(<SentenceWrite words={[testWord, secondWord]} onComplete={onComplete} />, {
+      store: makeStore(),
+    });
 
     const input = await screen.findByPlaceholderText(/type chinese and press enter/i);
     await user.type(input, '你好{Enter}');
@@ -246,7 +230,11 @@ describe('SentenceWrite — stage completion', () => {
     // onComplete should NOT fire yet (still has a second word to do)
     expect(onComplete).not.toHaveBeenCalled();
     // getSegmentedSentence should have been called for the second word
-    expect(mockedGetSegmentedSentence).toHaveBeenCalledWith('学习', expect.any(String), expect.any(Number));
+    expect(mockedGetSegmentedSentence).toHaveBeenCalledWith(
+      '学习',
+      expect.any(String),
+      expect.any(Number),
+    );
   });
 
   it('skips a word with no sentences and moves to the next', async () => {
@@ -258,10 +246,9 @@ describe('SentenceWrite — stage completion', () => {
       .mockResolvedValueOnce({ sentence: null, totalCount: 0 })
       .mockResolvedValue(mockSentenceResponse);
 
-    renderWithProviders(
-      <SentenceWrite words={[testWord, secondWord]} onComplete={onComplete} />,
-      { store: makeStore() },
-    );
+    renderWithProviders(<SentenceWrite words={[testWord, secondWord]} onComplete={onComplete} />, {
+      store: makeStore(),
+    });
 
     // After skipping 你好, the component should load 学习's sentence and show its prompt
     await waitFor(
@@ -280,7 +267,7 @@ describe('SentenceWrite — stage completion', () => {
     // seenOffsets[word].offset === 0 means offset 0 was shown in SentenceRead
     // SentenceWrite should skip to offset 1 directly (without loading offset 0 first)
     const seenOffsets = {
-      '你好': { offset: 0, text: '你好，我是学生。', english: 'Hello, I am a student.' },
+      你好: { offset: 0, text: '你好，我是学生。', english: 'Hello, I am a student.' },
     };
 
     renderWithProviders(
