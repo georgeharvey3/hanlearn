@@ -178,7 +178,7 @@ const NewWord: React.FC<Props> = ({
                 key={index}
                 onClick={() => onCharacterClick(char, index)}
                 sx={{
-                  display: 'inline-block',
+                  fontSize: 'inherit',
                   px: 1,
                   py: 0.5,
                   borderRadius: 1.5,
