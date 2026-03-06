@@ -1,6 +1,6 @@
 import { AudioSettings } from '../../utils/audioSettings';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import pinyin from 'pinyin';
+import { pinyin } from 'pinyin-pro';
 
 import * as testLogic from './Logic/TestLogic';
 import { beep, fail, createInitialState } from './constants';
@@ -396,9 +396,8 @@ export const useTestEngine = (props: Props) => {
       let submission: string;
 
       if (current.answerCategory === 'pinyin') {
-        const asPinyin = pinyin(speech, { style: pinyin.STYLE_TONE2 });
-        const mapped = asPinyin.map((charArr) => {
-          const char = charArr[0];
+        const asPinyin = pinyin(speech, { toneType: 'num', type: 'array' });
+        const mapped = asPinyin.map((char) => {
           if (!isNaN(Number(char))) {
             return numToPinMap[Number(char)];
           }
@@ -710,12 +709,9 @@ export const useTestEngine = (props: Props) => {
             onSpeak(sentence.chinese);
             setStateMerged({ hintLoading: false });
           } else {
-            const pinyinResult = pinyin(sentence.chinese, {
-              style: pinyin.STYLE_TONE2,
-              segment: true,
-            });
+            const pinyinResult = pinyin(sentence.chinese, { toneType: 'num' });
             setStateMerged({
-              result: pinyinResult.map((p) => p.join('')).join(' '),
+              result: pinyinResult,
               showHint: true,
               hintLoading: false,
             });
