@@ -72,9 +72,7 @@ vi.mock('../../services/sentenceService', () => ({
 
 vi.mock('pinyin-pro', () => ({
   pinyin: vi.fn((text: string, opts?: { type?: string }) =>
-    opts?.type === 'array'
-      ? text.split('').map((c: string) => c)
-      : text.split('').join(' ')
+    opts?.type === 'array' ? text.split('').map((c: string) => c) : text.split('').join(' '),
   ),
 }));
 
