@@ -70,11 +70,13 @@ vi.mock('../../services/sentenceService', () => ({
   getHintSentence: vi.fn().mockResolvedValue(null),
 }));
 
-vi.mock('pinyin', () => {
-  const pinyinFn = vi.fn((text: string) => text.split('').map((c: string) => [c]));
-  (pinyinFn as unknown as Record<string, unknown>).STYLE_TONE2 = 'STYLE_TONE2';
-  return { default: pinyinFn };
-});
+vi.mock('pinyin-pro', () => ({
+  pinyin: vi.fn((text: string, opts?: { type?: string }) =>
+    opts?.type === 'array'
+      ? text.split('').map((c: string) => c)
+      : text.split('').join(' ')
+  ),
+}));
 
 import { renderHook, act } from '@testing-library/react';
 import { useTestEngine } from './useTestEngine';

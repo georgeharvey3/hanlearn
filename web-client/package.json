@@ -10,7 +10,7 @@
     "firebase": "^11.8.0",
     "howler": "^2.2.0",
     "opencc-js": "^1.0.5",
-    "pinyin": "^2.9.1",
+    "pinyin-pro": "^3.28.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-redux": "^9.2.0",
