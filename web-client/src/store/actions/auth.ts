@@ -168,6 +168,7 @@ export const register = (email: string, password: string): AppThunk => {
     try {
       const user = await registerUser(email, password);
       dispatch(authSuccess(user.uid));
+      dispatch(registerSuccess());
     } catch (error) {
       if (error instanceof Error && 'code' in error) {
         dispatch(authFail(getErrorMessage(error as FirebaseError)));
