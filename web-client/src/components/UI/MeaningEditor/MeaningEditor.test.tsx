@@ -65,9 +65,7 @@ describe('MeaningEditor — editable display', () => {
 
   it('does not render a delete icon for a single meaning', () => {
     // onDelete is only provided when meanings.length > 1
-    const { container } = render(
-      <MeaningEditor value="hello" onChange={vi.fn()} />,
-    );
+    const { container } = render(<MeaningEditor value="hello" onChange={vi.fn()} />);
     // MUI delete icon has aria-label="..." or data-testid
     // The easiest check: no SVG cancel icon rendered
     expect(container.querySelector('[data-testid="CancelIcon"]')).toBeNull();
