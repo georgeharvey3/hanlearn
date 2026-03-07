@@ -35,9 +35,9 @@ WORKDIR /app
 USER root
 
 # Copy runner scripts
-COPY entrypoint.sh process-issue.sh plan-issue.sh run-default-task.sh fix-conflict-pr.sh ./
-RUN chmod +x entrypoint.sh process-issue.sh plan-issue.sh run-default-task.sh fix-conflict-pr.sh \
-  && chown claude:claude entrypoint.sh process-issue.sh plan-issue.sh run-default-task.sh fix-conflict-pr.sh
+COPY entrypoint.sh process-issue.sh plan-issue.sh run-default-task.sh fix-conflict-pr.sh handle-pr-feedback.sh ./
+RUN chmod +x entrypoint.sh process-issue.sh plan-issue.sh run-default-task.sh fix-conflict-pr.sh handle-pr-feedback.sh \
+  && chown claude:claude entrypoint.sh process-issue.sh plan-issue.sh run-default-task.sh fix-conflict-pr.sh handle-pr-feedback.sh
 
 # Create directories for mounted volumes (task config and state)
 # These will be mounted from the host via docker-compose
