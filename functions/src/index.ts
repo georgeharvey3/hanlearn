@@ -3,6 +3,15 @@ import * as admin from 'firebase-admin';
 
 admin.initializeApp();
 
+// Re-export dictionary Cloud Functions
+export {
+  dictionarySearchWord,
+  dictionaryLookupCharacter,
+  dictionaryLookupCharacterByTrad,
+  dictionaryConvertText,
+  dictionarySubstringMatch,
+} from './dictionary';
+
 const db = admin.firestore();
 
 /**
