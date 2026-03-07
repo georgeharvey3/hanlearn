@@ -363,6 +363,18 @@ export const chengyus: Chengyu[] = [
 const BASE_DATE = new Date('2021-05-24');
 
 /**
+ * Fisher-Yates shuffle for unbiased random ordering
+ */
+function fisherYatesShuffle<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+/**
  * Get the daily chengyu based on days since BASE_DATE.
  * Returns simplified characters synchronously; call convertDailyChengyu()
  * to get the display form in the selected character set.
@@ -382,11 +394,11 @@ export function getDailyChengyu(): {
 
   // Get 3 random wrong options
   const otherChengyus = chengyus.filter((_, i) => i !== index);
-  const shuffled = [...otherChengyus].sort(() => Math.random() - 0.5);
+  const shuffled = fisherYatesShuffle(otherChengyus);
   const wrongOptions = shuffled.slice(0, 3).map((c) => c.meaning);
 
   // Shuffle all options
-  const allOptions = [todaysChengyu.meaning, ...wrongOptions].sort(() => Math.random() - 0.5);
+  const allOptions = fisherYatesShuffle([todaysChengyu.meaning, ...wrongOptions]);
 
   // Parse pinyin for each character
   const pinyinParts = todaysChengyu.pinyin.split(' ');

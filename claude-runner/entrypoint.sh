@@ -91,13 +91,17 @@ check_incomplete_tasks() {
     task_id=$(echo "$last_entry" | sed -E 's/.*REBASING (PR#[0-9]+).*/\1/')
     activity "⚠ ABORTED $task_id — container stopped during execution"
     log "Detected incomplete rebase from previous run: $task_id (marked as aborted)"
+  elif echo "$last_entry" | grep -qE '^\[.*\] FEEDBACK PR#[0-9]+'; then
+    task_id=$(echo "$last_entry" | sed -E 's/.*FEEDBACK (PR#[0-9]+).*/\1/')
+    activity "⚠ ABORTED $task_id — container stopped during execution"
+    log "Detected incomplete PR feedback from previous run: $task_id (marked as aborted)"
   fi
 }
 
 echo "=== HanLearn Claude Runner ==="
 echo "Repo: $REPO"
 echo "Polling every ${POLL_INTERVAL}s"
-echo "Priority: fix-conflict PRs > dev-ready issues > needs-plan issues > default tasks"
+echo "Priority: fix-conflict PRs > PR-feedback PRs > dev-ready issues > needs-plan issues > default tasks"
 echo ""
 
 # Verify credentials
@@ -179,7 +183,58 @@ while true; do
   fi
 
   # ══════════════════════════════════════════════════════════════════════════════
-  # PRIORITY 2: Check for issues with "dev-ready" label
+  # PRIORITY 2: Check for PRs with "PR-feedback" label (address review comments)
+  # ══════════════════════════════════════════════════════════════════════════════
+  FEEDBACK_PRS_RAW=$(gh pr list \
+    --repo "$REPO" \
+    --search "label:PR-feedback is:open sort:created-desc" \
+    --json number,title,labels \
+    --limit 10 2>&1) || true
+
+  # Validate JSON
+  if ! echo "$FEEDBACK_PRS_RAW" | jq empty 2>/dev/null; then
+    log_error "Invalid JSON response from gh pr list (PR-feedback)"
+    FEEDBACK_PRS="[]"
+  else
+    FEEDBACK_PRS="$FEEDBACK_PRS_RAW"
+  fi
+
+  # Filter out PRs that have "in-progress" or "agent-failed" labels
+  FEEDBACK_PRS=$(echo "$FEEDBACK_PRS" | jq '[.[] | select(.labels | map(.name) | (index("in-progress") or index("agent-failed")) | not)]' 2>/dev/null || echo "[]")
+
+  FEEDBACK_COUNT=$(echo "$FEEDBACK_PRS" | jq 'length' 2>/dev/null || echo "0")
+
+  if [ "$FEEDBACK_COUNT" -gt 0 ]; then
+    # Process the oldest feedback PR (only one at a time)
+    PR_NUMBER=$(echo "$FEEDBACK_PRS" | jq -r '.[0].number')
+    PR_TITLE=$(echo "$FEEDBACK_PRS" | jq -r '.[0].title')
+
+    activity "FEEDBACK PR#$PR_NUMBER"
+    log "── PR Feedback #$PR_NUMBER: $PR_TITLE ──"
+
+    # Capture output for error logging
+    set +e
+    /app/handle-pr-feedback.sh "$REPO" "$PR_NUMBER" 2>&1 | tee "$ISSUE_OUTPUT"
+    FEEDBACK_EXIT=${PIPESTATUS[0]}
+    set -e
+
+    if [ "$FEEDBACK_EXIT" -eq 0 ]; then
+      activity "✓ FEEDBACK PR#$PR_NUMBER"
+      log "── PR #$PR_NUMBER feedback addressed ──"
+    else
+      activity "✗ FEEDBACK PR#$PR_NUMBER — exit $FEEDBACK_EXIT"
+      log_error "── PR #$PR_NUMBER feedback handling failed ──"
+      log_error_details "FEEDBACK PR#$PR_NUMBER" "$FEEDBACK_EXIT" "$ISSUE_OUTPUT"
+      log "Error details written to: $ERROR_LOG"
+    fi
+    rm -f "$ISSUE_OUTPUT"
+
+    sleep "$POLL_INTERVAL"
+    continue
+  fi
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # PRIORITY 3: Check for issues with "dev-ready" label
   # ══════════════════════════════════════════════════════════════════════════════
   # Fetch open issues with "dev-ready" label assigned to glawge-agent, excluding any already "in-progress"
   # Sorted by oldest first (FIFO queue)
