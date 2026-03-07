@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, ButtonBase, Paper, Typography } from '@mui/material';
 
 import MeaningEditor from '../../../UI/MeaningEditor/MeaningEditor';
 
@@ -48,12 +48,11 @@ const NewWord: React.FC<Props> = ({
   onMeaningChange,
 }) => {
   const [charData, setCharData] = useState<CharData | null>(null);
-  const [clickedChar, setClickedChar] = useState<string>('');
+  const [clickedIndex, setClickedIndex] = useState<number | null>(null);
   const [editedMeaning, setEditedMeaning] = useState(word.meaning);
   const [charSet] = useState<'simp' | 'trad'>(
     (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
   );
-  const [, setErrorMessage] = useState('');
   const [useSound] = useState(
     localStorage.getItem('useSound') === 'false' || !synthAvailable ? false : true,
   );
@@ -66,10 +65,8 @@ const NewWord: React.FC<Props> = ({
       if (voice) {
         utterThis.voice = voice;
       }
-      utterThis.onerror = (e) => {
-        if (e.error === 'synthesis-failed') {
-          setErrorMessage('Error playing pinyin');
-        }
+      utterThis.onerror = () => {
+        // Speech synthesis errors are non-critical on mobile
       };
       synth.cancel();
       synth.speak(utterThis);
@@ -86,31 +83,41 @@ const NewWord: React.FC<Props> = ({
         const meanings = Array.from(new Set(results.map((r) => r.meaning)));
         setCharData({ simp: char, pinyins, meanings });
       } else {
-        setErrorMessage('Character not found');
+        setCharData({ simp: char, pinyins: [], meanings: ['(not found in dictionary)'] });
       }
     } catch {
-      setErrorMessage('Error looking up character');
+      setCharData({ simp: char, pinyins: [], meanings: ['(lookup failed)'] });
     }
   }, []);
 
   const onCharacterClick = useCallback(
-    (char: string): void => {
-      setClickedChar(char);
+    (char: string, index: number): void => {
+      setClickedIndex(index);
+      setCharData({ simp: char, pinyins: [], meanings: [] });
       onDisplayMeaning(char);
-      if (useSound || (isDemo && synthAvailable)) {
-        onSpeakPinyin(char);
+      try {
+        if (useSound || (isDemo && synthAvailable)) {
+          onSpeakPinyin(char);
+        }
+      } catch {
+        // Speech synthesis can fail on mobile — don't let it break the click
       }
     },
     [onDisplayMeaning, useSound, isDemo, synthAvailable, onSpeakPinyin],
   );
 
+  const wordId = `${word.simp}-${word.trad}`;
   useEffect(() => {
-    if (useSound) {
-      onSpeakPinyin(word[charSet]);
+    try {
+      if (useSound) {
+        onSpeakPinyin(word[charSet]);
+      }
+    } catch {
+      // Speech synthesis can fail on mobile
     }
     setCharData(null);
-    setClickedChar('');
-  }, [charSet, useSound, word]);
+    setClickedIndex(null);
+  }, [charSet, useSound, wordId]);
 
   const chars = useMemo(() => word[charSet].split(''), [word, charSet]);
 
@@ -140,7 +147,7 @@ const NewWord: React.FC<Props> = ({
         <Typography
           sx={{ fontSize: '2.8em', fontWeight: 500, lineHeight: 1.2, color: 'text.primary' }}
         >
-          {clickedChar || charData.simp}
+          {clickedIndex !== null ? chars[clickedIndex] : charData.simp}
         </Typography>
         <Typography sx={{ fontSize: '1.2em', color: 'primary.dark', fontWeight: 500, mt: 0.5 }}>
           {charData.pinyins.join(' / ')}
@@ -172,19 +179,21 @@ const NewWord: React.FC<Props> = ({
       >
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 0.5 }}>
           {chars.map((char, index) => {
-            const isActive = clickedChar === char;
+            const isActive = clickedIndex === index;
             return (
-              <Box
+              <ButtonBase
                 key={index}
-                onClick={() => onCharacterClick(char)}
+                onClick={() => onCharacterClick(char, index)}
                 sx={{
-                  display: 'inline-block',
+                  fontSize: 'inherit',
                   px: 1,
                   py: 0.5,
                   borderRadius: 1.5,
-                  cursor: 'pointer',
                   bgcolor: isActive ? 'primary.main' : 'transparent',
                   transition: 'background-color 0.15s, transform 0.1s',
+                  touchAction: 'manipulation',
+                  userSelect: 'none',
+                  WebkitTapHighlightColor: 'transparent',
                   '&:hover': {
                     bgcolor: isActive ? 'primary.main' : 'grey.100',
                   },
@@ -194,7 +203,7 @@ const NewWord: React.FC<Props> = ({
                 }}
               >
                 <Typography sx={{ fontSize: 'inherit', lineHeight: 1.3 }}>{char}</Typography>
-              </Box>
+              </ButtonBase>
             );
           })}
         </Box>
