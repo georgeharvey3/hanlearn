@@ -53,7 +53,6 @@ const NewWord: React.FC<Props> = ({
   const [charSet] = useState<'simp' | 'trad'>(
     (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
   );
-  const [, setErrorMessage] = useState('');
   const [useSound] = useState(
     localStorage.getItem('useSound') === 'false' || !synthAvailable ? false : true,
   );
@@ -66,10 +65,8 @@ const NewWord: React.FC<Props> = ({
       if (voice) {
         utterThis.voice = voice;
       }
-      utterThis.onerror = (e) => {
-        if (e.error === 'synthesis-failed') {
-          setErrorMessage('Error playing pinyin');
-        }
+      utterThis.onerror = () => {
+        // Speech synthesis errors are non-critical on mobile
       };
       synth.cancel();
       synth.speak(utterThis);
@@ -86,10 +83,10 @@ const NewWord: React.FC<Props> = ({
         const meanings = Array.from(new Set(results.map((r) => r.meaning)));
         setCharData({ simp: char, pinyins, meanings });
       } else {
-        setErrorMessage('Character not found');
+        setCharData({ simp: char, pinyins: [], meanings: ['(not found in dictionary)'] });
       }
     } catch {
-      setErrorMessage('Error looking up character');
+      setCharData({ simp: char, pinyins: [], meanings: ['(lookup failed)'] });
     }
   }, []);
 
@@ -186,14 +183,7 @@ const NewWord: React.FC<Props> = ({
             return (
               <ButtonBase
                 key={index}
-                onClick={(e) => {
-                  e.preventDefault();
-                  onCharacterClick(char, index);
-                }}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  onCharacterClick(char, index);
-                }}
+                onClick={() => onCharacterClick(char, index)}
                 sx={{
                   fontSize: 'inherit',
                   px: 1,
