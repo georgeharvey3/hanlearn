@@ -85,6 +85,25 @@ describe('chooseTestSet', () => {
     expect(result).toHaveLength(0);
   });
 
+  it('correctly parses slash-separated dates (Safari compatibility)', () => {
+    // Safari returns Invalid Date for new Date('YYYY/MM/DD'); parseDueDate must
+    // split the string manually so words are selected on iOS.
+    const past = makeWord(1, '你', '2026/02/20');
+    const today = makeWord(2, '好', '2026/02/27');
+    const future = makeWord(3, '学', '2026/03/10');
+    const result = chooseTestSet([past, today, future], 10);
+    expect(result).toHaveLength(2);
+    expect(result.map((w) => w.id).sort()).toEqual([1, 2]);
+  });
+
+  it('correctly parses hyphen-separated dates', () => {
+    const past = makeWord(1, '你', '2026-02-20');
+    const future = makeWord(2, '好', '2026-03-10');
+    const result = chooseTestSet([past, future], 10);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(1);
+  });
+
   it('returns distinct words (no duplicates)', () => {
     const words = Array.from({ length: 5 }, (_, i) => makeWord(i, `字${i}`, '2026/02/20'));
     const result = chooseTestSet(words, 5);

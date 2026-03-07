@@ -84,6 +84,16 @@ describe('auth action thunks', () => {
       expect(state.loading).toBe(false);
     });
 
+    it('sets newSignUp=true on successful registration', async () => {
+      mockedAuth.registerUser.mockResolvedValue(makeUser('new-user-1'));
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.register('new@example.com', 'secure123') as any);
+
+      // registerSuccess() must be dispatched so future UI can distinguish new sign-ups
+      expect(store.getState().auth.newSignUp).toBe(true);
+    });
+
     it('dispatches AUTH_FAIL for weak-password', async () => {
       const firebaseError = new FirebaseError(
         'auth/weak-password',
