@@ -49,7 +49,7 @@ function parseCedictLine(line: string): Omit<WordEntry, 'id'> | null {
 
 async function buildDictionary(): Promise<void> {
   const cedictPath = path.join(__dirname, 'cedict_ts.u8');
-  const outputPath = path.join(__dirname, '..', 'web-client', 'public', 'dictionary.json');
+  const outputPath = path.join(__dirname, '..', 'functions', 'data', 'dictionary.json');
 
   if (!fs.existsSync(cedictPath)) {
     console.error('cedict_ts.u8 not found.');

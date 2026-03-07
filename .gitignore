@@ -5,6 +5,7 @@
 web-client/dist
 web-client/build
 web-client/public/dictionary.json
+functions/data/dictionary.json
 functions/lib
 
 # Environment files
