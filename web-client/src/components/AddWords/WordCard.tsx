@@ -13,7 +13,12 @@ interface WordCardProps {
   onPostMeaningUpdate: (id: number, meaning: string) => void;
 }
 
-const WordCard: React.FC<WordCardProps> = ({ word, charSet, onDeleteWord, onPostMeaningUpdate }) => {
+const WordCard: React.FC<WordCardProps> = ({
+  word,
+  charSet,
+  onDeleteWord,
+  onPostMeaningUpdate,
+}) => {
   return (
     <Box
       sx={{
