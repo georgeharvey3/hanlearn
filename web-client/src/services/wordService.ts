@@ -19,7 +19,11 @@ import {
   lookupCharacter,
   lookupCharacterByTrad,
 } from './dictionaryService';
-import { amendedMeaningSchema, customWordTextSchema, customWordMeaningSchema } from '../validation/schemas';
+import {
+  amendedMeaningSchema,
+  customWordTextSchema,
+  customWordMeaningSchema,
+} from '../validation/schemas';
 
 // Spaced repetition intervals in days for each bank level
 const BANK_INTERVALS: Record<number, number> = {

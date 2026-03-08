@@ -32,7 +32,11 @@ import { RootState } from '../../types/store';
 import { Word } from '../../types/models';
 import * as wordService from '../../services/wordService';
 import { formatRelativeDueDate } from '../../utils/formatRelativeDueDate';
-import { searchInputSchema, customWordTextSchema, customWordMeaningSchema } from '../../validation/schemas';
+import {
+  searchInputSchema,
+  customWordTextSchema,
+  customWordMeaningSchema,
+} from '../../validation/schemas';
 
 interface AddWordsState {
   newWord: string;
