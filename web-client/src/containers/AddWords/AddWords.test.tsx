@@ -309,7 +309,9 @@ describe('AddWords — confirm modal: adding word with edited meaning', () => {
     // Use getAllByRole to find the correct one (not the MUI Chip "Add" icon)
     const addButtons = screen.getAllByRole('button', { name: /^add$/i });
     // The primary Add button is an <button> element (not a chip), so filter by tagName
-    const addBtn = addButtons.find((btn) => btn.tagName === 'BUTTON' && btn.getAttribute('type') === 'button');
+    const addBtn = addButtons.find(
+      (btn) => btn.tagName === 'BUTTON' && btn.getAttribute('type') === 'button',
+    );
     if (addBtn) await userEvent.click(addBtn);
 
     await waitFor(() => {
