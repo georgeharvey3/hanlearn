@@ -9,5 +9,18 @@
   },
   "env": {
     "PATH": "/home/george/.nvm/versions/node/v24.13.0/bin:${PATH}"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-commit-format.sh"
+          }
+        ]
+      }
+    ]
   }
 }
