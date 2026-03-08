@@ -66,18 +66,3 @@
 
 ---
 
-## 2026-03-06 10:25
-**Coverage before:** 49.12% statement coverage (328 tests passing across 24 files)
-**Gaps addressed:**
-1. Settings component (10% → ~85%) — localStorage persistence, charSet/slider/checkbox changes, mutual exclusions (English speech rec ↔ flashcards, handwriting-off resets priority), Redux-driven disabled states
-2. TestWords container (4% → 65%) — auth guard redirect, empty-bank UI, Add Words/Practice button visibility, initWords called on mount, stepper step labels, demo mode bypass
-3. useTestEngine onFinishTest (internal function, 32% → higher) — score calculation with 0/2/6+ IDKs, score capping at 4, demo/practice mode skip dispatch, onVocabComplete fires when no sentence words, sentence availability check, startSentenceRead call, finalStage=true skips sentence read, sentenceCheckStatus transitions
-
-**Tests added:**
-- `components/Settings/Settings.test.tsx` (25 tests, new file)
-- `containers/TestWords/TestWords.test.tsx` (13 tests, new file)
-- `components/Test/useTestEngine.test.ts` (12 new tests appended — onFinishTest suite)
-
-**Coverage after:** 55.95% statement coverage (378 tests passing across 26 files)
-**Notes for next run:** Settings, TestWords, Dashboard already well covered. Next priorities: SentenceRead (3.55%), SentenceWrite (3.93%), NewWords (4.54%) — large untested components. Also TestWords sub-stage transitions (vocab→read→write→summary) and useTestEngine speech/recording paths.
-

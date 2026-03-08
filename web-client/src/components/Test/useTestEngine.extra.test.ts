@@ -199,7 +199,7 @@ describe('useTestEngine — qNum effect triggers setHanziWriter for character qu
     await act(async () => {
       result.current.setStateMerged({
         answerCategory: 'character',
-        answer: ['好', '坏'],  // array — should not trigger setHanziWriter
+        answer: ['好', '坏'], // array — should not trigger setHanziWriter
         useSound: false,
         useAutoRecord: false,
       } as any);

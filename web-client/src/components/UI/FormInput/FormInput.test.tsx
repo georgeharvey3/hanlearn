@@ -20,24 +20,14 @@ describe('FormInput — select variant', () => {
 
   it('renders a select element with the provided options', () => {
     render(
-      <FormInput
-        elementType="select"
-        elementConfig={{ options }}
-        value="a"
-        label="My Select"
-      />,
+      <FormInput elementType="select" elementConfig={{ options }} value="a" label="My Select" />,
     );
     expect(screen.getByRole('combobox')).toBeInTheDocument();
   });
 
   it('shows the label for the select', () => {
     render(
-      <FormInput
-        elementType="select"
-        elementConfig={{ options }}
-        value="a"
-        label="Choose one"
-      />,
+      <FormInput elementType="select" elementConfig={{ options }} value="a" label="Choose one" />,
     );
     // MUI renders label text multiple times; getAllByText confirms at least one exists
     expect(screen.getAllByText('Choose one').length).toBeGreaterThan(0);
