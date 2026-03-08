@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"firebase emulators:start --import=./emulator-data\" \"npm run dev:client\"",
+    "dev": "concurrently \"sh -c 'firebase emulators:start $([ -d ./emulator-data ] && echo --import=./emulator-data)'\" \"npm run dev:client\"",
     "dev:client": "npm --prefix web-client run dev",
-    "emulators": "firebase emulators:start --export-on-exit=./emulator-data --import=./emulator-data",
+    "emulators": "sh -c 'firebase emulators:start --export-on-exit=./emulator-data $([ -d ./emulator-data ] && echo --import=./emulator-data)'",
     "build": "npm --prefix web-client run build:all",
     "deploy": "npm run build && firebase deploy --only hosting",
     "prepare": "husky"
