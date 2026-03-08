@@ -32,6 +32,24 @@ const baseState = {
 
 const noop = () => {};
 
+function renderAnswerInput(stateOverrides: Partial<TestState>, extraProps?: Record<string, unknown>) {
+  const state = { ...baseState, ...stateOverrides } as unknown as TestState;
+  return render(
+    <AnswerInput
+      state={state}
+      onKeyPress={noop as any}
+      onInputChanged={noop as any}
+      onFocusEntry={noop as any}
+      onListen={noop}
+      onShowAnswer={noop}
+      onCorrectAnswer={noop}
+      onIDontKnow={noop}
+      setStateMerged={noop as any}
+      {...extraProps}
+    />,
+  );
+}
+
 function makeState(overrides: Partial<TestState> = {}): TestState {
   return { ...baseState, ...overrides } as TestState;
 }
@@ -56,19 +74,7 @@ beforeEach(() => {
 
 describe('AnswerInput — handwriting canvas', () => {
   it('renders the handwriting canvas with an accessible label', () => {
-    render(
-      <AnswerInput
-        state={baseState}
-        onKeyPress={noop as any}
-        onInputChanged={noop as any}
-        onFocusEntry={noop as any}
-        onListen={noop}
-        onShowAnswer={noop}
-        onCorrectAnswer={noop}
-        onIDontKnow={noop}
-        setStateMerged={noop as any}
-      />,
-    );
+    renderAnswerInput({ answerCategory: 'character' });
     const canvas = document.getElementById('character-target-div');
     expect(canvas).toBeInTheDocument();
     expect(canvas).toHaveAttribute('aria-label');
@@ -76,9 +82,73 @@ describe('AnswerInput — handwriting canvas', () => {
   });
 
   it('renders placeholder text in the handwriting canvas', () => {
+    renderAnswerInput({ answerCategory: 'character' });
+    expect(screen.getByText(/draw here/i)).toBeInTheDocument();
+  });
+});
+
+describe('AnswerInput — pinyin text input', () => {
+  it('renders a text input when speech recognition is disabled', () => {
+    renderAnswerInput({ answerCategory: 'pinyin', useChineseSpeechRecognition: false });
+    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/record speech/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('AnswerInput — pinyin with speech recognition', () => {
+  it('renders mic input when useChineseSpeechRecognition=true and useTypingInput=false', () => {
+    renderAnswerInput({
+      answerCategory: 'pinyin',
+      useChineseSpeechRecognition: true,
+      useTypingInput: false,
+    });
+    expect(screen.getByLabelText(/record speech/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/switch to typing/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/switch to speaking/i)).not.toBeInTheDocument();
+  });
+
+  it('does not show secondary text input when showInput is false', () => {
+    renderAnswerInput({
+      answerCategory: 'pinyin',
+      useChineseSpeechRecognition: true,
+      useTypingInput: false,
+      showInput: false,
+    });
+    expect(screen.queryByLabelText(/type your answer/i)).not.toBeInTheDocument();
+  });
+
+  it('shows secondary text input when showInput is true', () => {
+    renderAnswerInput({
+      answerCategory: 'pinyin',
+      useChineseSpeechRecognition: true,
+      useTypingInput: false,
+      showInput: true,
+    });
+    expect(screen.getByLabelText(/type your answer/i)).toBeInTheDocument();
+  });
+
+  it('renders typing input with mic-toggle when useChineseSpeechRecognition=true and useTypingInput=true', () => {
+    renderAnswerInput({
+      answerCategory: 'pinyin',
+      useChineseSpeechRecognition: true,
+      useTypingInput: true,
+    });
+    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/switch to speaking/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/switch to typing/i)).not.toBeInTheDocument();
+  });
+
+  it('calls setStateMerged with useTypingInput=false when "Switch to speaking" is clicked', () => {
+    const setStateMerged = vi.fn();
+    const state = {
+      ...baseState,
+      answerCategory: 'pinyin',
+      useChineseSpeechRecognition: true,
+      useTypingInput: true,
+    } as unknown as TestState;
     render(
       <AnswerInput
-        state={baseState}
+        state={state}
         onKeyPress={noop as any}
         onInputChanged={noop as any}
         onFocusEntry={noop as any}
@@ -86,10 +156,246 @@ describe('AnswerInput — handwriting canvas', () => {
         onShowAnswer={noop}
         onCorrectAnswer={noop}
         onIDontKnow={noop}
+        setStateMerged={setStateMerged}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText(/switch to speaking/i));
+    expect(setStateMerged).toHaveBeenCalledWith({ useTypingInput: false });
+  });
+
+  it('calls setStateMerged with useTypingInput=true when "Switch to typing" is clicked', () => {
+    const setStateMerged = vi.fn();
+    const recognition = { abort: vi.fn() };
+    const state = {
+      ...baseState,
+      answerCategory: 'pinyin',
+      useChineseSpeechRecognition: true,
+      useTypingInput: false,
+      recognition,
+    } as unknown as TestState;
+    render(
+      <AnswerInput
+        state={state}
+        onKeyPress={noop as any}
+        onInputChanged={noop as any}
+        onFocusEntry={noop as any}
+        onListen={noop}
+        onShowAnswer={noop}
+        onCorrectAnswer={noop}
+        onIDontKnow={noop}
+        setStateMerged={setStateMerged}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText(/switch to typing/i));
+    expect(recognition.abort).toHaveBeenCalled();
+    expect(setStateMerged).toHaveBeenCalledWith({ useTypingInput: true });
+  });
+});
+
+describe('AnswerInput — meaning with flashcards', () => {
+  it('renders "Show Answer" button when showAnswer is false', () => {
+    renderAnswerInput({ answerCategory: 'meaning', useFlashcards: true, showAnswer: false });
+    expect(screen.getByRole('button', { name: /show answer/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/i knew this/i)).not.toBeInTheDocument();
+  });
+
+  it('calls onShowAnswer when "Show Answer" button is clicked', () => {
+    const onShowAnswer = vi.fn();
+    const state = {
+      ...baseState,
+      answerCategory: 'meaning',
+      useFlashcards: true,
+      showAnswer: false,
+    } as unknown as TestState;
+    render(
+      <AnswerInput
+        state={state}
+        onKeyPress={noop as any}
+        onInputChanged={noop as any}
+        onFocusEntry={noop as any}
+        onListen={noop}
+        onShowAnswer={onShowAnswer}
+        onCorrectAnswer={noop}
+        onIDontKnow={noop}
         setStateMerged={noop as any}
       />,
     );
-    expect(screen.getByText(/draw here/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /show answer/i }));
+    expect(onShowAnswer).toHaveBeenCalled();
+  });
+
+  it('renders like/dislike buttons when showAnswer is true', () => {
+    renderAnswerInput({ answerCategory: 'meaning', useFlashcards: true, showAnswer: true });
+    expect(screen.getByLabelText(/i knew this/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/i didn't know this/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /show answer/i })).not.toBeInTheDocument();
+  });
+
+  it('calls onCorrectAnswer when the like button is clicked', () => {
+    const onCorrectAnswer = vi.fn();
+    const state = {
+      ...baseState,
+      answerCategory: 'meaning',
+      useFlashcards: true,
+      showAnswer: true,
+    } as unknown as TestState;
+    render(
+      <AnswerInput
+        state={state}
+        onKeyPress={noop as any}
+        onInputChanged={noop as any}
+        onFocusEntry={noop as any}
+        onListen={noop}
+        onShowAnswer={noop}
+        onCorrectAnswer={onCorrectAnswer}
+        onIDontKnow={noop}
+        setStateMerged={noop as any}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText(/i knew this/i));
+    expect(onCorrectAnswer).toHaveBeenCalled();
+  });
+
+  it('calls onIDontKnow when the dislike button is clicked', () => {
+    const onIDontKnow = vi.fn();
+    const state = {
+      ...baseState,
+      answerCategory: 'meaning',
+      useFlashcards: true,
+      showAnswer: true,
+      useSound: false,
+    } as unknown as TestState;
+    render(
+      <AnswerInput
+        state={state}
+        onKeyPress={noop as any}
+        onInputChanged={noop as any}
+        onFocusEntry={noop as any}
+        onListen={noop}
+        onShowAnswer={noop}
+        onCorrectAnswer={noop}
+        onIDontKnow={onIDontKnow}
+        setStateMerged={noop as any}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText(/i didn't know this/i));
+    expect(onIDontKnow).toHaveBeenCalled();
+  });
+});
+
+describe('AnswerInput — meaning with English speech recognition', () => {
+  it('renders mic input when useEnglishSpeechRecognition=true and useTypingInput=false', () => {
+    renderAnswerInput({
+      answerCategory: 'meaning',
+      useFlashcards: false,
+      useEnglishSpeechRecognition: true,
+      useTypingInput: false,
+    });
+    expect(screen.getByLabelText(/record speech/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/switch to typing/i)).toBeInTheDocument();
+  });
+
+  it('renders typing+mic-toggle when useEnglishSpeechRecognition=true and useTypingInput=true', () => {
+    renderAnswerInput({
+      answerCategory: 'meaning',
+      useFlashcards: false,
+      useEnglishSpeechRecognition: true,
+      useTypingInput: true,
+    });
+    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/switch to speaking/i)).toBeInTheDocument();
+  });
+
+  it('renders plain text input when no flags set', () => {
+    renderAnswerInput({
+      answerCategory: 'meaning',
+      useFlashcards: false,
+      useEnglishSpeechRecognition: false,
+    });
+    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/record speech/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('getVerb', () => {
+  it('returns "Enter the " for pinyin without speech recognition', () => {
+    const state = {
+      ...baseState,
+      answerCategory: 'pinyin',
+      useChineseSpeechRecognition: false,
+    } as unknown as TestState;
+    expect(getVerb(state)).toBe('Enter the ');
+  });
+
+  it('returns "Speak the " for pinyin with speech recognition and useTypingInput=false', () => {
+    const state = {
+      ...baseState,
+      answerCategory: 'pinyin',
+      useChineseSpeechRecognition: true,
+      useTypingInput: false,
+    } as unknown as TestState;
+    expect(getVerb(state)).toBe('Speak the ');
+  });
+
+  it('returns "Enter the " for pinyin with speech recognition but useTypingInput=true', () => {
+    const state = {
+      ...baseState,
+      answerCategory: 'pinyin',
+      useChineseSpeechRecognition: true,
+      useTypingInput: true,
+    } as unknown as TestState;
+    expect(getVerb(state)).toBe('Enter the ');
+  });
+
+  it('returns "Draw the " for character', () => {
+    const state = { ...baseState, answerCategory: 'character' } as unknown as TestState;
+    expect(getVerb(state)).toBe('Draw the ');
+  });
+
+  it('returns "What is the " for meaning with flashcards', () => {
+    const state = {
+      ...baseState,
+      answerCategory: 'meaning',
+      useFlashcards: true,
+    } as unknown as TestState;
+    expect(getVerb(state)).toBe('What is the ');
+  });
+
+  it('returns "Speak the " for meaning with English speech recognition and useTypingInput=false', () => {
+    const state = {
+      ...baseState,
+      answerCategory: 'meaning',
+      useFlashcards: false,
+      useEnglishSpeechRecognition: true,
+      useTypingInput: false,
+    } as unknown as TestState;
+    expect(getVerb(state)).toBe('Speak the ');
+  });
+
+  it('returns "Enter the " for meaning with English speech recognition but useTypingInput=true', () => {
+    const state = {
+      ...baseState,
+      answerCategory: 'meaning',
+      useFlashcards: false,
+      useEnglishSpeechRecognition: true,
+      useTypingInput: true,
+    } as unknown as TestState;
+    expect(getVerb(state)).toBe('Enter the ');
+  });
+
+  it('returns "Enter the " for meaning without any flags', () => {
+    const state = {
+      ...baseState,
+      answerCategory: 'meaning',
+      useFlashcards: false,
+      useEnglishSpeechRecognition: false,
+    } as unknown as TestState;
+    expect(getVerb(state)).toBe('Enter the ');
+  });
+
+  it('returns "Enter the " for unknown answerCategory', () => {
+    const state = { ...baseState, answerCategory: 'unknown' } as unknown as TestState;
+    expect(getVerb(state)).toBe('Enter the ');
   });
 });
 
