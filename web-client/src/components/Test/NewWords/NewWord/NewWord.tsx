@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 
-import { Box, ButtonBase, Paper, Typography } from '@mui/material';
+import { Box, ButtonBase, CircularProgress, Paper, Typography } from '@mui/material';
 
 import MeaningEditor from '../../../UI/MeaningEditor/MeaningEditor';
 
@@ -48,7 +48,9 @@ const NewWord: React.FC<Props> = ({
   onMeaningChange,
 }) => {
   const [charData, setCharData] = useState<CharData | null>(null);
+  const [charLoading, setCharLoading] = useState(false);
   const [clickedIndex, setClickedIndex] = useState<number | null>(null);
+  const charCache = useRef<Map<string, CharData>>(new Map());
   const [editedMeaning, setEditedMeaning] = useState(word.meaning);
   const [charSet] = useState<'simp' | 'trad'>(
     (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
@@ -78,23 +80,35 @@ const NewWord: React.FC<Props> = ({
     try {
       const charSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp';
       const results = await searchWord(char, charSet);
+      let data: CharData;
       if (results.length > 0) {
         const pinyins = Array.from(new Set(results.map((r) => r.pinyin)));
         const meanings = Array.from(new Set(results.map((r) => r.meaning)));
-        setCharData({ simp: char, pinyins, meanings });
+        data = { simp: char, pinyins, meanings };
       } else {
-        setCharData({ simp: char, pinyins: [], meanings: ['(not found in dictionary)'] });
+        data = { simp: char, pinyins: [], meanings: ['(not found in dictionary)'] };
       }
+      charCache.current.set(char, data);
+      setCharData(data);
     } catch {
       setCharData({ simp: char, pinyins: [], meanings: ['(lookup failed)'] });
+    } finally {
+      setCharLoading(false);
     }
   }, []);
 
   const onCharacterClick = useCallback(
     (char: string, index: number): void => {
       setClickedIndex(index);
-      setCharData({ simp: char, pinyins: [], meanings: [] });
-      onDisplayMeaning(char);
+      const cached = charCache.current.get(char);
+      if (cached) {
+        setCharData(cached);
+        setCharLoading(false);
+      } else {
+        setCharLoading(true);
+        setCharData({ simp: char, pinyins: [], meanings: [] });
+        onDisplayMeaning(char);
+      }
       try {
         if (useSound || (isDemo && synthAvailable)) {
           onSpeakPinyin(char);
@@ -117,9 +131,35 @@ const NewWord: React.FC<Props> = ({
     }
     setCharData(null);
     setClickedIndex(null);
+    setCharLoading(false);
+    charCache.current.clear();
   }, [charSet, useSound, wordId]);
 
   const chars = useMemo(() => word[charSet].split(''), [word, charSet]);
+
+  // Pre-fetch character data for all characters in the word
+  useEffect(() => {
+    const uniqueChars = Array.from(new Set(chars));
+    uniqueChars.forEach(async (char) => {
+      if (charCache.current.has(char)) return;
+      try {
+        const results = await searchWord(char, charSet);
+        if (results.length > 0) {
+          const pinyins = Array.from(new Set(results.map((r) => r.pinyin)));
+          const meanings = Array.from(new Set(results.map((r) => r.meaning)));
+          charCache.current.set(char, { simp: char, pinyins, meanings });
+        } else {
+          charCache.current.set(char, {
+            simp: char,
+            pinyins: [],
+            meanings: ['(not found in dictionary)'],
+          });
+        }
+      } catch {
+        // Pre-fetch failures are non-critical; will fall back to on-click fetch
+      }
+    });
+  }, [wordId, chars, charSet]);
 
   const handleMeaningChange = useCallback(
     (newValue: string) => {
@@ -149,12 +189,18 @@ const NewWord: React.FC<Props> = ({
         >
           {clickedIndex !== null ? chars[clickedIndex] : charData.simp}
         </Typography>
-        <Typography sx={{ fontSize: '1.2em', color: 'primary.dark', fontWeight: 500, mt: 0.5 }}>
-          {charData.pinyins.join(' / ')}
-        </Typography>
-        <Box sx={{ mt: 0.5, display: 'flex', justifyContent: 'center' }}>
-          <MeaningEditor value={charData.meanings.join('/')} readOnly size="small" />
-        </Box>
+        {charLoading ? (
+          <CircularProgress size={24} sx={{ mt: 1.5 }} />
+        ) : (
+          <>
+            <Typography sx={{ fontSize: '1.2em', color: 'primary.dark', fontWeight: 500, mt: 0.5 }}>
+              {charData.pinyins.join(' / ')}
+            </Typography>
+            <Box sx={{ mt: 0.5, display: 'flex', justifyContent: 'center' }}>
+              <MeaningEditor value={charData.meanings.join('/')} readOnly size="small" />
+            </Box>
+          </>
+        )}
       </Box>
     );
 
