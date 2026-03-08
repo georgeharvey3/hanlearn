@@ -6,10 +6,10 @@ const MAX_CACHE_SIZE = 200;
 
 const cache = new Map<string, string>();
 
-const textToSpeechFn = httpsCallable<
-  { text: string; speed?: number },
-  { audioContent: string }
->(functions, 'textToSpeech');
+const textToSpeechFn = httpsCallable<{ text: string; speed?: number }, { audioContent: string }>(
+  functions,
+  'textToSpeech',
+);
 
 function evictIfNeeded(): void {
   if (cache.size >= MAX_CACHE_SIZE) {
@@ -48,10 +48,7 @@ interface SpeakOptions {
   fallbackLang?: string;
 }
 
-function speakWithNativeFallback(
-  text: string,
-  options: SpeakOptions,
-): TtsHandle {
+function speakWithNativeFallback(text: string, options: SpeakOptions): TtsHandle {
   const synth = window.speechSynthesis;
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = options.fallbackLang || 'zh-CN';
