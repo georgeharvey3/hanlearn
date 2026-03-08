@@ -1,0 +1,46 @@
+{
+  "tasks": [
+    {
+      "id": "test-coverage",
+      "script": "claude-scripts/test-coverage.sh",
+      "priority": 100,
+      "cooldown_hours": 24,
+      "description": "Expand test coverage for critical untested paths"
+    },
+    {
+      "id": "bug-hunt",
+      "script": "claude-scripts/bug-hunt.sh",
+      "priority": 90,
+      "cooldown_hours": 48,
+      "description": "Static analysis and runtime bug detection"
+    },
+    {
+      "id": "code-refactor",
+      "script": "claude-scripts/code-refactor.sh",
+      "priority": 70,
+      "cooldown_hours": 72,
+      "description": "Safe, test-validated code quality improvements"
+    },
+    {
+      "id": "design-review",
+      "script": "claude-scripts/design-review.sh",
+      "priority": 60,
+      "cooldown_hours": 72,
+      "description": "UI/UX accessibility and consistency review"
+    },
+    {
+      "id": "system-architect",
+      "script": "claude-scripts/system-architect.sh",
+      "priority": 50,
+      "cooldown_hours": 168,
+      "description": "Architectural analysis, dependency review, tech debt inventory"
+    },
+    {
+      "id": "feature-ideation",
+      "script": "claude-scripts/feature-ideation.sh",
+      "priority": 40,
+      "cooldown_hours": 168,
+      "description": "Propose high-value features as GitHub issues"
+    }
+  ]
+}

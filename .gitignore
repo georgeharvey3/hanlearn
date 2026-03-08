@@ -38,12 +38,7 @@ migration/*.json
 !migration/package.json
 
 # Claude task runner
-claude-tasks/
-claude-tasks/
-# Keep the directory structure but not its runtime contents
-!claude-tasks/.gitkeep
-!claude-tasks/done/.gitkeep
-!claude-tasks/logs/.gitkeep
+claude-tasks/backups
 
 # Playwright
 web-client/playwright-report/
