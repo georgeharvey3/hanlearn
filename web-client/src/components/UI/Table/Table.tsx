@@ -25,7 +25,7 @@ const Table: React.FC<TableProps> = (props) => {
         borderRight: (theme) => `1px solid ${alpha(theme.palette.common.white, 0.2)}`,
         '&:last-child': { borderRight: 'none' },
         py: 1.25,
-        px: 1.5,
+        px: { xs: 0.75, sm: 1, md: 1.5 },
         textAlign: 'center',
         letterSpacing: '0.02em',
         ...(heading === 'Due Date (D/M/Y)' && {
@@ -43,15 +43,16 @@ const Table: React.FC<TableProps> = (props) => {
       elevation={2}
       sx={{
         maxHeight: { xs: 220, sm: 250 },
-        width: '90%',
+        width: { xs: '100%', sm: '90%' },
         maxWidth: 700,
         mx: 'auto',
         borderRadius: 2,
-        overflow: 'auto',
+        overflowX: 'hidden',
+        overflowY: 'auto',
         '@media (min-height: 750px)': { maxHeight: 400 },
       }}
     >
-      <MuiTable size="small" stickyHeader>
+      <MuiTable size="small" stickyHeader sx={{ tableLayout: 'fixed' }}>
         <TableHead>
           <MuiTableRow>{headings}</MuiTableRow>
         </TableHead>
@@ -73,7 +74,7 @@ const Table: React.FC<TableProps> = (props) => {
               color: 'text.primary',
               fontSize: { xs: '0.75rem', sm: '0.85rem', md: '0.9rem' },
               py: 1,
-              px: 1.5,
+              px: { xs: 0.75, sm: 1, md: 1.5 },
               borderRight: (theme) => `1px solid ${theme.palette.divider}`,
               '&:last-child': { borderRight: 'none' },
             },
