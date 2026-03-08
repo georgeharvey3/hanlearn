@@ -125,11 +125,26 @@ const mockWriter = {
   hideOutline: vi.fn(),
 };
 
+// Stub SpeechSynthesisUtterance — jsdom doesn't implement it but useTestEngine
+// may invoke onSpeak when assignQA randomly picks questionCategory 'pinyin'.
+const MockSpeechSynthesisUtterance = vi.fn(function (this: Record<string, unknown>, text: string) {
+  this.text = text;
+  this.lang = '';
+  this.voice = null;
+  this.onerror = null;
+  this.onend = null;
+  this.onstart = null;
+});
+
 beforeEach(() => {
   vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
     if (key === 'useHandwriting') return 'false';
     return null;
   });
+
+  vi.spyOn(window.speechSynthesis, 'cancel').mockImplementation(() => {});
+  vi.spyOn(window.speechSynthesis, 'speak').mockImplementation(() => {});
+  (window as any).SpeechSynthesisUtterance = MockSpeechSynthesisUtterance;
 
   (window as any).HanziWriter = {
     create: vi.fn().mockReturnValue(mockWriter),
@@ -139,6 +154,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   delete (window as any).HanziWriter;
+  delete (window as any).SpeechSynthesisUtterance;
 });
 
 // ────────────────────────────────────────────────────────────────────────────

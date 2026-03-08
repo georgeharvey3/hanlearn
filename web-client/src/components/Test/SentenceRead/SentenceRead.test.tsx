@@ -371,3 +371,137 @@ describe('SentenceRead — stage completion', () => {
     });
   });
 });
+
+describe('SentenceRead — word popup rendering', () => {
+  // Segment '我是' at index 2 in the cloud sentence resolves to a SentenceWord via searchWord
+  const wordMatch = { id: 5, simp: '我是', trad: '我是', pinyin: 'wo3 shi4', meaning: 'to be' };
+
+  beforeEach(() => {
+    mockedSearchWord.mockImplementation((seg: string) => {
+      if (seg === '我是') return Promise.resolve([wordMatch]);
+      return Promise.resolve([]);
+    });
+  });
+
+  it('renders a clickable popup span for a resolved SentenceWord segment', async () => {
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStore() },
+    );
+
+    // Wait for the sentence to load and word lookup to complete
+    await waitFor(() => {
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+
+    // The resolved segment '我是' should be rendered as an accessible button
+    await waitFor(() => {
+      expect(screen.getByLabelText(/我是.*tap to see meaning/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows pinyin and meaning in popup for a SentenceWord segment', async () => {
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStore() },
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      // Pinyin and meaning text appear in the popup (even though popup is hidden via CSS)
+      expect(screen.getByText('wo3 shi4')).toBeInTheDocument();
+      expect(screen.getByText('to be')).toBeInTheDocument();
+    });
+  });
+
+  it('shows "Add to bank" button after opening popup for a word not yet in addedWords', async () => {
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStore() },
+    );
+
+    // Wait for the clickable popup span to appear (confirms segment resolved to SentenceWord)
+    const popupSpan = await screen.findByLabelText(
+      /我是.*tap to see meaning/i,
+      {},
+      { timeout: 5000 },
+    );
+
+    // Click the word to open the popup (sets visibility:visible via onShowPopup)
+    fireEvent.click(popupSpan);
+
+    // Now the popup is open and the button should be accessible
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /add to bank/i })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /added!/i })).not.toBeInTheDocument();
+  });
+
+  it('shows "Added!" after opening popup when the word is already in addedWords', async () => {
+    const storeWithWord = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        words: [{ id: 5, simp: '我是', trad: '我是', pinyin: 'wo3 shi4', meaning: 'to be' }],
+        error: false,
+        loading: false,
+      },
+      settings: { speechAvailable: false, synthAvailable: false },
+    });
+
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: storeWithWord },
+    );
+
+    // Wait for popup span and click to open it
+    const popupSpan = await screen.findByLabelText(
+      /我是.*tap to see meaning/i,
+      {},
+      { timeout: 5000 },
+    );
+    fireEvent.click(popupSpan);
+
+    // word id=5 is in addedWords → shows disabled "Added!" button
+    await waitFor(() => {
+      const addedBtn = screen.getByRole('button', { name: /added!/i });
+      expect(addedBtn).toBeInTheDocument();
+      expect(addedBtn).toBeDisabled();
+    });
+  });
+});
+
+describe('SentenceRead — decomposed array word rendering', () => {
+  // When substringMatch returns 2+ items for a segment, it renders as an array of clickable spans
+  const subWordA = { id: 6, simp: '学', trad: '學', pinyin: 'xue2', meaning: 'to study' };
+  const subWordB = { id: 7, simp: '生', trad: '生', pinyin: 'sheng1', meaning: 'to be born' };
+
+  beforeEach(() => {
+    // searchWord returns nothing — falls through to substringMatch
+    mockedSearchWord.mockResolvedValue([]);
+    mockedSubstringMatch.mockImplementation((seg: string) => {
+      if (seg === '学生') return Promise.resolve([subWordA, subWordB]);
+      // '，' '。' '我是' etc. → single unknown → plain string
+      return Promise.resolve([{ id: -1, simp: '—', trad: '—', pinyin: '', meaning: '' }]);
+    });
+  });
+
+  it('renders each sub-word in a decomposed segment as a separate clickable span', async () => {
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStore() },
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      // Both sub-words should be rendered as popup spans
+      expect(screen.getByLabelText(/学.*tap to see meaning/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/生.*tap to see meaning/i)).toBeInTheDocument();
+    });
+  });
+});

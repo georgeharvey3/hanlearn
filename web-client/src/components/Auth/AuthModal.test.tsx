@@ -69,12 +69,14 @@ describe('AuthModal — login mode', () => {
   });
 
   it('Log In button is disabled until email and password are valid', async () => {
+    // Use delay:null to avoid timeout in coverage-instrumented runs
+    const user = userEvent.setup({ delay: null });
     renderModal('login');
     const submitBtn = screen.getByRole('button', { name: /log in/i });
     expect(submitBtn).toBeDisabled();
 
-    await userEvent.type(screen.getByPlaceholderText(/email/i), 'user@example.com');
-    await userEvent.type(screen.getByPlaceholderText(/password/i), 'secret123');
+    await user.type(screen.getByPlaceholderText(/email/i), 'user@example.com');
+    await user.type(screen.getByPlaceholderText(/password/i), 'secret123');
 
     await waitFor(() => {
       expect(submitBtn).not.toBeDisabled();
@@ -82,12 +84,13 @@ describe('AuthModal — login mode', () => {
   });
 
   it('calls loginUser with email and password on form submit', async () => {
+    const user = userEvent.setup({ delay: null });
     mockedAuth.loginUser.mockResolvedValue({ uid: 'user-1' } as firebaseAuth.User);
     renderModal('login');
 
-    await userEvent.type(screen.getByPlaceholderText(/email/i), 'user@example.com');
-    await userEvent.type(screen.getByPlaceholderText(/password/i), 'secret123');
-    await userEvent.click(screen.getByRole('button', { name: /log in/i }));
+    await user.type(screen.getByPlaceholderText(/email/i), 'user@example.com');
+    await user.type(screen.getByPlaceholderText(/password/i), 'secret123');
+    await user.click(screen.getByRole('button', { name: /log in/i }));
 
     await waitFor(() => {
       expect(mockedAuth.loginUser).toHaveBeenCalledWith('user@example.com', 'secret123');
