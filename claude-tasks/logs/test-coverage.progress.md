@@ -15,6 +15,25 @@
 
 ---
 
+## 2026-03-08 19:15
+**Coverage before:** 72.8% statements (537 tests, 37 test files)
+**Gaps addressed:**
+1. `components/Test/AnswerInput.tsx` (21.62% → 81.08%): 24 new tests covering all `answerCategory` switch branches — `pinyin` with Chinese speech recognition (`micInput` and `typingInputWithMicToggle`), `meaning` with flashcards (Show Answer button, like/dislike buttons), `meaning` with English speech recognition (both mic and typing+toggle modes). Also covers `getVerb()` for all 9 branches. Interactive tests verify `setStateMerged({ useTypingInput })`, `onShowAnswer`, `onCorrectAnswer`, `onIDontKnow`, and `recognition.abort()` callbacks.
+2. `components/Test/SentenceRead/SentenceRead.tsx` (61.84% → 71.49%): 7 new tests covering lines 603–661 (word popup rendering). Tests verify: clickable span with aria-label rendered when `searchWord` resolves a SentenceWord; popup content (pinyin/meaning) in hidden div; "Add to bank" button visible after clicking popup span; disabled "Added!" button when word is already in `addedWords`; decomposed array rendering when `substringMatch` returns 2+ items (lines 647–658).
+3. Pre-existing flaky test fixes: `Test.test.tsx` — mock `SpeechSynthesisUtterance` and spy on `speechSynthesis.cancel/speak` to handle non-deterministic `assignQA` picking `questionCategory: 'pinyin'`. `AuthModal.test.tsx` — use `userEvent.setup({ delay: null })` for two typing tests that timed out in coverage-instrumented runs.
+
+**Tests added:**
+- `web-client/src/components/Test/AnswerInput.test.tsx` (24 new tests appended)
+- `web-client/src/components/Test/SentenceRead/SentenceRead.test.tsx` (7 new tests appended)
+- `web-client/src/components/Test/Test.test.tsx` (robustness fixes, no new tests)
+- `web-client/src/components/Auth/AuthModal.test.tsx` (robustness fixes, no new tests)
+
+**Coverage after:** 74.65% statements (566 tests passing across 37 test files); AnswerInput.tsx 81.08%, SentenceRead.tsx 71.49%, overall +1.85pp
+
+**Notes for next run:** `useTestEngine.ts` remains at 35.89% — the HanziWriter paths (quizWriter/animateWriter), submitSpeech full flow, and qNum effect are the biggest remaining gaps. `SentenceRead.tsx` still has lines 640 (postWord after Add to bank click), 786–793 (navigation with cached sentences) uncovered. Key pattern: popup buttons are inside `visibility:hidden` spans — click the parent span first to open popup before querying buttons.
+
+---
+
 ## 2026-03-08 16:40
 **Coverage before:** 68.15% statements, 53.16% branches, 64.34% functions, 69.13% lines (449 tests passing)
 **Gaps addressed:**
@@ -65,6 +84,7 @@
 
 ---
 
+<<<<<<< HEAD
 ## 2026-03-08 17:37
 **Coverage before:** 72.18% statements (493 tests, 35 test files)
 **Gaps addressed:**
@@ -134,3 +154,17 @@
 **Notes for next run:** Remaining high-value gaps: `components/Test/Test.tsx` (22.22%), `components/Test/useTestEngine.ts` (32.27% — HanziWriter/speech paths), `components/Home/Chengyu/Chengyu.tsx` (2.5%), `components/Settings/Settings.tsx` (10.44%), `containers/AddWords/AddWords.tsx` (61.9%), `components/Test/SentenceRead.tsx` (62.66%), `components/Test/SentenceWrite.tsx` (71.65%). Home.tsx lines 62/66 still uncovered (tryOut/signUp nav — need unauthenticated render with MainBanner button clicks). Key patterns established: mock `../../firebase/config` in Home test to prevent Firebase init; mock `../../components/Home/Chengyu/Chengyu` to avoid dictionaryService transitive; mock `../../store/actions/index` with direct vi.fn thunk factories (NOT importOriginal); use createMemoryHistory+Router for navigation assertions; word type is FLAT (id, simp, trad, pinyin, meaning, due_date).
 
 
+## 2026-03-06 10:25
+**Coverage before:** 49.12% statement coverage (328 tests passing across 24 files)
+**Gaps addressed:**
+1. Settings component (10% → ~85%) — localStorage persistence, charSet/slider/checkbox changes, mutual exclusions (English speech rec ↔ flashcards, handwriting-off resets priority), Redux-driven disabled states
+2. TestWords container (4% → 65%) — auth guard redirect, empty-bank UI, Add Words/Practice button visibility, initWords called on mount, stepper step labels, demo mode bypass
+3. useTestEngine onFinishTest (internal function, 32% → higher) — score calculation with 0/2/6+ IDKs, score capping at 4, demo/practice mode skip dispatch, onVocabComplete fires when no sentence words, sentence availability check, startSentenceRead call, finalStage=true skips sentence read, sentenceCheckStatus transitions
+
+**Tests added:**
+- `components/Settings/Settings.test.tsx` (25 tests, new file)
+- `containers/TestWords/TestWords.test.tsx` (13 tests, new file)
+- `components/Test/useTestEngine.test.ts` (12 new tests appended — onFinishTest suite)
+
+**Coverage after:** 55.95% statement coverage (378 tests passing across 26 files)
+**Notes for next run:** Settings, TestWords, Dashboard already well covered. Next priorities: SentenceRead (3.55%), SentenceWrite (3.93%), NewWords (4.54%) — large untested components. Also TestWords sub-stage transitions (vocab→read→write→summary) and useTestEngine speech/recording paths.
