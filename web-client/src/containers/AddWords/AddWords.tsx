@@ -12,7 +12,11 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
+import Paper from '@mui/material/Paper';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import MeaningEditor from '../../components/UI/MeaningEditor/MeaningEditor';
+import WordCard from '../../components/AddWords/WordCard';
 
 import Modal from '../../components/UI/Modal/Modal';
 import MainBanner from '../../components/AddWords/MainBanner';
@@ -330,6 +334,9 @@ const AddWords: React.FC<Props> = ({
     [meaningSubmitClicked],
   );
 
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
+
   const tableRows = useMemo(
     () =>
       words.map((row) => (
@@ -357,6 +364,20 @@ const AddWords: React.FC<Props> = ({
         </TableRow>
       )),
     [words, state.charSet, onPostMeaningUpdate, onDeleteWord],
+  );
+
+  const mobileCards = useMemo(
+    () =>
+      words.map((row) => (
+        <WordCard
+          key={row.id}
+          word={row}
+          charSet={state.charSet}
+          onDeleteWord={onDeleteWord}
+          onPostMeaningUpdate={onPostMeaningUpdate}
+        />
+      )),
+    [words, state.charSet, onDeleteWord, onPostMeaningUpdate],
   );
 
   const clashTableRows = useMemo(
@@ -393,7 +414,22 @@ const AddWords: React.FC<Props> = ({
   let table: React.ReactNode = loading ? <Spinner /> : null;
 
   if (words) {
-    table = (
+    table = isMobile ? (
+      <Paper
+        elevation={2}
+        sx={{
+          width: '100%',
+          maxWidth: 700,
+          mx: 'auto',
+          borderRadius: 2,
+          maxHeight: { xs: 220 },
+          overflowY: 'auto',
+          '@media (min-height: 750px)': { maxHeight: 400 },
+        }}
+      >
+        {mobileCards}
+      </Paper>
+    ) : (
       <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due', 'Remove']}>{tableRows}</Table>
     );
   }
