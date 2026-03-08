@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 
-import { Box, Link, Paper, Typography } from '@mui/material';
+import { Box, ButtonBase, Link, Paper, Typography } from '@mui/material';
 
 import Button from '../UI/Buttons/Button/Button';
 
@@ -186,7 +186,7 @@ const TestChengyusTest: React.FC<Props> = ({
       }}
     >
       <Typography variant="subtitle1" component="h4">
-        Click on a character to see information
+        Tap a character to see information
       </Typography>
       <Paper
         sx={{
@@ -206,20 +206,23 @@ const TestChengyusTest: React.FC<Props> = ({
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           {chars.map((char, index) => {
             return (
-              <Box
+              <ButtonBase
                 key={index}
+                onClick={() => onCharacterClick(char)}
+                aria-label={`Show details for ${char}`}
                 sx={{
                   display: 'inline-block',
-                  p: '2px',
+                  p: '6px',
                   borderRadius: 1,
+                  fontSize: 'inherit',
+                  fontFamily: 'inherit',
                   '&:hover': {
                     bgcolor: 'primary.light',
-                    cursor: 'pointer',
                   },
                 }}
               >
-                <p onClick={() => onCharacterClick(char)}>{char}</p>
-              </Box>
+                {char}
+              </ButtonBase>
             );
           })}
         </Box>
@@ -240,8 +243,17 @@ const TestChengyusTest: React.FC<Props> = ({
       >
         Lookup chengyu information
       </Link>
+      {state.errorMessage && (
+        <Typography role="alert" sx={{ color: 'error.main', fontSize: '0.85em', mt: 1 }}>
+          {state.errorMessage}
+        </Typography>
+      )}
       <Box sx={{ minHeight: 250 }}>{charInfo}</Box>
-      <Button style={{ width: '230px', margin: '0 auto' }} clicked={onToggleAnswer}>
+      <Button
+        style={{ width: '230px', margin: '0 auto' }}
+        clicked={onToggleAnswer}
+        aria-pressed={state.showChengyuMeaning}
+      >
         {state.showChengyuMeaning ? 'Hide' : 'Show'} Answer
       </Button>
       <br />

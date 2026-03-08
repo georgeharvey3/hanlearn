@@ -460,6 +460,7 @@ const SentenceWrite: React.FC<Props> = ({
         </Typography>
         <Input
           id="answerInput"
+          aria-label="Type your Chinese answer"
           autoComplete="off"
           changed={(e) => updateState({ entered: e.target.value, message: '' })}
           keyPressed={onInputKeyPress}

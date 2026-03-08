@@ -184,6 +184,8 @@ const NewWord: React.FC<Props> = ({
               <ButtonBase
                 key={index}
                 onClick={() => onCharacterClick(char, index)}
+                aria-label={`Show details for ${char}`}
+                aria-pressed={isActive}
                 sx={{
                   fontSize: 'inherit',
                   px: 1,

@@ -61,7 +61,7 @@ const NewWords: React.FC<NewWordsProps> = ({ words, isDemo, startTest }) => {
         New Words
       </Typography>
       <Typography variant="subtitle1" component="h4" sx={{ color: 'text.secondary', mb: 2 }}>
-        Click on a character to see information
+        Tap a character to see information
       </Typography>
       <NewWord word={words[wordIndex]} isDemo={isDemo}></NewWord>
       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 2 }}>

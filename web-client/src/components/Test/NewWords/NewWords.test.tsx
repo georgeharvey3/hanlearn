@@ -64,9 +64,9 @@ describe('NewWords — heading and subtitle', () => {
     expect(screen.getByRole('heading', { name: /new words/i })).toBeInTheDocument();
   });
 
-  it('renders the "click on a character" subtitle', () => {
+  it('renders the "tap a character" subtitle', () => {
     renderWithProviders(<NewWords words={[word1]} />, { store: makeStore() });
-    expect(screen.getByText(/click on a character/i)).toBeInTheDocument();
+    expect(screen.getByText(/tap a character to see information/i)).toBeInTheDocument();
   });
 });
 

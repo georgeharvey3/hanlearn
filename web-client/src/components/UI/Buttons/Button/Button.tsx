@@ -10,6 +10,8 @@ interface ButtonProps {
   clicked?: () => void;
   style?: CSSProperties;
   children?: ReactNode;
+  'aria-pressed'?: boolean;
+  'aria-label'?: string;
 }
 
 const buttonStyles: Record<ButtonType, object> = {
@@ -40,6 +42,8 @@ const Button: React.FC<ButtonProps> = (props) => {
       disabled={props.disabled}
       onClick={props.clicked}
       style={props.style}
+      aria-pressed={props['aria-pressed']}
+      aria-label={props['aria-label']}
       sx={{ m: '8px 15px', ...buttonStyles[type] }}
     >
       {props.children}
