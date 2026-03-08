@@ -77,9 +77,9 @@ service cloud.firestore {
     match /sentenceCache/{word} {
       allow read: if true;
       allow write: if request.auth != null
-        && request.resource.data.keys().hasAll(['sentence', 'timestamp'])
-        && request.resource.data.sentence is string
-        && request.resource.data.sentence.size() <= 1000;
+        && request.resource.data.keys().hasAll(['sentences', 'generatedAt'])
+        && request.resource.data.sentences is list
+        && request.resource.data.sentences.size() <= 10;
     }
   }
 }
