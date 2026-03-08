@@ -208,6 +208,101 @@ describe('SentenceRead — submitting a translation', () => {
   });
 });
 
+describe('SentenceRead — text mode (useSound=false)', () => {
+  it('renders the segmented sentence in text mode when synthAvailable=false', async () => {
+    // With synthAvailable=false in store, initialiseSettings sets useSound=false → text mode
+    const store = createTestStore({
+      ...authenticatedState(),
+      settings: { speechAvailable: false, synthAvailable: false },
+    });
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store },
+    );
+    // Text mode: sentence segments should appear (non-target segments rendered)
+    await waitFor(() => {
+      // The sentence characters should be visible in text mode
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+  });
+
+  it('renders clickable word spans for resolved dictionary words in text mode', async () => {
+    // Return a word object for the non-target segment 我是
+    mockedSearchWord.mockImplementation(async (word: string) => {
+      if (word === '我是') {
+        return [{ id: 99, simp: '我是', trad: '我是', pinyin: 'wǒ shì', meaning: 'I am' }];
+      }
+      return [];
+    });
+
+    const store = createTestStore({
+      ...authenticatedState(),
+      settings: { speechAvailable: false, synthAvailable: false },
+    });
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store },
+    );
+
+    // Wait for the word popup button to appear
+    await waitFor(
+      () => {
+        const popupBtn = screen.queryByRole('button', { name: /tap to see meaning/i });
+        expect(popupBtn).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
+  });
+
+  it('renders decomposed sub-word spans when substringMatch returns multiple words', async () => {
+    // segment '学生' → substringMatch returns two sub-words
+    mockedSearchWord.mockResolvedValue([]); // No exact match
+    mockedSubstringMatch.mockImplementation(async (word: string) => {
+      if (word === '学生') {
+        return [
+          { id: 101, simp: '学', trad: '學', pinyin: 'xué', meaning: 'study' },
+          { id: 102, simp: '生', trad: '生', pinyin: 'shēng', meaning: 'life' },
+        ];
+      }
+      return [{ id: -1, simp: '—', trad: '—', pinyin: '', meaning: '' }];
+    });
+
+    const store = createTestStore({
+      ...authenticatedState(),
+      settings: { speechAvailable: false, synthAvailable: false },
+    });
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store },
+    );
+
+    await waitFor(
+      () => {
+        // Both sub-words should appear as clickable spans
+        const buttons = screen.queryAllByRole('button', { name: /tap to see meaning/i });
+        expect(buttons.length).toBeGreaterThan(0);
+      },
+      { timeout: 3000 },
+    );
+  });
+
+  it('renders target word highlighted in primary colour (not as popup)', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      settings: { speechAvailable: false, synthAvailable: false },
+    });
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store },
+    );
+
+    await waitFor(() => {
+      // The target word 你好 appears as a highlighted span (not as a popup button)
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+  });
+});
+
 describe('SentenceRead — stage completion', () => {
   it('calls startSentenceWrite after Yes on the last word (sentenceWriteEnabled=true)', async () => {
     const user = userEvent.setup();

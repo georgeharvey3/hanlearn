@@ -491,6 +491,159 @@ describe('useTestEngine — submitSpeech first-attempt behaviour (regression)', 
 });
 
 // ---------------------------------------------------------------------------
+// qNum effect: autoRecord paths and character/setHanziWriter path
+// Lines 994–1025 in useTestEngine.ts
+// ---------------------------------------------------------------------------
+describe('useTestEngine — qNum effect with useAutoRecord', () => {
+  let cancelSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    // jsdom defines speechSynthesis as non-configurable, so use spyOn
+    cancelSpy = vi.spyOn(window.speechSynthesis, 'cancel').mockImplementation(() => {});
+    vi.spyOn(window.speechSynthesis, 'speak').mockImplementation(() => {});
+  });
+
+  function setupRecognitionMock() {
+    const mockRecognition = {
+      lang: '',
+      start: vi.fn(),
+      abort: vi.fn(),
+      stop: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
+
+    class FakeRecognition {
+      lang = '';
+      start = mockRecognition.start;
+      abort = mockRecognition.abort;
+      stop = mockRecognition.stop;
+      addEventListener = mockRecognition.addEventListener;
+      removeEventListener = mockRecognition.removeEventListener;
+    }
+
+    (window as any).webkitSpeechRecognition = FakeRecognition;
+    return mockRecognition;
+  }
+
+  it('calls onListen when answerCategory=pinyin and useAutoRecord=true on qNum change', () => {
+    const mockRecognition = setupRecognitionMock();
+
+    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
+    const result = renderEngineWithState({
+      answerCategory: 'pinyin',
+      questionCategory: 'meaning',
+      useAutoRecord: true,
+      useTypingInput: false,
+      useSound: false,
+      useHandwriting: false,
+      writer: null,
+      perm,
+      testSet: [makeWord()],
+      permList: [perm],
+      charSet: 'simp',
+      chosenCharacter: '你好',
+      qNum: 1,
+    });
+
+    // Increment qNum to trigger the effect
+    act(() => {
+      result.current.setStateMerged({ qNum: 2 } as any);
+    });
+
+    // After qNum change with answerCategory=pinyin and useAutoRecord=true, onListen should fire
+    expect(mockRecognition.start).toHaveBeenCalled();
+  });
+
+  it('calls onListen when answerCategory=meaning, useAutoRecord=true, and not flashcards', () => {
+    const mockRecognition = setupRecognitionMock();
+
+    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const result = renderEngineWithState({
+      answerCategory: 'meaning',
+      questionCategory: 'pinyin',
+      useAutoRecord: true,
+      useTypingInput: false,
+      useSound: false,
+      useFlashcards: false,
+      useHandwriting: false,
+      writer: null,
+      perm,
+      testSet: [makeWord()],
+      permList: [perm],
+      charSet: 'simp',
+      chosenCharacter: '你好',
+      qNum: 1,
+    });
+
+    act(() => {
+      result.current.setStateMerged({ qNum: 2 } as any);
+    });
+
+    expect(mockRecognition.start).toHaveBeenCalled();
+  });
+
+  it('does NOT call onListen when answerCategory=meaning + useFlashcards=true', () => {
+    const mockRecognition = setupRecognitionMock();
+
+    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const result = renderEngineWithState({
+      answerCategory: 'meaning',
+      questionCategory: 'pinyin',
+      useAutoRecord: true,
+      useTypingInput: false,
+      useSound: false,
+      useFlashcards: true,
+      useHandwriting: false,
+      writer: null,
+      perm,
+      testSet: [makeWord()],
+      permList: [perm],
+      charSet: 'simp',
+      chosenCharacter: '你好',
+      qNum: 1,
+    });
+
+    act(() => {
+      result.current.setStateMerged({ qNum: 2 } as any);
+    });
+
+    // Flashcards mode should not trigger listen
+    expect(mockRecognition.start).not.toHaveBeenCalled();
+  });
+
+  it('calls HanziWriter.create when answerCategory=character and answer is set on qNum change', () => {
+    // No speech recognition needed for this test
+    const perm = { index: '0', aCategory: 'C' as any, qCategory: 'P' as any };
+    const result = renderEngineWithState({
+      answerCategory: 'character',
+      questionCategory: 'pinyin',
+      answer: '你',
+      useAutoRecord: false,
+      useSound: false,
+      useHandwriting: true,
+      writer: null,
+      perm,
+      testSet: [makeWord({ simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' })],
+      permList: [perm],
+      charSet: 'simp',
+      chosenCharacter: '你',
+      qNum: 1,
+    });
+
+    // Clear any previous calls from initial render
+    vi.mocked((window as any).HanziWriter.create).mockClear();
+
+    act(() => {
+      result.current.setStateMerged({ qNum: 2 } as any);
+    });
+
+    // HanziWriter.create should be called to set up the character quiz
+    expect((window as any).HanziWriter.create).toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Regression: Dashboard loading stuck when userId is null on retry
 // ---------------------------------------------------------------------------
 // (Covered in Dashboard.test.tsx — the 'does not call getDashboardStats when userId is null'
