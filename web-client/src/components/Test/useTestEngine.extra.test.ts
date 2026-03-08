@@ -68,6 +68,12 @@ vi.mock('../../services/sentenceService', () => ({
   getHintSentence: vi.fn().mockResolvedValue(null),
 }));
 
+vi.mock('../../services/ttsService', () => ({
+  speak: vi.fn(() => ({ play: vi.fn(), stop: vi.fn() })),
+  prefetch: vi.fn(),
+  stopAll: vi.fn(),
+}));
+
 vi.mock('pinyin-pro', () => ({
   pinyin: vi.fn((text: string, opts?: { type?: string }) =>
     opts?.type === 'array' ? text.split('').map((c: string) => c) : text.split('').join(' '),

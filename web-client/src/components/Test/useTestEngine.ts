@@ -7,6 +7,7 @@ import { beep, fail, createInitialState } from './constants';
 import { Props, TestState, TestStateUpdate } from './types';
 import { WordScore } from '../../types/models';
 import { checkSentenceAvailability, getHintSentence } from '../../services/sentenceService';
+import * as ttsService from '../../services/ttsService';
 
 export const useTestEngine = (props: Props) => {
   const [state, setState] = useState<TestState>(() => createInitialState(props));
@@ -65,7 +66,7 @@ export const useTestEngine = (props: Props) => {
 
   const onListen = useCallback((): void => {
     const current = getState();
-    window.speechSynthesis.cancel();
+    ttsService.stopAll();
     current.recognition?.abort();
 
     const recognition = new window.webkitSpeechRecognition();
@@ -117,34 +118,28 @@ export const useTestEngine = (props: Props) => {
         setStateMerged({ synthLoading: true });
       }
 
-      const synth = window.speechSynthesis;
-      const utterThis = new SpeechSynthesisUtterance(word);
-      utterThis.lang = props.lang || 'zh-CN';
-      if (props.voice) {
-        utterThis.voice = props.voice;
-      }
-      utterThis.onerror = (e) => {
-        if (e.error === 'synthesis-failed') {
+      ttsService.speak(word, {
+        fallbackVoice: props.voice,
+        fallbackLang: props.lang || 'zh-CN',
+        onStart: () => {
+          setStateMerged({ synthLoading: false });
+        },
+        onEnd: () => {
+          const latest = getState();
+          if (
+            auto &&
+            !(
+              latest.answerCategory === 'character' ||
+              (latest.answerCategory === 'meaning' && latest.useFlashcards)
+            )
+          ) {
+            onListen();
+          }
+        },
+        onError: () => {
           setStateMerged({ result: 'Error playing pinyin', showPinyin: true });
-        }
-      };
-      utterThis.onend = () => {
-        const latest = getState();
-        if (
-          auto &&
-          !(
-            latest.answerCategory === 'character' ||
-            (latest.answerCategory === 'meaning' && latest.useFlashcards)
-          )
-        ) {
-          onListen();
-        }
-      };
-      utterThis.onstart = () => {
-        setStateMerged({ synthLoading: false });
-      };
-      synth.cancel();
-      synth.speak(utterThis);
+        },
+      });
     },
     [getState, onListen, props.lang, props.voice, setStateMerged],
   );
@@ -626,7 +621,7 @@ export const useTestEngine = (props: Props) => {
   const onIDontKnow = useCallback((): void => {
     const current = getState();
     current.recognition?.abort();
-    window.speechSynthesis.cancel();
+    ttsService.stopAll();
 
     const charDivExists = current.answerCategory === 'character' && current.useHandwriting;
     if (charDivExists && current.writer && typeof current.answer === 'string') {
@@ -987,13 +982,13 @@ export const useTestEngine = (props: Props) => {
       document.removeEventListener('mouseover', setInteraction);
       document.removeEventListener('scroll', setInteraction);
       document.removeEventListener('keydown', setInteraction);
-      window.speechSynthesis.cancel();
+      ttsService.stopAll();
     };
   }, [initialiseSettings, onKeyUp, setInteraction]);
 
   useEffect(() => {
     const current = getState();
-    window.speechSynthesis.cancel();
+    ttsService.stopAll();
     setStateMerged({
       yesClicked: false,
       noClicked: false,
