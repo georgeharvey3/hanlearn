@@ -70,7 +70,7 @@ const AudioSettingsDrawer: React.FC<AudioSettingsDrawerProps> = ({
                 disabled={disabled}
               />
             }
-            label={label}
+            label={disabled ? `${label} (not supported by your browser)` : label}
             sx={{ my: 0.25 }}
           />
         ))}

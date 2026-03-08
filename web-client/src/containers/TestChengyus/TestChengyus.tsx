@@ -6,6 +6,7 @@ import * as wordActions from '../../store/actions/index';
 
 import Modal from '../../components/UI/Modal/Modal';
 import Button from '../../components/UI/Buttons/Button/Button';
+import Spinner from '../../components/UI/Spinner/Spinner';
 import TestChengyusTest from '../../components/TestChengyusTest/TestChengyusTest';
 
 import * as testLogic from '../../components/Test/Logic/TestLogic';
@@ -23,6 +24,7 @@ interface OwnProps {
 
 const mapStateToProps = (state: RootState) => ({
   words: state.addWords.words,
+  wordsLoading: state.addWords.loading,
   userId: state.auth.userId,
   authInitialized: state.auth.initialized,
 });
@@ -37,6 +39,7 @@ type Props = PropsFromRedux & OwnProps & RouteComponentProps;
 
 const TestChengyus: React.FC<Props> = ({
   words,
+  wordsLoading,
   userId,
   authInitialized,
   isDemo,
@@ -94,7 +97,9 @@ const TestChengyus: React.FC<Props> = ({
 
   let content: React.ReactNode = null;
 
-  if (state.selectedWords.length > 0) {
+  if (wordsLoading) {
+    content = <Spinner />;
+  } else if (state.selectedWords.length > 0) {
     content = <TestChengyusTest words={state.selectedWords} />;
   } else {
     content = (

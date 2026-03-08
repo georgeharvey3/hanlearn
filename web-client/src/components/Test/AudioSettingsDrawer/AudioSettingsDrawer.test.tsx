@@ -33,14 +33,14 @@ describe('AudioSettingsDrawer', () => {
 
   it('disables sound checkbox when synthAvailable is false', () => {
     render(<AudioSettingsDrawer {...defaultProps} synthAvailable={false} />);
-    const soundCheckbox = screen.getByRole('checkbox', { name: 'Sound' });
+    const soundCheckbox = screen.getByRole('checkbox', { name: /^Sound/ });
     expect(soundCheckbox).toBeDisabled();
   });
 
   it('disables speech recognition checkboxes when speechAvailable is false', () => {
     render(<AudioSettingsDrawer {...defaultProps} speechAvailable={false} />);
-    const chinese = screen.getByRole('checkbox', { name: 'Chinese speech recognition' });
-    const english = screen.getByRole('checkbox', { name: 'English speech recognition' });
+    const chinese = screen.getByRole('checkbox', { name: /^Chinese speech recognition/ });
+    const english = screen.getByRole('checkbox', { name: /^English speech recognition/ });
     expect(chinese).toBeDisabled();
     expect(english).toBeDisabled();
   });

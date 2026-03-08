@@ -603,9 +603,18 @@ const SentenceRead: React.FC<Props> = ({
         const renderWordPopup = (w: SentenceWord, popupId: string, key: string | number) => (
           <Box
             component="span"
+            role="button"
+            tabIndex={0}
             data-popup
+            aria-label={`${w[state.charSet]}: tap to see meaning`}
             onClick={(event: React.MouseEvent) => {
               if ((event.target as HTMLElement).hasAttribute('data-popup')) {
+                onShowPopup(popupId, w[state.charSet]);
+              }
+            }}
+            onKeyDown={(event: React.KeyboardEvent) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
                 onShowPopup(popupId, w[state.charSet]);
               }
             }}
@@ -753,6 +762,7 @@ const SentenceRead: React.FC<Props> = ({
           </Typography>
           <Input
             id="answerInput"
+            aria-label="English translation"
             changed={onInputChanged}
             keyPressed={onKeyPressed}
             autoComplete="off"
