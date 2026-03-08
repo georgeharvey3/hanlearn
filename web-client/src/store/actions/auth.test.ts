@@ -237,4 +237,119 @@ describe('auth action thunks', () => {
       });
     });
   });
+
+  describe('sendPasswordReset', () => {
+    it('dispatches PASSWORD_RESET_SENT on success', async () => {
+      mockedAuth.resetPassword.mockResolvedValue(undefined);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.sendPasswordReset('user@example.com') as any);
+
+      expect(mockedAuth.resetPassword).toHaveBeenCalledWith('user@example.com');
+      expect(store.getState().auth.resetEmailSent).toBe(true);
+      expect(store.getState().auth.loading).toBe(false);
+      expect(store.getState().auth.error).toBeNull();
+    });
+
+    it('dispatches PASSWORD_RESET_SENT for auth/user-not-found (prevents email enumeration)', async () => {
+      const firebaseError = new FirebaseError(
+        'auth/user-not-found',
+        'Firebase: Error (auth/user-not-found).',
+      );
+      mockedAuth.resetPassword.mockRejectedValue(firebaseError);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.sendPasswordReset('unknown@example.com') as any);
+
+      // Should show success even for unknown email to prevent enumeration
+      expect(store.getState().auth.resetEmailSent).toBe(true);
+      expect(store.getState().auth.error).toBeNull();
+    });
+
+    it('dispatches AUTH_FAIL for other Firebase errors', async () => {
+      const firebaseError = new FirebaseError(
+        'auth/too-many-requests',
+        'Firebase: Error (auth/too-many-requests).',
+      );
+      mockedAuth.resetPassword.mockRejectedValue(firebaseError);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.sendPasswordReset('user@example.com') as any);
+
+      expect(store.getState().auth.error).toBe('Too many failed attempts. Please try again later');
+      // resetEmailSent should not have been set to true
+      expect(store.getState().auth.resetEmailSent).not.toBe(true);
+    });
+
+    it('dispatches AUTH_FAIL with generic message for non-Firebase errors', async () => {
+      mockedAuth.resetPassword.mockRejectedValue(new Error('Network error'));
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.sendPasswordReset('user@example.com') as any);
+
+      expect(store.getState().auth.error).toBe('Failed to send reset email');
+    });
+  });
+
+  describe('googleSignIn — additional error paths', () => {
+    it('dispatches AUTH_FAIL with message for popup-blocked error', async () => {
+      const firebaseError = new FirebaseError(
+        'auth/popup-blocked',
+        'Firebase: Error (auth/popup-blocked).',
+      );
+      mockedAuth.signInWithGoogle.mockRejectedValue(firebaseError);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.googleSignIn() as any);
+
+      expect(store.getState().auth.error).toBe(
+        'Please allow popups for this site to sign in with Google',
+      );
+      expect(store.getState().auth.userId).toBeNull();
+    });
+
+    it('dispatches AUTH_FAIL with generic message for non-Firebase errors', async () => {
+      mockedAuth.signInWithGoogle.mockRejectedValue(new Error('Network failure'));
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.googleSignIn() as any);
+
+      expect(store.getState().auth.error).toBe('Google sign-in failed');
+    });
+  });
+
+  describe('register — non-Firebase error path', () => {
+    it('dispatches AUTH_FAIL with generic message for non-Firebase errors', async () => {
+      mockedAuth.registerUser.mockRejectedValue(new Error('Network error'));
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.register('user@example.com', 'password') as any);
+
+      expect(store.getState().auth.error).toBe('Registration failed');
+      expect(store.getState().auth.userId).toBeNull();
+    });
+  });
+
+  describe('getErrorMessage — default/fallback case', () => {
+    it('shows a user-friendly message for unknown Firebase error codes', async () => {
+      const unknownError = new FirebaseError('auth/unknown-code', 'Something went wrong');
+      mockedAuth.loginUser.mockRejectedValue(unknownError);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.auth('user@example.com', 'pw') as any);
+
+      // Falls through to default: error.message || 'An error occurred'
+      expect(store.getState().auth.error).toBe('Something went wrong');
+    });
+
+    it('falls back to "An error occurred" when Firebase error has no message', async () => {
+      const unknownError = new FirebaseError('auth/unknown-code', '');
+      mockedAuth.loginUser.mockRejectedValue(unknownError);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.auth('user@example.com', 'pw') as any);
+
+      expect(store.getState().auth.error).toBe('An error occurred');
+    });
+  });
 });
