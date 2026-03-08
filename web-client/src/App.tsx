@@ -137,47 +137,47 @@ const App: React.FC<Props> = ({
               </Box>
             }
           >
-          <Switch>
-            <Route
-              path="/"
-              exact
-              render={() => (
-                <ErrorBoundary>{isAuthenticated ? <Dashboard /> : <Home />}</ErrorBoundary>
-              )}
-            />
-            <Route
-              path="/add-words"
-              render={() => (
-                <ErrorBoundary>
-                  <AddWords />
-                </ErrorBoundary>
-              )}
-            />
-            <Route
-              path="/test-words"
-              render={() => (
-                <ErrorBoundary>
-                  <TestWords />
-                </ErrorBoundary>
-              )}
-            />
-            <Route
-              path="/settings"
-              render={() => (
-                <ErrorBoundary>
-                  <SettingsPage />
-                </ErrorBoundary>
-              )}
-            />
-            <Route
-              path="/tryout"
-              render={() => (
-                <ErrorBoundary>
-                  <TestWords isDemo />
-                </ErrorBoundary>
-              )}
-            />
-          </Switch>
+            <Switch>
+              <Route
+                path="/"
+                exact
+                render={() => (
+                  <ErrorBoundary>{isAuthenticated ? <Dashboard /> : <Home />}</ErrorBoundary>
+                )}
+              />
+              <Route
+                path="/add-words"
+                render={() => (
+                  <ErrorBoundary>
+                    <AddWords />
+                  </ErrorBoundary>
+                )}
+              />
+              <Route
+                path="/test-words"
+                render={() => (
+                  <ErrorBoundary>
+                    <TestWords />
+                  </ErrorBoundary>
+                )}
+              />
+              <Route
+                path="/settings"
+                render={() => (
+                  <ErrorBoundary>
+                    <SettingsPage />
+                  </ErrorBoundary>
+                )}
+              />
+              <Route
+                path="/tryout"
+                render={() => (
+                  <ErrorBoundary>
+                    <TestWords isDemo />
+                  </ErrorBoundary>
+                )}
+              />
+            </Switch>
           </Suspense>
         </ErrorBoundary>
       </Layout>
