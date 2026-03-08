@@ -8,6 +8,7 @@ import Button from '../UI/Buttons/Button/Button';
 import { RootState } from '../../types/store';
 import { Word } from '../../types/models';
 import { parseMeanings } from '../../utils/meaningUtils';
+import * as ttsService from '../../services/ttsService';
 
 interface CharData {
   simp: string;
@@ -62,19 +63,13 @@ const TestChengyusTest: React.FC<Props> = ({
 
   const onSpeakPinyin = useCallback(
     (word: string): void => {
-      const synth = window.speechSynthesis;
-      const utterThis = new SpeechSynthesisUtterance(word);
-      utterThis.lang = lang || 'zh-CN';
-      if (voice) {
-        utterThis.voice = voice;
-      }
-      utterThis.onerror = (e) => {
-        if (e.error === 'synthesis-failed') {
+      ttsService.speak(word, {
+        fallbackVoice: voice,
+        fallbackLang: lang || 'zh-CN',
+        onError: () => {
           setState((prev) => ({ ...prev, errorMessage: 'Error playing pinyin' }));
-        }
-      };
-      synth.cancel();
-      synth.speak(utterThis);
+        },
+      });
     },
     [lang, voice],
   );

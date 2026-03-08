@@ -6,6 +6,7 @@ import { Box, ButtonBase, CircularProgress, Paper, Typography } from '@mui/mater
 import MeaningEditor from '../../../UI/MeaningEditor/MeaningEditor';
 
 import { searchWord } from '../../../../services/dictionaryService';
+import * as ttsService from '../../../../services/ttsService';
 
 import { RootState } from '../../../../types/store';
 import { Word } from '../../../../types/models';
@@ -61,17 +62,10 @@ const NewWord: React.FC<Props> = ({
 
   const onSpeakPinyin = useCallback(
     (pinyinWord: string): void => {
-      const synth = window.speechSynthesis;
-      const utterThis = new SpeechSynthesisUtterance(pinyinWord);
-      utterThis.lang = lang || 'zh-CN';
-      if (voice) {
-        utterThis.voice = voice;
-      }
-      utterThis.onerror = () => {
-        // Speech synthesis errors are non-critical on mobile
-      };
-      synth.cancel();
-      synth.speak(utterThis);
+      ttsService.speak(pinyinWord, {
+        fallbackVoice: voice,
+        fallbackLang: lang || 'zh-CN',
+      });
     },
     [lang, voice],
   );

@@ -12,6 +12,12 @@ vi.mock('../../../../services/dictionaryService', () => ({
   searchWord: vi.fn(),
 }));
 
+vi.mock('../../../../services/ttsService', () => ({
+  speak: vi.fn(() => ({ play: vi.fn(), stop: vi.fn() })),
+  prefetch: vi.fn(),
+  stopAll: vi.fn(),
+}));
+
 const mockSearchWord = vi.mocked(dictionaryService.searchWord);
 
 const makeWord = (simp: string, pinyin: string, meaning: string) => ({

@@ -13,6 +13,9 @@ export {
   dictionarySubstringMatch,
 } from './dictionary';
 
+// Re-export TTS Cloud Function
+export { textToSpeech } from './tts';
+
 const db = admin.firestore();
 
 /**

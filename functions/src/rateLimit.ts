@@ -12,6 +12,7 @@ export interface RateLimitConfig {
 export const RATE_LIMITS: Record<string, RateLimitConfig> = {
   getDailyChengyu: { maxRequests: 30, windowMs: 60_000 },
   lookupChengyuChar: { maxRequests: 60, windowMs: 60_000 },
+  textToSpeech: { maxRequests: 100, windowMs: 60_000 },
 };
 
 /**

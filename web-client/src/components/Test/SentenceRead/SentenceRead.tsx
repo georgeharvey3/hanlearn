@@ -26,6 +26,7 @@ import { AppDispatch } from '../../../types/actions';
 import { searchWord, substringMatch } from '../../../services/dictionaryService';
 import { getSegmentedSentence } from '../../../services/sentenceService';
 import { parseMeanings } from '../../../utils/meaningUtils';
+import * as ttsService from '../../../services/ttsService';
 
 const beep = new Howl({ src: [successSound], volume: 0.5 });
 const fail = new Howl({ src: [failSound], volume: 0.7 });
@@ -271,21 +272,19 @@ const SentenceRead: React.FC<Props> = ({
   const onSpeakPinyin = useCallback(
     (sentence: string): void => {
       stateRef.current.recognition?.abort();
-      window.speechSynthesis.cancel();
+      ttsService.stopAll();
 
-      const synth = window.speechSynthesis;
-      const utterThis = new SpeechSynthesisUtterance(sentence);
-      utterThis.lang = lang || 'zh-CN';
-      if (voice) utterThis.voice = voice;
-      synth.cancel();
-      synth.speak(utterThis);
+      ttsService.speak(sentence, {
+        fallbackVoice: voice,
+        fallbackLang: lang || 'zh-CN',
+      });
     },
     [lang, voice],
   );
 
   const onListenPinyin = useCallback((): void => {
     stateRef.current.recognition?.abort();
-    window.speechSynthesis.cancel();
+    ttsService.stopAll();
 
     const recognition = new window.webkitSpeechRecognition();
     updateState({ recognition, message: '' });

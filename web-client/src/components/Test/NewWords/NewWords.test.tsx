@@ -24,6 +24,11 @@ vi.mock('../../../services/dictionaryService', () => ({
   searchWord: vi.fn().mockResolvedValue([]),
   substringMatch: vi.fn().mockResolvedValue([]),
 }));
+vi.mock('../../../services/ttsService', () => ({
+  speak: vi.fn(() => ({ play: vi.fn(), stop: vi.fn() })),
+  prefetch: vi.fn(),
+  stopAll: vi.fn(),
+}));
 
 import React from 'react';
 import { screen, fireEvent } from '@testing-library/react';
