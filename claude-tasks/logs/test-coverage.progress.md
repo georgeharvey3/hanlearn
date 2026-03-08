@@ -1,3 +1,20 @@
+## 2026-03-08 19:56
+**Coverage before:** 536 tests passing, AnswerInput.tsx 21.62%, FormInput.tsx 71.42%, useTestEngine.ts 35.89%
+**Gaps addressed:**
+1. AnswerInput.tsx (21.62% → 78.37%) — pinyin+speech recognition mode (micInput, typingInputWithMicToggle), meaning+flashcards mode (Show Answer / like/dislike buttons), meaning+English speech recognition mode, micInput interactions (Switch to typing/speaking buttons), all branches of getVerb() helper
+2. useTestEngine.ts qNum effect lines 1022-1023 — setHanziWriter path when answerCategory='character' and answer is a string; confirmed non-character and array-answer paths skip HanziWriter.create; qNum state reset verified
+3. FormInput.tsx (71.42% → 100%) — select variant (lines 29-50): label rendering, option display via dropdown, error helper text; text/textarea variants
+
+**Tests added:**
+- `components/Test/AnswerInput.extra.test.tsx` (23 tests, new file)
+- `components/Test/useTestEngine.extra.test.ts` (5 tests, new file)
+- `components/UI/FormInput/FormInput.test.tsx` (11 tests, new file)
+
+**Coverage after:** 576 tests passing, AnswerInput.tsx 78.37%, FormInput.tsx 100%, useTestEngine.ts 38.6%; overall statements ~74.28%
+**Notes for next run:** Remaining high-value gaps: `useTestEngine.ts` (38.6% — speech/recording paths, submitSpeech, onCorrectAnswer for character mode), `SentenceRead.tsx` (61.84% — word lookup overlay, Next sentence nav, seenOffsets tracking), `TestWords.tsx` (70.73% — stage transitions read→write→summary), `Toggle.tsx` (50%), `SentenceWrite.tsx` (71.65% — audio/speech branches).
+
+---
+
 ## 2026-03-08 16:40
 **Coverage before:** 68.15% statements, 53.16% branches, 64.34% functions, 69.13% lines (449 tests passing)
 **Gaps addressed:**
@@ -64,22 +81,3 @@
 **Coverage after:** 55.95% statement coverage (378 tests passing across 26 files)
 **Notes for next run:** Settings, TestWords, Dashboard already well covered. Next priorities: SentenceRead (3.55%), SentenceWrite (3.93%), NewWords (4.54%) — large untested components. Also TestWords sub-stage transitions (vocab→read→write→summary) and useTestEngine speech/recording paths.
 
----
-
-## 2026-03-05 10:24
-**Coverage before:** ~40% statement coverage (223 tests passing across 15 files)
-**Gaps addressed:**
-1. AddWords container — word search flow, duplicate detection, custom meaning input, clash table, confirm/cancel modal, remove-from-bank via UI
-2. AuthModal component — login/register form validation, submit dispatches, Google sign-in, mode switching, error display
-3. useTestEngine hook — checkAnswer for pinyin/meaning, I-don't-know flow, onShowAnswer, pinyin hint toggle
-
-**Tests added:**
-- `containers/AddWords/AddWords.test.tsx` (10 tests)
-- `components/Auth/AuthModal.test.tsx` (12 tests)
-- `components/Test/useTestEngine.test.ts` (15 tests)
-- Fixed 4 failing test suites by mocking `firebase/config`
-
-**Coverage after:** 48% statement coverage (297 tests passing across 22 files)
-**Notes for next run:** Auth flows and test scoring now have good coverage. Next priorities: spaced repetition logic (bank advancement, due date calculation in wordService), Dashboard component integration tests, and Settings component tests.
-
----
