@@ -45,39 +45,73 @@ const Sidebar: React.FC<PropsFromRedux> = ({ onLogout }) => {
         '& .MuiDrawer-paper': {
           width: SIDEBAR_WIDTH,
           boxSizing: 'border-box',
-          backgroundColor: colors.primary,
-          borderRight: `1px solid ${colors.divider}`,
+          backgroundColor: colors.primaryDark,
+          borderRight: 'none',
           top: 56,
           height: 'calc(100% - 56px)',
         },
       }}
     >
-      <Box component="nav" aria-label="Main navigation" sx={{ overflow: 'auto' }}>
-        <List>
+      <Box
+        component="nav"
+        aria-label="Main navigation"
+        sx={{
+          overflow: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          pt: 1,
+        }}
+      >
+        <List sx={{ flex: 1, px: 1 }}>
           {links.map((link) => (
-            <ListItem key={link.to} disablePadding>
+            <ListItem key={link.to} disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton
                 component={NavLink}
                 to={link.to}
                 exact
                 sx={{
-                  color: colors.text,
+                  color: 'rgba(255,255,255,0.7)',
+                  borderRadius: 2,
+                  py: 1.2,
+                  '&:hover': {
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                    color: colors.white,
+                  },
                   '&.active': {
-                    backgroundColor: 'rgba(0,0,0,0.08)',
-                    borderRight: `3px solid ${colors.primaryDark}`,
+                    backgroundColor: 'rgba(255,255,255,0.15)',
+                    color: colors.white,
+                    fontWeight: 600,
+                    '& .MuiListItemIcon-root': {
+                      color: colors.primary,
+                    },
                   },
                 }}
               >
                 <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>{link.icon}</ListItemIcon>
-                <ListItemText primary={link.label} />
+                <ListItemText
+                  primary={link.label}
+                  primaryTypographyProps={{ fontWeight: 'inherit' }}
+                />
               </ListItemButton>
             </ListItem>
           ))}
         </List>
-        <Divider />
-        <List>
+        <Divider sx={{ borderColor: 'rgba(255,255,255,0.15)', mx: 1 }} />
+        <List sx={{ px: 1, pb: 1 }}>
           <ListItem disablePadding>
-            <ListItemButton onClick={onLogout} sx={{ color: colors.text }}>
+            <ListItemButton
+              onClick={onLogout}
+              sx={{
+                color: 'rgba(255,255,255,0.7)',
+                borderRadius: 2,
+                py: 1.2,
+                '&:hover': {
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  color: colors.white,
+                },
+              }}
+            >
               <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>
                 <LogoutIcon />
               </ListItemIcon>

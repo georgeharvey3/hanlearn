@@ -40,30 +40,54 @@ const NavigationItems: React.FC<Props> = (props) => {
         { to: '/settings', label: 'Settings' },
       ];
 
+      const drawerItemSx = {
+        color: 'rgba(255,255,255,0.7)',
+        borderRadius: 2,
+        py: 1.2,
+        '&:hover': {
+          backgroundColor: 'rgba(255,255,255,0.1)',
+          color: 'common.white',
+        },
+        '&.active': {
+          backgroundColor: 'rgba(255,255,255,0.15)',
+          color: 'common.white',
+          fontWeight: 600,
+        },
+      };
+
       return (
-        <List>
+        <List sx={{ px: 1 }}>
           {links.map((link) => (
-            <ListItem key={link.to} disablePadding>
+            <ListItem key={link.to} disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton
                 component={NavLink}
                 to={link.to}
                 exact
-                sx={{
-                  color: 'common.white',
-                  '&.active': { color: 'primary.main' },
-                }}
+                onClick={() => props.drawerClosed?.()}
+                sx={drawerItemSx}
               >
-                <ListItemText primary={link.label} />
+                <ListItemText
+                  primary={link.label}
+                  primaryTypographyProps={{ fontWeight: 'inherit' }}
+                />
               </ListItemButton>
             </ListItem>
           ))}
-          <ListItem disablePadding>
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
             <ListItemButton
               onClick={() => {
                 props.onLogout();
                 props.drawerClosed?.();
               }}
-              sx={{ color: 'common.white' }}
+              sx={{
+                color: 'rgba(255,255,255,0.7)',
+                borderRadius: 2,
+                py: 1.2,
+                '&:hover': {
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  color: 'common.white',
+                },
+              }}
             >
               <ListItemText primary="Logout" />
             </ListItemButton>
@@ -74,41 +98,70 @@ const NavigationItems: React.FC<Props> = (props) => {
 
     const unauthLinks = [{ to: '/', label: 'Home' }];
 
+    const drawerItemSx = {
+      color: 'rgba(255,255,255,0.7)',
+      borderRadius: 2,
+      py: 1.2,
+      '&:hover': {
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        color: 'common.white',
+      },
+      '&.active': {
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        color: 'common.white',
+        fontWeight: 600,
+      },
+    };
+
     return (
-      <List>
+      <List sx={{ px: 1 }}>
         {unauthLinks.map((link) => (
-          <ListItem key={link.to} disablePadding>
+          <ListItem key={link.to} disablePadding sx={{ mb: 0.5 }}>
             <ListItemButton
               component={NavLink}
               to={link.to}
               exact
-              sx={{
-                color: 'common.white',
-                '&.active': { color: 'primary.main' },
-              }}
+              onClick={() => props.drawerClosed?.()}
+              sx={drawerItemSx}
             >
               <ListItemText primary={link.label} />
             </ListItemButton>
           </ListItem>
         ))}
-        <ListItem disablePadding>
+        <ListItem disablePadding sx={{ mb: 0.5 }}>
           <ListItemButton
             onClick={() => {
               props.onOpenAuthModal('login');
               props.drawerClosed?.();
             }}
-            sx={{ color: 'common.white' }}
+            sx={{
+              color: 'rgba(255,255,255,0.7)',
+              borderRadius: 2,
+              py: 1.2,
+              '&:hover': {
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                color: 'common.white',
+              },
+            }}
           >
             <ListItemText primary="Login" />
           </ListItemButton>
         </ListItem>
-        <ListItem disablePadding>
+        <ListItem disablePadding sx={{ mb: 0.5 }}>
           <ListItemButton
             onClick={() => {
               props.onOpenAuthModal('register');
               props.drawerClosed?.();
             }}
-            sx={{ color: 'common.white' }}
+            sx={{
+              color: 'rgba(255,255,255,0.7)',
+              borderRadius: 2,
+              py: 1.2,
+              '&:hover': {
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                color: 'common.white',
+              },
+            }}
           >
             <ListItemText primary="Register" />
           </ListItemButton>

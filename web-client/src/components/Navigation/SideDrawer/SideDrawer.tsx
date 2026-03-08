@@ -20,9 +20,9 @@ const SideDrawer: React.FC<SideDrawerProps> = (props) => {
       sx={{
         display: { sm: 'none' },
         '& .MuiDrawer-paper': {
-          width: 200,
+          width: 240,
           maxWidth: '70%',
-          backgroundColor: 'primary.main',
+          backgroundColor: 'primary.dark',
         },
       }}
     >
