@@ -97,7 +97,11 @@ describe('AnswerInput — handwriting canvas', () => {
 
 describe('AnswerInput — pinyin without speech recognition', () => {
   it('renders a text input when answerCategory=pinyin and no speech recognition', () => {
-    const props = makeProps({ answerCategory: 'pinyin', useChineseSpeechRecognition: false, useTypingInput: false });
+    const props = makeProps({
+      answerCategory: 'pinyin',
+      useChineseSpeechRecognition: false,
+      useTypingInput: false,
+    });
     render(<AnswerInput {...props} />);
     expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
   });
@@ -223,7 +227,7 @@ describe('AnswerInput — meaning with flashcards (show-answer flow)', () => {
     expect(props.onCorrectAnswer).toHaveBeenCalledTimes(1);
   });
 
-  it('calls onIDontKnow when the dislike (I didn\'t know this) button is clicked', () => {
+  it("calls onIDontKnow when the dislike (I didn't know this) button is clicked", () => {
     const props = makeProps({
       answerCategory: 'meaning',
       useFlashcards: true,
