@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import NewWord from './NewWord';
 import { renderWithProviders } from '../../../../test/utils';
 import * as dictionaryService from '../../../../services/dictionaryService';
+import { Word } from '../../../../types/models';
 
 vi.mock('../../../../services/dictionaryService', () => ({
   searchWord: vi.fn(),
@@ -14,6 +15,7 @@ vi.mock('../../../../services/dictionaryService', () => ({
 const mockSearchWord = vi.mocked(dictionaryService.searchWord);
 
 const makeWord = (simp: string, pinyin: string, meaning: string) => ({
+  id: 1,
   simp,
   trad: simp,
   pinyin,
@@ -46,7 +48,9 @@ describe('NewWord character interaction', () => {
   });
 
   it('clicking a character reveals its details', async () => {
-    mockSearchWord.mockResolvedValue([{ simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' }]);
+    mockSearchWord.mockResolvedValue([
+      { id: 1, simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' },
+    ]);
 
     renderWithProviders(<NewWord word={makeWord('你好', 'nǐ hǎo', 'hello')} />);
 
@@ -59,9 +63,9 @@ describe('NewWord character interaction', () => {
   });
 
   it('clicking a different character updates the details', async () => {
-    mockSearchWord.mockImplementation(async (char: string) => {
-      if (char === '你') return [{ simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' }];
-      if (char === '好') return [{ simp: '好', trad: '好', pinyin: 'hǎo', meaning: 'good' }];
+    mockSearchWord.mockImplementation(async (char) => {
+      if (char === '你') return [{ id: 1, simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' }];
+      if (char === '好') return [{ id: 2, simp: '好', trad: '好', pinyin: 'hǎo', meaning: 'good' }];
       return [];
     });
 
@@ -82,7 +86,9 @@ describe('NewWord character interaction', () => {
   });
 
   it('duplicate characters can be independently selected', async () => {
-    mockSearchWord.mockResolvedValue([{ simp: '妈', trad: '媽', pinyin: 'mā', meaning: 'mother' }]);
+    mockSearchWord.mockResolvedValue([
+      { id: 1, simp: '妈', trad: '媽', pinyin: 'mā', meaning: 'mother' },
+    ]);
 
     renderWithProviders(<NewWord word={makeWord('妈妈', 'māma', 'mother')} />);
 
@@ -109,9 +115,12 @@ describe('NewWord character interaction', () => {
 
 describe('NewWord loading indicator', () => {
   it('shows a loading spinner while fetching character details', async () => {
-    let resolveSearch!: (value: { simp: string; trad: string; pinyin: string; meaning: string }[]) => void;
+    let resolveSearch!: (value: Word[]) => void;
     mockSearchWord.mockImplementation(
-      () => new Promise((resolve) => { resolveSearch = resolve; }),
+      () =>
+        new Promise((resolve) => {
+          resolveSearch = resolve;
+        }),
     );
 
     renderWithProviders(<NewWord word={makeWord('大家', 'dàjiā', 'everyone')} />);
@@ -123,7 +132,7 @@ describe('NewWord loading indicator', () => {
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
 
     // Resolve the search
-    resolveSearch([{ simp: '大', trad: '大', pinyin: 'dà', meaning: 'big' }]);
+    resolveSearch([{ id: 1, simp: '大', trad: '大', pinyin: 'dà', meaning: 'big' }]);
 
     await waitFor(() => {
       expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
@@ -134,7 +143,9 @@ describe('NewWord loading indicator', () => {
   });
 
   it('uses pre-fetched cache and skips loading indicator', async () => {
-    mockSearchWord.mockResolvedValue([{ simp: '中', trad: '中', pinyin: 'zhōng', meaning: 'middle' }]);
+    mockSearchWord.mockResolvedValue([
+      { id: 1, simp: '中', trad: '中', pinyin: 'zhōng', meaning: 'middle' },
+    ]);
 
     renderWithProviders(<NewWord word={makeWord('中国', 'zhōngguó', 'China')} />);
 
@@ -153,7 +164,9 @@ describe('NewWord loading indicator', () => {
   });
 
   it('does not re-fetch on repeated clicks of the same character', async () => {
-    mockSearchWord.mockResolvedValue([{ simp: '人', trad: '人', pinyin: 'rén', meaning: 'person' }]);
+    mockSearchWord.mockResolvedValue([
+      { id: 1, simp: '人', trad: '人', pinyin: 'rén', meaning: 'person' },
+    ]);
 
     renderWithProviders(<NewWord word={makeWord('人人', 'rénrén', 'everyone')} />);
 
