@@ -19,6 +19,11 @@ import {
   lookupCharacter,
   lookupCharacterByTrad,
 } from './dictionaryService';
+import {
+  amendedMeaningSchema,
+  customWordTextSchema,
+  customWordMeaningSchema,
+} from '../validation/schemas';
 
 // Spaced repetition intervals in days for each bank level
 const BANK_INTERVALS: Record<number, number> = {
@@ -131,8 +136,9 @@ export const updateWordMeaning = async (
   wordId: number,
   newMeaning: string,
 ): Promise<void> => {
+  const parsed = amendedMeaningSchema.parse(newMeaning);
   const wordRef = doc(db, 'users', userId, 'userWords', wordId.toString());
-  await updateDoc(wordRef, { amendedMeaning: newMeaning });
+  await updateDoc(wordRef, { amendedMeaning: parsed });
 };
 
 /**
@@ -196,12 +202,15 @@ export const addCustomWord = async (
   meaning: string,
   charSet: 'simp' | 'trad' = 'simp',
 ): Promise<Word> => {
+  const validatedText = customWordTextSchema.parse(text);
+  const validatedMeaning = customWordMeaningSchema.parse(meaning);
+
   let pinyin = '';
   let simp = '';
   let trad = '';
 
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
+  for (let i = 0; i < validatedText.length; i++) {
+    const char = validatedText[i];
 
     if (charSet === 'simp') {
       const charData = await lookupCharacter(char);
@@ -237,7 +246,7 @@ export const addCustomWord = async (
     simp,
     trad,
     pinyin,
-    meaning,
+    meaning: validatedMeaning,
   };
   await addWordToBank(userId, word);
 

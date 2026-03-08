@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Box, Chip, TextField } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { parseMeanings, joinMeanings } from '../../../utils/meaningUtils';
+import { amendedMeaningSchema } from '../../../validation/schemas';
 
 interface MeaningEditorProps {
   value: string;
@@ -50,7 +51,8 @@ const MeaningEditor: React.FC<MeaningEditorProps> = ({
 
   const saveEdit = () => {
     if (editingIndex === null) return;
-    const trimmed = editingText.trim();
+    const result = amendedMeaningSchema.safeParse(editingText);
+    const trimmed = result.success ? result.data : editingText.trim();
     const updated = [...meanings];
     if (trimmed.length === 0) {
       updated.splice(editingIndex, 1);
@@ -77,7 +79,8 @@ const MeaningEditor: React.FC<MeaningEditorProps> = ({
   };
 
   const saveAdd = () => {
-    const trimmed = addingText.trim();
+    const result = amendedMeaningSchema.safeParse(addingText);
+    const trimmed = result.success ? result.data : addingText.trim();
     if (trimmed.length > 0) {
       emitChange([...meanings, trimmed]);
     }
@@ -112,6 +115,7 @@ const MeaningEditor: React.FC<MeaningEditorProps> = ({
             variant="outlined"
             value={editingText}
             onChange={(e) => setEditingText(e.target.value)}
+            slotProps={{ htmlInput: { maxLength: 500 } }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
@@ -160,6 +164,7 @@ const MeaningEditor: React.FC<MeaningEditorProps> = ({
             placeholder="New meaning"
             value={addingText}
             onChange={(e) => setAddingText(e.target.value)}
+            slotProps={{ htmlInput: { maxLength: 500 } }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();

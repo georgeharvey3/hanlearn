@@ -81,6 +81,7 @@ const MainBanner: React.FC<MainBannerProps> = ({
             changed={inputChanged}
             focussed={onFocusInput}
             blurred={onBlurInput}
+            maxLength={100}
           />
           <Box sx={{ display: 'inline-block' }}>
             <Box
