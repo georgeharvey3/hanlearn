@@ -197,3 +197,164 @@ describe('AddWords — unauthenticated state', () => {
     expect(document.querySelector('svg')).toBeTruthy();
   });
 });
+
+describe('AddWords — error state', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedWordService.getUserWords.mockResolvedValue([]);
+    mockedWordService.searchWord.mockResolvedValue([]);
+  });
+
+  it('shows error message when addWords.error is true and words exist', () => {
+    // The error text renders in the table slot, which only shows when words.length > 0
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: { words: [sampleWord], error: true, loading: false },
+    });
+    renderWithProviders(<AddWords />, { store });
+    expect(screen.getByText(/error: could not fetch words/i)).toBeInTheDocument();
+  });
+
+  it('shows network error alert when word search fails', async () => {
+    mockedWordService.searchWord.mockRejectedValue(new Error('Network error'));
+    const store = createTestStore({ ...authenticatedState() });
+    renderWithProviders(<AddWords />, { store });
+
+    const input = screen.getByRole('textbox');
+    await userEvent.type(input, '学');
+    const form = input.closest('form');
+    if (form) fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/could not search for word. please check your connection/i),
+      ).toBeInTheDocument();
+    });
+  });
+});
+
+describe('AddWords — toggle words table', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedWordService.getUserWords.mockResolvedValue([sampleWord]);
+    mockedWordService.removeWordFromBank.mockResolvedValue(undefined);
+  });
+
+  it('hides the word table when Hide Table is clicked', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: { words: [sampleWord], error: false, loading: false },
+    });
+    renderWithProviders(<AddWords />, { store });
+
+    const hideBtn = screen.getByRole('button', { name: /hide table/i });
+    await userEvent.click(hideBtn);
+
+    // Word table characters should no longer be visible
+    expect(screen.queryByText('学习')).not.toBeInTheDocument();
+    // Button text should change
+    expect(screen.getByRole('button', { name: /show table/i })).toBeInTheDocument();
+  });
+
+  it('shows the word table again when Show Table is clicked', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: { words: [sampleWord], error: false, loading: false },
+    });
+    renderWithProviders(<AddWords />, { store });
+
+    // Hide first
+    await userEvent.click(screen.getByRole('button', { name: /hide table/i }));
+    // Show again
+    await userEvent.click(screen.getByRole('button', { name: /show table/i }));
+
+    expect(screen.getByText('学习')).toBeInTheDocument();
+  });
+});
+
+describe('AddWords — confirm modal: adding word with edited meaning', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedWordService.getUserWords.mockResolvedValue([]);
+    mockedWordService.addWordToBank.mockResolvedValue(undefined);
+    mockedWordService.searchWord.mockResolvedValue([sampleWord]);
+  });
+
+  it('shows "Add to Word Bank?" heading in confirm modal', async () => {
+    const store = createTestStore({ ...authenticatedState() });
+    renderWithProviders(<AddWords />, { store });
+
+    const input = screen.getByRole('textbox');
+    await userEvent.type(input, '学习');
+    const form = input.closest('form');
+    if (form) fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(screen.getByText(/add to word bank\?/i)).toBeInTheDocument();
+    });
+  });
+
+  it('calls addWordToBank when Add is confirmed', async () => {
+    const store = createTestStore({ ...authenticatedState() });
+    renderWithProviders(<AddWords />, { store });
+
+    const input = screen.getByRole('textbox');
+    await userEvent.type(input, '学习');
+    const form = input.closest('form');
+    if (form) fireEvent.submit(form);
+
+    // Wait for confirm modal
+    await waitFor(() => screen.getByText(/add to word bank\?/i));
+    // The "Add" button is the primary action in the modal footer
+    // Use getAllByRole to find the correct one (not the MUI Chip "Add" icon)
+    const addButtons = screen.getAllByRole('button', { name: /^add$/i });
+    // The primary Add button is an <button> element (not a chip), so filter by tagName
+    const addBtn = addButtons.find((btn) => btn.tagName === 'BUTTON' && btn.getAttribute('type') === 'button');
+    if (addBtn) await userEvent.click(addBtn);
+
+    await waitFor(() => {
+      expect(mockedWordService.addWordToBank).toHaveBeenCalled();
+    });
+  });
+});
+
+describe('AddWords — custom word (meaning input flow)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedWordService.getUserWords.mockResolvedValue([]);
+    mockedWordService.searchWord.mockResolvedValue([]);
+    mockedWordService.addCustomWord.mockResolvedValue({
+      id: 99,
+      simp: 'xyz',
+      trad: 'xyz',
+      pinyin: '',
+      meaning: 'a test meaning',
+      bank: 1,
+      due_date: new Date().toISOString(),
+    });
+  });
+
+  it('can type a custom meaning and submit it', async () => {
+    const store = createTestStore({ ...authenticatedState() });
+    renderWithProviders(<AddWords />, { store });
+
+    const input = screen.getByRole('textbox');
+    await userEvent.type(input, 'xyz');
+    const form = input.closest('form');
+    if (form) fireEvent.submit(form);
+
+    // Wait for the custom meaning input to appear
+    await waitFor(() => {
+      expect(screen.getByText(/word not found/i)).toBeInTheDocument();
+    });
+
+    const meaningInput = screen.getByLabelText(/enter word meaning/i);
+    await userEvent.type(meaningInput, 'a test meaning');
+
+    await userEvent.click(screen.getByRole('button', { name: /submit/i }));
+
+    await waitFor(() => {
+      expect(mockedWordService.addCustomWord).toHaveBeenCalled();
+    });
+  });
+});
