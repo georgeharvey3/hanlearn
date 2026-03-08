@@ -424,7 +424,11 @@ describe('SentenceRead — word popup rendering', () => {
     );
 
     // Wait for the clickable popup span to appear (confirms segment resolved to SentenceWord)
-    const popupSpan = await screen.findByLabelText(/我是.*tap to see meaning/i, {}, { timeout: 5000 });
+    const popupSpan = await screen.findByLabelText(
+      /我是.*tap to see meaning/i,
+      {},
+      { timeout: 5000 },
+    );
 
     // Click the word to open the popup (sets visibility:visible via onShowPopup)
     fireEvent.click(popupSpan);
@@ -453,7 +457,11 @@ describe('SentenceRead — word popup rendering', () => {
     );
 
     // Wait for popup span and click to open it
-    const popupSpan = await screen.findByLabelText(/我是.*tap to see meaning/i, {}, { timeout: 5000 });
+    const popupSpan = await screen.findByLabelText(
+      /我是.*tap to see meaning/i,
+      {},
+      { timeout: 5000 },
+    );
     fireEvent.click(popupSpan);
 
     // word id=5 is in addedWords → shows disabled "Added!" button

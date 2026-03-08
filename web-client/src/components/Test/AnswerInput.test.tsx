@@ -32,7 +32,10 @@ const baseState = {
 
 const noop = () => {};
 
-function renderAnswerInput(stateOverrides: Partial<TestState>, extraProps?: Record<string, unknown>) {
+function renderAnswerInput(
+  stateOverrides: Partial<TestState>,
+  extraProps?: Record<string, unknown>,
+) {
   const state = { ...baseState, ...stateOverrides } as unknown as TestState;
   return render(
     <AnswerInput
