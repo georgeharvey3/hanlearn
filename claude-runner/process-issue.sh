@@ -17,6 +17,7 @@ log_error() {
 
 cleanup() {
   rm -rf "$WORK_DIR"
+  rm -rf "/tmp/issue-${NUMBER}-images"
 }
 
 # Backup any unpushed work before cleanup
@@ -128,6 +129,36 @@ else
   log "  Model: Opus (default)"
 fi
 
+# ── Step 2b: Download images from issue ──
+log "Step 2b: Downloading images from issue..."
+IMAGE_DIR="/tmp/issue-${NUMBER}-images"
+mkdir -p "$IMAGE_DIR"
+
+# Extract markdown image URLs from body and comments
+ALL_TEXT="${BODY}
+${COMMENTS}"
+IMAGE_URLS=$(echo "$ALL_TEXT" | grep -oP '!\[[^\]]*\]\(\K[^)]+' || true)
+
+IMAGE_COUNT=0
+IMAGE_PATHS=""
+if [ -n "$IMAGE_URLS" ]; then
+  while IFS= read -r url; do
+    IMAGE_COUNT=$((IMAGE_COUNT + 1))
+    # Determine file extension from URL, default to png
+    EXT=$(echo "$url" | grep -oP '\.\K(png|jpg|jpeg|gif|webp|svg)' | head -1 || echo "png")
+    DEST="${IMAGE_DIR}/image-${IMAGE_COUNT}.${EXT}"
+    log "  Downloading image $IMAGE_COUNT: $(echo "$url" | head -c 80)..."
+    if curl -fsSL -o "$DEST" "$url" 2>/dev/null; then
+      IMAGE_PATHS="${IMAGE_PATHS}
+- ${DEST}"
+      log "    Saved to $DEST"
+    else
+      log "    Failed to download, skipping"
+    fi
+  done <<< "$IMAGE_URLS"
+fi
+log "  Downloaded $IMAGE_COUNT image(s)."
+
 # ── Step 3: Clone the repo ──
 log "Step 3: Cloning repo..."
 cleanup  # ensure clean slate
@@ -160,11 +191,21 @@ if [ -n "$COMMENTS" ]; then
 ${COMMENTS}"
 fi
 
+IMAGES_SECTION=""
+if [ -n "$IMAGE_PATHS" ]; then
+  IMAGES_SECTION="
+
+## Attached Images
+
+The following images were attached to the issue. Use the Read tool to view them:
+${IMAGE_PATHS}"
+fi
+
 PROMPT="Read CLAUDE.md for full project context and conventions.
 
 GitHub Issue #${NUMBER}: ${TITLE}
 
-${BODY}${COMMENTS_SECTION}
+${BODY}${COMMENTS_SECTION}${IMAGES_SECTION}
 
 Implement the changes described in the issue above. Follow all conventions in CLAUDE.md:
 - Write clean, tested code

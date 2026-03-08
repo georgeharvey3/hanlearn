@@ -16,6 +16,7 @@ log_error() {
 
 cleanup() {
   rm -rf "$WORK_DIR"
+  rm -rf "/tmp/pr-feedback-${PR_NUMBER}-images"
 }
 
 fail() {
@@ -127,6 +128,36 @@ if [ "$TOTAL_COMMENTS" -eq 0 ]; then
   exit 0
 fi
 
+# ── Step 2b: Download images from comments ──
+log "Step 2b: Downloading images from comments..."
+IMAGE_DIR="/tmp/pr-feedback-${PR_NUMBER}-images"
+mkdir -p "$IMAGE_DIR"
+
+# Extract all comment bodies and PR body, then find image URLs
+ALL_COMMENT_TEXT="${PR_BODY}
+$(echo "$REVIEW_COMMENTS" | jq -r '.[].body // ""')
+$(echo "$ISSUE_COMMENTS" | jq -r '.[].body // ""')"
+IMAGE_URLS=$(echo "$ALL_COMMENT_TEXT" | grep -oP '!\[[^\]]*\]\(\K[^)]+' || true)
+
+IMAGE_COUNT=0
+IMAGE_PATHS=""
+if [ -n "$IMAGE_URLS" ]; then
+  while IFS= read -r url; do
+    IMAGE_COUNT=$((IMAGE_COUNT + 1))
+    EXT=$(echo "$url" | grep -oP '\.\K(png|jpg|jpeg|gif|webp|svg)' | head -1 || echo "png")
+    DEST="${IMAGE_DIR}/image-${IMAGE_COUNT}.${EXT}"
+    log "  Downloading image $IMAGE_COUNT: $(echo "$url" | head -c 80)..."
+    if curl -fsSL -o "$DEST" "$url" 2>/dev/null; then
+      IMAGE_PATHS="${IMAGE_PATHS}
+- ${DEST}"
+      log "    Saved to $DEST"
+    else
+      log "    Failed to download, skipping"
+    fi
+  done <<< "$IMAGE_URLS"
+fi
+log "  Downloaded $IMAGE_COUNT image(s)."
+
 # ── Step 3: Claim the PR ──
 log "Step 3: Claiming PR (adding in-progress label)..."
 if ! gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "in-progress" 2>&1; then
@@ -170,6 +201,17 @@ FORMATTED_ISSUE_COMMENTS=$(echo "$ISSUE_COMMENTS" | jq -r '
   else .[] | "### General comment\n**@\(.user):** \(.body)\n"
   end')
 
+IMAGES_SECTION=""
+if [ -n "$IMAGE_PATHS" ]; then
+  IMAGES_SECTION="
+
+## Attached Images
+
+The following images were attached to the PR or its comments. Use the Read tool to view them:
+${IMAGE_PATHS}
+"
+fi
+
 PROMPT="Read CLAUDE.md for full project context and conventions.
 
 You are addressing PR feedback for PR #${PR_NUMBER}: ${PR_TITLE}
@@ -186,7 +228,7 @@ ${FORMATTED_REVIEW_COMMENTS}
 ## General Comments
 
 ${FORMATTED_ISSUE_COMMENTS}
-
+${IMAGES_SECTION}
 ## Instructions
 
 1. Read through all the feedback comments above

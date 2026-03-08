@@ -34,35 +34,103 @@
 
 ## 2026-03-07 11:02
 **Coverage before:** 61.27% statement coverage (367 tests passing across 27 files)
+## 2026-03-08 20:11
+**Coverage before:** 72.8% statements (537 tests, 37 test files)
 **Gaps addressed:**
-1. NewWords component (4.54% → 100%) — heading/subtitle, Previous Word disabled at index 0, Next Word advances, label switches to "Start Test" on last word, startTest callback called, ArrowRight/ArrowLeft keyboard navigation including boundary no-ops
-2. TestSummary component (28.57% → 100%) — Session Summary heading, plural/singular word count, all five score label variants rendered, Home button navigates to "/"
-3. MeaningEditor component (32.35% → 97%) — readOnly hides Add/delete, chip click enters edit mode, Enter/Escape/blur save and cancel, empty edit removes chip, delete icon removes meaning, Add chip opens input, Enter/Escape/blur in Add field, blank input no-op
+1. `AnswerInput.tsx` (21.62% → 86.48%): 27 new tests covering pinyin+Chinese speech recognition mic mode (mic button renders, no secondary input by default, secondary input when showInput=true, onListen called on click, Switch to typing/speaking buttons), meaning+flashcards (Show Answer renders, onShowAnswer called, like/dislike buttons, onCorrectAnswer and onIDontKnow called, fail.play on dislike with useSound=true), meaning+English speech (mic vs typing vs plain text input), and all `getVerb()` branches (9 cases)
+2. `TestWords.tsx` (70.73% → 82.11%): 4 new stage-transition tests using a module-level prop-capture ref on the mocked Test component — transitions to read stage via startSentenceRead, to write stage when sentenceReadEnabled=false, to summary via onVocabComplete, and Practice step visible in stepper
+3. `useTestEngine.ts` (35.89% → 42.66%): 4 new qNum-effect tests — autoRecord triggers onListen for pinyin, autoRecord triggers onListen for meaning (not flashcards), flashcards guards onListen, and setHanziWriter called when answerCategory=character (uses vi.spyOn for speechSynthesis per jsdom constraint)
 
 **Tests added:**
-- `components/Test/NewWords/NewWords.test.tsx` (13 tests, new file)
-- `components/Test/TestSummary/TestSummary.test.tsx` (12 tests, new file)
-- `components/UI/MeaningEditor/MeaningEditor.test.tsx` (18 tests, new file)
+- `web-client/src/components/Test/AnswerInput.test.tsx` (29 tests, extended from 2)
+- `web-client/src/containers/TestWords/TestWords.test.tsx` (4 tests appended)
+- `web-client/src/components/Test/useTestEngine.test.ts` (4 tests appended)
+- `web-client/src/components/Test/SentenceRead/SentenceRead.test.tsx` (4 tests appended for text-mode rendering)
 
-**Coverage after:** 63.96% statement coverage (408 tests passing across 30 files)
-**Notes for next run:** Remaining low-coverage areas: Chengyu.tsx (2.5%, 16-168 uncovered — cloud function call + quiz UI), Home.tsx (62.96%), store/actions/auth.ts (78.65% — lines 145/175/191/196), devTestMode.ts (14.28%), NewWord sub-component (45.28% — character click + speech paths). TestWords stage transitions (vocab→read→write→summary) would push TestWords toward 90%+.
+**Notes for next run:** `useTestEngine.ts` at 42.66% — large uncovered block still around lines 800–954 (keyboard shortcuts: onKeyUp handler with most key cases), and lines around animateWriter/quizWriter/onIdkChar. `SentenceRead.tsx` at 66.22% — lines 611–640 (word popup click/keyboard interaction) and 786–793 (Prev/Next nav row) still uncovered. `TestWords.tsx` at 82.11% — lines 329-333 (devConfig spinner path) remain low-value. Consider targeting `useTestEngine` onKeyUp shortcuts (ArrowUp/Down, p, a, h, s, i keys via document.keyup dispatch) for the next highest-value gain.
 
 ---
 
-## 2026-03-06 11:01
-**Coverage before:** 49.12% statement coverage (328 tests passing across 24 files)
+## 2026-03-08 18:30
+**Coverage before:** 72.06% statements (514 tests, 36 test files)
 **Gaps addressed:**
-1. TestWords container (4.06% → 70.73%) — auth guard redirect, no-words-due empty state, Add Words/Practice button visibility, initWords called on mount (not in demo mode), demo bypass, due-word/new-word stage selection, stepper labels (Learn/Test/Practice/Done), practice mode start
-2. SentenceRead component (3.55% → 62.66%) — loading spinner, sentence card display, input field, Prev/Next navigation button disabled states, translation submit triggers comparison view, yes/no post-submission buttons, No resets to input, Yes advances word/calls startSentenceWrite, skip-word when no sentences, startSentenceWrite called when all words have no sentences
-3. SentenceWrite component (3.93% → 71.65%) — loading spinner, English prompt display, target-word badge, answer input, submit comparison view, yes/no buttons, No resets input, empty-input no-submit guard, Yes calls onComplete on last word, fetches next word on advance, skips words with no sentences, seenOffset respected (starts at offset+1)
+1. `components/Test/useTestEngine.ts` (32.27% → 65.91%): 41 new tests in `useTestEngine.extra.test.ts` covering previously unreachable paths — onListen speech recognition event flow (audiostart/audioend/end/result), submitSpeech correct match (chosenCharacter and meaning array), wrong-tones path (numSpeakTries gate for showInput), completely-wrong path, onFinishTest full score calculation (0–4 scale, capped at 4 IDKs), onSendScores called vs omitted for demo/practiceMode, HanziWriter quizWriter (create→quiz→onComplete→advance char or onCorrectAnswer), animateWriter via onIdkChar (cancelQuiz→animateCharacter), qNum effect (speechSynthesis.cancel always called, onListen triggered by useAutoRecord), onSpeak (speak called, synthesis-failed sets showPinyin), showSentenceHint (getHintSentence called, null result, reject), refreshSettings synthAvailable/speechAvailable gates, keyboard shortcuts (ctrl+i, ArrowUp, h, p via document.body dispatch)
 
 **Tests added:**
-- `containers/TestWords/TestWords.test.tsx` (13 tests, new file)
-- `components/Test/SentenceRead/SentenceRead.test.tsx` (12 tests, new file)
-- `components/Test/SentenceWrite/SentenceWrite.test.tsx` (14 tests, new file)
+- `web-client/src/components/Test/useTestEngine.extra.test.ts` (41 tests, new file)
 
-**Coverage after:** 61.27% statement coverage (367 tests passing across 27 files)
-**Notes for next run:** TestSummary (28.57%), NewWords (4.54%), MeaningEditor (32.35%), Home container (62.96%) are next priorities. TestWords stage transitions (vocab→read→write→summary via mock callbacks) would push TestWords toward 90%+. The Howl class mock pattern and factory-style service mocks (needed for modules with top-level Firebase/AI init) are now established patterns.
+**Coverage after:** 78.42% statements (555 tests passing across 37 test files); useTestEngine.ts 65.91%, overall +6.4pp
+
+**Notes for next run:** `useTestEngine.ts` still has uncovered lines around lines 994–1025 (qNum effect: setHanziWriter path when answerCategory=character in effect — hard because it's non-deterministic). `AnswerInput.tsx` (21.62%) has many uncovered branches (lines 174–177, 181–206 — pinyin+speech, meaning+flashcards, meaning+speech variants). `SentenceRead.tsx` (61.84%) has lines 603–661 and 786–793 uncovered — text-mode word popup rendering with addedWords chip. Key pattern discovered: `vi.stubGlobal('speechSynthesis', ...)` fails because jsdom defines it as non-configurable — use `vi.spyOn(window.speechSynthesis, 'cancel')` instead. `webkitSpeechRecognition` must be a class (not `vi.fn(() => mock)`) — create a `class FakeRecognition` that delegates to the shared mock instance. For stateRef to reflect `setStateMerged` overrides before recognition events fire, call `setStateMerged` in one `act()` block, then set up the mock and call `onListen` in a second `act()`.
 
 ---
+
+## 2026-03-08 17:37
+**Coverage before:** 72.18% statements (493 tests, 35 test files)
+**Gaps addressed:**
+1. `components/Test/SentenceRead/SentenceRead.tsx` (61.84% → 81.14%): text mode segmented word rendering, word popup with addedWords chip state (Add to bank vs Added!), Show/Hide text chip toggle, Next/Prev sentence navigation (button + ArrowRight keyboard shortcut), cached sentence reuse on Back (no redundant fetches)
+2. `components/Test/SentenceWrite/SentenceWrite.tsx` (71.65% → 77.16%): ArrowUp/Down keyboard shortcuts for yes/no, seenOffsets duplicate-sentence skipping, offset fallback (tryOffset > 0 returns null → try offset 0)
+3. `containers/TestWords/TestWords.tsx` (70.73% → 87.8%): full stage transition chain (vocab→read→write→summary), onStartSentenceRead skipping to write when sentenceRead disabled, onStartSentenceWrite skipping to summary when sentenceWrite disabled, stepper Practice step visibility based on enabled stages
+
+**Tests added:**
+- `web-client/src/components/Test/SentenceRead/SentenceRead.extra.test.tsx` (12 tests, new file)
+- `web-client/src/components/Test/SentenceWrite/SentenceWrite.extra.test.tsx` (6 tests, new file)
+- `web-client/src/containers/TestWords/TestWords.extra.test.tsx` (8 tests, new file)
+
+**Coverage after:** ~75% statements (540 tests passing across 39 test files); SentenceRead.tsx 81.14%, SentenceWrite.tsx 77.16%, TestWords.tsx 87.8%
+
+**Notes for next run:** `useTestEngine.ts` remains at 32.27% — the HanziWriter paths (quizWriter/animateWriter), submitSpeech full flow, and the qNum effect (lines 994-1025) are the biggest remaining gaps. Speech/HanziWriter tests require window.HanziWriter mock + window.webkitSpeechRecognition mock. TestWords lines 258/329-333/343 still uncovered (devConfig spinner and default switch case — low value). SentenceRead lines 618/640/648-651 are decomposed-array segment rendering — needs substringMatch to return multi-word results.
+
+---
+
+## 2026-03-08 17:20
+**Coverage before:** 68.28% statements (473 tests, 34 test files) — based on last run
+**Gaps addressed:**
+1. `containers/AddWords/AddWords.tsx` (61.59% → 72.46%): 7 new tests — confirmAddWord calls postWord with original word and closes modal, clash table row click transitions to confirm modal, toggle show/hide table (Hide Table hides rows, Show Table restores them), search error shows alert role
+2. `components/Test/useTestEngine.ts` (32.27% → 35.89%): 20 tests in new Test.test.tsx — refreshSettings respects synthAvailable/speechAvailable flags (6 tests), onToggleShowPinyin only acts when questionCategory==='pinyin' (4 tests), showCharacter toggle result (3 tests), onInputChanged updates answerInput and sets pauseAutoRecord (2 tests), onKeyPress guards (empty input, submitDisabled, non-Enter key) and happy-path submit (5 tests)
+
+**Tests added:**
+- `web-client/src/components/Test/Test.test.tsx` (20 tests, new file — tests useTestEngine hook paths)
+- `web-client/src/containers/AddWords/AddWords.test.tsx` (7 tests appended to existing file)
+
+**Coverage after:** All 493 tests passing across 35 test files; AddWords.tsx 72.46%, useTestEngine.ts 35.89%
+
+**Notes for next run:** Remaining high-value gaps: `components/Test/useTestEngine.ts` (35.89% — HanziWriter quizWriter/animateWriter paths, onSendScores, onFinishTest with sentenceWords, submitSpeech full flow), `components/Test/SentenceRead.tsx` (61.84% — text mode word popup rendering, addedWords chip, onChangeSentence, onShowPopup), `components/Test/SentenceWrite.tsx` (71.65% — keyboard shortcuts, seenOffsets duplicate skip), `containers/TestWords/TestWords.tsx` (70.73%). Speech/HanziWriter paths in useTestEngine require window.HanziWriter and window.webkitSpeechRecognition mocks — use Object.defineProperty only if configurable, otherwise set directly on window. The `webkitSpeechRecognition` property may already be non-configurable in jsdom — skip deletion in afterEach.
+
+---
+
+## 2026-03-08 17:05
+**Coverage before:** 68.28% statements (468 tests, 34 test files)
+**Gaps addressed:**
+1. `components/Settings/Settings.tsx` (10.44% → 94.02%): 27 tests — all section labels render, charSet radio read/save, numWords display, Sound/speech rec disabled by capabilities, English SR ↔ flashcards mutual exclusion, handwriting-off resets priority/onlyPriority, Writing radio disabled when handwriting off, Only Priority checkbox disabled/enabled, stage checkboxes disabled by capabilities, localStorage persistence for all interactions
+2. `components/Home/Chengyu/Chengyu.tsx` (62.5% → 100%): 14 tests — initial render (heading, characters, all 4 options), correct answer flow (quiz finishes, aria-live announcement, character breakdown list appears, incorrect options hidden via aria-disabled), incorrect answer flow (option marked incorrect, Incorrect announcement, can still click correct, multiple wrong answers), character meanings shown after lookupCharacterMeanings resolves
+3. `components/AddWords/WordCard.tsx` (20% → 100%): 9 tests — simp/trad character rendering, pinyin, meaning via MeaningEditor, due date presence/absence, remove button callback with correct id, meaning editor update callback with id and new text
+
+**Tests added:**
+- `web-client/src/components/Settings/Settings.test.tsx` (27 tests, new file)
+- `web-client/src/components/Home/Chengyu/Chengyu.test.tsx` (14 tests, new file)
+- `web-client/src/components/AddWords/WordCard.test.tsx` (9 tests, new file)
+
+**Coverage after:** 71.24% statement coverage (518 tests passing across 37 test files); Settings.tsx 94.02%, Chengyu.tsx 100%, WordCard.tsx 100%
+**Notes for next run:** Remaining high-value gaps: `components/Test/Test.tsx` (22.22%), `components/Test/useTestEngine.ts` (32.27% — HanziWriter/speech paths), `containers/AddWords/AddWords.tsx` (61.59% — confirmAddWord with edited meaning, clashTable row interaction, toggle show/hide table), `components/Test/SentenceRead.tsx` (61.84%), `components/Test/SentenceWrite.tsx` (71.65%). Settings.tsx lines 133-138 (onSliderChange) remain uncoverable — MUI Slider doesn't fire standard onChange via fireEvent. Chengyu mock pattern: mock `../../../data/chengyus` and `../../../services/dictionaryService` separately. Word type is FLAT.
+
+---
+
+## 2026-03-08 15:51
+**Coverage before:** 64.16% statements (401 tests, 31 test files)
+**Gaps addressed:**
+1. `firebase/auth.ts` (76% → 100%): 7 tests — signInWithGoogle calls signInWithPopup and returns user, creates Firestore doc on first sign-in, skips doc creation when already exists, email fallback username when displayName null, error propagation; resetPassword resolves without value, propagates errors
+2. `store/actions/auth.ts` (80% → 100%): 15 tests — sendPasswordReset success, user-not-found anti-enumeration, invalid-email, non-Firebase fallback; googleSignIn popup-blocked, account-exists-with-different-credential, cancelled-popup-request (empty string), non-Firebase; register non-Firebase fallback; getErrorMessage all remaining codes (user-not-found, wrong-password, too-many-requests, user-disabled, operation-not-allowed, default branch)
+3. `utils/devTestMode.ts` (14.28% → 100%): 16 tests — production/test env guards, absent/empty devStage, invalid stage + console.warn, all 5 valid stages, testFinished=true only for summary, extra params ignored, isDevTestMode and getDevStage helpers
+4. `containers/Home/Home.tsx` (62.96% → 92.59%): 10 tests — initWords dispatched on auth (not unauth), Chengyu/AccountSummary shown when auth, numDue calculation (null/past/today/future due dates), navigation to /test-words and /add-words
+
+**Tests added:**
+- `web-client/src/firebase/auth.test.ts` (7 tests appended — signInWithGoogle 5, resetPassword 2)
+- `web-client/src/store/actions/auth.test.ts` (15 tests appended)
+- `web-client/src/utils/devTestMode.test.ts` (16 tests, new file)
+- `web-client/src/containers/Home/Home.test.tsx` (10 tests, new file)
+
+**Coverage after:** 66% statement coverage (449 tests passing across 33 test files); firebase/auth.ts 100%, store/actions/auth.ts 100% stmts, devTestMode.ts 100%, Home.tsx 92.59%
+**Notes for next run:** Remaining high-value gaps: `components/Test/Test.tsx` (22.22%), `components/Test/useTestEngine.ts` (32.27% — HanziWriter/speech paths), `components/Home/Chengyu/Chengyu.tsx` (2.5%), `components/Settings/Settings.tsx` (10.44%), `containers/AddWords/AddWords.tsx` (61.9%), `components/Test/SentenceRead.tsx` (62.66%), `components/Test/SentenceWrite.tsx` (71.65%). Home.tsx lines 62/66 still uncovered (tryOut/signUp nav — need unauthenticated render with MainBanner button clicks). Key patterns established: mock `../../firebase/config` in Home test to prevent Firebase init; mock `../../components/Home/Chengyu/Chengyu` to avoid dictionaryService transitive; mock `../../store/actions/index` with direct vi.fn thunk factories (NOT importOriginal); use createMemoryHistory+Router for navigation assertions; word type is FLAT (id, simp, trad, pinyin, meaning, due_date).
+
 

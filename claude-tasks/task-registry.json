@@ -25,7 +25,7 @@
       "id": "design-review",
       "script": "claude-scripts/design-review.sh",
       "priority": 60,
-      "cooldown_hours": 72,
+      "cooldown_hours": 24,
       "description": "UI/UX accessibility and consistency review"
     },
     {
@@ -39,7 +39,7 @@
       "id": "feature-ideation",
       "script": "claude-scripts/feature-ideation.sh",
       "priority": 40,
-      "cooldown_hours": 168,
+      "cooldown_hours": 24,
       "description": "Propose high-value features as GitHub issues"
     }
   ]
