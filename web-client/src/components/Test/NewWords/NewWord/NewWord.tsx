@@ -149,7 +149,11 @@ const NewWord: React.FC<Props> = ({
           const meanings = Array.from(new Set(results.map((r) => r.meaning)));
           charCache.current.set(char, { simp: char, pinyins, meanings });
         } else {
-          charCache.current.set(char, { simp: char, pinyins: [], meanings: ['(not found in dictionary)'] });
+          charCache.current.set(char, {
+            simp: char,
+            pinyins: [],
+            meanings: ['(not found in dictionary)'],
+          });
         }
       } catch {
         // Pre-fetch failures are non-critical; will fall back to on-click fetch
