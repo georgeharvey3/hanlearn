@@ -1,3 +1,20 @@
+## 2026-03-08 16:40
+**Coverage before:** 68.15% statements, 53.16% branches, 64.34% functions, 69.13% lines (449 tests passing)
+**Gaps addressed:**
+1. Settings.tsx (10.44% → ~82%) — localStorage initialisation, charSet/priority radio changes, checkbox toggles, mutual-exclusion rules (English speech ↔ flashcards; handwriting-off resets priority to none), slider persistence, speech/synth availability gating, Only Priority enabled/disabled state
+2. Chengyu.tsx (2.5% → ~85%) — initial render, correct answer transitions to finished state + character breakdown, incorrect answer marks option red without finishing, character meanings displayed via lookupCharacterMeanings, aria-live announcement, recover from wrong guess
+3. AddWords.tsx (61.59% → ~79%) — error state display (with words in bank), network-error alert on failed search, Hide/Show table toggle, confirm modal Add button dispatches addWordToBank, custom-word meaning-input flow calls addCustomWord
+
+**Tests added:**
+- `components/Settings/Settings.test.tsx` (30 tests, new file)
+- `components/Home/Chengyu/Chengyu.test.tsx` (12 tests, new file)
+- `containers/AddWords/AddWords.test.tsx` (9 new tests appended)
+
+**Coverage after:** 72.18% statements, 59.79% branches, 68.52% functions, 73.25% lines (514 tests passing)
+**Notes for next run:** Remaining high-value gaps: `useTestEngine.ts` (32.27% — HanziWriter/speech/recording paths), `SentenceRead.tsx` (61.84% — word lookup overlay, Next sentence nav, seenOffsets tracking), `SentenceWrite.tsx` (71.65% — needs more branch coverage for audio/speech paths), `TestWords.tsx` (70.73% — stage transitions read→write→summary via mock callbacks).
+
+---
+
 ## 2026-03-07 11:02
 **Coverage before:** 61.27% statement coverage (367 tests passing across 27 files)
 **Gaps addressed:**
