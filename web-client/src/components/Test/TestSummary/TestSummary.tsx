@@ -37,7 +37,7 @@ const TestSummary: React.FC<TestSummaryProps> = ({ history, scores }) => {
 
       <Box
         sx={{
-          maxHeight: { xs: 220, sm: 280 },
+          maxHeight: { xs: 'calc(100vh - 280px)', sm: 'calc(100vh - 320px)' },
           overflowY: 'auto',
           mx: { xs: 0, sm: 2 },
           mb: 3,
