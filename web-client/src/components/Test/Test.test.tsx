@@ -289,7 +289,10 @@ describe('useTestEngine — onToggleShowPinyin', () => {
   });
 
   it('does not change showQuestionPinyin when questionCategory is not pinyin', () => {
-    const result = renderEngineWithState({ questionCategory: 'character', showQuestionPinyin: false });
+    const result = renderEngineWithState({
+      questionCategory: 'character',
+      showQuestionPinyin: false,
+    });
 
     act(() => {
       result.current.onToggleShowPinyin();
@@ -299,7 +302,10 @@ describe('useTestEngine — onToggleShowPinyin', () => {
   });
 
   it('does not change showQuestionPinyin when questionCategory is meaning', () => {
-    const result = renderEngineWithState({ questionCategory: 'meaning', showQuestionPinyin: false });
+    const result = renderEngineWithState({
+      questionCategory: 'meaning',
+      showQuestionPinyin: false,
+    });
 
     act(() => {
       result.current.onToggleShowPinyin();
@@ -363,7 +369,11 @@ describe('useTestEngine — onInputChanged', () => {
   });
 
   it('sets pauseAutoRecord to true when user types', () => {
-    const result = renderEngineWithState({ answerInput: '', recognition: null, pauseAutoRecord: false });
+    const result = renderEngineWithState({
+      answerInput: '',
+      recognition: null,
+      pauseAutoRecord: false,
+    });
 
     const fakeEvent = { target: { value: 'test' } } as React.ChangeEvent<HTMLInputElement>;
 
