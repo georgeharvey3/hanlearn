@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { checkRateLimit, RATE_LIMITS } from './rateLimit';
 
 admin.initializeApp();
 
@@ -68,7 +69,8 @@ function getDaysSinceBase(): number {
  */
 export const getDailyChengyu = functions.https.onCall(
   async (data, context) => {
-    verifyAuth(context);
+    const uid = verifyAuth(context);
+    await checkRateLimit(uid, 'getDailyChengyu', RATE_LIMITS.getDailyChengyu);
 
     const dateKey = getTodayKey();
     const cacheRef = db.collection('dailyChengyu').doc(dateKey);
@@ -181,7 +183,8 @@ export const getDailyChengyu = functions.https.onCall(
  */
 export const lookupChengyuChar = functions.https.onCall(
   async (data: { char: string }, context) => {
-    verifyAuth(context);
+    const uid = verifyAuth(context);
+    await checkRateLimit(uid, 'lookupChengyuChar', RATE_LIMITS.lookupChengyuChar);
 
     const { char } = data;
 
