@@ -32,7 +32,9 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\""
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\"",
+    "analyze": "ANALYZE=true vite build",
+    "size": "size-limit"
   },
   "browserslist": {
     "production": [
@@ -49,6 +51,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.3",
     "@playwright/test": "^1.58.2",
+    "@size-limit/file": "^12.0.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
@@ -72,6 +75,8 @@
     "jsdom": "^28.1.0",
     "playwright": "^1.58.2",
     "prettier": "^3.8.1",
+    "rollup-plugin-visualizer": "^7.0.1",
+    "size-limit": "^12.0.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1",

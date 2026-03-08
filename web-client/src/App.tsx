@@ -1,18 +1,20 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { Suspense, useCallback, useEffect } from 'react';
 import { Route, Switch, withRouter, RouteComponentProps } from 'react-router-dom';
 import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
 import { connect, ConnectedProps } from 'react-redux';
 
 import Layout from './components/Layout/Layout';
-import Home from './containers/Home/Home';
-import Dashboard from './containers/Dashboard/Dashboard';
 import { RootState } from './types/store';
-import AddWords from './containers/AddWords/AddWords';
-import TestWords from './containers/TestWords/TestWords';
-import SettingsPage from './containers/SettingsPage/SettingsPage';
 import AuthModal from './components/Auth/AuthModal';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import * as actions from './store/actions/index';
+
+const Home = React.lazy(() => import('./containers/Home/Home'));
+const Dashboard = React.lazy(() => import('./containers/Dashboard/Dashboard'));
+const AddWords = React.lazy(() => import('./containers/AddWords/AddWords'));
+const TestWords = React.lazy(() => import('./containers/TestWords/TestWords'));
+const SettingsPage = React.lazy(() => import('./containers/SettingsPage/SettingsPage'));
 
 const mapDispatchToProps = {
   onTryAutoLogin: actions.authCheckState,
@@ -128,47 +130,55 @@ const App: React.FC<Props> = ({
     <Box sx={{ textAlign: 'center', height: '100%' }}>
       <Layout>
         <ErrorBoundary>
-          <Switch>
-            <Route
-              path="/"
-              exact
-              render={() => (
-                <ErrorBoundary>{isAuthenticated ? <Dashboard /> : <Home />}</ErrorBoundary>
-              )}
-            />
-            <Route
-              path="/add-words"
-              render={() => (
-                <ErrorBoundary>
-                  <AddWords />
-                </ErrorBoundary>
-              )}
-            />
-            <Route
-              path="/test-words"
-              render={() => (
-                <ErrorBoundary>
-                  <TestWords />
-                </ErrorBoundary>
-              )}
-            />
-            <Route
-              path="/settings"
-              render={() => (
-                <ErrorBoundary>
-                  <SettingsPage />
-                </ErrorBoundary>
-              )}
-            />
-            <Route
-              path="/tryout"
-              render={() => (
-                <ErrorBoundary>
-                  <TestWords isDemo />
-                </ErrorBoundary>
-              )}
-            />
-          </Switch>
+          <Suspense
+            fallback={
+              <Box sx={{ display: 'flex', justifyContent: 'center', pt: 4 }}>
+                <CircularProgress />
+              </Box>
+            }
+          >
+            <Switch>
+              <Route
+                path="/"
+                exact
+                render={() => (
+                  <ErrorBoundary>{isAuthenticated ? <Dashboard /> : <Home />}</ErrorBoundary>
+                )}
+              />
+              <Route
+                path="/add-words"
+                render={() => (
+                  <ErrorBoundary>
+                    <AddWords />
+                  </ErrorBoundary>
+                )}
+              />
+              <Route
+                path="/test-words"
+                render={() => (
+                  <ErrorBoundary>
+                    <TestWords />
+                  </ErrorBoundary>
+                )}
+              />
+              <Route
+                path="/settings"
+                render={() => (
+                  <ErrorBoundary>
+                    <SettingsPage />
+                  </ErrorBoundary>
+                )}
+              />
+              <Route
+                path="/tryout"
+                render={() => (
+                  <ErrorBoundary>
+                    <TestWords isDemo />
+                  </ErrorBoundary>
+                )}
+              />
+            </Switch>
+          </Suspense>
         </ErrorBoundary>
       </Layout>
       <AuthModal />
