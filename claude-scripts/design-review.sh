@@ -54,6 +54,8 @@ Before starting: git checkout main && git pull
 Branch: claude/design-review-\$(date +%Y%m%d)
 Commit all changes to this branch.
 
+IMPORTANT: Do NOT push the branch or create pull requests. Only commit locally. Pushing and PR creation are handled separately.
+
 PROGRESS LOG:
 After completing your work, update the progress log at: $PROGRESS_LOG
 Append a new entry in this exact format (including the trailing ---):

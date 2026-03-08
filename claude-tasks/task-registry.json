@@ -3,7 +3,7 @@
     {
       "id": "test-coverage",
       "script": "claude-scripts/test-coverage.sh",
-      "priority": 100,
+      "priority": 1,
       "cooldown_hours": 24,
       "description": "Expand test coverage for critical untested paths"
     },

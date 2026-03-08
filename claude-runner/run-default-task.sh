@@ -60,10 +60,17 @@ log_error_details() {
 # Ensure directories and files exist
 mkdir -p "$LOG_DIR"
 if [ ! -f "$STATE_FILE" ]; then
-  echo '{"last_runs": {}}' > "$STATE_FILE"
+  echo '{"last_runs": {}, "fail_counts": {}}' > "$STATE_FILE"
+fi
+
+# Ensure fail_counts key exists (migration for older state files)
+if ! jq -e '.fail_counts' "$STATE_FILE" > /dev/null 2>&1; then
+  jq '. + {"fail_counts": {}}' "$STATE_FILE" > "${STATE_FILE}.tmp"
+  mv "${STATE_FILE}.tmp" "$STATE_FILE"
 fi
 
 NOW=$(date +%s)
+MAX_CONSECUTIVE_FAILURES=3
 
 # Select the best eligible task
 select_task() {
@@ -86,6 +93,17 @@ select_task() {
 
     local cooldown_seconds=$((cooldown_hours * 3600))
     local time_since_last=$((NOW - last_run))
+
+    # Skip tasks that have failed too many times consecutively
+    local fail_count
+    fail_count=$(jq -r ".fail_counts[\"$task_id\"] // 0" "$STATE_FILE")
+    if [ "$fail_count" -ge "$MAX_CONSECUTIVE_FAILURES" ]; then
+      # Put task on a penalty cooldown (cooldown_hours * fail_count)
+      local penalty_seconds=$((cooldown_seconds * fail_count))
+      if [ "$time_since_last" -lt "$penalty_seconds" ]; then
+        continue
+      fi
+    fi
 
     # Check if cooldown has expired
     if [ "$time_since_last" -ge "$cooldown_seconds" ]; then
@@ -171,8 +189,8 @@ if [ "$EXIT_CODE" -eq 0 ]; then
   log "─────────────────────────────────────"
   log "Task completed successfully."
 
-  # Update last run timestamp
-  jq ".last_runs[\"$SELECTED\"] = $NOW" "$STATE_FILE" > "${STATE_FILE}.tmp"
+  # Update last run timestamp and reset fail count
+  jq ".last_runs[\"$SELECTED\"] = $NOW | .fail_counts[\"$SELECTED\"] = 0" "$STATE_FILE" > "${STATE_FILE}.tmp"
   mv "${STATE_FILE}.tmp" "$STATE_FILE"
 
   activity "✓ DONE $SELECTED — cooldown ${COOLDOWN}h"
@@ -185,10 +203,23 @@ if [ "$EXIT_CODE" -eq 0 ]; then
 else
   log "─────────────────────────────────────"
   log_error "Task failed with exit code $EXIT_CODE"
-  activity "✗ DONE $SELECTED — exit $EXIT_CODE, will retry"
+
+  # Increment fail count
+  PREV_FAILS=$(jq -r ".fail_counts[\"$SELECTED\"] // 0" "$STATE_FILE")
+  NEW_FAILS=$((PREV_FAILS + 1))
+  jq ".fail_counts[\"$SELECTED\"] = $NEW_FAILS | .last_runs[\"$SELECTED\"] = $NOW" "$STATE_FILE" > "${STATE_FILE}.tmp"
+  mv "${STATE_FILE}.tmp" "$STATE_FILE"
+
+  if [ "$NEW_FAILS" -ge "$MAX_CONSECUTIVE_FAILURES" ]; then
+    activity "✗ DONE $SELECTED — exit $EXIT_CODE, $NEW_FAILS consecutive failures, backing off"
+    log "Task has failed $NEW_FAILS times consecutively — applying penalty cooldown."
+  else
+    activity "✗ DONE $SELECTED — exit $EXIT_CODE, fail $NEW_FAILS/$MAX_CONSECUTIVE_FAILURES"
+    log "Failure $NEW_FAILS/$MAX_CONSECUTIVE_FAILURES — task will retry next cycle."
+  fi
+
   log_error_details "$SELECTED" "$EXIT_CODE" "$TASK_OUTPUT"
   log "Error details written to: $ERROR_LOG"
-  log "Cooldown NOT updated — task will retry next cycle."
 fi
 
 # Clean up task output file

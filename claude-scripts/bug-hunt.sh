@@ -49,6 +49,8 @@ Branch: claude/bug-fixes-\$(date +%Y%m%d)
 Commit all fixes to this branch with a summary commit message.
 Run the full test suite (npm run test:run) before the final commit to ensure nothing is broken.
 
+IMPORTANT: Do NOT push the branch or create pull requests. Only commit locally. Pushing and PR creation are handled separately.
+
 PROGRESS LOG:
 After completing your work, update the progress log at: $PROGRESS_LOG
 Append a new entry in this exact format (including the trailing ---):

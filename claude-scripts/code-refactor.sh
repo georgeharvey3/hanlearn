@@ -68,6 +68,8 @@ refactor(wordService): extract due date calculation
 Before starting: git checkout main && git pull
 Branch: claude/refactor-\$(date +%Y%m%d)
 
+IMPORTANT: Do NOT push the branch or create pull requests. Only commit locally. Pushing and PR creation are handled separately.
+
 CRITICAL: All tests must pass after each refactoring. If tests fail, revert and try a different refactoring.
 
 PROGRESS LOG:

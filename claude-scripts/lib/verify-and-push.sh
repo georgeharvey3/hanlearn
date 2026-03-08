@@ -150,23 +150,50 @@ verify_and_push() {
   log "Pushing branch: $branch"
 
   if ! git push -u origin "$branch" 2>&1; then
-    log_error "Push failed"
-    return 1
+    log "Push rejected — attempting pull --rebase and retry..."
+    if git pull --rebase origin "$branch" 2>&1; then
+      if ! git push -u origin "$branch" 2>&1; then
+        log_error "Push failed after rebase"
+        return 1
+      fi
+    else
+      # Rebase failed (e.g. diverged histories) — force push as last resort
+      log "Rebase failed — force pushing with lease..."
+      if ! git push --force-with-lease -u origin "$branch" 2>&1; then
+        log_error "Force push failed"
+        return 1
+      fi
+    fi
   fi
   log "Branch pushed successfully."
 
-  # Create PR
+  # Create PR (treat "already exists" as success)
   log "Creating pull request..."
-  if ! gh pr create \
+  local pr_output
+  set +e
+  pr_output=$(gh pr create \
     --repo "$REPO" \
     --title "$pr_title" \
     --body "$pr_body" \
     --base main \
-    --head "$branch" 2>&1; then
-    log_error "PR creation failed"
-    return 1
+    --head "$branch" 2>&1)
+  local pr_exit=$?
+  set -e
+
+  if [ "$pr_exit" -eq 0 ]; then
+    log "PR created successfully."
+    echo "$pr_output"
+    return 0
   fi
 
-  log "PR created successfully."
-  return 0
+  # Check if failure is because PR already exists
+  if echo "$pr_output" | grep -q "already exists"; then
+    log "PR already exists for branch $branch — treating as success."
+    echo "$pr_output"
+    return 0
+  fi
+
+  log_error "PR creation failed"
+  echo "$pr_output"
+  return 1
 }
