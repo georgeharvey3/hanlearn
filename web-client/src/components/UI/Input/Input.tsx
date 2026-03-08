@@ -15,6 +15,7 @@ interface InputProps {
   autoCorrect?: string;
   autoCapitalize?: string;
   spellCheck?: boolean;
+  maxLength?: number;
   style?: CSSProperties;
 }
 
@@ -37,6 +38,7 @@ const Input: React.FC<InputProps> = (props) => (
         autoCorrect: props.autoCorrect,
         autoCapitalize: props.autoCapitalize,
         spellCheck: props.spellCheck,
+        maxLength: props.maxLength,
       },
     }}
     style={props.style}

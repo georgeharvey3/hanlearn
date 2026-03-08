@@ -32,6 +32,7 @@ import { RootState } from '../../types/store';
 import { Word } from '../../types/models';
 import * as wordService from '../../services/wordService';
 import { formatRelativeDueDate } from '../../utils/formatRelativeDueDate';
+import { searchInputSchema, customWordTextSchema, customWordMeaningSchema } from '../../validation/schemas';
 
 interface AddWordsState {
   newWord: string;
@@ -268,9 +269,14 @@ const AddWords: React.FC<Props> = ({
         return;
       }
 
+      const parsed = searchInputSchema.safeParse(state.newWord);
+      if (!parsed.success) {
+        return;
+      }
+
       updateState({ loading: true });
       try {
-        const words = await wordService.searchWord(state.newWord, state.charSet);
+        const words = await wordService.searchWord(parsed.data, state.charSet);
         updateState({
           loading: false,
           addError: false,
@@ -308,9 +314,15 @@ const AddWords: React.FC<Props> = ({
   );
 
   const meaningSubmitClicked = useCallback((): void => {
+    const textResult = customWordTextSchema.safeParse(state.newWord);
+    const meaningResult = customWordMeaningSchema.safeParse(state.meaning);
+    if (!textResult.success || !meaningResult.success) {
+      return;
+    }
+
     onPostCustomWord({
-      text: state.newWord,
-      meaning: state.meaning,
+      text: textResult.data,
+      meaning: meaningResult.data,
       charSet: state.charSet,
     });
     updateState({
@@ -491,6 +503,7 @@ const AddWords: React.FC<Props> = ({
           value={state.meaning}
           changed={meaningChanged}
           keyPressed={meaningKeyPressed}
+          maxLength={500}
         />
         <Button disabled={state.meaningInputDisabled} clicked={meaningSubmitClicked}>
           Submit

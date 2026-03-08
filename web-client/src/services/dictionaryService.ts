@@ -8,16 +8,20 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase/config';
 import { Word } from '../types/models';
+import { searchInputSchema } from '../validation/schemas';
 
 /**
  * Search for words by exact character match.
  */
 export async function searchWord(character: string, charSet: 'simp' | 'trad'): Promise<Word[]> {
+  const parsed = searchInputSchema.safeParse(character);
+  if (!parsed.success || parsed.data.length === 0) return [];
+
   const fn = httpsCallable<{ character: string; charSet: string }, Word[]>(
     functions,
     'dictionarySearchWord',
   );
-  const result = await fn({ character, charSet });
+  const result = await fn({ character: parsed.data, charSet });
   return result.data;
 }
 
@@ -53,11 +57,14 @@ export async function lookupCharacterByTrad(
  * Convert a Chinese text string to the target character set.
  */
 export async function convertText(text: string, toCharSet: 'simp' | 'trad'): Promise<string> {
+  const parsed = searchInputSchema.safeParse(text);
+  if (!parsed.success || parsed.data.length === 0) return '';
+
   const fn = httpsCallable<{ text: string; toCharSet: string }, string>(
     functions,
     'dictionaryConvertText',
   );
-  const result = await fn({ text, toCharSet });
+  const result = await fn({ text: parsed.data, toCharSet });
   return result.data;
 }
 
@@ -66,11 +73,14 @@ export async function convertText(text: string, toCharSet: 'simp' | 'trad'): Pro
  * using greedy forward maximum matching.
  */
 export async function substringMatch(text: string, charSet: 'simp' | 'trad'): Promise<Word[]> {
+  const parsed = searchInputSchema.safeParse(text);
+  if (!parsed.success || parsed.data.length === 0) return [];
+
   const fn = httpsCallable<{ text: string; charSet: string }, Word[]>(
     functions,
     'dictionarySubstringMatch',
   );
-  const result = await fn({ text, charSet });
+  const result = await fn({ text: parsed.data, charSet });
   return result.data;
 }
 

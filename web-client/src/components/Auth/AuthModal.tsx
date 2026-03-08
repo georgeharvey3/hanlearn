@@ -10,6 +10,7 @@ import FormInput from '../UI/FormInput/FormInput';
 import Spinner from '../UI/Spinner/Spinner';
 import { RootState } from '../../types/store';
 import * as actions from '../../store/actions/index';
+import { emailSchema, passwordSchema, registerPasswordSchema } from '../../validation/schemas';
 
 interface FormField {
   value: string;
@@ -64,14 +65,15 @@ const AuthModal: React.FC<Props> = ({
   }, [mode, open]);
 
   const validateEmail = (value: string): string => {
-    if (!value) return 'Email is required';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Invalid email address';
+    const result = emailSchema.safeParse(value);
+    if (!result.success) return result.error.issues[0].message;
     return '';
   };
 
   const validatePassword = (value: string): string => {
-    if (!value) return 'Password is required';
-    if (mode === 'register' && value.length < 6) return 'Password must be at least 6 characters';
+    const schema = mode === 'register' ? registerPasswordSchema : passwordSchema;
+    const result = schema.safeParse(value);
+    if (!result.success) return result.error.issues[0].message;
     return '';
   };
 
