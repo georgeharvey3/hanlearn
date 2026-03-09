@@ -269,7 +269,7 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
           newWordsEnabled: state.newWords,
           sentenceReadEnabled: state.sentenceRead,
           sentenceWriteEnabled: state.sentenceWrite,
-        })
+        }),
       ),
     [
       state.numWords,
@@ -279,7 +279,7 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
       state.newWords,
       state.sentenceRead,
       state.sentenceWrite,
-    ]
+    ],
   );
 
   return (

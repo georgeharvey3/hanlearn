@@ -41,10 +41,7 @@ export function estimateTestTime(params: TestTimeEstimateParams): number {
     }
   }
 
-  const vocabSecondsPerWord = activePerms.reduce(
-    (sum, perm) => sum + (PERM_SECONDS[perm] || 0),
-    0
-  );
+  const vocabSecondsPerWord = activePerms.reduce((sum, perm) => sum + (PERM_SECONDS[perm] || 0), 0);
 
   let totalSeconds = numWords * vocabSecondsPerWord;
 
