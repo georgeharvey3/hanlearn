@@ -42,6 +42,7 @@ function parseCedictLine(line) {
 async function buildDictionary() {
   const cedictPath = path.join(__dirname, 'cedict_ts.u8');
   const outputPath = path.join(__dirname, '..', 'web-client', 'public', 'dictionary.json');
+  const functionsOutputPath = path.join(__dirname, '..', 'functions', 'data', 'dictionary.json');
 
   if (!fs.existsSync(cedictPath)) {
     console.error('cedict_ts.u8 not found.');
@@ -78,7 +79,16 @@ async function buildDictionary() {
 
   // Write as compact JSON (no pretty printing to save space)
   console.log('Writing dictionary.json...');
-  fs.writeFileSync(outputPath, JSON.stringify(words));
+  const json = JSON.stringify(words);
+  fs.writeFileSync(outputPath, json);
+
+  // Also write to functions/data/ for Cloud Functions
+  const functionsOutputDir = path.dirname(functionsOutputPath);
+  if (!fs.existsSync(functionsOutputDir)) {
+    fs.mkdirSync(functionsOutputDir, { recursive: true });
+  }
+  fs.writeFileSync(functionsOutputPath, json);
+  console.log('Also wrote to: ' + functionsOutputPath);
 
   // Calculate file sizes
   const stats = fs.statSync(outputPath);
