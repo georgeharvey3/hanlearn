@@ -234,8 +234,24 @@ describe('Home — numDue with slash-format dates (Safari regression)', () => {
       .split('-');
     const slashFuture = `${futureParts[0]}/${futureParts[1]}/${futureParts[2]}`;
 
-    const dueWord: Word = { id: 10, simp: '好', trad: '好', pinyin: 'hǎo', meaning: 'good', bank: 1, due_date: slashToday };
-    const futureWord: Word = { id: 11, simp: '坏', trad: '壞', pinyin: 'huài', meaning: 'bad', bank: 2, due_date: slashFuture };
+    const dueWord: Word = {
+      id: 10,
+      simp: '好',
+      trad: '好',
+      pinyin: 'hǎo',
+      meaning: 'good',
+      bank: 1,
+      due_date: slashToday,
+    };
+    const futureWord: Word = {
+      id: 11,
+      simp: '坏',
+      trad: '壞',
+      pinyin: 'huài',
+      meaning: 'bad',
+      bank: 2,
+      due_date: slashFuture,
+    };
 
     const store = createTestStore({
       ...authenticatedState(),
