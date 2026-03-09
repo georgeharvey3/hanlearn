@@ -1,11 +1,12 @@
 import React from 'react';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import NewWord from './NewWord';
-import { renderWithProviders } from '../../../../test/utils';
+import { renderWithProviders, createTestStore } from '../../../../test/utils';
 import * as dictionaryService from '../../../../services/dictionaryService';
+import * as ttsService from '../../../../services/ttsService';
 import { Word } from '../../../../types/models';
 
 vi.mock('../../../../services/dictionaryService', () => ({
@@ -17,6 +18,8 @@ vi.mock('../../../../services/ttsService', () => ({
   prefetch: vi.fn(),
   stopAll: vi.fn(),
 }));
+
+const mockedSpeak = vi.mocked(ttsService.speak);
 
 const mockSearchWord = vi.mocked(dictionaryService.searchWord);
 
@@ -120,6 +123,13 @@ describe('NewWord character interaction', () => {
 });
 
 describe('NewWord loading indicator', () => {
+  function makeNoSoundStore() {
+    return createTestStore({
+      auth: { userId: 'test-user', loading: false, initialized: true },
+      settings: { speechAvailable: false, synthAvailable: false },
+    });
+  }
+
   it('shows a loading spinner while fetching character details', async () => {
     let resolveSearch!: (value: Word[]) => void;
     mockSearchWord.mockImplementation(
@@ -129,7 +139,9 @@ describe('NewWord loading indicator', () => {
         }),
     );
 
-    renderWithProviders(<NewWord word={makeWord('大家', 'dàjiā', 'everyone')} />);
+    renderWithProviders(<NewWord word={makeWord('大家', 'dàjiā', 'everyone')} />, {
+      store: makeNoSoundStore(),
+    });
 
     const user = userEvent.setup();
     await user.click(screen.getByText('大'));
@@ -153,7 +165,9 @@ describe('NewWord loading indicator', () => {
       { id: 1, simp: '中', trad: '中', pinyin: 'zhōng', meaning: 'middle' },
     ]);
 
-    renderWithProviders(<NewWord word={makeWord('中国', 'zhōngguó', 'China')} />);
+    renderWithProviders(<NewWord word={makeWord('中国', 'zhōngguó', 'China')} />, {
+      store: makeNoSoundStore(),
+    });
 
     // Wait for pre-fetch to complete
     await waitFor(() => {
@@ -191,5 +205,98 @@ describe('NewWord loading indicator', () => {
 
     // No additional calls beyond the pre-fetch
     expect(mockSearchWord).toHaveBeenCalledTimes(callCountAfterPrefetch);
+  });
+});
+
+describe('NewWord speaker button', () => {
+  function makeSynthStore() {
+    return createTestStore({
+      auth: { userId: 'test-user', loading: false, initialized: true },
+      settings: { speechAvailable: false, synthAvailable: true },
+    });
+  }
+
+  beforeEach(() => {
+    localStorage.setItem('useSound', 'true');
+  });
+
+  afterEach(() => {
+    localStorage.removeItem('useSound');
+  });
+
+  it('renders a speaker button when useSound is enabled', async () => {
+    // Make auto-speak resolve immediately so speaker button is visible
+    mockedSpeak.mockImplementation((_text, options) => {
+      options?.onStart?.();
+      return { play: vi.fn(), stop: vi.fn() };
+    });
+
+    renderWithProviders(<NewWord word={makeWord('你好', 'nǐ hǎo', 'hello')} />, {
+      store: makeSynthStore(),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /play pronunciation/i })).toBeInTheDocument();
+    });
+  });
+
+  it('does not render a speaker button when useSound is disabled', () => {
+    localStorage.setItem('useSound', 'false');
+    renderWithProviders(<NewWord word={makeWord('你好', 'nǐ hǎo', 'hello')} />, {
+      store: makeSynthStore(),
+    });
+    expect(screen.queryByRole('button', { name: /play pronunciation/i })).not.toBeInTheDocument();
+  });
+
+  it('shows loading spinner while TTS is loading and hides it on start', async () => {
+    let capturedOnStart: (() => void) | undefined;
+    mockedSpeak.mockImplementation((_text, options) => {
+      capturedOnStart = options?.onStart;
+      return { play: vi.fn(), stop: vi.fn() };
+    });
+
+    const user = userEvent.setup();
+    renderWithProviders(<NewWord word={makeWord('你好', 'nǐ hǎo', 'hello')} />, {
+      store: makeSynthStore(),
+    });
+
+    // The auto-speak on mount triggers synthLoading
+    await waitFor(() => {
+      expect(mockedSpeak).toHaveBeenCalled();
+    });
+
+    // Should show spinner (synthLoading = true)
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /play pronunciation/i })).not.toBeInTheDocument();
+
+    // Simulate TTS starting playback
+    capturedOnStart!();
+
+    await waitFor(() => {
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /play pronunciation/i })).toBeInTheDocument();
+    });
+  });
+
+  it('calls ttsService.speak when speaker button is clicked', async () => {
+    // Make the initial auto-speak resolve immediately
+    mockedSpeak.mockImplementation((_text, options) => {
+      options?.onStart?.();
+      return { play: vi.fn(), stop: vi.fn() };
+    });
+
+    const user = userEvent.setup();
+    renderWithProviders(<NewWord word={makeWord('你好', 'nǐ hǎo', 'hello')} />, {
+      store: makeSynthStore(),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /play pronunciation/i })).toBeInTheDocument();
+    });
+
+    mockedSpeak.mockClear();
+    await user.click(screen.getByRole('button', { name: /play pronunciation/i }));
+
+    expect(mockedSpeak).toHaveBeenCalledWith('你好', expect.objectContaining({}));
   });
 });

@@ -41,6 +41,7 @@ interface SentenceReadState {
   entered: string;
   loading: boolean;
   sentenceLoading: boolean;
+  synthLoading: boolean;
   useSound: boolean;
   useEnglishSpeechRecognition: boolean;
   showText: boolean;
@@ -134,6 +135,7 @@ const SentenceRead: React.FC<Props> = ({
     entered: '',
     loading: false,
     sentenceLoading: false,
+    synthLoading: false,
     useSound: true,
     useEnglishSpeechRecognition: false,
     showText: false,
@@ -169,12 +171,22 @@ const SentenceRead: React.FC<Props> = ({
       stateRef.current.recognition?.abort();
       ttsService.stopAll();
 
+      updateState({ synthLoading: true });
       ttsService.speak(sentence, {
         fallbackVoice: voice,
         fallbackLang: lang || 'zh-CN',
+        onStart: () => {
+          updateState({ synthLoading: false });
+        },
+        onEnd: () => {
+          updateState({ synthLoading: false });
+        },
+        onError: () => {
+          updateState({ synthLoading: false });
+        },
       });
     },
-    [lang, voice],
+    [lang, voice, updateState],
   );
 
   const onListenPinyin = useCallback((): void => {
@@ -455,14 +467,18 @@ const SentenceRead: React.FC<Props> = ({
       // Audio mode: centred speaker button with hint
       sentenceCardContent = (
         <Stack alignItems="center" spacing={1}>
-          <PictureButton
-            type="secondary"
-            src={speakerPic}
-            aria-label="Play sentence"
-            clicked={() => onSpeakPinyin(currentSentence.chinese.sentence)}
-          />
+          {state.synthLoading ? (
+            <Spinner style={{ overflow: 'hidden', margin: 0 }} />
+          ) : (
+            <PictureButton
+              type="secondary"
+              src={speakerPic}
+              aria-label="Play sentence"
+              clicked={() => onSpeakPinyin(currentSentence.chinese.sentence)}
+            />
+          )}
           <Typography variant="caption" sx={{ color: 'text.secondary', letterSpacing: 0.3 }}>
-            Tap to replay
+            {state.synthLoading ? 'Loading audio…' : 'Tap to replay'}
           </Typography>
         </Stack>
       );
