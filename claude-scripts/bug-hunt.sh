@@ -18,8 +18,10 @@ You are methodical, thorough, and never assume code works just because it compil
 
 Read CLAUDE.md for full project context.
 
-PREVIOUS RUNS (last 5):
+ALREADY COMPLETED — do NOT re-examine these areas unless the code has changed since:
 $HISTORY
+
+Focus your work on areas NOT listed above.
 
 ---
 
@@ -52,18 +54,14 @@ Run the full test suite (npm run test:run) before the final commit to ensure not
 IMPORTANT: Do NOT push the branch or create pull requests. Only commit locally. Pushing and PR creation are handled separately.
 
 PROGRESS LOG:
-After completing your work, update the progress log at: $PROGRESS_LOG
-Append a new entry in this exact format (including the trailing ---):
+After completing your work, append ONE line to $PROGRESS_LOG in this exact format:
 
-## $RUN_DATE
-**Areas reviewed:** [list files/components examined]
-**Bugs found:** [brief description of each bug, or 'None']
-**Changes made:** [brief description of fixes, or 'None']
-**Notes for next run:** [areas already covered thoroughly, anything to focus on next time]
+$RUN_DATE | Reviewed: [comma-separated component/file names]. Found: [N bugs / None].
 
----
+Example:
+2026-03-09 10:53 | Reviewed: AddWords, Dashboard, TestWords, useTestEngine, wordService. Found: 2 bugs.
 
-Then trim the file so only the 5 most recent entries remain (delete older ones)." \
+Keep it to a single line. Then trim the file so only the 10 most recent lines remain." \
   --allowedTools "Bash,Read,Write,Edit" || exit 1
 
 # Verify CI checks, push branch, and open PR

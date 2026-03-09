@@ -29,7 +29,7 @@ You propose ideas that are actionable, aligned with the roadmap, and likely to a
 
 Read CLAUDE.md for full project context (especially the Prioritised Roadmap and Decision Log sections).
 
-PREVIOUS RUNS (last 5):
+ALREADY PROPOSED — do NOT re-propose these features or similar variations:
 $HISTORY
 
 ---
@@ -99,27 +99,14 @@ Do NOT:
 - Create PRs
 
 PROGRESS LOG:
-After completing your work, update the progress log at: $PROGRESS_LOG
-Append a new entry in this exact format (including the trailing ---):
+After completing your work, append ONE line to $PROGRESS_LOG in this exact format:
 
-## $RUN_DATE
-**Features proposed:** [one-line summary of each of the 3 proposals]
-**Issue created:** [issue number and title, e.g. '#42: Add word pronunciation practice']
-**Reasoning:** [brief explanation of why this one was selected]
-**Notes for next run:** [features already proposed, ideas to avoid repeating]
+$RUN_DATE | Proposed: [feature 1], [feature 2], [feature 3]. Created: [#N or N/A].
 
-### Deduplication Index
-\`\`\`json
-{
-  \"features_proposed\": [\"feature 1\", \"feature 2\", \"feature 3\"],
-  \"issue_created\": \"#N\",
-  \"features_to_avoid\": [\"previously proposed features from this and past runs\"]
-}
-\`\`\`
+Example:
+2026-03-09 09:27 | Proposed: struggling words indicator, quick-retry failed words, manual bank adjustment. Created: #42.
 
----
-
-Then trim the file so only the 5 most recent entries remain (delete older ones)." \
+Keep it to a single line. Then trim the file so only the 10 most recent lines remain." \
   --allowedTools "Bash,Read,Write,Edit" || exit 1
 
 echo "Feature ideation complete. Check GitHub for the new issue."

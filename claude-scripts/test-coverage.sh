@@ -18,7 +18,7 @@ You take pride in test names that read like specifications.
 
 Read CLAUDE.md for full project context. Your task is to expand test coverage.
 
-PREVIOUS RUNS (last 5):
+ALREADY COMPLETED — these components have been covered in recent runs, focus on gaps NOT listed:
 $HISTORY
 
 ---
@@ -46,18 +46,14 @@ Commit to this branch.
 IMPORTANT: Do NOT push the branch or create pull requests. Only commit locally. Pushing and PR creation are handled separately.
 
 PROGRESS LOG:
-After completing your work, update the progress log at: $PROGRESS_LOG
-Append a new entry in this exact format (including the trailing ---):
+After completing your work, append ONE line to $PROGRESS_LOG in this exact format:
 
-## $RUN_DATE
-**Coverage before:** [% from Step 1]
-**Gaps addressed:** [list the 3 code paths tested this run]
-**Tests added:** [filenames of new test files or test cases]
-**Notes for next run:** [paths already well-covered, areas still needing attention]
+$RUN_DATE | Covered: [component/file names with before→after %]. Tests: [N] passing.
 
----
+Example:
+2026-03-08 19:56 | Covered: AnswerInput (21→78%), FormInput (71→100%), useTestEngine qNum effect. Tests: 576 passing.
 
-Then trim the file so only the 5 most recent entries remain (delete older ones)." \
+Keep it to a single line. Then trim the file so only the 10 most recent lines remain." \
   --allowedTools "Bash,Read,Write,Edit" || exit 1
 
 # Verify CI checks, push branch, and open PR

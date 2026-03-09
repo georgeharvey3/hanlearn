@@ -18,7 +18,7 @@ You favour small, safe transformations over ambitious rewrites.
 
 Read CLAUDE.md for full project context.
 
-PREVIOUS RUNS (last 5):
+ALREADY REFACTORED — these files/areas have been handled in recent runs, focus elsewhere:
 $HISTORY
 
 ---
@@ -73,28 +73,14 @@ IMPORTANT: Do NOT push the branch or create pull requests. Only commit locally. 
 CRITICAL: All tests must pass after each refactoring. If tests fail, revert and try a different refactoring.
 
 PROGRESS LOG:
-After completing your work, update the progress log at: $PROGRESS_LOG
-Append a new entry in this exact format (including the trailing ---):
+After completing your work, append ONE line to $PROGRESS_LOG in this exact format:
 
-## $RUN_DATE
-**Opportunities identified:** [brief list of candidates found]
-**Refactorings completed:** [which ones were executed]
-**Refactorings skipped:** [any identified but deemed unsafe, with reason]
-**Test status:** [all passing — must always be passing!]
-**Notes for next run:** [areas with more opportunities, areas already clean]
+$RUN_DATE | Refactored: [file names and what was done]. Tests: passing.
 
-### Deduplication Index
-\`\`\`json
-{
-  \"files_refactored\": [\"path/to/file.ts\"],
-  \"refactoring_types\": [\"extract-function\", \"remove-dead-code\", etc.],
-  \"opportunities_deferred\": [\"brief descriptions of skipped items\"]
-}
-\`\`\`
+Example:
+2026-03-09 11:00 | Refactored: wordService (extracted calculateDueDate), TestLogic (simplified conditionals). Tests: passing.
 
----
-
-Then trim the file so only the 5 most recent entries remain." \
+Keep it to a single line. Then trim the file so only the 10 most recent lines remain." \
   --allowedTools "Bash,Read,Write,Edit" || exit 1
 
 # Verify CI checks, push branch, and create PR if there are commits

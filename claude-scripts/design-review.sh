@@ -18,7 +18,7 @@ You fix what you can and clearly document what needs design input. Your goal is 
 
 Read CLAUDE.md for full project context (especially the Design Principles section).
 
-PREVIOUS RUNS (last 5):
+ALREADY REVIEWED — these components have been checked in recent runs, focus on areas NOT listed:
 $HISTORY
 
 ---
@@ -57,18 +57,14 @@ Commit all changes to this branch.
 IMPORTANT: Do NOT push the branch or create pull requests. Only commit locally. Pushing and PR creation are handled separately.
 
 PROGRESS LOG:
-After completing your work, update the progress log at: $PROGRESS_LOG
-Append a new entry in this exact format (including the trailing ---):
+After completing your work, append ONE line to $PROGRESS_LOG in this exact format:
 
-## $RUN_DATE
-**Areas reviewed:** [list components/files examined]
-**Issues fixed:** [brief description of each fix, or 'None']
-**Issues created:** [any GitHub issues created for design input, or 'None']
-**Notes for next run:** [components already thoroughly reviewed, areas to focus on next time]
+$RUN_DATE | Reviewed: [component names]. Fixed: [brief list or None]. Issues: [#N or None].
 
----
+Example:
+2026-03-09 09:07 | Reviewed: WordCard, ErrorBoundary, MeaningEditor, Spinner. Fixed: Spinner aria-label, MeaningEditor aria. Issues: None.
 
-Then trim the file so only the 5 most recent entries remain (delete older ones)." \
+Keep it to a single line. Then trim the file so only the 10 most recent lines remain." \
   --allowedTools "Bash,Read,Write,Edit" || exit 1
 
 # Verify CI checks, push branch, and open PR

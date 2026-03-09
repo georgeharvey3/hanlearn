@@ -220,54 +220,54 @@ else
 
   log_error_details "$SELECTED" "$EXIT_CODE" "$TASK_OUTPUT"
   log "Error details written to: $ERROR_LOG"
-fi
 
-# Clean up task output file
-rm -f "$TASK_OUTPUT"
+  # Backup any unpushed work before cleanup (only on failure)
+  BACKUP_DIR="$REPO_ROOT/claude-tasks/backups"
+  mkdir -p "$BACKUP_DIR"
 
-# Backup any unpushed work before cleanup
-BACKUP_DIR="$REPO_ROOT/claude-tasks/backups"
-mkdir -p "$BACKUP_DIR"
+  if [ -d "$WORK_DIR/.git" ]; then
+    cd "$WORK_DIR"
 
-if [ -d "$WORK_DIR/.git" ]; then
-  cd "$WORK_DIR"
+    # Check for unpushed commits (commits ahead of origin/main)
+    UNPUSHED=$(git log --oneline origin/main..HEAD 2>/dev/null | wc -l || echo 0)
 
-  # Check for unpushed commits (commits ahead of origin/main)
-  UNPUSHED=$(git log --oneline origin/main..HEAD 2>/dev/null | wc -l || echo 0)
+    # Check for uncommitted changes
+    UNCOMMITTED=$(git status --porcelain 2>/dev/null | wc -l || echo 0)
 
-  # Check for uncommitted changes
-  UNCOMMITTED=$(git status --porcelain 2>/dev/null | wc -l || echo 0)
+    if [ "$UNPUSHED" -gt 0 ] || [ "$UNCOMMITTED" -gt 0 ]; then
+      BACKUP_NAME="${SELECTED}-$(date +%Y%m%d-%H%M%S)"
+      BUNDLE_PATH="$BACKUP_DIR/${BACKUP_NAME}.bundle"
 
-  if [ "$UNPUSHED" -gt 0 ] || [ "$UNCOMMITTED" -gt 0 ]; then
-    BACKUP_NAME="${SELECTED}-$(date +%Y%m%d-%H%M%S)"
-    BUNDLE_PATH="$BACKUP_DIR/${BACKUP_NAME}.bundle"
+      log "Saving backup: $UNPUSHED unpushed commit(s), $UNCOMMITTED uncommitted change(s)"
 
-    log "Saving backup: $UNPUSHED unpushed commit(s), $UNCOMMITTED uncommitted change(s)"
-
-    # Commit any uncommitted changes so they're included in the bundle
-    if [ "$UNCOMMITTED" -gt 0 ]; then
-      git add -A
-      git commit -m "WIP: uncommitted changes at task failure" --no-verify 2>/dev/null || true
-    fi
-
-    # Create a git bundle containing all commits not in origin/main
-    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "HEAD")
-    if git bundle create "$BUNDLE_PATH" origin/main.."$CURRENT_BRANCH" 2>/dev/null; then
-      log "Backup saved to: $BUNDLE_PATH"
-      log "To restore: git clone $BUNDLE_PATH restored-work"
-    else
-      # Fallback: bundle the entire branch if origin/main comparison fails
-      if git bundle create "$BUNDLE_PATH" "$CURRENT_BRANCH" 2>/dev/null; then
-        log "Full branch backup saved to: $BUNDLE_PATH"
-      else
-        log_error "Failed to create git bundle backup"
+      # Commit any uncommitted changes so they're included in the bundle
+      if [ "$UNCOMMITTED" -gt 0 ]; then
+        git add -A
+        git commit -m "WIP: uncommitted changes at task failure" --no-verify 2>/dev/null || true
       fi
-    fi
-  else
-    log "No unpushed work to backup."
-  fi
 
-  cd /app
+      # Unshallow the clone so git bundle can work (shallow clones lack history)
+      git fetch --unshallow 2>/dev/null || true
+
+      # Create a git bundle containing all commits not in origin/main
+      CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "HEAD")
+      if git bundle create "$BUNDLE_PATH" origin/main.."$CURRENT_BRANCH" 2>/dev/null; then
+        log "Backup saved to: $BUNDLE_PATH"
+        log "To restore: git clone $BUNDLE_PATH restored-work"
+      else
+        # Fallback: bundle the entire branch if origin/main comparison fails
+        if git bundle create "$BUNDLE_PATH" "$CURRENT_BRANCH" 2>/dev/null; then
+          log "Full branch backup saved to: $BUNDLE_PATH"
+        else
+          log_error "Failed to create git bundle backup"
+        fi
+      fi
+    else
+      log "No unpushed work to backup."
+    fi
+
+    cd /app
+  fi
 fi
 
 # Cleanup

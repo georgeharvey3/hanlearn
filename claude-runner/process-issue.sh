@@ -45,6 +45,9 @@ backup_work() {
         git commit -m "WIP: uncommitted changes at task failure" --no-verify 2>/dev/null || true
       fi
 
+      # Unshallow the clone so git bundle can work (shallow clones lack history)
+      git fetch --unshallow 2>/dev/null || true
+
       # Create a git bundle containing all commits not in origin/main
       CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "HEAD")
       if git bundle create "$BUNDLE_PATH" origin/main.."$CURRENT_BRANCH" 2>/dev/null; then
@@ -84,9 +87,15 @@ fail() {
   gh issue edit "$NUMBER" --repo "$REPO" --remove-label "in-progress" 2>&1 || true
   gh issue edit "$NUMBER" --repo "$REPO" --add-label "agent-failed" 2>&1 || true
 
-  backup_work
   cleanup
   return 1
+}
+
+# Fail with backup — used only when push fails and there's local work to save
+fail_with_backup() {
+  local msg="$1"
+  backup_work
+  fail "$msg"
 }
 
 # ── Step 1: Claim the issue ──
@@ -342,7 +351,7 @@ cd "$WORK_DIR"
 # ── Step 8: Push the branch ──
 log "Step 8: Pushing branch..."
 if ! git push -u origin "$BRANCH" 2>&1; then
-  fail "Push failed"
+  fail_with_backup "Push failed"
 fi
 log "Branch pushed successfully."
 

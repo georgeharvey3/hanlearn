@@ -18,7 +18,7 @@ You communicate clearly, create actionable issues, and avoid gold-plating.
 
 Read CLAUDE.md for full project context (especially Architecture and Known Issues sections).
 
-PREVIOUS RUNS (last 5):
+ALREADY REVIEWED — these areas have been covered in recent runs, focus on what's changed or not listed:
 $HISTORY
 
 ---
@@ -73,31 +73,14 @@ Commit any direct fixes to this branch.
 IMPORTANT: Do NOT push the branch or create pull requests. Only commit locally. Pushing and PR creation are handled separately.
 
 PROGRESS LOG:
-After completing your work, update the progress log at: $PROGRESS_LOG
-Append a new entry in this exact format (including the trailing ---):
+After completing your work, append ONE line to $PROGRESS_LOG in this exact format:
 
-## $RUN_DATE
-**Focus areas:** [which phases were emphasized]
-**Dependencies reviewed:** [npm audit results summary, any issues found]
-**Patterns analyzed:** [areas checked for consistency]
-**Tech debt items:** [count by category]
-**Actions taken:** [issues created (with numbers), fixes committed, docs updated]
-**Notes for next run:** [areas to focus on next, items to skip]
+$RUN_DATE | Checked: [areas reviewed]. Actions: [issues created #N, fixes, or None].
 
-### Deduplication Index
-\`\`\`json
-{
-  \"packages_audited\": true,
-  \"patterns_checked\": [\"list of patterns reviewed\"],
-  \"issues_created\": [\"#N: title\"],
-  \"files_modified\": [\"list of files changed\"],
-  \"tech_debt_documented\": [\"brief descriptions\"]
-}
-\`\`\`
+Example:
+2026-03-05 10:00 | Checked: npm audit, redux patterns, service layer, circular imports. Actions: created #69, #70, #71.
 
----
-
-Then trim the file so only the 5 most recent entries remain (delete older ones)." \
+Keep it to a single line. Then trim the file so only the 10 most recent lines remain." \
   --allowedTools "Bash,Read,Write,Edit" || exit 1
 
 # Verify CI checks, push branch, and create PR if there are commits
