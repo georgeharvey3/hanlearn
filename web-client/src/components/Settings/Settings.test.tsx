@@ -255,6 +255,40 @@ describe('Settings — speech availability gating', () => {
   });
 });
 
+describe('Settings — time estimate display', () => {
+  it('shows estimated test time on initial render', () => {
+    renderWithProviders(<Settings />, { store: makeStore() });
+    expect(screen.getByText(/estimated test time:/i)).toBeInTheDocument();
+  });
+
+  it('updates estimate when stage checkbox is toggled off', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Settings />, { store: makeStore() });
+
+    const estimateEl = screen.getByText(/estimated test time:/i);
+    const initialText = estimateEl.textContent;
+
+    const sentenceWriteCheckbox = screen.getByRole('checkbox', { name: /make sentences/i });
+    await user.click(sentenceWriteCheckbox);
+
+    expect(estimateEl.textContent).not.toBe(initialText);
+  });
+
+  it('updates estimate when Only Priority is toggled on', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('priority', 'MP');
+    renderWithProviders(<Settings />, { store: makeStore() });
+
+    const estimateEl = screen.getByText(/estimated test time:/i);
+    const initialText = estimateEl.textContent;
+
+    const onlyPriorityCheckbox = screen.getByRole('checkbox', { name: /only priority/i });
+    await user.click(onlyPriorityCheckbox);
+
+    expect(estimateEl.textContent).not.toBe(initialText);
+  });
+});
+
 describe('Settings — Only Priority checkbox', () => {
   it('Only Priority checkbox is disabled when priority is none', () => {
     renderWithProviders(<Settings />, { store: makeStore() });
