@@ -91,9 +91,7 @@ function stripPunctuation(word: string): string {
 /**
  * Flatten resolved sentence words into a flat array of SentenceWord objects.
  */
-function flattenSentenceWords(
-  words: (string | SentenceWord | SentenceWord[])[],
-): SentenceWord[] {
+function flattenSentenceWords(words: (string | SentenceWord | SentenceWord[])[]): SentenceWord[] {
   const result: SentenceWord[] = [];
   for (const w of words) {
     if (typeof w === 'string') continue;
@@ -602,17 +600,13 @@ const SentenceWrite: React.FC<Props> = ({
                       textAlign: 'left',
                     }}
                   >
-                    <Typography
-                      sx={{ fontSize: '1.2rem', fontWeight: 500, letterSpacing: 1 }}
-                    >
+                    <Typography sx={{ fontSize: '1.2rem', fontWeight: 500, letterSpacing: 1 }}>
                       {tw[state.charSet]}
                     </Typography>
                     <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                       {tw.pinyin}
                     </Typography>
-                    <Typography variant="body2">
-                      {parseMeanings(tw.meaning).join(' / ')}
-                    </Typography>
+                    <Typography variant="body2">{parseMeanings(tw.meaning).join(' / ')}</Typography>
                   </Paper>
                 ))}
               </Stack>
