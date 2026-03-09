@@ -6,7 +6,8 @@
     "dev": "concurrently \"sh -c 'firebase emulators:start $([ -d ./emulator-data ] && echo --import=./emulator-data)'\" \"npm run dev:client\"",
     "dev:client": "npm --prefix web-client run dev",
     "emulators": "sh -c 'firebase emulators:start --export-on-exit=./emulator-data $([ -d ./emulator-data ] && echo --import=./emulator-data)'",
-    "build": "npm --prefix web-client run build:all",
+    "build:dict": "node migration/build-dictionary.js",
+    "build": "npm run build:dict && npm --prefix web-client run build",
     "deploy": "npm run build && firebase deploy --only hosting",
     "prepare": "husky"
   },
