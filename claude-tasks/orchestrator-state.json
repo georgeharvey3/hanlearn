@@ -1,10 +1,16 @@
 {
   "last_runs": {
-    "test-coverage": 1772881369,
+    "test-coverage": 1773048824,
     "bug-hunt": 1772880431,
-    "code-refactor": 1772715683,
-    "design-review": 1772718777,
+    "code-refactor": 1773047707,
+    "design-review": 1773047231,
     "system-architect": 1772721908,
-    "feature-ideation": 1772722316
+    "feature-ideation": 1773048433
+  },
+  "fail_counts": {
+    "design-review": 1,
+    "code-refactor": 1,
+    "feature-ideation": 0,
+    "test-coverage": 1
   }
 }

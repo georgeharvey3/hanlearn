@@ -7,6 +7,16 @@ PROGRESS_LOG="${TASK_PROGRESS_LOG:-$(cd "$(dirname "$0")/.." && pwd)/claude-task
 HISTORY=$(cat "$PROGRESS_LOG" 2>/dev/null || echo "No previous runs.")
 RUN_DATE=$(date '+%Y-%m-%d %H:%M')
 
+# Query GitHub for rejected feature proposals (closed as "not planned")
+REJECTED_FEATURES=$(gh api 'repos/:owner/:repo/issues?state=closed&labels=feature-proposal&per_page=50' \
+  --jq '.[] | select(.state_reason == "not_planned") | "- #\(.number): \(.title)"' 2>/dev/null)
+
+if [ -z "$REJECTED_FEATURES" ]; then
+  REJECTED_SECTION="No rejected proposals on record."
+else
+  REJECTED_SECTION="$REJECTED_FEATURES"
+fi
+
 claude -p "## Identity
 
 You are a product-minded engineer who thinks about user value first and implementation second.
@@ -21,6 +31,11 @@ Read CLAUDE.md for full project context (especially the Prioritised Roadmap and 
 
 PREVIOUS RUNS (last 5):
 $HISTORY
+
+---
+
+REJECTED BY MAINTAINER (closed as 'not planned' — do NOT propose these or similar ideas):
+$REJECTED_SECTION
 
 ---
 
@@ -43,6 +58,8 @@ For each proposal include:
 Avoid:
 - Anything listed as 'Deferred / Won't do soon' in the roadmap
 - Anything previously proposed in PREVIOUS RUNS above
+- Anything in REJECTED BY MAINTAINER above (these were explicitly declined)
+- Features that are similar in spirit to rejected ones (e.g. if 'weak word drill mode' was rejected, don't propose 'struggling word practice mode')
 - Features that require external services or significant infrastructure
 
 Step 3 — SELECT the best proposal:

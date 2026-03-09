@@ -1,3 +1,17 @@
+## 2026-03-09 09:07
+**Areas reviewed:** WordCard.tsx, ErrorBoundary.tsx, ProgressBar.tsx, MeaningEditor.tsx, Footer.tsx, ExpBanner.tsx, HowItWorks.tsx, FeatureHighlights.tsx, MainBanner.tsx (Home), SignUpBanner.tsx, MountainLayer.tsx, Logo.tsx, NavigationItem.tsx, Dropdown.tsx, Backdrop.tsx, Buttons.tsx, Spinner.tsx, Table.tsx, TableRow.tsx, TestSummary.tsx, AddWords.tsx (re-review)
+**Issues fixed:**
+- Spinner: added `aria-label="Loading"` to CircularProgress — screen readers now announce "Loading" instead of a meaningless role fallback
+- MeaningEditor: editable meaning Chips now have `aria-label="Edit meaning: {text}"` so screen reader users know chips are interactive; edit-mode TextField and add-mode TextField both now have `aria-label` since they have no associated `<label>` element
+- Dropdown (Settings nav button): added `aria-haspopup="true"` and `aria-expanded` state so screen readers announce the button controls a popup menu
+- AddWords: replaced raw `<h2>` / `<h3>` modal headings with MUI `Typography variant="h6"` — consistent with the design system and correct heading hierarchy
+- TestSummary: scrollable score list now has `role="list"` + `aria-label="Word scores"` and each row has `role="listitem"` — screen readers can navigate scores as a proper list
+**Issues created:**
+- DESIGN: MainBanner parallax and text fade transitions ignore `prefers-reduced-motion` — needs design input on a static/reduced fallback layout before implementing (WCAG 2.1 SC 2.3.3). Filed locally; create GitHub issue when gh CLI is available.
+**Notes for next run:** All components across components/ and containers/ have now been reviewed at least once. Codebase is in good shape. Next pass focus areas: (1) e2e test coverage for the a11y flows fixed in previous runs, (2) ErrorBoundary coverage — wrap more async-heavy containers (TestWords, TestChengyus), (3) implement prefers-reduced-motion fix for MainBanner once design provides guidance, (4) check if MeaningEditor chip overflow (maxWidth truncation) needs a Tooltip for mouse users.
+
+---
+
 ## 2026-03-08 10:48
 **Areas reviewed:** SentenceRead.tsx, SentenceWrite.tsx, NewWords.tsx, NewWord.tsx, TestChengyusTest.tsx, TestChengyus.tsx, Dashboard.tsx, WordsDueCard.tsx, StreakCard.tsx, BankDistributionCard.tsx, MasteryCard.tsx, AudioSettingsDrawer.tsx, Button.tsx
 **Issues fixed:**
