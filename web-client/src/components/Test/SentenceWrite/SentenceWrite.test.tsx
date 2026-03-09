@@ -9,6 +9,7 @@
  * - No (got it wrong) resets to the input view
  * - Skips words with no available sentences
  * - Avoids showing sentences already seen in SentenceRead (via seenOffsets)
+ * - English words are tappable for translation
  */
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
@@ -22,9 +23,27 @@ vi.mock('howler', () => ({
 vi.mock('../../../services/sentenceService', () => ({
   getSegmentedSentence: vi.fn(),
 }));
+vi.mock('../../../utils/sentenceUtils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../utils/sentenceUtils')>();
+  return {
+    ...actual,
+    resolveSentence: vi.fn().mockResolvedValue({
+      chinese: {
+        sentence: '你好，我是学生。',
+        words: [
+          '你好',
+          { id: 10, simp: '学生', trad: '學生', pinyin: 'xué shēng', meaning: 'student' },
+        ],
+        highlight: [[0, 2]],
+        targetIndex: 0,
+      },
+      english: { sentence: 'Hello, I am a student.', highlight: [] },
+    }),
+  };
+});
 
 import React from 'react';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import SentenceWrite from './SentenceWrite';
@@ -93,12 +112,15 @@ describe('SentenceWrite — loading state', () => {
 });
 
 describe('SentenceWrite — prompt display', () => {
-  it('shows the English prompt text', async () => {
+  it('shows the English prompt words', async () => {
     renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
       store: makeStore(),
     });
     await waitFor(() => {
-      expect(screen.getByText('Hello, I am a student.')).toBeInTheDocument();
+      // Each word is rendered individually as tappable elements
+      expect(screen.getByText('Hello,')).toBeInTheDocument();
+      expect(screen.getByText('am')).toBeInTheDocument();
+      expect(screen.getByText('student.')).toBeInTheDocument();
     });
   });
 
@@ -127,6 +149,107 @@ describe('SentenceWrite — prompt display', () => {
     });
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/type chinese and press enter/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows hint text about tapping words for translation', async () => {
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/tap english words for translation help/i)).toBeInTheDocument();
+    });
+  });
+});
+
+describe('SentenceWrite — translation feature', () => {
+  it('renders English words as tappable buttons', async () => {
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+    await waitFor(() => {
+      const wordButton = screen.getByRole('button', {
+        name: /student\.: tap to select for translation/i,
+      });
+      expect(wordButton).toBeInTheDocument();
+    });
+  });
+
+  it('shows Translate button when a word is selected', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('student.')).toBeInTheDocument();
+    });
+
+    // No translate button initially
+    expect(screen.queryByRole('button', { name: /translate/i })).not.toBeInTheDocument();
+
+    // Click on "student."
+    await user.click(screen.getByText('student.'));
+
+    // Translate button should appear
+    expect(screen.getByRole('button', { name: /translate/i })).toBeInTheDocument();
+  });
+
+  it('hides Translate button when word is deselected', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('student.')).toBeInTheDocument();
+    });
+
+    // Select then deselect
+    await user.click(screen.getByText('student.'));
+    expect(screen.getByRole('button', { name: /translate/i })).toBeInTheDocument();
+
+    await user.click(screen.getByText('student.'));
+    expect(screen.queryByRole('button', { name: /translate/i })).not.toBeInTheDocument();
+  });
+
+  it('shows translation result after clicking Translate', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('student.')).toBeInTheDocument();
+    });
+
+    // Select "student." and translate
+    await user.click(screen.getByText('student.'));
+    await user.click(screen.getByRole('button', { name: /translate/i }));
+
+    // Should show the Chinese translation
+    await waitFor(() => {
+      expect(screen.getByText('学生')).toBeInTheDocument();
+      expect(screen.getByText('xué shēng')).toBeInTheDocument();
+    });
+  });
+
+  it('shows "No translation found" when no match exists', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('I')).toBeInTheDocument();
+    });
+
+    // Select "I" which won't match any sentence word meaning
+    await user.click(screen.getByText('I'));
+    await user.click(screen.getByRole('button', { name: /translate/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/no translation found/i)).toBeInTheDocument();
     });
   });
 });

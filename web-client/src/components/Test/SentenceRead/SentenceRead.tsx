@@ -23,118 +23,13 @@ import * as wordActions from '../../../store/actions/index';
 import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
 import { AppDispatch } from '../../../types/actions';
-import { searchWord, substringMatch } from '../../../services/dictionaryService';
 import { getSegmentedSentence } from '../../../services/sentenceService';
 import { parseMeanings } from '../../../utils/meaningUtils';
+import { resolveSentence, SentenceWord, ResolvedSentence } from '../../../utils/sentenceUtils';
 import * as ttsService from '../../../services/ttsService';
 
 const beep = new Howl({ src: [successSound], volume: 0.5 });
 const fail = new Howl({ src: [failSound], volume: 0.7 });
-
-interface SentenceWord {
-  id: number;
-  simp: string;
-  trad: string;
-  pinyin: string;
-  meaning: string;
-}
-
-// What the cloud function returns (segmented strings, no lookups)
-interface CloudSentence {
-  chinese: {
-    sentence: string;
-    highlight: number[][];
-    segments: string[];
-    targetIndex: number;
-  };
-  english: {
-    sentence: string;
-    highlight: number[][];
-  };
-}
-
-// Resolved sentence with full word data (used for rendering)
-interface ResolvedSentence {
-  chinese: {
-    sentence: string;
-    words: (string | SentenceWord | SentenceWord[])[];
-    highlight: number[][];
-    targetIndex: number;
-  };
-  english: {
-    sentence: string;
-    highlight: number[][];
-  };
-}
-
-/**
- * Resolve segmented word strings to full word objects using the static dictionary.
- */
-async function resolveSentence(cloudSentence: CloudSentence): Promise<ResolvedSentence> {
-  // Collect unique non-target segments
-  const uniqueSegments = new Set<string>();
-  cloudSentence.chinese.segments.forEach((seg, i) => {
-    if (i !== cloudSentence.chinese.targetIndex) {
-      uniqueSegments.add(seg);
-    }
-  });
-
-  // Resolve all unique segments in parallel via static dictionary
-  const segmentArray = Array.from(uniqueSegments);
-  const lookupResults = await Promise.all(
-    segmentArray.map(async (seg) => {
-      const results = await searchWord(seg, 'simp');
-      return { seg, word: results.length > 0 ? results[0] : null };
-    }),
-  );
-
-  const wordMap = new Map<string, SentenceWord>();
-  for (const { seg, word } of lookupResults) {
-    if (word) {
-      wordMap.set(seg, {
-        id: word.id,
-        simp: word.simp,
-        trad: word.trad,
-        pinyin: word.pinyin,
-        meaning: word.meaning,
-      });
-    }
-  }
-
-  const words: (SentenceWord | string | SentenceWord[])[] = await Promise.all(
-    cloudSentence.chinese.segments.map(async (seg, i) => {
-      if (i === cloudSentence.chinese.targetIndex) {
-        return seg; // Target word stays as string marker
-      }
-      const resolved = wordMap.get(seg);
-      if (resolved) return resolved;
-
-      // No exact match — decompose into smaller dictionary-matched substrings
-      const subWords = await substringMatch(seg, 'simp');
-      if (subWords.length === 1 && subWords[0].id === -1) {
-        // Single unknown character — keep as plain string
-        return seg;
-      }
-      return subWords.map((w) => ({
-        id: w.id,
-        simp: w.simp,
-        trad: w.trad,
-        pinyin: w.pinyin,
-        meaning: w.meaning,
-      }));
-    }),
-  );
-
-  return {
-    chinese: {
-      sentence: cloudSentence.chinese.sentence,
-      highlight: cloudSentence.chinese.highlight,
-      targetIndex: cloudSentence.chinese.targetIndex,
-      words,
-    },
-    english: cloudSentence.english,
-  };
-}
 
 interface SentenceReadState {
   sentences: ResolvedSentence[];
