@@ -60,7 +60,13 @@ import { renderWithProviders, createTestStore } from '../../../test/utils';
 function makeStore() {
   return createTestStore({
     auth: { userId: null, loading: false, initialized: true, modalOpen: false },
-    addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [], loading: false, error: false },
+    addWords: {
+      lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+      activeListId: 'default',
+      words: [],
+      loading: false,
+      error: false,
+    },
     settings: { speechAvailable: false, synthAvailable: false },
   });
 }

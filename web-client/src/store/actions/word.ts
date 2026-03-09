@@ -283,10 +283,7 @@ export const finishTest = (scores: { word_id: number; score: number }[]): AppThu
 
       // Re-fetch words so the local store has updated bank levels and due dates
       try {
-        const updatedWords = await wordService.getUserWords(
-          auth.userId,
-          addWords.activeListId,
-        );
+        const updatedWords = await wordService.getUserWords(auth.userId, addWords.activeListId);
         dispatch(setWords(updatedWords));
       } catch (fetchError) {
         console.error('Failed to refresh words after test:', fetchError);

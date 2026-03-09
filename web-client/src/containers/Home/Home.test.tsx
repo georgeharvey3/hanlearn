@@ -98,7 +98,13 @@ describe('Home — unauthenticated state', () => {
         modalOpen: false,
         modalMode: 'login' as const,
       },
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [], error: false, loading: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        error: false,
+        loading: false,
+      },
       settings: { speechAvailable: false, synthAvailable: false },
     });
     renderWithProviders(<Home />, { store });
@@ -118,7 +124,13 @@ describe('Home — unauthenticated state', () => {
         modalOpen: false,
         modalMode: 'login' as const,
       },
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [], error: false, loading: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        error: false,
+        loading: false,
+      },
       settings: { speechAvailable: false, synthAvailable: false },
     });
     renderWithProviders(<Home />, { store });
@@ -157,7 +169,13 @@ describe('Home — authenticated state', () => {
         modalOpen: false,
         modalMode: 'login' as const,
       },
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [], error: false, loading: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        error: false,
+        loading: false,
+      },
       settings: { speechAvailable: false, synthAvailable: false },
     });
     renderWithProviders(<Home />, { store });
@@ -259,7 +277,13 @@ describe('Home — numDue with slash-format dates (Safari regression)', () => {
 
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [dueWord, futureWord], error: false, loading: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord, futureWord],
+        error: false,
+        loading: false,
+      },
     });
     renderWithProviders(<Home />, { store });
 
@@ -331,7 +355,13 @@ describe('Home — navigation handlers', () => {
         modalOpen: false,
         modalMode: 'login' as const,
       },
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [], error: false, loading: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        error: false,
+        loading: false,
+      },
       settings: { speechAvailable: false, synthAvailable: false },
     });
     renderWithProviders(<Home />, { store });

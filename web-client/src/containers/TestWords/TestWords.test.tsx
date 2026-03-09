@@ -99,7 +99,13 @@ describe('TestWords — auth guard', () => {
   it('redirects to / when user is not authenticated', () => {
     const store = createTestStore({
       auth: { userId: null, loading: false, initialized: true, modalOpen: false },
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [], loading: false, error: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        loading: false,
+        error: false,
+      },
       settings: { speechAvailable: false, synthAvailable: false },
     });
     renderWithProviders(<TestWords />, { store });
@@ -113,7 +119,13 @@ describe('TestWords — empty bank / no words due', () => {
   it('shows "No words due for testing" when word list is empty', async () => {
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [], loading: false, error: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        loading: false,
+        error: false,
+      },
     });
     renderWithProviders(<TestWords />, { store });
     await waitFor(() => {
@@ -124,7 +136,13 @@ describe('TestWords — empty bank / no words due', () => {
   it('shows Add Words button when no words are due', async () => {
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [], loading: false, error: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        loading: false,
+        error: false,
+      },
     });
     renderWithProviders(<TestWords />, { store });
     await waitFor(() => {
@@ -135,7 +153,13 @@ describe('TestWords — empty bank / no words due', () => {
   it('does NOT show Practice button when bank is empty', async () => {
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [], loading: false, error: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        loading: false,
+        error: false,
+      },
     });
     renderWithProviders(<TestWords />, { store });
     await waitFor(() => {
@@ -147,7 +171,13 @@ describe('TestWords — empty bank / no words due', () => {
   it('shows Practice button when there are words in bank but none due', async () => {
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [futureWord(1, '你好')], loading: false, error: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [futureWord(1, '你好')],
+        loading: false,
+        error: false,
+      },
     });
     renderWithProviders(<TestWords />, { store });
     await waitFor(() => {
@@ -160,7 +190,13 @@ describe('TestWords — initWords side-effect', () => {
   it('calls initWords on mount when authenticated', async () => {
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [], loading: false, error: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        loading: false,
+        error: false,
+      },
     });
     renderWithProviders(<TestWords />, { store });
     await waitFor(() => {
@@ -181,7 +217,13 @@ describe('TestWords — demo mode', () => {
     // No userId in store — demo should bypass auth
     const store = createTestStore({
       auth: { userId: null, loading: false, initialized: true, modalOpen: false },
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [], loading: false, error: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        loading: false,
+        error: false,
+      },
       settings: { speechAvailable: false, synthAvailable: false },
     });
     renderWithProviders(<TestWords isDemo />, { store });
@@ -197,7 +239,13 @@ describe('TestWords — active session with due words', () => {
     // Words with bank > 1 skip the 'new' stage and go directly to 'vocab'
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [dueWord(1, '你好', 2)], loading: false, error: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord(1, '你好', 2)],
+        loading: false,
+        error: false,
+      },
     });
     renderWithProviders(<TestWords />, { store });
     await waitFor(() => {
@@ -208,7 +256,13 @@ describe('TestWords — active session with due words', () => {
   it('shows NewWords stage when there are bank-1 words due', async () => {
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [dueWord(1, '你好', 1)], loading: false, error: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord(1, '你好', 1)],
+        loading: false,
+        error: false,
+      },
     });
     renderWithProviders(<TestWords />, { store });
     await waitFor(() => {
@@ -219,7 +273,13 @@ describe('TestWords — active session with due words', () => {
   it('renders the stepper with Test and Done steps for bank>1 words', async () => {
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [dueWord(1, '你好', 2)], loading: false, error: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord(1, '你好', 2)],
+        loading: false,
+        error: false,
+      },
     });
     renderWithProviders(<TestWords />, { store });
     await waitFor(() => {
@@ -231,7 +291,13 @@ describe('TestWords — active session with due words', () => {
   it('renders Learn step in stepper when bank-1 words are included', async () => {
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [dueWord(1, '你好', 1)], loading: false, error: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord(1, '你好', 1)],
+        loading: false,
+        error: false,
+      },
     });
     renderWithProviders(<TestWords />, { store });
     await waitFor(() => {
@@ -245,7 +311,13 @@ describe('TestWords — practice mode', () => {
     const user = userEvent.setup();
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [futureWord(1, '你好')], loading: false, error: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [futureWord(1, '你好')],
+        loading: false,
+        error: false,
+      },
     });
     renderWithProviders(<TestWords />, { store });
 
@@ -268,7 +340,13 @@ describe('TestWords — stage transitions', () => {
   it('transitions to read stage when startSentenceRead is called from Test component', async () => {
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [dueWord(1, '你好', 2)], loading: false, error: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord(1, '你好', 2)],
+        loading: false,
+        error: false,
+      },
     });
     renderWithProviders(<TestWords />, { store });
 
@@ -298,7 +376,13 @@ describe('TestWords — stage transitions', () => {
 
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [dueWord(1, '你好', 2)], loading: false, error: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord(1, '你好', 2)],
+        loading: false,
+        error: false,
+      },
     });
     renderWithProviders(<TestWords />, { store });
 
@@ -322,7 +406,13 @@ describe('TestWords — stage transitions', () => {
   it('shows summary stage when onVocabComplete is called from Test component', async () => {
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [dueWord(1, '你好', 2)], loading: false, error: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord(1, '你好', 2)],
+        loading: false,
+        error: false,
+      },
     });
     renderWithProviders(<TestWords />, { store });
 
@@ -345,7 +435,13 @@ describe('TestWords — stage transitions', () => {
   it('shows Practice step in stepper when sentenceReadEnabled=true', async () => {
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [dueWord(1, '你好', 2)], loading: false, error: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord(1, '你好', 2)],
+        loading: false,
+        error: false,
+      },
     });
     renderWithProviders(<TestWords />, { store });
 

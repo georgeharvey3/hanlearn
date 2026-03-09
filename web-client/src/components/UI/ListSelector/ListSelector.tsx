@@ -89,11 +89,7 @@ const ListSelector: React.FC<ListSelectorProps> = ({
         }}
       >
         <FormControl size="small" sx={{ minWidth: 160 }}>
-          <Select
-            value={activeListId}
-            onChange={handleListChange}
-            data-testid="list-selector"
-          >
+          <Select value={activeListId} onChange={handleListChange} data-testid="list-selector">
             {safeLists.map((list) => (
               <MenuItem key={list.id} value={list.id}>
                 {list.name}
@@ -179,8 +175,8 @@ const ListSelector: React.FC<ListSelectorProps> = ({
         <DialogTitle>Delete List</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete &ldquo;{activeList?.name}&rdquo;? All words in this
-            list will be permanently removed.
+            Are you sure you want to delete &ldquo;{activeList?.name}&rdquo;? All words in this list
+            will be permanently removed.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

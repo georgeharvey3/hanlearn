@@ -86,9 +86,7 @@ export const getUserWordLists = async (userId: string): Promise<WordList[]> => {
     return {
       id: doc.id,
       name: data.name,
-      createdAt: data.createdAt?.toDate?.()
-        ? formatDate(data.createdAt.toDate())
-        : '',
+      createdAt: data.createdAt?.toDate?.() ? formatDate(data.createdAt.toDate()) : '',
       order: data.order ?? 0,
     };
   });
@@ -109,10 +107,7 @@ export const getUserWordLists = async (userId: string): Promise<WordList[]> => {
 /**
  * Create a new word list
  */
-export const createWordList = async (
-  userId: string,
-  name: string,
-): Promise<WordList> => {
+export const createWordList = async (userId: string, name: string): Promise<WordList> => {
   // Get current lists to determine next order value
   const listsRef = collection(db, 'users', userId, 'wordLists');
   const snapshot = await getDocs(listsRef);
@@ -152,10 +147,7 @@ export const renameWordList = async (
 /**
  * Delete a word list and all its words
  */
-export const deleteWordList = async (
-  userId: string,
-  listId: string,
-): Promise<void> => {
+export const deleteWordList = async (userId: string, listId: string): Promise<void> => {
   if (listId === 'default') {
     throw new Error('Cannot delete the default word list');
   }
@@ -183,18 +175,11 @@ export const deleteWordList = async (
  * Get all words in a user's word bank, sorted by due date.
  * Optionally filtered by listId.
  */
-export const getUserWords = async (
-  userId: string,
-  listId?: string,
-): Promise<Word[]> => {
+export const getUserWords = async (userId: string, listId?: string): Promise<Word[]> => {
   const userWordsRef = collection(db, 'users', userId, 'userWords');
   let q;
   if (listId) {
-    q = query(
-      userWordsRef,
-      where('listId', '==', listId),
-      orderBy('dueDate', 'asc'),
-    );
+    q = query(userWordsRef, where('listId', '==', listId), orderBy('dueDate', 'asc'));
   } else {
     q = query(userWordsRef, orderBy('dueDate', 'asc'));
   }
@@ -206,19 +191,12 @@ export const getUserWords = async (
  * Get words that are due for review (due date <= today).
  * Optionally filtered by listId.
  */
-export const getDueUserWords = async (
-  userId: string,
-  listId?: string,
-): Promise<Word[]> => {
+export const getDueUserWords = async (userId: string, listId?: string): Promise<Word[]> => {
   const userWordsRef = collection(db, 'users', userId, 'userWords');
   const now = Timestamp.now();
   let q;
   if (listId) {
-    q = query(
-      userWordsRef,
-      where('listId', '==', listId),
-      where('dueDate', '<=', now),
-    );
+    q = query(userWordsRef, where('listId', '==', listId), where('dueDate', '<=', now));
   } else {
     q = query(userWordsRef, where('dueDate', '<=', now));
   }

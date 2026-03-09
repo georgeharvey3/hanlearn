@@ -64,7 +64,13 @@ describe('word action thunks', () => {
           modalOpen: false,
           modalMode: 'login',
         },
-        addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [], error: false, loading: false },
+        addWords: {
+          lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+          activeListId: 'default',
+          words: [],
+          error: false,
+          loading: false,
+        },
         settings: { speechAvailable: false, synthAvailable: false },
       });
 
@@ -91,7 +97,11 @@ describe('word action thunks', () => {
 
       await store.dispatch(wordActions.postWord(sampleWord) as any);
 
-      expect(mockedWordService.addWordToBank).toHaveBeenCalledWith('test-user-123', sampleWord, 'default');
+      expect(mockedWordService.addWordToBank).toHaveBeenCalledWith(
+        'test-user-123',
+        sampleWord,
+        'default',
+      );
       expect(store.getState().addWords.words).toHaveLength(1);
       expect(store.getState().addWords.words[0].simp).toBe('你好');
     });
@@ -107,7 +117,13 @@ describe('word action thunks', () => {
           modalOpen: false,
           modalMode: 'login',
         },
-        addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [], error: false, loading: false },
+        addWords: {
+          lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+          activeListId: 'default',
+          words: [],
+          error: false,
+          loading: false,
+        },
         settings: { speechAvailable: false, synthAvailable: false },
       });
 
@@ -123,7 +139,13 @@ describe('word action thunks', () => {
       mockedWordService.removeWordFromBank.mockResolvedValue(undefined);
       const store = createTestStore({
         ...authenticatedState(),
-        addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [sampleWord], error: false, loading: false },
+        addWords: {
+          lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+          activeListId: 'default',
+          words: [sampleWord],
+          error: false,
+          loading: false,
+        },
       });
 
       await store.dispatch(wordActions.deleteWord(1) as any);
@@ -138,7 +160,13 @@ describe('word action thunks', () => {
       mockedWordService.updateWordMeaning.mockResolvedValue(undefined);
       const store = createTestStore({
         ...authenticatedState(),
-        addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [sampleWord], error: false, loading: false },
+        addWords: {
+          lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+          activeListId: 'default',
+          words: [sampleWord],
+          error: false,
+          loading: false,
+        },
       });
 
       await store.dispatch(wordActions.postUpdateMeaning(1, 'hi there') as any);
@@ -211,7 +239,13 @@ describe('word action thunks', () => {
           modalOpen: false,
           modalMode: 'login',
         },
-        addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [], error: false, loading: false },
+        addWords: {
+          lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+          activeListId: 'default',
+          words: [],
+          error: false,
+          loading: false,
+        },
         settings: { speechAvailable: false, synthAvailable: false },
       });
 

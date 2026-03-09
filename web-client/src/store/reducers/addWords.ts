@@ -117,8 +117,7 @@ const reducer = (state = initialState, action: WordAction): AddWordsState => {
     case actionTypes.REMOVE_WORD_LIST: {
       const newLists = state.lists.filter((list) => list.id !== action.listId);
       // If the active list was deleted, switch to default
-      const newActiveListId =
-        state.activeListId === action.listId ? 'default' : state.activeListId;
+      const newActiveListId = state.activeListId === action.listId ? 'default' : state.activeListId;
       return {
         ...state,
         lists: newLists,

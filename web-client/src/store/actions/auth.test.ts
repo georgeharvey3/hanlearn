@@ -23,7 +23,13 @@ const defaultStoreState = {
     modalOpen: false,
     modalMode: 'login' as const,
   },
-  addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [], error: false, loading: false },
+  addWords: {
+    lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+    activeListId: 'default',
+    words: [],
+    error: false,
+    loading: false,
+  },
   settings: { speechAvailable: false, synthAvailable: false },
 };
 
