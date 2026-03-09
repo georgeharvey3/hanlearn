@@ -429,6 +429,43 @@ describe('useTestEngine — pinyin hint', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Character hint: showOutline should toggle on/off via showHint state
+// ---------------------------------------------------------------------------
+describe('useTestEngine — character hint toggle', () => {
+  it('shows outline and sets showHint=true on first hint click', () => {
+    mockWriter.showOutline.mockClear();
+    const result = renderEngineWithState({
+      answerCategory: 'character',
+      writer: mockWriter,
+      showHint: false,
+    });
+
+    act(() => {
+      result.current.onHint();
+    });
+
+    expect(mockWriter.showOutline).toHaveBeenCalled();
+    expect(result.current.state.showHint).toBe(true);
+  });
+
+  it('hides outline and sets showHint=false on second hint click', () => {
+    mockWriter.hideOutline.mockClear();
+    const result = renderEngineWithState({
+      answerCategory: 'character',
+      writer: mockWriter,
+      showHint: true,
+    });
+
+    act(() => {
+      result.current.onHint();
+    });
+
+    expect(mockWriter.hideOutline).toHaveBeenCalled();
+    expect(result.current.state.showHint).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Regression: submitSpeech numSpeakTries condition (was > -1, always true)
 // After a first wrong speech attempt, showInput should NOT be set yet;
 // the counter should increment so showInput appears only after the second fail.

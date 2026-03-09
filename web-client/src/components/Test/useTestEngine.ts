@@ -537,6 +537,7 @@ export const useTestEngine = (props: Props) => {
         showHintAfterMisses: numBeforeHint,
         delayBetweenStrokes: 10,
         strokeAnimationSpeed: 1,
+        outlineColor: '#555',
       });
 
       setStateMerged({ writer });
@@ -723,6 +724,9 @@ export const useTestEngine = (props: Props) => {
   const onHint = useCallback((): void => {
     const current = getState();
     if (current.showHint) {
+      if (current.answerCategory === 'character' && current.writer) {
+        current.writer.hideOutline();
+      }
       setStateMerged({ result: '', showHint: false });
       return;
     }
@@ -735,9 +739,7 @@ export const useTestEngine = (props: Props) => {
       showSentenceHint(current.chosenCharacter);
     } else if (current.answerCategory === 'character' && current.writer) {
       current.writer.showOutline();
-      setTimeout(() => {
-        current.writer?.hideOutline();
-      }, 500);
+      setStateMerged({ showHint: true });
     }
   }, [getState, setStateMerged, showSentenceHint]);
 
