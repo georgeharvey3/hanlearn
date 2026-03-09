@@ -41,16 +41,14 @@ const NavigationItems: React.FC<Props> = (props) => {
       ];
 
       const drawerItemSx = {
-        color: 'rgba(255,255,255,0.7)',
+        color: 'text.primary',
         borderRadius: 2,
         py: 1.2,
         '&:hover': {
-          backgroundColor: 'rgba(255,255,255,0.1)',
-          color: 'common.white',
+          backgroundColor: 'rgba(0,0,0,0.06)',
         },
         '&.active': {
-          backgroundColor: 'rgba(255,255,255,0.15)',
-          color: 'common.white',
+          backgroundColor: 'rgba(0,0,0,0.1)',
           fontWeight: 600,
         },
       };
@@ -80,12 +78,11 @@ const NavigationItems: React.FC<Props> = (props) => {
                 props.drawerClosed?.();
               }}
               sx={{
-                color: 'rgba(255,255,255,0.7)',
+                color: 'text.primary',
                 borderRadius: 2,
                 py: 1.2,
                 '&:hover': {
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  color: 'common.white',
+                  backgroundColor: 'rgba(0,0,0,0.06)',
                 },
               }}
             >
@@ -99,16 +96,14 @@ const NavigationItems: React.FC<Props> = (props) => {
     const unauthLinks = [{ to: '/', label: 'Home' }];
 
     const drawerItemSx = {
-      color: 'rgba(255,255,255,0.7)',
+      color: 'text.primary',
       borderRadius: 2,
       py: 1.2,
       '&:hover': {
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        color: 'common.white',
+        backgroundColor: 'rgba(0,0,0,0.06)',
       },
       '&.active': {
-        backgroundColor: 'rgba(255,255,255,0.15)',
-        color: 'common.white',
+        backgroundColor: 'rgba(0,0,0,0.1)',
         fontWeight: 600,
       },
     };
@@ -135,12 +130,11 @@ const NavigationItems: React.FC<Props> = (props) => {
               props.drawerClosed?.();
             }}
             sx={{
-              color: 'rgba(255,255,255,0.7)',
+              color: 'text.primary',
               borderRadius: 2,
               py: 1.2,
               '&:hover': {
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                color: 'common.white',
+                backgroundColor: 'rgba(0,0,0,0.06)',
               },
             }}
           >
@@ -154,12 +148,11 @@ const NavigationItems: React.FC<Props> = (props) => {
               props.drawerClosed?.();
             }}
             sx={{
-              color: 'rgba(255,255,255,0.7)',
+              color: 'text.primary',
               borderRadius: 2,
               py: 1.2,
               '&:hover': {
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                color: 'common.white',
+                backgroundColor: 'rgba(0,0,0,0.06)',
               },
             }}
           >
