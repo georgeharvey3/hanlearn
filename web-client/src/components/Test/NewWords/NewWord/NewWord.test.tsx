@@ -373,9 +373,14 @@ describe('NewWord character decomposition', () => {
       { id: 1, simp: '大', trad: '大', pinyin: 'dà', meaning: 'big' },
     ]);
 
-    let resolveDecompose!: (value: { char: string; meaning: string | null; pinyin: string | null }[]) => void;
+    let resolveDecompose!: (
+      value: { char: string; meaning: string | null; pinyin: string | null }[],
+    ) => void;
     mockDecomposeCharacter.mockImplementation(
-      () => new Promise((resolve) => { resolveDecompose = resolve; }),
+      () =>
+        new Promise((resolve) => {
+          resolveDecompose = resolve;
+        }),
     );
 
     renderWithProviders(<NewWord word={makeWord('大家', 'dàjiā', 'everyone')} />, {
@@ -405,14 +410,13 @@ describe('NewWord character decomposition', () => {
 
   it('resets decomposition when a different character is clicked', async () => {
     mockSearchWord.mockImplementation(async (char) => {
-      if (char === '爱') return [{ id: 1, simp: '爱', trad: '愛', pinyin: 'ài', meaning: 'to love' }];
+      if (char === '爱')
+        return [{ id: 1, simp: '爱', trad: '愛', pinyin: 'ài', meaning: 'to love' }];
       if (char === '你') return [{ id: 2, simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' }];
       return [];
     });
 
-    mockDecomposeCharacter.mockResolvedValue([
-      { char: '爫', meaning: 'claw', pinyin: null },
-    ]);
+    mockDecomposeCharacter.mockResolvedValue([{ char: '爫', meaning: 'claw', pinyin: null }]);
 
     renderWithProviders(<NewWord word={makeWord('爱你', 'ài nǐ', 'love you')} />, {
       store: makeNoSoundStore(),
@@ -445,14 +449,14 @@ describe('NewWord character decomposition', () => {
 
   it('clicking a component triggers character lookup', async () => {
     mockSearchWord.mockImplementation(async (char) => {
-      if (char === '爱') return [{ id: 1, simp: '爱', trad: '愛', pinyin: 'ài', meaning: 'to love' }];
-      if (char === '友') return [{ id: 3, simp: '友', trad: '友', pinyin: 'yǒu', meaning: 'friend' }];
+      if (char === '爱')
+        return [{ id: 1, simp: '爱', trad: '愛', pinyin: 'ài', meaning: 'to love' }];
+      if (char === '友')
+        return [{ id: 3, simp: '友', trad: '友', pinyin: 'yǒu', meaning: 'friend' }];
       return [];
     });
 
-    mockDecomposeCharacter.mockResolvedValue([
-      { char: '友', meaning: 'friend', pinyin: 'yǒu' },
-    ]);
+    mockDecomposeCharacter.mockResolvedValue([{ char: '友', meaning: 'friend', pinyin: 'yǒu' }]);
 
     renderWithProviders(<NewWord word={makeWord('爱你', 'ài nǐ', 'love you')} />, {
       store: makeNoSoundStore(),
