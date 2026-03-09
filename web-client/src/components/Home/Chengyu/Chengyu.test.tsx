@@ -9,6 +9,7 @@
  * - After finishing, shows character breakdown (charPinyins details)
  * - After finishing, shows the correct meaning text
  * - Multiple wrong clicks are tracked individually
+ * - Traditional characters display immediately when charSet is 'trad'
  */
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
@@ -18,6 +19,7 @@ vi.mock('../../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai
 vi.mock('../../../data/chengyus', () => ({
   getDailyChengyu: vi.fn(() => ({
     chengyu: '独一无二',
+    tradChengyu: '獨一無二',
     pinyin: 'dú yī wú èr',
     options: ['unique', 'to be together forever', 'to live frugally', 'to be graceful'],
     correct: 'unique',
@@ -27,15 +29,18 @@ vi.mock('../../../data/chengyus', () => ({
       { char: '无', pinyin: 'wú' },
       { char: '二', pinyin: 'èr' },
     ],
-  })),
-  convertDailyChengyu: vi.fn().mockResolvedValue({
-    chengyu: '独一无二',
-    charPinyins: [
-      { char: '独', pinyin: 'dú' },
+    tradCharPinyins: [
+      { char: '獨', pinyin: 'dú' },
       { char: '一', pinyin: 'yī' },
-      { char: '无', pinyin: 'wú' },
+      { char: '無', pinyin: 'wú' },
       { char: '二', pinyin: 'èr' },
     ],
+  })),
+  convertDailyChengyu: vi.fn((dailyChengyu, charSet) => {
+    if (charSet === 'trad') {
+      return { chengyu: dailyChengyu.tradChengyu, charPinyins: dailyChengyu.tradCharPinyins };
+    }
+    return { chengyu: dailyChengyu.chengyu, charPinyins: dailyChengyu.charPinyins };
   }),
   lookupCharacterMeanings: vi.fn().mockResolvedValue([
     { char: '独', meaning: 'alone; independent' },
@@ -87,6 +92,14 @@ describe('Chengyu — initial render', () => {
   it('shows "Choose the correct translation" prompt', () => {
     renderWithProviders(<Chengyu />, { store: makeStore() });
     expect(screen.getByText(/choose the correct translation/i)).toBeInTheDocument();
+  });
+});
+
+describe('Chengyu — traditional characters', () => {
+  it('displays traditional characters immediately when charSet is trad', () => {
+    localStorage.setItem('charSet', 'trad');
+    renderWithProviders(<Chengyu />, { store: makeStore() });
+    expect(screen.getByText('獨一無二')).toBeInTheDocument();
   });
 });
 
