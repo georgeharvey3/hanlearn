@@ -1,4 +1,4 @@
-import React, { ChangeEvent, useCallback, useState } from 'react';
+import React, { ChangeEvent, useCallback, useMemo, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -12,6 +12,7 @@ import Tooltip from '@mui/material/Tooltip';
 
 import { RootState } from '../../types/store';
 import { colors } from '../../theme';
+import { estimateTestTime, formatTestTime } from '../../utils/estimateTestTime';
 
 interface SettingsState {
   charSet: string;
@@ -257,6 +258,30 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
     },
   ];
 
+  const timeEstimate = useMemo(
+    () =>
+      formatTestTime(
+        estimateTestTime({
+          numWords: state.numWords,
+          useHandwriting: state.useHandwriting,
+          priority: state.priority,
+          onlyPriority: state.onlyPriority,
+          newWordsEnabled: state.newWords,
+          sentenceReadEnabled: state.sentenceRead,
+          sentenceWriteEnabled: state.sentenceWrite,
+        }),
+      ),
+    [
+      state.numWords,
+      state.useHandwriting,
+      state.priority,
+      state.onlyPriority,
+      state.newWords,
+      state.sentenceRead,
+      state.sentenceWrite,
+    ],
+  );
+
   return (
     <Box sx={{ color: 'text.primary' }}>
       <SectionGroup label="Character Set">
@@ -311,6 +336,12 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
               20
             </Typography>
           </Box>
+          <Typography
+            variant="body2"
+            sx={{ color: 'text.secondary', mt: 1.5, textAlign: 'center' }}
+          >
+            Estimated test time: {timeEstimate}
+          </Typography>
         </Box>
       </SectionGroup>
 
