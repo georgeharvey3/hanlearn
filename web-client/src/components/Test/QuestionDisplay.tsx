@@ -42,7 +42,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
             alignItems: 'center',
             justifyContent: 'center',
             overflow: 'hidden',
-            height: '100px',
+            minHeight: '100px',
           }}
         >
           {synthLoading ? (
