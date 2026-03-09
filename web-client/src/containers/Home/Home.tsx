@@ -46,8 +46,12 @@ const Home: React.FC<Props> = ({
     now.setHours(0, 0, 0, 0);
     return words.filter((w) => {
       if (!w.due_date) return true;
-      const due = new Date(w.due_date);
-      due.setHours(0, 0, 0, 0);
+      // Use the same safe parser as TestLogic to avoid Safari/iOS failures
+      // with slash-separated date strings (YYYY/MM/DD)
+      const normalised = w.due_date.replace(/\//g, '-');
+      const [year, month, day] = normalised.split('-').map(Number);
+      if (!year || !month || !day) return true;
+      const due = new Date(year, month - 1, day);
       return due <= now;
     }).length;
   }, [words]);
