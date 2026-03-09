@@ -215,6 +215,56 @@ describe('Home — authenticated state', () => {
   });
 });
 
+describe('Home — numDue with slash-format dates (Safari regression)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedWordService.getUserWords.mockResolvedValue([]);
+  });
+
+  it('correctly parses YYYY/MM/DD slash-format due dates (Safari safe)', async () => {
+    // wordService.formatDate produces YYYY/MM/DD strings.
+    // new Date('2026/03/09') returns Invalid Date in some environments.
+    // The fix uses manual parsing to avoid this.
+    const todayParts = TODAY.toISOString().split('T')[0].split('-');
+    const slashToday = `${todayParts[0]}/${todayParts[1]}/${todayParts[2]}`;
+
+    const futureParts = new Date(TODAY.getTime() + 3 * 86400000)
+      .toISOString()
+      .split('T')[0]
+      .split('-');
+    const slashFuture = `${futureParts[0]}/${futureParts[1]}/${futureParts[2]}`;
+
+    const dueWord: Word = {
+      id: 10,
+      simp: '好',
+      trad: '好',
+      pinyin: 'hǎo',
+      meaning: 'good',
+      bank: 1,
+      due_date: slashToday,
+    };
+    const futureWord: Word = {
+      id: 11,
+      simp: '坏',
+      trad: '壞',
+      pinyin: 'huài',
+      meaning: 'bad',
+      bank: 2,
+      due_date: slashFuture,
+    };
+
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: { words: [dueWord, futureWord], error: false, loading: false },
+    });
+    renderWithProviders(<Home />, { store });
+
+    await waitFor(() => {
+      expect(screen.getByText(/1\/2 words due/i)).toBeInTheDocument();
+    });
+  });
+});
+
 describe('Home — navigation handlers', () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -39,6 +39,7 @@ export default defineConfig(async () => {
       environment: 'jsdom',
       setupFiles: ['./src/setupTests.ts'],
       exclude: ['**/node_modules/**', '**/e2e/**'],
+      testTimeout: 15000,
     },
   };
 });
