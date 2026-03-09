@@ -45,7 +45,7 @@ const Sidebar: React.FC<PropsFromRedux> = ({ onLogout }) => {
         '& .MuiDrawer-paper': {
           width: SIDEBAR_WIDTH,
           boxSizing: 'border-box',
-          backgroundColor: colors.primaryDark,
+          backgroundColor: colors.primary,
           borderRight: 'none',
           top: 56,
           height: 'calc(100% - 56px)',
@@ -71,19 +71,17 @@ const Sidebar: React.FC<PropsFromRedux> = ({ onLogout }) => {
                 to={link.to}
                 exact
                 sx={{
-                  color: 'rgba(255,255,255,0.7)',
+                  color: colors.text,
                   borderRadius: 2,
                   py: 1.2,
                   '&:hover': {
-                    backgroundColor: 'rgba(255,255,255,0.1)',
-                    color: colors.white,
+                    backgroundColor: 'rgba(0,0,0,0.06)',
                   },
                   '&.active': {
-                    backgroundColor: 'rgba(255,255,255,0.15)',
-                    color: colors.white,
+                    backgroundColor: 'rgba(0,0,0,0.1)',
                     fontWeight: 600,
                     '& .MuiListItemIcon-root': {
-                      color: colors.primary,
+                      color: colors.primaryDark,
                     },
                   },
                 }}
@@ -97,18 +95,17 @@ const Sidebar: React.FC<PropsFromRedux> = ({ onLogout }) => {
             </ListItem>
           ))}
         </List>
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.15)', mx: 1 }} />
+        <Divider sx={{ borderColor: 'rgba(0,0,0,0.12)', mx: 1 }} />
         <List sx={{ px: 1, pb: 1 }}>
           <ListItem disablePadding>
             <ListItemButton
               onClick={onLogout}
               sx={{
-                color: 'rgba(255,255,255,0.7)',
+                color: colors.text,
                 borderRadius: 2,
                 py: 1.2,
                 '&:hover': {
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  color: colors.white,
+                  backgroundColor: 'rgba(0,0,0,0.06)',
                 },
               }}
             >
