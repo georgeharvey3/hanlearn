@@ -85,6 +85,63 @@ describe('chooseTestSet', () => {
     expect(result).toHaveLength(0);
   });
 
+  it('is deterministic across repeated calls', () => {
+    const words = Array.from({ length: 10 }, (_, i) => makeWord(i, `字${i}`, '2026/02/20'));
+    const result1 = chooseTestSet(words, 5);
+    const result2 = chooseTestSet(words, 5);
+    expect(result1.map((w) => w.id)).toEqual(result2.map((w) => w.id));
+  });
+
+  it('selects oldest due dates first', () => {
+    const words = [
+      makeWord(1, '一', '2026/02/25'),
+      makeWord(2, '二', '2026/02/20'),
+      makeWord(3, '三', '2026/02/22'),
+      makeWord(4, '四', '2026/02/18'),
+      makeWord(5, '五', '2026/02/26'),
+    ];
+    const result = chooseTestSet(words, 3);
+    const ids = result.map((w) => w.id);
+    // Should pick the 3 oldest: ids 4 (Feb 18), 2 (Feb 20), 3 (Feb 22)
+    expect(ids.sort()).toEqual([2, 3, 4]);
+  });
+
+  it('breaks ties deterministically within a day', () => {
+    const words = Array.from({ length: 10 }, (_, i) => makeWord(i, `字${i}`, '2026/02/20'));
+    const results = new Set<string>();
+    for (let i = 0; i < 10; i++) {
+      const result = chooseTestSet(words, 5);
+      results.add(result.map((w) => w.id).join(','));
+    }
+    // All calls on the same day should return the same set
+    expect(results.size).toBe(1);
+  });
+
+  it('tie-breaking may change on a different day', () => {
+    const words = Array.from({ length: 20 }, (_, i) => makeWord(i, `字${i}`, '2026/02/20'));
+    const result1 = chooseTestSet(words, 5);
+    vi.setSystemTime(new Date(2026, 1, 28, 10, 0, 0));
+    const result2 = chooseTestSet(words, 5);
+    // With 20 words and only picking 5, different days should very likely differ
+    const ids1 = result1.map((w) => w.id).join(',');
+    const ids2 = result2.map((w) => w.id).join(',');
+    expect(ids1).not.toEqual(ids2);
+  });
+
+  it('selects definite words plus deterministic ties', () => {
+    const yesterday = Array.from({ length: 3 }, (_, i) => makeWord(i, `昨${i}`, '2026/02/26'));
+    const today = Array.from({ length: 5 }, (_, i) => makeWord(i + 3, `今${i}`, '2026/02/27'));
+    const words = [...yesterday, ...today];
+    const result = chooseTestSet(words, 5);
+    // All 3 from yesterday should be included
+    const resultIds = result.map((w) => w.id);
+    expect(resultIds).toContain(0);
+    expect(resultIds).toContain(1);
+    expect(resultIds).toContain(2);
+    // Plus 2 from today's tie group
+    expect(result).toHaveLength(5);
+  });
+
   it('correctly parses slash-separated dates (Safari compatibility)', () => {
     // Safari returns Invalid Date for new Date('YYYY/MM/DD'); parseDueDate must
     // split the string manually so words are selected on iOS.
