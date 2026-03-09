@@ -35,6 +35,34 @@ function parseDueDate(dateStr: string): Date | null {
   return new Date(year, month - 1, day);
 }
 
+function seedFromDate(date: Date): number {
+  const str = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 31 + str.charCodeAt(i)) | 0;
+  }
+  return hash;
+}
+
+function seededShuffle<T>(array: T[], seed: number): T[] {
+  const result = [...array];
+  let s = seed;
+  const next = () => {
+    s = (s * 1664525 + 1013904223) | 0;
+    return (s >>> 0) / 0x100000000;
+  };
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(next() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+function dueDateDay(dateStr: string): number {
+  const d = parseDueDate(dateStr)!;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
 export const chooseTestSet = (allWords: Word[], numWords: number): Word[] => {
   const today = new Date();
   const dueWords = allWords.filter((word) => {
@@ -42,7 +70,34 @@ export const chooseTestSet = (allWords: Word[], numWords: number): Word[] => {
     const due = parseDueDate(word.due_date);
     return due !== null && due <= today;
   });
-  return pickRandom(dueWords, numWords);
+
+  if (dueWords.length <= numWords) {
+    return dueWords;
+  }
+
+  // Sort by due date ascending (oldest due first)
+  dueWords.sort((a, b) => dueDateDay(a.due_date!) - dueDateDay(b.due_date!));
+
+  // Find the cutoff date (the due date of the last word we'd take)
+  const cutoffTime = dueDateDay(dueWords[numWords - 1].due_date!);
+
+  const definitelyIn: Word[] = [];
+  const tieGroup: Word[] = [];
+
+  for (const word of dueWords) {
+    const dayTime = dueDateDay(word.due_date!);
+    if (dayTime < cutoffTime) {
+      definitelyIn.push(word);
+    } else if (dayTime === cutoffTime) {
+      tieGroup.push(word);
+    }
+  }
+
+  const remaining = numWords - definitelyIn.length;
+  const seed = seedFromDate(today);
+  const shuffledTies = seededShuffle(tieGroup, seed);
+
+  return [...definitelyIn, ...shuffledTies.slice(0, remaining)];
 };
 
 /**
