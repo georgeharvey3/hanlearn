@@ -429,6 +429,57 @@ describe('useTestEngine — pinyin hint', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Character hint: showOutline flashes for 1 second then hides
+// ---------------------------------------------------------------------------
+describe('useTestEngine — character hint flash', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows outline and hides it after 1 second', () => {
+    mockWriter.showOutline.mockClear();
+    mockWriter.hideOutline.mockClear();
+    const result = renderEngineWithState({
+      answerCategory: 'character',
+      writer: mockWriter,
+      showHint: false,
+    });
+
+    act(() => {
+      result.current.onHint();
+    });
+
+    expect(mockWriter.showOutline).toHaveBeenCalled();
+    expect(mockWriter.hideOutline).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(mockWriter.hideOutline).toHaveBeenCalled();
+  });
+
+  it('does not set showHint state (no toggle behavior)', () => {
+    mockWriter.showOutline.mockClear();
+    const result = renderEngineWithState({
+      answerCategory: 'character',
+      writer: mockWriter,
+      showHint: false,
+    });
+
+    act(() => {
+      result.current.onHint();
+    });
+
+    expect(result.current.state.showHint).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Regression: submitSpeech numSpeakTries condition (was > -1, always true)
 // After a first wrong speech attempt, showInput should NOT be set yet;
 // the counter should increment so showInput appears only after the second fail.
