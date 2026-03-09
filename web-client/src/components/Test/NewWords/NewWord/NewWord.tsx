@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 
-import { Box, ButtonBase, CircularProgress, Paper, Typography } from '@mui/material';
+import { Box, Button, ButtonBase, CircularProgress, Fade, Paper, Typography } from '@mui/material';
 
 import MeaningEditor from '../../../UI/MeaningEditor/MeaningEditor';
 import PictureButton from '../../../UI/Buttons/PictureButton/PictureButton';
@@ -9,6 +9,7 @@ import PictureButton from '../../../UI/Buttons/PictureButton/PictureButton';
 import speakerPic from '../../../../assets/images/speaker.png';
 
 import { searchWord } from '../../../../services/dictionaryService';
+import { decomposeCharacter } from '../../../../services/decompositionService';
 import * as ttsService from '../../../../services/ttsService';
 
 import { RootState } from '../../../../types/store';
@@ -18,6 +19,12 @@ interface CharData {
   simp: string;
   pinyins: string[];
   meanings: string[];
+}
+
+interface DecompositionComponent {
+  char: string;
+  meaning: string | null;
+  pinyin: string | null;
 }
 
 const mapStateToProps = (state: RootState) => {
@@ -63,6 +70,8 @@ const NewWord: React.FC<Props> = ({
     localStorage.getItem('useSound') === 'false' || !synthAvailable ? false : true,
   );
   const [synthLoading, setSynthLoading] = useState(false);
+  const [components, setComponents] = useState<DecompositionComponent[] | null>(null);
+  const [decomposing, setDecomposing] = useState(false);
 
   const onSpeakPinyin = useCallback(
     (pinyinWord: string): void => {
@@ -105,9 +114,23 @@ const NewWord: React.FC<Props> = ({
     }
   }, []);
 
+  const onDecompose = useCallback(async (char: string): Promise<void> => {
+    setDecomposing(true);
+    try {
+      const result = await decomposeCharacter(char);
+      setComponents(result);
+    } catch {
+      setComponents([]);
+    } finally {
+      setDecomposing(false);
+    }
+  }, []);
+
   const onCharacterClick = useCallback(
     (char: string, index: number): void => {
       setClickedIndex(index);
+      setComponents(null);
+      setDecomposing(false);
       const cached = charCache.current.get(char);
       if (cached) {
         setCharData(cached);
@@ -140,6 +163,8 @@ const NewWord: React.FC<Props> = ({
     setCharData(null);
     setClickedIndex(null);
     setCharLoading(false);
+    setComponents(null);
+    setDecomposing(false);
     charCache.current.clear();
   }, [charSet, useSound, wordId]);
 
@@ -206,6 +231,78 @@ const NewWord: React.FC<Props> = ({
             </Typography>
             <Box sx={{ mt: 0.5, display: 'flex', justifyContent: 'center' }}>
               <MeaningEditor value={charData.meanings.join('/')} readOnly size="small" />
+            </Box>
+            <Box sx={{ mt: 1.5, textAlign: 'center' }}>
+              {components === null && !decomposing && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => onDecompose(charData.simp)}
+                  sx={{ fontSize: '0.75em', textTransform: 'none' }}
+                >
+                  Decompose ↓
+                </Button>
+              )}
+              {decomposing && <CircularProgress size={20} sx={{ mt: 0.5 }} />}
+              {components !== null && components.length > 0 && (
+                <Fade in>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      gap: 1,
+                      mt: 1,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    {components.map((comp, i) => (
+                      <ButtonBase
+                        key={i}
+                        onClick={() => onCharacterClick(comp.char, -1)}
+                        aria-label={`Show details for ${comp.char}`}
+                        sx={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          p: 1,
+                          borderRadius: 2,
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          bgcolor: 'grey.50',
+                          minWidth: 60,
+                          transition: 'background-color 0.15s',
+                          '&:hover': { bgcolor: 'grey.100' },
+                          '&:active': { transform: 'scale(0.95)' },
+                        }}
+                      >
+                        <Typography sx={{ fontSize: '1.6em', lineHeight: 1.2 }}>
+                          {comp.char}
+                        </Typography>
+                        {comp.meaning && (
+                          <Typography
+                            sx={{
+                              fontSize: '0.65em',
+                              color: 'text.secondary',
+                              mt: 0.25,
+                              maxWidth: 80,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {comp.meaning}
+                          </Typography>
+                        )}
+                      </ButtonBase>
+                    ))}
+                  </Box>
+                </Fade>
+              )}
+              {components !== null && components.length === 0 && (
+                <Typography sx={{ fontSize: '0.75em', color: 'text.disabled', mt: 0.5 }}>
+                  No decomposition available
+                </Typography>
+              )}
             </Box>
           </>
         )}

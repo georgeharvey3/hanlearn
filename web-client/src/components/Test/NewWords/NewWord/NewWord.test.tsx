@@ -6,11 +6,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import NewWord from './NewWord';
 import { renderWithProviders, createTestStore } from '../../../../test/utils';
 import * as dictionaryService from '../../../../services/dictionaryService';
+import * as decompositionService from '../../../../services/decompositionService';
 import * as ttsService from '../../../../services/ttsService';
 import { Word } from '../../../../types/models';
 
 vi.mock('../../../../services/dictionaryService', () => ({
   searchWord: vi.fn(),
+}));
+
+vi.mock('../../../../services/decompositionService', () => ({
+  decomposeCharacter: vi.fn(),
 }));
 
 vi.mock('../../../../services/ttsService', () => ({
@@ -22,6 +27,7 @@ vi.mock('../../../../services/ttsService', () => ({
 const mockedSpeak = vi.mocked(ttsService.speak);
 
 const mockSearchWord = vi.mocked(dictionaryService.searchWord);
+const mockDecomposeCharacter = vi.mocked(decompositionService.decomposeCharacter);
 
 const makeWord = (simp: string, pinyin: string, meaning: string) => ({
   id: 1,
@@ -298,5 +304,203 @@ describe('NewWord speaker button', () => {
     await user.click(screen.getByRole('button', { name: /play pronunciation/i }));
 
     expect(mockedSpeak).toHaveBeenCalledWith('你好', expect.objectContaining({}));
+  });
+});
+
+describe('NewWord character decomposition', () => {
+  function makeNoSoundStore() {
+    return createTestStore({
+      auth: { userId: 'test-user', loading: false, initialized: true },
+      settings: { speechAvailable: false, synthAvailable: false },
+    });
+  }
+
+  it('shows a Decompose button after clicking a character', async () => {
+    mockSearchWord.mockResolvedValue([
+      { id: 1, simp: '爱', trad: '愛', pinyin: 'ài', meaning: 'to love' },
+    ]);
+
+    renderWithProviders(<NewWord word={makeWord('爱你', 'ài nǐ', 'love you')} />, {
+      store: makeNoSoundStore(),
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByText('爱'));
+
+    await waitFor(() => {
+      expect(screen.getByText('ài')).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('button', { name: /decompose/i })).toBeInTheDocument();
+  });
+
+  it('calls decomposeCharacter and displays components on Decompose click', async () => {
+    mockSearchWord.mockResolvedValue([
+      { id: 1, simp: '爱', trad: '愛', pinyin: 'ài', meaning: 'to love' },
+    ]);
+
+    mockDecomposeCharacter.mockResolvedValue([
+      { char: '爫', meaning: 'claw', pinyin: null },
+      { char: '冖', meaning: 'cover', pinyin: 'mì' },
+      { char: '友', meaning: 'friend', pinyin: 'yǒu' },
+    ]);
+
+    renderWithProviders(<NewWord word={makeWord('爱你', 'ài nǐ', 'love you')} />, {
+      store: makeNoSoundStore(),
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByText('爱'));
+
+    await waitFor(() => {
+      expect(screen.getByText('ài')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /decompose/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('爫')).toBeInTheDocument();
+      expect(screen.getByText('claw')).toBeInTheDocument();
+      expect(screen.getByText('冖')).toBeInTheDocument();
+      expect(screen.getByText('cover')).toBeInTheDocument();
+      expect(screen.getByText('友')).toBeInTheDocument();
+      expect(screen.getByText('friend')).toBeInTheDocument();
+    });
+  });
+
+  it('shows loading indicator while decomposing', async () => {
+    mockSearchWord.mockResolvedValue([
+      { id: 1, simp: '大', trad: '大', pinyin: 'dà', meaning: 'big' },
+    ]);
+
+    let resolveDecompose!: (value: { char: string; meaning: string | null; pinyin: string | null }[]) => void;
+    mockDecomposeCharacter.mockImplementation(
+      () => new Promise((resolve) => { resolveDecompose = resolve; }),
+    );
+
+    renderWithProviders(<NewWord word={makeWord('大家', 'dàjiā', 'everyone')} />, {
+      store: makeNoSoundStore(),
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByText('大'));
+
+    await waitFor(() => {
+      expect(screen.getByText('dà')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /decompose/i }));
+
+    // Should show loading spinner
+    await waitFor(() => {
+      expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    });
+
+    resolveDecompose([{ char: '一', meaning: 'one', pinyin: 'yī' }]);
+
+    await waitFor(() => {
+      expect(screen.getByText('一')).toBeInTheDocument();
+    });
+  });
+
+  it('resets decomposition when a different character is clicked', async () => {
+    mockSearchWord.mockImplementation(async (char) => {
+      if (char === '爱') return [{ id: 1, simp: '爱', trad: '愛', pinyin: 'ài', meaning: 'to love' }];
+      if (char === '你') return [{ id: 2, simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' }];
+      return [];
+    });
+
+    mockDecomposeCharacter.mockResolvedValue([
+      { char: '爫', meaning: 'claw', pinyin: null },
+    ]);
+
+    renderWithProviders(<NewWord word={makeWord('爱你', 'ài nǐ', 'love you')} />, {
+      store: makeNoSoundStore(),
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByText('爱'));
+
+    await waitFor(() => {
+      expect(screen.getByText('ài')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /decompose/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('爫')).toBeInTheDocument();
+    });
+
+    // Click a different character
+    await user.click(screen.getByText('你'));
+
+    await waitFor(() => {
+      expect(screen.getByText('nǐ')).toBeInTheDocument();
+    });
+
+    // Decomposition should be reset - components gone, Decompose button back
+    expect(screen.queryByText('爫')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /decompose/i })).toBeInTheDocument();
+  });
+
+  it('clicking a component triggers character lookup', async () => {
+    mockSearchWord.mockImplementation(async (char) => {
+      if (char === '爱') return [{ id: 1, simp: '爱', trad: '愛', pinyin: 'ài', meaning: 'to love' }];
+      if (char === '友') return [{ id: 3, simp: '友', trad: '友', pinyin: 'yǒu', meaning: 'friend' }];
+      return [];
+    });
+
+    mockDecomposeCharacter.mockResolvedValue([
+      { char: '友', meaning: 'friend', pinyin: 'yǒu' },
+    ]);
+
+    renderWithProviders(<NewWord word={makeWord('爱你', 'ài nǐ', 'love you')} />, {
+      store: makeNoSoundStore(),
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByText('爱'));
+
+    await waitFor(() => {
+      expect(screen.getByText('ài')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /decompose/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('友')).toBeInTheDocument();
+    });
+
+    // Click the component to look it up
+    await user.click(screen.getByLabelText('Show details for 友'));
+
+    await waitFor(() => {
+      expect(screen.getByText('yǒu')).toBeInTheDocument();
+    });
+  });
+
+  it('shows "No decomposition available" when components are empty', async () => {
+    mockSearchWord.mockResolvedValue([
+      { id: 1, simp: '大', trad: '大', pinyin: 'dà', meaning: 'big' },
+    ]);
+
+    mockDecomposeCharacter.mockResolvedValue([]);
+
+    renderWithProviders(<NewWord word={makeWord('大家', 'dàjiā', 'everyone')} />, {
+      store: makeNoSoundStore(),
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByText('大'));
+
+    await waitFor(() => {
+      expect(screen.getByText('dà')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /decompose/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('No decomposition available')).toBeInTheDocument();
+    });
   });
 });

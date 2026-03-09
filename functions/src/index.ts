@@ -1,8 +1,10 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import * as hanzi from 'hanzi';
 import { checkRateLimit, RATE_LIMITS } from './rateLimit';
 
 admin.initializeApp();
+hanzi.start();
 
 // Re-export dictionary Cloud Functions
 export {
@@ -222,5 +224,64 @@ export const lookupChengyuChar = functions.https.onCall(
       pinyins,
       meanings,
     };
+  }
+);
+
+/**
+ * Decompose a Chinese character into its radical/structural components.
+ * Uses HanziJS for radical-level decomposition with meanings.
+ */
+export const decomposeCharacter = functions.https.onCall(
+  async (data: { char: string }, context) => {
+    const uid = verifyAuth(context);
+    await checkRateLimit(uid, 'decomposeCharacter', RATE_LIMITS.decomposeCharacter);
+
+    const { char } = data;
+
+    if (!char || [...char].length !== 1) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'A single Chinese character is required'
+      );
+    }
+
+    const result = hanzi.decompose(char, 2);
+    const rawComponents: string[] = result?.components ?? [];
+
+    // Filter out the character itself, placeholder values, and empty strings
+    const filtered = rawComponents.filter(
+      (c: string) =>
+        c && c !== char && c !== 'No glyph available' && c.trim() !== ''
+    );
+
+    const components = filtered.map((component: string) => {
+      // Try radical meaning first, then dictionary lookup
+      const radicalMeaning = hanzi.getRadicalMeaning(component);
+      const defResult = hanzi.definitionLookup(component, 's');
+
+      let meaning: string | null = null;
+      let pinyin: string | null = null;
+
+      if (radicalMeaning && radicalMeaning !== 'N/A') {
+        meaning = radicalMeaning;
+      }
+
+      if (Array.isArray(defResult) && defResult.length > 0) {
+        const entry = defResult[0];
+        if (entry.definition) {
+          // Use dictionary definition if no radical meaning, or append it
+          meaning = meaning
+            ? meaning
+            : entry.definition.split('/')[0];
+        }
+        if (entry.pinyin) {
+          pinyin = entry.pinyin;
+        }
+      }
+
+      return { char: component, meaning, pinyin };
+    });
+
+    return { components };
   }
 );
