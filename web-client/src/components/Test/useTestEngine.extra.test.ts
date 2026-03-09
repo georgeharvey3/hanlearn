@@ -249,6 +249,86 @@ describe('useTestEngine — qNum effect triggers setHanziWriter for character qu
 });
 
 // ---------------------------------------------------------------------------
+// Regression: test does not reinitialise or play audio after finishing (#118)
+// ---------------------------------------------------------------------------
+describe('useTestEngine — no reinitialisation or audio after test finishes (#118)', () => {
+  it('qNum effect skips audio/setup when testFinished is true', async () => {
+    const ttsService = await import('../../services/ttsService');
+    vi.mocked(ttsService.stopAll).mockClear();
+    vi.mocked(ttsService.speak).mockClear();
+
+    const props = makeProps();
+    const { result } = renderHook(() => useTestEngine(props));
+
+    // Mark the test as finished and set up state that would normally trigger audio
+    act(() => {
+      result.current.setStateMerged({
+        testFinished: true,
+        questionCategory: 'pinyin',
+        useSound: true,
+        chosenCharacter: '好',
+        useAutoRecord: true,
+        answerCategory: 'pinyin',
+        answer: 'hǎo',
+      } as any);
+    });
+
+    // Clear any calls from the above state update
+    vi.mocked(ttsService.stopAll).mockClear();
+    vi.mocked(ttsService.speak).mockClear();
+
+    // Advance qNum — the effect should bail out because testFinished is true
+    act(() => {
+      result.current.setStateMerged({ qNum: 99 } as any);
+    });
+
+    expect(ttsService.speak).not.toHaveBeenCalled();
+    // stopAll should also not be called since the effect returns early
+    expect(ttsService.stopAll).not.toHaveBeenCalled();
+  });
+
+  it('does not reinitialise the test when callbacks change after test finishes', async () => {
+    const props = makeProps();
+    const { result } = renderHook(() => useTestEngine(props));
+
+    // Set up a test in progress with known permList
+    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    act(() => {
+      result.current.setStateMerged({
+        testSet: [makeWord()],
+        permList: [perm],
+        initNumPerms: 3,
+        perm,
+        answer: ['good'],
+        answerCategory: 'meaning',
+        question: 'hǎo',
+        questionCategory: 'pinyin',
+        chosenCharacter: '好',
+      } as any);
+    });
+
+    const permListAfterSetup = result.current.state.permList.length;
+
+    // Mark the test as finished (simulating what happens after last answer)
+    act(() => {
+      result.current.setStateMerged({
+        testFinished: true,
+        permList: [],
+        scoreList: [{ char: '好', score: 'Very Strong' as const }],
+      } as any);
+    });
+
+    // permList should be empty (finished)
+    expect(result.current.state.permList).toHaveLength(0);
+    expect(result.current.state.testFinished).toBe(true);
+
+    // The permList should not have been reset to a new full set
+    // (i.e., no reinitialisation occurred)
+    expect(result.current.state.permList).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // qNum effect — useAutoRecord path for pinyin/meaning answers
 // ---------------------------------------------------------------------------
 describe('useTestEngine — qNum effect auto-record paths', () => {

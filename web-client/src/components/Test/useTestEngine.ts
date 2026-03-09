@@ -14,6 +14,7 @@ export const useTestEngine = (props: Props) => {
   const stateRef = useRef(state);
   const submitSpeechRef = useRef<(speech: string) => void>(() => {});
   const onListenRef = useRef<() => void>(() => {});
+  const initializedRef = useRef(false);
 
   useEffect(() => {
     stateRef.current = state;
@@ -971,7 +972,10 @@ export const useTestEngine = (props: Props) => {
   // --- Effects ---
 
   useEffect(() => {
-    initialiseSettings();
+    if (!initializedRef.current) {
+      initialiseSettings();
+      initializedRef.current = true;
+    }
     document.addEventListener('keyup', onKeyUp);
     document.addEventListener('mouseover', setInteraction);
     document.addEventListener('scroll', setInteraction);
@@ -988,6 +992,9 @@ export const useTestEngine = (props: Props) => {
 
   useEffect(() => {
     const current = getState();
+
+    if (current.testFinished) return;
+
     ttsService.stopAll();
     setStateMerged({
       yesClicked: false,
