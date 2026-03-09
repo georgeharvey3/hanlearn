@@ -5,7 +5,6 @@ import { Box, ButtonBase, CircularProgress, Paper, Typography } from '@mui/mater
 
 import MeaningEditor from '../../../UI/MeaningEditor/MeaningEditor';
 import PictureButton from '../../../UI/Buttons/PictureButton/PictureButton';
-import Spinner from '../../../UI/Spinner/Spinner';
 
 import speakerPic from '../../../../assets/images/speaker.png';
 
@@ -270,9 +269,17 @@ const NewWord: React.FC<Props> = ({
           {word.pinyin}
         </Typography>
         {useSound && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              mt: 1,
+              height: 40,
+            }}
+          >
             {synthLoading ? (
-              <Spinner style={{ overflow: 'hidden', margin: 0, padding: 0 }} />
+              <CircularProgress size={24} color="primary" />
             ) : (
               <PictureButton
                 type="secondary"

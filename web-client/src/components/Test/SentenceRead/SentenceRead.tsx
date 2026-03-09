@@ -3,7 +3,7 @@ import { connect, ConnectedProps } from 'react-redux';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 import { Howl } from 'howler';
 
-import { Box, Paper, Stack, Typography, Chip } from '@mui/material';
+import { Box, CircularProgress, Paper, Stack, Typography, Chip } from '@mui/material';
 
 import { colors } from '../../../theme';
 import Button from '../../UI/Buttons/Button/Button';
@@ -255,6 +255,8 @@ const SentenceRead: React.FC<Props> = ({
 
         const resolved = await resolveSentence(cloudSentence);
 
+        const willSpeak = stateRef.current.useSound;
+
         setState((prevState) => {
           const newSentences = isNewWord ? [resolved] : [...prevState.sentences, resolved];
           return {
@@ -265,11 +267,26 @@ const SentenceRead: React.FC<Props> = ({
             loading: false,
             sentenceLoading: false,
             showText: false,
+            synthLoading: willSpeak,
           };
         });
 
-        if (stateRef.current.useSound) {
-          onSpeakPinyin(resolved.chinese.sentence);
+        if (willSpeak) {
+          stateRef.current.recognition?.abort();
+          ttsService.stopAll();
+          ttsService.speak(resolved.chinese.sentence, {
+            fallbackVoice: voice,
+            fallbackLang: lang || 'zh-CN',
+            onStart: () => {
+              updateState({ synthLoading: false });
+            },
+            onEnd: () => {
+              updateState({ synthLoading: false });
+            },
+            onError: () => {
+              updateState({ synthLoading: false });
+            },
+          });
         }
       } catch (error) {
         console.error('Error fetching sentence:', error);
@@ -285,7 +302,7 @@ const SentenceRead: React.FC<Props> = ({
         }
       }
     },
-    [onEndStage, onSpeakPinyin, updateState, words],
+    [onEndStage, updateState, words, voice, lang],
   );
 
   const onChangeSentence = useCallback(
@@ -467,16 +484,26 @@ const SentenceRead: React.FC<Props> = ({
       // Audio mode: centred speaker button with hint
       sentenceCardContent = (
         <Stack alignItems="center" spacing={1}>
-          {state.synthLoading ? (
-            <Spinner style={{ overflow: 'hidden', margin: 0 }} />
-          ) : (
-            <PictureButton
-              type="secondary"
-              src={speakerPic}
-              aria-label="Play sentence"
-              clicked={() => onSpeakPinyin(currentSentence.chinese.sentence)}
-            />
-          )}
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 40,
+              width: 40,
+            }}
+          >
+            {state.synthLoading ? (
+              <CircularProgress size={24} color="primary" />
+            ) : (
+              <PictureButton
+                type="secondary"
+                src={speakerPic}
+                aria-label="Play sentence"
+                clicked={() => onSpeakPinyin(currentSentence.chinese.sentence)}
+              />
+            )}
+          </Box>
           <Typography variant="caption" sx={{ color: 'text.secondary', letterSpacing: 0.3 }}>
             {state.synthLoading ? 'Loading audio…' : 'Tap to replay'}
           </Typography>
