@@ -22,7 +22,7 @@ const SideDrawer: React.FC<SideDrawerProps> = (props) => {
         '& .MuiDrawer-paper': {
           width: 240,
           maxWidth: '70%',
-          backgroundColor: 'primary.dark',
+          backgroundColor: 'primary.main',
         },
       }}
     >
