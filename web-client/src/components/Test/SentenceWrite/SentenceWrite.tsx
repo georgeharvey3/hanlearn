@@ -20,6 +20,12 @@ import failSound from '../../../assets/sounds/failure1.wav';
 import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
 import { getSegmentedSentence } from '../../../services/sentenceService';
+import {
+  resolveSentence,
+  matchEnglishToSentenceWords,
+  SentenceWord,
+} from '../../../utils/sentenceUtils';
+import { parseMeanings } from '../../../utils/meaningUtils';
 
 const beep = new Howl({ src: [successSound], volume: 0.5 });
 const fail = new Howl({ src: [failSound], volume: 0.7 });
@@ -40,6 +46,14 @@ interface SentenceWriteState {
   loading: boolean;
   originalChinese: string | null;
   englishPrompt: string | null;
+
+  // Resolved sentence words for translation lookup
+  resolvedWords: SentenceWord[];
+
+  // Translation feature state
+  selectedWordIndices: Set<number>;
+  translationResults: SentenceWord[];
+  showTranslation: boolean;
 
   // User's attempt
   entered: string;
@@ -67,6 +81,31 @@ interface OwnProps {
 
 type Props = PropsFromRedux & OwnProps & RouteComponentProps;
 
+/**
+ * Strip leading/trailing punctuation from a word for matching purposes.
+ */
+function stripPunctuation(word: string): string {
+  return word.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '');
+}
+
+/**
+ * Flatten resolved sentence words into a flat array of SentenceWord objects.
+ */
+function flattenSentenceWords(
+  words: (string | SentenceWord | SentenceWord[])[],
+): SentenceWord[] {
+  const result: SentenceWord[] = [];
+  for (const w of words) {
+    if (typeof w === 'string') continue;
+    if (Array.isArray(w)) {
+      result.push(...w);
+    } else {
+      result.push(w);
+    }
+  }
+  return result;
+}
+
 const SentenceWrite: React.FC<Props> = ({
   speechAvailable,
   synthAvailable,
@@ -86,6 +125,10 @@ const SentenceWrite: React.FC<Props> = ({
     loading: false,
     originalChinese: null,
     englishPrompt: null,
+    resolvedWords: [],
+    selectedWordIndices: new Set<number>(),
+    translationResults: [],
+    showTranslation: false,
     entered: '',
     submitted: false,
     results: [],
@@ -101,6 +144,15 @@ const SentenceWrite: React.FC<Props> = ({
     setState((prev) => ({ ...prev, ...partial }));
   }, []);
 
+  const clearTranslation = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      selectedWordIndices: new Set<number>(),
+      translationResults: [],
+      showTranslation: false,
+    }));
+  }, []);
+
   const onHomeClicked = useCallback((): void => {
     history.push('/');
   }, [history]);
@@ -110,7 +162,15 @@ const SentenceWrite: React.FC<Props> = ({
       const word = words[wordIndex];
       if (!word) return;
 
-      updateState({ loading: true, originalChinese: null, englishPrompt: null });
+      updateState({
+        loading: true,
+        originalChinese: null,
+        englishPrompt: null,
+        resolvedWords: [],
+        selectedWordIndices: new Set<number>(),
+        translationResults: [],
+        showTranslation: false,
+      });
 
       const seen = seenOffsets?.[word.simp];
       const seenText = seen?.text;
@@ -140,17 +200,17 @@ const SentenceWrite: React.FC<Props> = ({
 
         if (!sentence) {
           if (tryOffset === 0) {
-            // No sentences at all for this word — skip
             skipToNextWord();
             return;
           }
-          // No sentence at tryOffset — fall back to offset 0
           const { sentence: fb } = await getSegmentedSentence(word.simp, charSet, 0);
           if (fb && !isDuplicate(fb.chinese.sentence, fb.english.sentence)) {
+            const resolved = await resolveSentence(fb);
             updateState({
               loading: false,
               originalChinese: fb.chinese.sentence,
               englishPrompt: fb.english.sentence,
+              resolvedWords: flattenSentenceWords(resolved.chinese.words),
             });
           } else {
             skipToNextWord();
@@ -158,7 +218,6 @@ const SentenceWrite: React.FC<Props> = ({
           return;
         }
 
-        // Skip if this sentence was already seen in SentenceRead (matched by Chinese or English text)
         if (isDuplicate(sentence.chinese.sentence, sentence.english.sentence)) {
           if (tryOffset + 1 < totalCount) {
             fetchSentence(wordIndex, tryOffset + 1);
@@ -168,10 +227,12 @@ const SentenceWrite: React.FC<Props> = ({
           return;
         }
 
+        const resolved = await resolveSentence(sentence);
         updateState({
           loading: false,
           originalChinese: sentence.chinese.sentence,
           englishPrompt: sentence.english.sentence,
+          resolvedWords: flattenSentenceWords(resolved.chinese.words),
         });
       } catch (error) {
         console.error('Error fetching sentence for SentenceWrite:', error);
@@ -234,6 +295,10 @@ const SentenceWrite: React.FC<Props> = ({
       submitted: false,
       originalChinese: null,
       englishPrompt: null,
+      resolvedWords: [],
+      selectedWordIndices: new Set<number>(),
+      translationResults: [],
+      showTranslation: false,
       message: '',
     }));
 
@@ -247,7 +312,48 @@ const SentenceWrite: React.FC<Props> = ({
 
   const onNoClicked = useCallback((): void => {
     if (stateRef.current.useSound) fail.play();
-    updateState({ entered: '', submitted: false, message: 'Try again' });
+    setState((prev) => ({
+      ...prev,
+      entered: '',
+      submitted: false,
+      message: 'Try again',
+      selectedWordIndices: new Set<number>(),
+      translationResults: [],
+      showTranslation: false,
+    }));
+  }, []);
+
+  const onToggleWord = useCallback((index: number): void => {
+    setState((prev) => {
+      const next = new Set(prev.selectedWordIndices);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return {
+        ...prev,
+        selectedWordIndices: next,
+        // Hide previous translation when selection changes
+        showTranslation: false,
+        translationResults: [],
+      };
+    });
+  }, []);
+
+  const onTranslate = useCallback((): void => {
+    const { englishPrompt, selectedWordIndices, resolvedWords } = stateRef.current;
+    if (!englishPrompt || selectedWordIndices.size === 0) return;
+
+    const englishWords = englishPrompt.split(/\s+/);
+    const selectedText = Array.from(selectedWordIndices)
+      .sort((a, b) => a - b)
+      .map((i) => stripPunctuation(englishWords[i]))
+      .filter((w) => w.length > 0)
+      .join(' ');
+
+    const matches = matchEnglishToSentenceWords(selectedText, resolvedWords);
+    updateState({ translationResults: matches, showTranslation: true });
   }, [updateState]);
 
   const onKeyUp = useCallback(
@@ -293,6 +399,7 @@ const SentenceWrite: React.FC<Props> = ({
   const onInputKeyPress = (event: KeyboardEvent<HTMLInputElement>): void => {
     if (event.key !== 'Enter' || stateRef.current.entered.trim() === '') return;
     document.getElementById('answerInput')?.blur();
+    clearTranslation();
     updateState({ submitted: true, message: '' });
   };
 
@@ -395,6 +502,9 @@ const SentenceWrite: React.FC<Props> = ({
     );
   }
 
+  // Split English prompt into tappable words
+  const englishWords = state.englishPrompt?.split(/\s+/) || [];
+
   // Input view
   return (
     <Box sx={outerSx}>
@@ -419,11 +529,102 @@ const SentenceWrite: React.FC<Props> = ({
           gap: 2,
         }}
       >
-        <Typography
-          sx={{ fontSize: '1.25rem', fontWeight: 400, lineHeight: 1.5, color: 'text.primary' }}
+        {/* Tappable English words */}
+        <Box
+          sx={{
+            fontSize: '1.25rem',
+            fontWeight: 400,
+            lineHeight: 1.8,
+            color: 'text.primary',
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            gap: 0.5,
+          }}
         >
-          {state.englishPrompt}
-        </Typography>
+          {englishWords.map((word, index) => {
+            const isSelected = state.selectedWordIndices.has(index);
+            return (
+              <Box
+                key={index}
+                component="span"
+                role="button"
+                tabIndex={0}
+                aria-label={`${word}: tap to select for translation`}
+                aria-pressed={isSelected}
+                onClick={() => onToggleWord(index)}
+                onKeyDown={(e: React.KeyboardEvent) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onToggleWord(index);
+                  }
+                }}
+                sx={{
+                  cursor: 'pointer',
+                  px: 0.75,
+                  py: 0.25,
+                  borderRadius: 1,
+                  userSelect: 'none',
+                  transition: 'background-color 0.15s, color 0.15s',
+                  bgcolor: isSelected ? 'primary.main' : 'transparent',
+                  color: isSelected ? '#fff' : 'text.primary',
+                  '&:hover': {
+                    bgcolor: isSelected ? 'primary.dark' : 'action.hover',
+                  },
+                }}
+              >
+                {word}
+              </Box>
+            );
+          })}
+        </Box>
+
+        {/* Translate button */}
+        {state.selectedWordIndices.size > 0 && (
+          <Button clicked={onTranslate} aria-label="Translate selected words">
+            Translate
+          </Button>
+        )}
+
+        {/* Translation results */}
+        {state.showTranslation && (
+          <Box sx={{ width: '100%' }}>
+            {state.translationResults.length > 0 ? (
+              <Stack spacing={1}>
+                {state.translationResults.map((tw, i) => (
+                  <Paper
+                    key={`${tw.id}-${i}`}
+                    variant="outlined"
+                    sx={{
+                      p: '8px 12px',
+                      borderRadius: 2,
+                      bgcolor: '#f0f7f4',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <Typography
+                      sx={{ fontSize: '1.2rem', fontWeight: 500, letterSpacing: 1 }}
+                    >
+                      {tw[state.charSet]}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      {tw.pinyin}
+                    </Typography>
+                    <Typography variant="body2">
+                      {parseMeanings(tw.meaning).join(' / ')}
+                    </Typography>
+                  </Paper>
+                ))}
+              </Stack>
+            ) : (
+              <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                No translation found
+              </Typography>
+            )}
+          </Box>
+        )}
+
+        {/* Must-use word badge */}
         <Box
           sx={{
             display: 'inline-flex',
@@ -452,6 +653,14 @@ const SentenceWrite: React.FC<Props> = ({
           </Typography>
         </Box>
       </Paper>
+
+      {/* Hint text */}
+      <Typography
+        variant="caption"
+        sx={{ textAlign: 'center', color: 'text.secondary', display: 'block' }}
+      >
+        Tap English words for translation help
+      </Typography>
 
       {/* Answer input */}
       <Stack spacing={1.5} alignItems="center">
