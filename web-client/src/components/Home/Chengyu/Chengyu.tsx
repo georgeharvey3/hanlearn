@@ -19,22 +19,14 @@ const Chengyu: React.FC = () => {
   const [charSet] = useState<'simp' | 'trad'>(
     (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
   );
-  const [displayChengyu, setDisplayChengyu] = useState<string | null>(null);
-  const [displayCharPinyins, setDisplayCharPinyins] = useState<
-    { char: string; pinyin: string; meaning?: string }[] | null
-  >(null);
 
   const dailyChengyu = useMemo(() => getDailyChengyu(), []);
 
-  // Convert chengyu characters to the selected character set
-  useEffect(() => {
-    convertDailyChengyu(dailyChengyu, charSet).then((converted) => {
-      setDisplayChengyu(converted.chengyu);
-      setDisplayCharPinyins(converted.charPinyins);
-    });
-  }, [dailyChengyu, charSet]);
-
-  const charPinyins = displayCharPinyins || dailyChengyu.charPinyins;
+  // Select the correct character set synchronously — no async conversion needed
+  const { chengyu: displayChengyu, charPinyins } = useMemo(
+    () => convertDailyChengyu(dailyChengyu, charSet),
+    [dailyChengyu, charSet],
+  );
 
   useEffect(() => {
     if (finished) {
@@ -127,7 +119,7 @@ const Chengyu: React.FC = () => {
         Chengyu Of The Day
       </Typography>
       <Typography variant="h4" fontWeight="bold">
-        {displayChengyu || dailyChengyu.chengyu}
+        {displayChengyu}
       </Typography>
       <Typography variant="body1" sx={{ m: '5px 0', fontSize: { xs: '1.1em', sm: '1.3em' } }}>
         Choose the correct translation:
