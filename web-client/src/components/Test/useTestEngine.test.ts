@@ -76,6 +76,8 @@ vi.mock('../../services/ttsService', () => ({
   stopAll: vi.fn(),
 }));
 
+import { getHintSentence } from '../../services/sentenceService';
+
 vi.mock('pinyin-pro', () => ({
   pinyin: vi.fn((text: string, opts?: { type?: string }) =>
     opts?.type === 'array' ? text.split('').map((c: string) => c) : text.split('').join(' '),
@@ -646,6 +648,80 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
 
     // HanziWriter.create should be called to set up the character quiz
     expect((window as any).HanziWriter.create).toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Regression: showSentenceHint with useSound=true must set showHint=true
+// so that pressing hint a second time clears it (toggle behaviour).
+// Bug: the sound branch called setStateMerged({ hintLoading: false }) without
+// setting showHint: true, leaving showHint=false and breaking the toggle.
+// ---------------------------------------------------------------------------
+describe('useTestEngine — showSentenceHint (regression: showHint set in sound branch)', () => {
+  beforeEach(() => {
+    vi.spyOn(window.speechSynthesis, 'cancel').mockImplementation(() => {});
+    vi.spyOn(window.speechSynthesis, 'speak').mockImplementation(() => {});
+    // jsdom does not implement SpeechSynthesisUtterance; stub it so onSpeak does not throw
+    (window as any).SpeechSynthesisUtterance = class {
+      lang = '';
+      voice: SpeechSynthesisVoice | null = null;
+      onerror: ((e: SpeechSynthesisErrorEvent) => void) | null = null;
+      onend: (() => void) | null = null;
+      onstart: (() => void) | null = null;
+      constructor(_text: string) {}
+    };
+  });
+
+  afterEach(() => {
+    delete (window as any).SpeechSynthesisUtterance;
+  });
+
+  it('sets showHint=true after hint resolves when useSound=true', async () => {
+    vi.mocked(getHintSentence).mockResolvedValueOnce({
+      chinese: '你好吗',
+      english: 'How are you?',
+    });
+
+    const result = renderEngineWithState({
+      answerCategory: 'meaning',
+      answer: ['hello'],
+      chosenCharacter: '你好',
+      showHint: false,
+      useSound: true,
+    });
+
+    await act(async () => {
+      result.current.onHint();
+    });
+
+    expect(result.current.state.showHint).toBe(true);
+  });
+
+  it('toggles showHint off on second call when useSound=true', async () => {
+    vi.mocked(getHintSentence).mockResolvedValue({
+      chinese: '你好吗',
+      english: 'How are you?',
+    });
+
+    const result = renderEngineWithState({
+      answerCategory: 'meaning',
+      answer: ['hello'],
+      chosenCharacter: '你好',
+      showHint: false,
+      useSound: true,
+    });
+
+    // First call — should set showHint=true
+    await act(async () => {
+      result.current.onHint();
+    });
+    expect(result.current.state.showHint).toBe(true);
+
+    // Second call — should toggle showHint back to false
+    act(() => {
+      result.current.onHint();
+    });
+    expect(result.current.state.showHint).toBe(false);
   });
 });
 

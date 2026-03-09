@@ -702,7 +702,7 @@ export const useTestEngine = (props: Props) => {
           }
           if (current.useSound) {
             onSpeak(sentence.chinese);
-            setStateMerged({ hintLoading: false });
+            setStateMerged({ hintLoading: false, showHint: true });
           } else {
             const pinyinResult = pinyin(sentence.chinese, { toneType: 'num' });
             setStateMerged({
