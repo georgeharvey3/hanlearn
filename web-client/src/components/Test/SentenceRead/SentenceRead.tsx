@@ -3,7 +3,7 @@ import { connect, ConnectedProps } from 'react-redux';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 import { Howl } from 'howler';
 
-import { Box, Paper, Stack, Typography, Chip } from '@mui/material';
+import { Box, CircularProgress, Paper, Stack, Typography, Chip } from '@mui/material';
 
 import { colors } from '../../../theme';
 import Button from '../../UI/Buttons/Button/Button';
@@ -41,6 +41,7 @@ interface SentenceReadState {
   entered: string;
   loading: boolean;
   sentenceLoading: boolean;
+  synthLoading: boolean;
   useSound: boolean;
   useEnglishSpeechRecognition: boolean;
   showText: boolean;
@@ -134,6 +135,7 @@ const SentenceRead: React.FC<Props> = ({
     entered: '',
     loading: false,
     sentenceLoading: false,
+    synthLoading: false,
     useSound: true,
     useEnglishSpeechRecognition: false,
     showText: false,
@@ -169,12 +171,22 @@ const SentenceRead: React.FC<Props> = ({
       stateRef.current.recognition?.abort();
       ttsService.stopAll();
 
+      updateState({ synthLoading: true });
       ttsService.speak(sentence, {
         fallbackVoice: voice,
         fallbackLang: lang || 'zh-CN',
+        onStart: () => {
+          updateState({ synthLoading: false });
+        },
+        onEnd: () => {
+          updateState({ synthLoading: false });
+        },
+        onError: () => {
+          updateState({ synthLoading: false });
+        },
       });
     },
-    [lang, voice],
+    [lang, voice, updateState],
   );
 
   const onListenPinyin = useCallback((): void => {
@@ -243,6 +255,8 @@ const SentenceRead: React.FC<Props> = ({
 
         const resolved = await resolveSentence(cloudSentence);
 
+        const willSpeak = stateRef.current.useSound;
+
         setState((prevState) => {
           const newSentences = isNewWord ? [resolved] : [...prevState.sentences, resolved];
           return {
@@ -253,11 +267,26 @@ const SentenceRead: React.FC<Props> = ({
             loading: false,
             sentenceLoading: false,
             showText: false,
+            synthLoading: willSpeak,
           };
         });
 
-        if (stateRef.current.useSound) {
-          onSpeakPinyin(resolved.chinese.sentence);
+        if (willSpeak) {
+          stateRef.current.recognition?.abort();
+          ttsService.stopAll();
+          ttsService.speak(resolved.chinese.sentence, {
+            fallbackVoice: voice,
+            fallbackLang: lang || 'zh-CN',
+            onStart: () => {
+              updateState({ synthLoading: false });
+            },
+            onEnd: () => {
+              updateState({ synthLoading: false });
+            },
+            onError: () => {
+              updateState({ synthLoading: false });
+            },
+          });
         }
       } catch (error) {
         console.error('Error fetching sentence:', error);
@@ -273,7 +302,7 @@ const SentenceRead: React.FC<Props> = ({
         }
       }
     },
-    [onEndStage, onSpeakPinyin, updateState, words],
+    [onEndStage, updateState, words, voice, lang],
   );
 
   const onChangeSentence = useCallback(
@@ -455,14 +484,28 @@ const SentenceRead: React.FC<Props> = ({
       // Audio mode: centred speaker button with hint
       sentenceCardContent = (
         <Stack alignItems="center" spacing={1}>
-          <PictureButton
-            type="secondary"
-            src={speakerPic}
-            aria-label="Play sentence"
-            clicked={() => onSpeakPinyin(currentSentence.chinese.sentence)}
-          />
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 40,
+              width: 40,
+            }}
+          >
+            {state.synthLoading ? (
+              <CircularProgress size={24} color="primary" />
+            ) : (
+              <PictureButton
+                type="secondary"
+                src={speakerPic}
+                aria-label="Play sentence"
+                clicked={() => onSpeakPinyin(currentSentence.chinese.sentence)}
+              />
+            )}
+          </Box>
           <Typography variant="caption" sx={{ color: 'text.secondary', letterSpacing: 0.3 }}>
-            Tap to replay
+            {state.synthLoading ? 'Loading audio…' : 'Tap to replay'}
           </Typography>
         </Stack>
       );

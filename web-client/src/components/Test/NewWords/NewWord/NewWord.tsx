@@ -4,6 +4,9 @@ import { connect, ConnectedProps } from 'react-redux';
 import { Box, ButtonBase, CircularProgress, Paper, Typography } from '@mui/material';
 
 import MeaningEditor from '../../../UI/MeaningEditor/MeaningEditor';
+import PictureButton from '../../../UI/Buttons/PictureButton/PictureButton';
+
+import speakerPic from '../../../../assets/images/speaker.png';
 
 import { searchWord } from '../../../../services/dictionaryService';
 import * as ttsService from '../../../../services/ttsService';
@@ -59,12 +62,23 @@ const NewWord: React.FC<Props> = ({
   const [useSound] = useState(
     localStorage.getItem('useSound') === 'false' || !synthAvailable ? false : true,
   );
+  const [synthLoading, setSynthLoading] = useState(false);
 
   const onSpeakPinyin = useCallback(
     (pinyinWord: string): void => {
+      setSynthLoading(true);
       ttsService.speak(pinyinWord, {
         fallbackVoice: voice,
         fallbackLang: lang || 'zh-CN',
+        onStart: () => {
+          setSynthLoading(false);
+        },
+        onEnd: () => {
+          setSynthLoading(false);
+        },
+        onError: () => {
+          setSynthLoading(false);
+        },
       });
     },
     [lang, voice],
@@ -254,6 +268,28 @@ const NewWord: React.FC<Props> = ({
         >
           {word.pinyin}
         </Typography>
+        {useSound && (
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              mt: 1,
+              height: 40,
+            }}
+          >
+            {synthLoading ? (
+              <CircularProgress size={24} color="primary" />
+            ) : (
+              <PictureButton
+                type="secondary"
+                src={speakerPic}
+                aria-label="Play pronunciation"
+                clicked={() => onSpeakPinyin(word[charSet])}
+              />
+            )}
+          </Box>
+        )}
         {isAddedWord ? (
           <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
             <MeaningEditor value={editedMeaning} onChange={handleMeaningChange} size="small" />
