@@ -429,11 +429,20 @@ describe('useTestEngine — pinyin hint', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Character hint: showOutline should toggle on/off via showHint state
+// Character hint: showOutline flashes for 1 second then hides
 // ---------------------------------------------------------------------------
-describe('useTestEngine — character hint toggle', () => {
-  it('shows outline and sets showHint=true on first hint click', () => {
+describe('useTestEngine — character hint flash', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows outline and hides it after 1 second', () => {
     mockWriter.showOutline.mockClear();
+    mockWriter.hideOutline.mockClear();
     const result = renderEngineWithState({
       answerCategory: 'character',
       writer: mockWriter,
@@ -445,22 +454,27 @@ describe('useTestEngine — character hint toggle', () => {
     });
 
     expect(mockWriter.showOutline).toHaveBeenCalled();
-    expect(result.current.state.showHint).toBe(true);
+    expect(mockWriter.hideOutline).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(mockWriter.hideOutline).toHaveBeenCalled();
   });
 
-  it('hides outline and sets showHint=false on second hint click', () => {
-    mockWriter.hideOutline.mockClear();
+  it('does not set showHint state (no toggle behavior)', () => {
+    mockWriter.showOutline.mockClear();
     const result = renderEngineWithState({
       answerCategory: 'character',
       writer: mockWriter,
-      showHint: true,
+      showHint: false,
     });
 
     act(() => {
       result.current.onHint();
     });
 
-    expect(mockWriter.hideOutline).toHaveBeenCalled();
     expect(result.current.state.showHint).toBe(false);
   });
 });

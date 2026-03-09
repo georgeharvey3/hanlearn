@@ -739,7 +739,9 @@ export const useTestEngine = (props: Props) => {
       showSentenceHint(current.chosenCharacter);
     } else if (current.answerCategory === 'character' && current.writer) {
       current.writer.showOutline();
-      setStateMerged({ showHint: true });
+      setTimeout(() => {
+        current.writer!.hideOutline();
+      }, 1000);
     }
   }, [getState, setStateMerged, showSentenceHint]);
 
