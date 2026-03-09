@@ -10,6 +10,7 @@ import Footer from '../../components/Home/Footer/Footer';
 import Chengyu from '../../components/Home/Chengyu/Chengyu';
 import HowItWorks from '../../components/Home/HowItWorks/HowItWorks';
 import FeatureHighlights from '../../components/Home/FeatureHighlights/FeatureHighlights';
+import ListSelector from '../../components/UI/ListSelector/ListSelector';
 
 import * as actions from '../../store/actions/index';
 import { RootState } from '../../types/store';
@@ -20,11 +21,17 @@ const mapStateToProps = (state: RootState) => ({
   lang: state.settings.lang,
   words: state.addWords.words,
   wordsLoading: state.addWords.loading,
+  lists: state.addWords.lists,
+  activeListId: state.addWords.activeListId,
 });
 
 const mapDispatchToProps = {
   onInitWords: actions.initWords,
   onOpenAuthModal: actions.openAuthModal,
+  onSwitchList: actions.switchActiveList,
+  onCreateList: actions.postCreateWordList,
+  onRenameList: actions.postRenameWordList,
+  onDeleteList: actions.postDeleteWordList,
 };
 
 const connector = connect(mapStateToProps, mapDispatchToProps);
@@ -36,8 +43,14 @@ const Home: React.FC<Props> = ({
   userId,
   words,
   wordsLoading,
+  lists,
+  activeListId,
   onInitWords,
   onOpenAuthModal,
+  onSwitchList,
+  onCreateList,
+  onRenameList,
+  onDeleteList,
   history,
 }) => {
   const numTot = words.length;
@@ -55,6 +68,11 @@ const Home: React.FC<Props> = ({
       return due <= now;
     }).length;
   }, [words]);
+
+  const activeListName = useMemo(
+    () => (lists || []).find((l) => l.id === activeListId)?.name || 'General',
+    [lists, activeListId],
+  );
 
   useEffect(() => {
     if (isAuthenticated && userId) {
@@ -85,13 +103,24 @@ const Home: React.FC<Props> = ({
         tryOutClicked={!isAuthenticated ? onTryOutClicked : undefined}
       />
       {isAuthenticated && (
-        <AccountSummary
-          numDue={numDue}
-          numTot={numTot}
-          testClicked={onTestClicked}
-          addWordsClicked={onAddWordsClicked}
-          loading={wordsLoading}
-        />
+        <>
+          <ListSelector
+            lists={lists}
+            activeListId={activeListId}
+            onSwitchList={onSwitchList}
+            onCreateList={onCreateList}
+            onRenameList={onRenameList}
+            onDeleteList={onDeleteList}
+          />
+          <AccountSummary
+            numDue={numDue}
+            numTot={numTot}
+            testClicked={onTestClicked}
+            addWordsClicked={onAddWordsClicked}
+            loading={wordsLoading}
+            activeListName={activeListName}
+          />
+        </>
       )}
       {isAuthenticated && <Chengyu />}
       <HowItWorks />

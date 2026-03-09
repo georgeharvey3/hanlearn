@@ -28,6 +28,7 @@ import Spinner from '../../components/UI/Spinner/Spinner';
 import Input from '../../components/UI/Input/Input';
 
 import NewWord from '../../components/Test/NewWords/NewWord/NewWord';
+import ListSelector from '../../components/UI/ListSelector/ListSelector';
 import { RootState } from '../../types/store';
 import { Word } from '../../types/models';
 import * as wordService from '../../services/wordService';
@@ -67,6 +68,8 @@ const mapStateToProps = (state: RootState) => ({
   loading: state.addWords.loading,
   userId: state.auth.userId,
   authInitialized: state.auth.initialized,
+  lists: state.addWords.lists,
+  activeListId: state.addWords.activeListId,
 });
 
 const mapDispatchToProps = {
@@ -75,6 +78,10 @@ const mapDispatchToProps = {
   onDeleteWord: wordActions.deleteWord,
   onInitWords: wordActions.initWords,
   onPostMeaningUpdate: wordActions.postUpdateMeaning,
+  onSwitchList: wordActions.switchActiveList,
+  onCreateList: wordActions.postCreateWordList,
+  onRenameList: wordActions.postRenameWordList,
+  onDeleteList: wordActions.postDeleteWordList,
 };
 
 const connector = connect(mapStateToProps, mapDispatchToProps);
@@ -92,6 +99,12 @@ const AddWords: React.FC<Props> = ({
   onPostCustomWord,
   onDeleteWord,
   onPostMeaningUpdate,
+  onSwitchList,
+  onCreateList,
+  onRenameList,
+  onDeleteList,
+  lists,
+  activeListId,
   history,
   isDemo,
 }) => {
@@ -533,6 +546,16 @@ const AddWords: React.FC<Props> = ({
         submitClicked={searchForWord}
         loading={state.loading}
       />
+      {!isDemo && (
+        <ListSelector
+          lists={lists}
+          activeListId={activeListId}
+          onSwitchList={onSwitchList}
+          onCreateList={onCreateList}
+          onRenameList={onRenameList}
+          onDeleteList={onDeleteList}
+        />
+      )}
       {state.addError && (
         <Typography
           role="alert"

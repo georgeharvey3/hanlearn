@@ -64,7 +64,7 @@ describe('AddWords — word search and add flow', () => {
   it('shows word bank entries when words exist in the store', () => {
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { words: [sampleWord], error: false, loading: false },
+      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [sampleWord], error: false, loading: false },
     });
     renderWithProviders(<AddWords />, { store });
     expect(screen.getByText('学习')).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe('AddWords — word search and add flow', () => {
     mockedWordService.getUserWords.mockResolvedValue([sampleWord]);
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { words: [sampleWord], error: false, loading: false },
+      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [sampleWord], error: false, loading: false },
     });
     renderWithProviders(<AddWords />, { store });
 
@@ -161,7 +161,7 @@ describe('AddWords — remove words from bank', () => {
   it('calls removeWordFromBank when the Remove icon button is clicked', async () => {
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { words: [sampleWord], error: false, loading: false },
+      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [sampleWord], error: false, loading: false },
     });
     renderWithProviders(<AddWords />, { store });
 
@@ -189,7 +189,7 @@ describe('AddWords — unauthenticated state', () => {
         modalOpen: false,
         modalMode: 'login' as const,
       },
-      addWords: { words: [], error: false, loading: false },
+      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [], error: false, loading: false },
       settings: { speechAvailable: false, synthAvailable: false },
     });
     renderWithProviders(<AddWords />, { store });
@@ -209,7 +209,7 @@ describe('AddWords — error state', () => {
     // The error text renders in the table slot, which only shows when words.length > 0
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { words: [sampleWord], error: true, loading: false },
+      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [sampleWord], error: true, loading: false },
     });
     renderWithProviders(<AddWords />, { store });
     expect(screen.getByText(/error: could not fetch words/i)).toBeInTheDocument();
@@ -264,6 +264,7 @@ describe('AddWords — confirmAddWord with edited meaning', () => {
       expect(mockedWordService.addWordToBank).toHaveBeenCalledWith(
         'test-user-123',
         expect.objectContaining({ id: 42, simp: '学习' }),
+        'default',
       );
     });
   });
@@ -333,7 +334,7 @@ describe('AddWords — toggle show/hide table', () => {
   it('hides the word table when "Hide Table" is clicked and restores it when "Show Table" is clicked', async () => {
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { words: [sampleWord], error: false, loading: false },
+      addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [sampleWord], error: false, loading: false },
     });
     renderWithProviders(<AddWords />, { store });
 

@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  addDoc,
   getDoc,
   getDocs,
   setDoc,
@@ -13,7 +14,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { Word } from '../types/models';
+import { Word, WordList } from '../types/models';
 import {
   searchWord as searchDictionary,
   lookupCharacter,
@@ -46,6 +47,7 @@ interface UserWordDocument {
   bank: number;
   dueDate: Timestamp;
   addedAt: Timestamp;
+  listId?: string;
 }
 
 function mapDocumentToWord(
@@ -61,6 +63,7 @@ function mapDocumentToWord(
     meaning: data.amendedMeaning || data.wordData.meaning,
     bank: data.bank,
     ammended_meaning: data.amendedMeaning || undefined,
+    listId: data.listId || 'default',
   };
   if (includeDueDate) {
     word.due_date = formatDate(data.dueDate.toDate());
@@ -68,23 +71,157 @@ function mapDocumentToWord(
   return word;
 }
 
+// ─── Word List CRUD ──────────────────────────────────────────────────────────
+
 /**
- * Get all words in a user's word bank, sorted by due date
+ * Get all word lists for a user. Always includes the built-in "General" list.
  */
-export const getUserWords = async (userId: string): Promise<Word[]> => {
+export const getUserWordLists = async (userId: string): Promise<WordList[]> => {
+  const listsRef = collection(db, 'users', userId, 'wordLists');
+  const q = query(listsRef, orderBy('order', 'asc'));
+  const snapshot = await getDocs(q);
+
+  const lists: WordList[] = snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      name: data.name,
+      createdAt: data.createdAt?.toDate?.()
+        ? formatDate(data.createdAt.toDate())
+        : '',
+      order: data.order ?? 0,
+    };
+  });
+
+  // Ensure the default list is always present
+  if (!lists.find((l) => l.id === 'default')) {
+    lists.unshift({
+      id: 'default',
+      name: 'General',
+      createdAt: '',
+      order: 0,
+    });
+  }
+
+  return lists;
+};
+
+/**
+ * Create a new word list
+ */
+export const createWordList = async (
+  userId: string,
+  name: string,
+): Promise<WordList> => {
+  // Get current lists to determine next order value
+  const listsRef = collection(db, 'users', userId, 'wordLists');
+  const snapshot = await getDocs(listsRef);
+  const maxOrder = snapshot.docs.reduce((max, doc) => {
+    const order = doc.data().order ?? 0;
+    return order > max ? order : max;
+  }, 0);
+
+  const listData = {
+    name,
+    createdAt: Timestamp.now(),
+    order: maxOrder + 1,
+  };
+
+  const docRef = await addDoc(listsRef, listData);
+
+  return {
+    id: docRef.id,
+    name,
+    createdAt: formatDate(new Date()),
+    order: maxOrder + 1,
+  };
+};
+
+/**
+ * Rename a word list
+ */
+export const renameWordList = async (
+  userId: string,
+  listId: string,
+  newName: string,
+): Promise<void> => {
+  const listRef = doc(db, 'users', userId, 'wordLists', listId);
+  await updateDoc(listRef, { name: newName });
+};
+
+/**
+ * Delete a word list and all its words
+ */
+export const deleteWordList = async (
+  userId: string,
+  listId: string,
+): Promise<void> => {
+  if (listId === 'default') {
+    throw new Error('Cannot delete the default word list');
+  }
+
+  // Delete all words in this list
   const userWordsRef = collection(db, 'users', userId, 'userWords');
-  const q = query(userWordsRef, orderBy('dueDate', 'asc'));
+  const q = query(userWordsRef, where('listId', '==', listId));
+  const snapshot = await getDocs(q);
+
+  const batch = writeBatch(db);
+  snapshot.docs.forEach((wordDoc) => {
+    batch.delete(wordDoc.ref);
+  });
+
+  // Delete the list document itself
+  const listRef = doc(db, 'users', userId, 'wordLists', listId);
+  batch.delete(listRef);
+
+  await batch.commit();
+};
+
+// ─── Word Operations ─────────────────────────────────────────────────────────
+
+/**
+ * Get all words in a user's word bank, sorted by due date.
+ * Optionally filtered by listId.
+ */
+export const getUserWords = async (
+  userId: string,
+  listId?: string,
+): Promise<Word[]> => {
+  const userWordsRef = collection(db, 'users', userId, 'userWords');
+  let q;
+  if (listId) {
+    q = query(
+      userWordsRef,
+      where('listId', '==', listId),
+      orderBy('dueDate', 'asc'),
+    );
+  } else {
+    q = query(userWordsRef, orderBy('dueDate', 'asc'));
+  }
   const snapshot = await getDocs(q);
   return snapshot.docs.map((doc) => mapDocumentToWord(doc as any, true));
 };
 
 /**
- * Get words that are due for review (due date <= today)
+ * Get words that are due for review (due date <= today).
+ * Optionally filtered by listId.
  */
-export const getDueUserWords = async (userId: string): Promise<Word[]> => {
+export const getDueUserWords = async (
+  userId: string,
+  listId?: string,
+): Promise<Word[]> => {
   const userWordsRef = collection(db, 'users', userId, 'userWords');
   const now = Timestamp.now();
-  const q = query(userWordsRef, where('dueDate', '<=', now));
+  let q;
+  if (listId) {
+    q = query(
+      userWordsRef,
+      where('listId', '==', listId),
+      where('dueDate', '<=', now),
+    );
+  } else {
+    q = query(userWordsRef, where('dueDate', '<=', now));
+  }
   const snapshot = await getDocs(q);
   return snapshot.docs.map((doc) => mapDocumentToWord(doc as any));
 };
@@ -92,7 +229,11 @@ export const getDueUserWords = async (userId: string): Promise<Word[]> => {
 /**
  * Add a word from the dictionary to the user's word bank
  */
-export const addWordToBank = async (userId: string, word: Word): Promise<void> => {
+export const addWordToBank = async (
+  userId: string,
+  word: Word,
+  listId: string = 'default',
+): Promise<void> => {
   // Get count of existing words to determine initial due date
   const userWordsRef = collection(db, 'users', userId, 'userWords');
   const snapshot = await getDocs(userWordsRef);
@@ -117,6 +258,7 @@ export const addWordToBank = async (userId: string, word: Word): Promise<void> =
     bank: 1,
     dueDate: Timestamp.fromDate(dueDate),
     addedAt: Timestamp.now(),
+    listId,
   });
 };
 
@@ -201,6 +343,7 @@ export const addCustomWord = async (
   text: string,
   meaning: string,
   charSet: 'simp' | 'trad' = 'simp',
+  listId: string = 'default',
 ): Promise<Word> => {
   const validatedText = customWordTextSchema.parse(text);
   const validatedMeaning = customWordMeaningSchema.parse(meaning);
@@ -247,10 +390,23 @@ export const addCustomWord = async (
     trad,
     pinyin,
     meaning: validatedMeaning,
+    listId,
   };
-  await addWordToBank(userId, word);
+  await addWordToBank(userId, word, listId);
 
   return word;
+};
+
+/**
+ * Move a word to a different list
+ */
+export const moveWordToList = async (
+  userId: string,
+  wordId: number,
+  newListId: string,
+): Promise<void> => {
+  const wordRef = doc(db, 'users', userId, 'userWords', wordId.toString());
+  await updateDoc(wordRef, { listId: newListId });
 };
 
 /**

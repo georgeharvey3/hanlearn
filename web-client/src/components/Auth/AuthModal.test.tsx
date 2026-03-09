@@ -47,7 +47,7 @@ function renderModal(
       modalMode: mode,
       resetEmailSent,
     },
-    addWords: { words: [], error: false, loading: false },
+    addWords: { lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }], activeListId: 'default', words: [], error: false, loading: false },
     settings: { speechAvailable: false, synthAvailable: false },
   });
   return renderWithProviders(<AuthModal />, { store });

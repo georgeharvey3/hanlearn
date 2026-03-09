@@ -11,6 +11,7 @@ interface AccountSummaryProps {
   testClicked?: () => void;
   addWordsClicked?: () => void;
   loading?: boolean;
+  activeListName?: string;
 }
 
 const AccountSummary: React.FC<AccountSummaryProps> = (props) => (
@@ -29,6 +30,9 @@ const AccountSummary: React.FC<AccountSummaryProps> = (props) => (
     ) : (
       <>
         <Typography variant="h5" sx={{ color: 'text.primary' }}>
+          {props.activeListName && props.activeListName !== 'General'
+            ? `${props.activeListName}: `
+            : ''}
           You have {props.numDue}/{props.numTot} words due for testing...
         </Typography>
         <Button

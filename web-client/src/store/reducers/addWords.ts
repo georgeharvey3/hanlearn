@@ -3,7 +3,11 @@ import { Word } from '../../types/models';
 import { AddWordsState } from '../../types/store';
 import { WordAction } from '../../types/actions';
 
+const DEFAULT_LIST = { id: 'default', name: 'General', createdAt: '', order: 0 };
+
 const initialState: AddWordsState = {
+  lists: [DEFAULT_LIST],
+  activeListId: 'default',
   words: [],
   error: false,
   loading: false,
@@ -98,6 +102,42 @@ const reducer = (state = initialState, action: WordAction): AddWordsState => {
         error: true,
         loading: false,
       };
+
+    // Word list actions
+    case actionTypes.SET_WORD_LISTS:
+      return {
+        ...state,
+        lists: action.lists,
+      };
+    case actionTypes.ADD_WORD_LIST:
+      return {
+        ...state,
+        lists: [...state.lists, action.list],
+      };
+    case actionTypes.REMOVE_WORD_LIST: {
+      const newLists = state.lists.filter((list) => list.id !== action.listId);
+      // If the active list was deleted, switch to default
+      const newActiveListId =
+        state.activeListId === action.listId ? 'default' : state.activeListId;
+      return {
+        ...state,
+        lists: newLists,
+        activeListId: newActiveListId,
+      };
+    }
+    case actionTypes.RENAME_WORD_LIST:
+      return {
+        ...state,
+        lists: state.lists.map((list) =>
+          list.id === action.listId ? { ...list, name: action.newName } : list,
+        ),
+      };
+    case actionTypes.SET_ACTIVE_LIST:
+      return {
+        ...state,
+        activeListId: action.listId,
+      };
+
     default:
       return state;
   }

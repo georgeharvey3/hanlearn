@@ -1,5 +1,5 @@
 import * as actionTypes from './actionTypes';
-import { Word } from '../../types/models';
+import { Word, WordList } from '../../types/models';
 import {
   AddWordAction,
   AddCustomWordAction,
@@ -7,6 +7,11 @@ import {
   SetWordsAction,
   FetchWordsFailedAction,
   UpdateMeaningAction,
+  SetWordListsAction,
+  AddWordListAction,
+  RemoveWordListAction,
+  RenameWordListAction,
+  SetActiveListAction,
   AppThunk,
 } from '../../types/actions';
 import * as wordService from '../../services/wordService';
@@ -54,19 +59,59 @@ export const updateMeaning = (wordID: number, newMeaning: string): UpdateMeaning
   };
 };
 
+export const setWordLists = (lists: WordList[]): SetWordListsAction => {
+  return {
+    type: actionTypes.SET_WORD_LISTS,
+    lists,
+  };
+};
+
+export const addWordList = (list: WordList): AddWordListAction => {
+  return {
+    type: actionTypes.ADD_WORD_LIST,
+    list,
+  };
+};
+
+export const removeWordList = (listId: string): RemoveWordListAction => {
+  return {
+    type: actionTypes.REMOVE_WORD_LIST,
+    listId,
+  };
+};
+
+export const renameWordListAction = (listId: string, newName: string): RenameWordListAction => {
+  return {
+    type: actionTypes.RENAME_WORD_LIST,
+    listId,
+    newName,
+  };
+};
+
+export const setActiveList = (listId: string): SetActiveListAction => {
+  return {
+    type: actionTypes.SET_ACTIVE_LIST,
+    listId,
+  };
+};
+
 /**
- * Fetch all words in the user's word bank from Firestore
+ * Fetch all word lists and words for the active list from Firestore
  */
 export const initWords = (): AppThunk => {
   return async (dispatch, getState) => {
-    const { auth } = getState();
+    const { auth, addWords } = getState();
     if (!auth.userId) {
       dispatch(fetchWordsFailed());
       return;
     }
 
     try {
-      const words = await wordService.getUserWords(auth.userId);
+      const lists = await wordService.getUserWordLists(auth.userId);
+      dispatch(setWordLists(lists));
+
+      const activeListId = addWords.activeListId;
+      const words = await wordService.getUserWords(auth.userId, activeListId);
       dispatch(setWords(words));
     } catch (error) {
       console.error('Failed to fetch words:', error);
@@ -76,16 +121,87 @@ export const initWords = (): AppThunk => {
 };
 
 /**
- * Add a word to the user's word bank in Firestore
+ * Switch the active list and fetch its words
  */
-export const postWord = (word: Word): AppThunk => {
+export const switchActiveList = (listId: string): AppThunk => {
+  return async (dispatch, getState) => {
+    const { auth } = getState();
+    dispatch(setActiveList(listId));
+
+    if (!auth.userId) return;
+
+    try {
+      const words = await wordService.getUserWords(auth.userId, listId);
+      dispatch(setWords(words));
+    } catch (error) {
+      console.error('Failed to fetch words for list:', error);
+      dispatch(fetchWordsFailed());
+    }
+  };
+};
+
+/**
+ * Create a new word list
+ */
+export const postCreateWordList = (name: string): AppThunk => {
   return async (dispatch, getState) => {
     const { auth } = getState();
     if (!auth.userId) return;
 
     try {
-      await wordService.addWordToBank(auth.userId, word);
-      dispatch(addWord(word));
+      const list = await wordService.createWordList(auth.userId, name);
+      dispatch(addWordList(list));
+    } catch (error) {
+      console.error('Failed to create word list:', error);
+    }
+  };
+};
+
+/**
+ * Rename a word list
+ */
+export const postRenameWordList = (listId: string, newName: string): AppThunk => {
+  return async (dispatch, getState) => {
+    const { auth } = getState();
+    if (!auth.userId) return;
+
+    try {
+      await wordService.renameWordList(auth.userId, listId, newName);
+      dispatch(renameWordListAction(listId, newName));
+    } catch (error) {
+      console.error('Failed to rename word list:', error);
+    }
+  };
+};
+
+/**
+ * Delete a word list and all its words
+ */
+export const postDeleteWordList = (listId: string): AppThunk => {
+  return async (dispatch, getState) => {
+    const { auth } = getState();
+    if (!auth.userId) return;
+
+    try {
+      await wordService.deleteWordList(auth.userId, listId);
+      dispatch(removeWordList(listId));
+    } catch (error) {
+      console.error('Failed to delete word list:', error);
+    }
+  };
+};
+
+/**
+ * Add a word to the user's word bank in Firestore
+ */
+export const postWord = (word: Word): AppThunk => {
+  return async (dispatch, getState) => {
+    const { auth, addWords } = getState();
+    if (!auth.userId) return;
+
+    try {
+      await wordService.addWordToBank(auth.userId, word, addWords.activeListId);
+      dispatch(addWord({ ...word, listId: addWords.activeListId }));
     } catch (error) {
       console.error('Failed to add word:', error);
     }
@@ -101,7 +217,7 @@ export const postCustomWord = (word: {
   charSet: 'simp' | 'trad';
 }): AppThunk => {
   return async (dispatch, getState) => {
-    const { auth } = getState();
+    const { auth, addWords } = getState();
     if (!auth.userId) return;
 
     try {
@@ -110,6 +226,7 @@ export const postCustomWord = (word: {
         word.text,
         word.meaning,
         word.charSet,
+        addWords.activeListId,
       );
       dispatch(addCustomWord(newWord));
     } catch (error) {
@@ -158,7 +275,7 @@ export const postUpdateMeaning = (wordID: number, newMeaning: string): AppThunk 
  */
 export const finishTest = (scores: { word_id: number; score: number }[]): AppThunk => {
   return async (dispatch, getState) => {
-    const { auth } = getState();
+    const { auth, addWords } = getState();
     if (!auth.userId) return;
 
     try {
@@ -166,7 +283,10 @@ export const finishTest = (scores: { word_id: number; score: number }[]): AppThu
 
       // Re-fetch words so the local store has updated bank levels and due dates
       try {
-        const updatedWords = await wordService.getUserWords(auth.userId);
+        const updatedWords = await wordService.getUserWords(
+          auth.userId,
+          addWords.activeListId,
+        );
         dispatch(setWords(updatedWords));
       } catch (fetchError) {
         console.error('Failed to refresh words after test:', fetchError);

@@ -1,7 +1,9 @@
-import { Word } from './models';
+import { Word, WordList } from './models';
 
 // Individual slice states
 export interface AddWordsState {
+  lists: WordList[];
+  activeListId: string;
   words: Word[];
   error: boolean;
   loading: boolean;

@@ -9,6 +9,12 @@ export const POST_WORD = 'POST_WORD' as const;
 export const DELETE_WORD = 'DELETE_WORD' as const;
 export const UPDATE_MEANING = 'UPDATE_MEANING' as const;
 
+export const SET_WORD_LISTS = 'SET_WORD_LISTS' as const;
+export const ADD_WORD_LIST = 'ADD_WORD_LIST' as const;
+export const REMOVE_WORD_LIST = 'REMOVE_WORD_LIST' as const;
+export const RENAME_WORD_LIST = 'RENAME_WORD_LIST' as const;
+export const SET_ACTIVE_LIST = 'SET_ACTIVE_LIST' as const;
+
 export const AUTH_START = 'AUTH_START' as const;
 export const AUTH_SUCCESS = 'AUTH_SUCCESS' as const;
 export const AUTH_FAIL = 'AUTH_FAIL' as const;

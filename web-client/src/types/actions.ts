@@ -1,7 +1,7 @@
 import { ThunkAction, ThunkDispatch } from 'redux-thunk';
 import { UnknownAction } from 'redux';
 import { RootState } from './store';
-import { Word } from './models';
+import { Word, WordList } from './models';
 
 // Action type constants
 export const ActionTypes = {
@@ -15,6 +15,11 @@ export const ActionTypes = {
   POST_WORD: 'POST_WORD',
   DELETE_WORD: 'DELETE_WORD',
   UPDATE_MEANING: 'UPDATE_MEANING',
+  SET_WORD_LISTS: 'SET_WORD_LISTS',
+  ADD_WORD_LIST: 'ADD_WORD_LIST',
+  REMOVE_WORD_LIST: 'REMOVE_WORD_LIST',
+  RENAME_WORD_LIST: 'RENAME_WORD_LIST',
+  SET_ACTIVE_LIST: 'SET_ACTIVE_LIST',
   AUTH_START: 'AUTH_START',
   AUTH_SUCCESS: 'AUTH_SUCCESS',
   AUTH_FAIL: 'AUTH_FAIL',
@@ -70,6 +75,32 @@ export interface UpdateMeaningAction {
   type: typeof ActionTypes.UPDATE_MEANING;
   wordID: number;
   newMeaning: string;
+}
+
+export interface SetWordListsAction {
+  type: typeof ActionTypes.SET_WORD_LISTS;
+  lists: WordList[];
+}
+
+export interface AddWordListAction {
+  type: typeof ActionTypes.ADD_WORD_LIST;
+  list: WordList;
+}
+
+export interface RemoveWordListAction {
+  type: typeof ActionTypes.REMOVE_WORD_LIST;
+  listId: string;
+}
+
+export interface RenameWordListAction {
+  type: typeof ActionTypes.RENAME_WORD_LIST;
+  listId: string;
+  newName: string;
+}
+
+export interface SetActiveListAction {
+  type: typeof ActionTypes.SET_ACTIVE_LIST;
+  listId: string;
 }
 
 // Auth actions
@@ -147,7 +178,12 @@ export type WordAction =
   | SetWordsAction
   | FetchWordsAction
   | FetchWordsFailedAction
-  | UpdateMeaningAction;
+  | UpdateMeaningAction
+  | SetWordListsAction
+  | AddWordListAction
+  | RemoveWordListAction
+  | RenameWordListAction
+  | SetActiveListAction;
 
 export type AuthAction =
   | AuthStartAction
