@@ -64,9 +64,9 @@ export async function checkRateLimit(
       );
     }
 
-    // Increment counter
+    // Increment counter (use count + 1 since we already read the value in this transaction)
     transaction.update(counterRef, {
-      count: admin.firestore.FieldValue.increment(1),
+      count: count + 1,
     });
   });
 }

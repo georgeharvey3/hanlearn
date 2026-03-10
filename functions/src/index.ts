@@ -4,7 +4,14 @@ import * as hanzi from 'hanzi';
 import { checkRateLimit, RATE_LIMITS } from './rateLimit';
 
 admin.initializeApp();
-hanzi.start();
+
+let hanziReady = false;
+function ensureHanzi(): void {
+  if (!hanziReady) {
+    hanzi.start();
+    hanziReady = true;
+  }
+}
 
 // Re-export dictionary Cloud Functions
 export {
@@ -233,55 +240,91 @@ export const lookupChengyuChar = functions.https.onCall(
  */
 export const decomposeCharacter = functions.https.onCall(
   async (data: { char: string }, context) => {
-    const uid = verifyAuth(context);
-    await checkRateLimit(uid, 'decomposeCharacter', RATE_LIMITS.decomposeCharacter);
+    try {
+      const uid = verifyAuth(context);
+      await checkRateLimit(uid, 'decomposeCharacter', RATE_LIMITS.decomposeCharacter);
+      ensureHanzi();
 
-    const { char } = data;
+      const { char } = data;
 
-    if (!char || [...char].length !== 1) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'A single Chinese character is required'
-      );
+      if (!char || [...char].length !== 1) {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'A single Chinese character is required'
+        );
+      }
+
+      let components: { char: string; meaning: string | null; pinyin: string | null }[];
+
+      try {
+        const result = hanzi.decompose(char, 1);
+
+        // hanzi.decompose can return the string 'Invalid Input' for unknown chars
+        if (!result || typeof result === 'string') {
+          return { components: [] };
+        }
+
+        const rawComponents: string[] = Array.isArray(result.components)
+          ? result.components
+          : [];
+
+        // Filter out the character itself, placeholder values, empty strings,
+        // and raw Unicode code-point references (e.g. "37045") that appear in
+        // CJK decomposition data for obscure stroke components.
+        const filtered = rawComponents.filter(
+          (c: string) =>
+            c &&
+            c !== char &&
+            c !== 'No glyph available' &&
+            c.trim() !== '' &&
+            !/^\d+$/.test(c)
+        );
+
+        components = filtered.map((component: string) => {
+          let meaning: string | null = null;
+          let pinyin: string | null = null;
+
+          try {
+            const radicalMeaning = hanzi.getRadicalMeaning(component);
+            if (radicalMeaning && radicalMeaning !== 'N/A') {
+              meaning = radicalMeaning;
+            }
+          } catch {
+            // Radical lookup can fail for unusual components
+          }
+
+          try {
+            const defResult = hanzi.definitionLookup(component, 's');
+            if (Array.isArray(defResult) && defResult.length > 0) {
+              const entry = defResult[0];
+              if (entry.definition) {
+                meaning = meaning
+                  ? meaning
+                  : entry.definition.split('/')[0];
+              }
+              if (entry.pinyin) {
+                pinyin = entry.pinyin;
+              }
+            }
+          } catch {
+            // Dictionary lookup can fail for unusual components
+          }
+
+          return { char: component, meaning, pinyin };
+        });
+      } catch (err) {
+        console.error(`hanzi decomposition failed for "${char}":`, err);
+        components = [];
+      }
+
+      return { components };
+    } catch (err) {
+      // Re-throw HttpsErrors as-is so clients get proper error codes
+      if (err instanceof functions.https.HttpsError) {
+        throw err;
+      }
+      console.error('decomposeCharacter unhandled error:', err);
+      return { components: [] };
     }
-
-    const result = hanzi.decompose(char, 2);
-    const rawComponents: string[] = result?.components ?? [];
-
-    // Filter out the character itself, placeholder values, and empty strings
-    const filtered = rawComponents.filter(
-      (c: string) =>
-        c && c !== char && c !== 'No glyph available' && c.trim() !== ''
-    );
-
-    const components = filtered.map((component: string) => {
-      // Try radical meaning first, then dictionary lookup
-      const radicalMeaning = hanzi.getRadicalMeaning(component);
-      const defResult = hanzi.definitionLookup(component, 's');
-
-      let meaning: string | null = null;
-      let pinyin: string | null = null;
-
-      if (radicalMeaning && radicalMeaning !== 'N/A') {
-        meaning = radicalMeaning;
-      }
-
-      if (Array.isArray(defResult) && defResult.length > 0) {
-        const entry = defResult[0];
-        if (entry.definition) {
-          // Use dictionary definition if no radical meaning, or append it
-          meaning = meaning
-            ? meaning
-            : entry.definition.split('/')[0];
-        }
-        if (entry.pinyin) {
-          pinyin = entry.pinyin;
-        }
-      }
-
-      return { char: component, meaning, pinyin };
-    });
-
-    return { components };
   }
 );

@@ -72,6 +72,7 @@ const NewWord: React.FC<Props> = ({
   const [synthLoading, setSynthLoading] = useState(false);
   const [components, setComponents] = useState<DecompositionComponent[] | null>(null);
   const [decomposing, setDecomposing] = useState(false);
+  const [decomposeError, setDecomposeError] = useState<string | null>(null);
 
   const onSpeakPinyin = useCallback(
     (pinyinWord: string): void => {
@@ -116,11 +117,16 @@ const NewWord: React.FC<Props> = ({
 
   const onDecompose = useCallback(async (char: string): Promise<void> => {
     setDecomposing(true);
+    setDecomposeError(null);
     try {
       const result = await decomposeCharacter(char);
       setComponents(result);
-    } catch {
+    } catch (err) {
+      console.error('Decomposition failed for', char, err);
       setComponents([]);
+      setDecomposeError(
+        err instanceof Error ? err.message : 'Decomposition failed',
+      );
     } finally {
       setDecomposing(false);
     }
@@ -131,6 +137,7 @@ const NewWord: React.FC<Props> = ({
       setClickedIndex(index);
       setComponents(null);
       setDecomposing(false);
+      setDecomposeError(null);
       const cached = charCache.current.get(char);
       if (cached) {
         setCharData(cached);
@@ -165,6 +172,7 @@ const NewWord: React.FC<Props> = ({
     setCharLoading(false);
     setComponents(null);
     setDecomposing(false);
+    setDecomposeError(null);
     charCache.current.clear();
   }, [charSet, useSound, wordId]);
 
@@ -220,7 +228,7 @@ const NewWord: React.FC<Props> = ({
         <Typography
           sx={{ fontSize: '2.8em', fontWeight: 500, lineHeight: 1.2, color: 'text.primary' }}
         >
-          {clickedIndex !== null ? chars[clickedIndex] : charData.simp}
+          {clickedIndex !== null && clickedIndex >= 0 ? chars[clickedIndex] : charData.simp}
         </Typography>
         {charLoading ? (
           <CircularProgress size={24} sx={{ mt: 1.5 }} />
@@ -299,8 +307,8 @@ const NewWord: React.FC<Props> = ({
                 </Fade>
               )}
               {components !== null && components.length === 0 && (
-                <Typography sx={{ fontSize: '0.75em', color: 'text.disabled', mt: 0.5 }}>
-                  No decomposition available
+                <Typography sx={{ fontSize: '0.75em', color: decomposeError ? 'error.main' : 'text.disabled', mt: 0.5 }}>
+                  {decomposeError ?? 'No decomposition available'}
                 </Typography>
               )}
             </Box>
