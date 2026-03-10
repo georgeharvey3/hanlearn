@@ -371,6 +371,13 @@ const SentenceRead: React.FC<Props> = ({
     (event: globalThis.KeyboardEvent): void => {
       if ((event.target as HTMLElement).tagName.toLowerCase() === 'input') return;
 
+      if (event.key === 'Escape' && stateRef.current.openPopup !== '') {
+        document.querySelectorAll('[data-popup-text]').forEach((el) => {
+          (el as HTMLElement).style.visibility = 'hidden';
+        });
+        updateState({ openPopup: '' });
+      }
+
       if (event.ctrlKey && event.key === 'b') {
         document.getElementById('answerInput')?.focus();
       }
@@ -399,7 +406,7 @@ const SentenceRead: React.FC<Props> = ({
         onChangeSentence(1);
       }
     },
-    [onChangeSentence, onNoClicked, onYesClicked],
+    [onChangeSentence, onNoClicked, onYesClicked, updateState],
   );
 
   const onToggleText = (): void => {
@@ -808,6 +815,7 @@ const SentenceRead: React.FC<Props> = ({
             onClick={onToggleText}
             variant="outlined"
             size="small"
+            aria-pressed={state.showText}
             sx={{ cursor: 'pointer', borderColor: 'primary.dark', color: 'primary.dark', mt: 2 }}
           />
         )}
