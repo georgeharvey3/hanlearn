@@ -150,6 +150,9 @@ const DecompositionTree: React.FC<DecompositionTreeProps> = ({ char }) => {
         borderRadius: 3,
         p: 2,
         textAlign: 'center',
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       {/* Breadcrumb trail */}
@@ -230,7 +233,7 @@ const DecompositionTree: React.FC<DecompositionTreeProps> = ({ char }) => {
 
       {/* Loading state */}
       {loading && (
-        <Box sx={{ py: 4 }}>
+        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <CircularProgress size={28} />
         </Box>
       )}
@@ -238,11 +241,14 @@ const DecompositionTree: React.FC<DecompositionTreeProps> = ({ char }) => {
       {/* Radial tree */}
       {!loading && components !== null && components.length > 0 && (
         <Fade in>
-          <Box sx={{ mt: 1 }}>
+          <Box
+            sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', mt: 1 }}
+          >
             <svg
               viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
               width="100%"
-              style={{ maxWidth: SVG_SIZE, display: 'block', margin: '0 auto' }}
+              height="100%"
+              style={{ display: 'block', maxHeight: '100%' }}
               role="img"
               aria-label={`Decomposition of ${rootChar}`}
             >

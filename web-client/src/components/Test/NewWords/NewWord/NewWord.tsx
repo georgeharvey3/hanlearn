@@ -192,7 +192,7 @@ const NewWord: React.FC<Props> = ({
         Tap a character above to see its details
       </Typography>
     ) : (
-      <Box sx={{ textAlign: 'center', py: 1.5 }}>
+      <Box sx={{ textAlign: 'center', py: 1.5, flex: 1, display: 'flex', flexDirection: 'column' }}>
         <Typography
           sx={{ fontSize: '2.8em', fontWeight: 500, lineHeight: 1.2, color: 'text.primary' }}
         >
@@ -208,7 +208,7 @@ const NewWord: React.FC<Props> = ({
             <Box sx={{ mt: 0.5, display: 'flex', justifyContent: 'center' }}>
               <MeaningEditor value={charData.meanings.join('/')} readOnly size="small" />
             </Box>
-            <Box sx={{ mt: 1.5 }}>
+            <Box sx={{ mt: 1.5, flex: 1, display: 'flex', flexDirection: 'column' }}>
               <DecompositionTree char={charData.simp} />
             </Box>
           </>
@@ -217,7 +217,7 @@ const NewWord: React.FC<Props> = ({
     );
 
   return (
-    <Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 140px)' }}>
       <Paper
         elevation={compact ? 0 : 2}
         sx={{
@@ -304,7 +304,9 @@ const NewWord: React.FC<Props> = ({
           </Box>
         )}
       </Paper>
-      <Box sx={{ minHeight: compact ? 160 : 200, mt: compact ? 1.5 : 1 }}>{charInfo}</Box>
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', mt: compact ? 1.5 : 1 }}>
+        {charInfo}
+      </Box>
     </Box>
   );
 };
