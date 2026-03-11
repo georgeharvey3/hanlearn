@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 
-import { Box, ButtonBase, CircularProgress, Paper, Typography } from '@mui/material';
+import { Box, Button, ButtonBase, CircularProgress, Paper, Typography } from '@mui/material';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 
 import MeaningEditor from '../../../UI/MeaningEditor/MeaningEditor';
 import PictureButton from '../../../UI/Buttons/PictureButton/PictureButton';
+import DecompositionTree from './DecompositionTree';
 
 import speakerPic from '../../../../assets/images/speaker.png';
 
@@ -63,6 +65,7 @@ const NewWord: React.FC<Props> = ({
     localStorage.getItem('useSound') === 'false' || !synthAvailable ? false : true,
   );
   const [synthLoading, setSynthLoading] = useState(false);
+  const [decompOpen, setDecompOpen] = useState(false);
 
   const onSpeakPinyin = useCallback(
     (pinyinWord: string): void => {
@@ -140,6 +143,7 @@ const NewWord: React.FC<Props> = ({
     setCharData(null);
     setClickedIndex(null);
     setCharLoading(false);
+    setDecompOpen(false);
     charCache.current.clear();
   }, [charSet, useSound, wordId]);
 
@@ -191,11 +195,11 @@ const NewWord: React.FC<Props> = ({
         Tap a character above to see its details
       </Typography>
     ) : (
-      <Box sx={{ textAlign: 'center', py: 1.5 }}>
+      <Box sx={{ textAlign: 'center', py: 1.5, flex: 1, display: 'flex', flexDirection: 'column' }}>
         <Typography
           sx={{ fontSize: '2.8em', fontWeight: 500, lineHeight: 1.2, color: 'text.primary' }}
         >
-          {clickedIndex !== null ? chars[clickedIndex] : charData.simp}
+          {clickedIndex !== null && clickedIndex >= 0 ? chars[clickedIndex] : charData.simp}
         </Typography>
         {charLoading ? (
           <CircularProgress size={24} sx={{ mt: 1.5 }} />
@@ -207,13 +211,39 @@ const NewWord: React.FC<Props> = ({
             <Box sx={{ mt: 0.5, display: 'flex', justifyContent: 'center' }}>
               <MeaningEditor value={charData.meanings.join('/')} readOnly size="small" />
             </Box>
+            <Box sx={{ mt: 1.5, display: 'flex', justifyContent: 'center' }}>
+              <Button
+                variant={decompOpen ? 'contained' : 'outlined'}
+                size="small"
+                startIcon={<AccountTreeOutlinedIcon />}
+                onClick={() => setDecompOpen((prev) => !prev)}
+                aria-pressed={decompOpen}
+                sx={
+                  decompOpen
+                    ? {
+                        px: 2.5,
+                        bgcolor: 'primary.dark',
+                        color: '#fff',
+                        '&:hover': { bgcolor: '#145233' },
+                      }
+                    : {
+                        px: 2.5,
+                        color: 'text.secondary',
+                        borderColor: 'divider',
+                      }
+                }
+              >
+                Decompose
+              </Button>
+            </Box>
+            {decompOpen && <DecompositionTree char={charData.simp} />}
           </>
         )}
       </Box>
     );
 
   return (
-    <Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
       <Paper
         elevation={compact ? 0 : 2}
         sx={{
@@ -300,7 +330,9 @@ const NewWord: React.FC<Props> = ({
           </Box>
         )}
       </Paper>
-      <Box sx={{ minHeight: compact ? 160 : 200, mt: compact ? 1.5 : 1 }}>{charInfo}</Box>
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', mt: compact ? 1.5 : 1 }}>
+        {charInfo}
+      </Box>
     </Box>
   );
 };

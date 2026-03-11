@@ -8,7 +8,7 @@
     ]
   },
   "env": {
-    "PATH": "/home/george/.nvm/versions/node/v24.13.0/bin:${PATH}"
+    "PATH": "/home/harvey/.nvm/versions/node/v22.19.0/bin:/home/harvey/.local/bin:/home/harvey/.pixi/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
   },
   "hooks": {
     "PreToolUse": [
