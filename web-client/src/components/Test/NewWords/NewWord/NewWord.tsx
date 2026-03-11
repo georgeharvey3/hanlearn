@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 
-import { Box, ButtonBase, CircularProgress, Paper, Typography } from '@mui/material';
+import { Box, Button, ButtonBase, CircularProgress, Paper, Typography } from '@mui/material';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 
 import MeaningEditor from '../../../UI/MeaningEditor/MeaningEditor';
 import PictureButton from '../../../UI/Buttons/PictureButton/PictureButton';
@@ -64,6 +65,7 @@ const NewWord: React.FC<Props> = ({
     localStorage.getItem('useSound') === 'false' || !synthAvailable ? false : true,
   );
   const [synthLoading, setSynthLoading] = useState(false);
+  const [decompOpen, setDecompOpen] = useState(false);
 
   const onSpeakPinyin = useCallback(
     (pinyinWord: string): void => {
@@ -141,6 +143,7 @@ const NewWord: React.FC<Props> = ({
     setCharData(null);
     setClickedIndex(null);
     setCharLoading(false);
+    setDecompOpen(false);
     charCache.current.clear();
   }, [charSet, useSound, wordId]);
 
@@ -208,16 +211,39 @@ const NewWord: React.FC<Props> = ({
             <Box sx={{ mt: 0.5, display: 'flex', justifyContent: 'center' }}>
               <MeaningEditor value={charData.meanings.join('/')} readOnly size="small" />
             </Box>
-            <Box sx={{ mt: 1.5, flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <DecompositionTree char={charData.simp} />
+            <Box sx={{ mt: 1.5, display: 'flex', justifyContent: 'center' }}>
+              <Button
+                variant={decompOpen ? 'contained' : 'outlined'}
+                size="small"
+                startIcon={<AccountTreeOutlinedIcon />}
+                onClick={() => setDecompOpen((prev) => !prev)}
+                aria-pressed={decompOpen}
+                sx={
+                  decompOpen
+                    ? {
+                        px: 2.5,
+                        bgcolor: 'primary.dark',
+                        color: '#fff',
+                        '&:hover': { bgcolor: '#145233' },
+                      }
+                    : {
+                        px: 2.5,
+                        color: 'text.secondary',
+                        borderColor: 'divider',
+                      }
+                }
+              >
+                Decompose
+              </Button>
             </Box>
+            {decompOpen && <DecompositionTree char={charData.simp} />}
           </>
         )}
       </Box>
     );
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 140px)' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
       <Paper
         elevation={compact ? 0 : 2}
         sx={{

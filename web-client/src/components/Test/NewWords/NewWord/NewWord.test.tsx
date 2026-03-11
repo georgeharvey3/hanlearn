@@ -321,7 +321,26 @@ describe('NewWord character decomposition', () => {
     });
   }
 
-  it('auto-decomposes when a character is clicked', async () => {
+  it('shows Decompose button after clicking a character', async () => {
+    mockSearchWord.mockResolvedValue([
+      { id: 1, simp: '爱', trad: '愛', pinyin: 'ài', meaning: 'to love' },
+    ]);
+
+    renderWithProviders(<NewWord word={makeWord('爱你', 'ài nǐ', 'love you')} />, {
+      store: makeNoSoundStore(),
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByText('爱'));
+
+    await waitFor(() => {
+      expect(screen.getByText('ài')).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('button', { name: /decompose/i })).toBeInTheDocument();
+  });
+
+  it('shows component rows inline when Decompose is clicked', async () => {
     mockSearchWord.mockResolvedValue([
       { id: 1, simp: '爱', trad: '愛', pinyin: 'ài', meaning: 'to love' },
     ]);
@@ -340,10 +359,12 @@ describe('NewWord character decomposition', () => {
     await user.click(screen.getByText('爱'));
 
     await waitFor(() => {
-      expect(screen.getByText('ài')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /decompose/i })).toBeInTheDocument();
     });
 
-    // Components should appear automatically (no Decompose button needed)
+    await user.click(screen.getByRole('button', { name: /decompose/i }));
+
+    // Components should appear inline as rows
     await waitFor(() => {
       expect(screen.getByText('爫')).toBeInTheDocument();
       expect(screen.getByText('claw')).toBeInTheDocument();
@@ -352,92 +373,16 @@ describe('NewWord character decomposition', () => {
       expect(screen.getByText('友')).toBeInTheDocument();
       expect(screen.getByText('friend')).toBeInTheDocument();
     });
+
+    expect(mockDecomposeCharacter).toHaveBeenCalledWith('爱');
   });
 
-  it('shows loading indicator while decomposing', async () => {
-    mockSearchWord.mockResolvedValue([
-      { id: 1, simp: '大', trad: '大', pinyin: 'dà', meaning: 'big' },
-    ]);
-
-    let resolveDecompose!: (
-      value: { char: string; meaning: string | null; pinyin: string | null }[],
-    ) => void;
-    mockDecomposeCharacter.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveDecompose = resolve;
-        }),
-    );
-
-    renderWithProviders(<NewWord word={makeWord('大家', 'dàjiā', 'everyone')} />, {
-      store: makeNoSoundStore(),
-    });
-
-    const user = userEvent.setup();
-    await user.click(screen.getByText('大'));
-
-    await waitFor(() => {
-      expect(screen.getByText('dà')).toBeInTheDocument();
-    });
-
-    // Should show loading spinner (auto-decompose triggers on click)
-    await waitFor(() => {
-      expect(screen.getByRole('progressbar')).toBeInTheDocument();
-    });
-
-    resolveDecompose([{ char: '一', meaning: 'one', pinyin: 'yī' }]);
-
-    await waitFor(() => {
-      expect(screen.getByText('一')).toBeInTheDocument();
-    });
-  });
-
-  it('resets decomposition when a different character is clicked', async () => {
-    mockSearchWord.mockImplementation(async (char) => {
-      if (char === '爱')
-        return [{ id: 1, simp: '爱', trad: '愛', pinyin: 'ài', meaning: 'to love' }];
-      if (char === '你') return [{ id: 2, simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' }];
-      return [];
-    });
-
-    mockDecomposeCharacter.mockImplementation(async (char) => {
-      if (char === '爱') return [{ char: '爫', meaning: 'claw', pinyin: null }];
-      return [{ char: '亻', meaning: 'person', pinyin: null }];
-    });
-
-    renderWithProviders(<NewWord word={makeWord('爱你', 'ài nǐ', 'love you')} />, {
-      store: makeNoSoundStore(),
-    });
-
-    const user = userEvent.setup();
-    await user.click(screen.getByText('爱'));
-
-    await waitFor(() => {
-      expect(screen.getByText('爫')).toBeInTheDocument();
-    });
-
-    // Click a different character — decomposition resets to the new char
-    await user.click(screen.getByText('你'));
-
-    await waitFor(() => {
-      expect(screen.getByText('nǐ')).toBeInTheDocument();
-    });
-
-    // Old decomposition should be gone, replaced by new one
-    expect(screen.queryByText('爫')).not.toBeInTheDocument();
-    expect(screen.getByText('亻')).toBeInTheDocument();
-  });
-
-  it('clicking a component re-roots the tree and shows breadcrumbs', async () => {
+  it('toggles decomposition off when Decompose is clicked again', async () => {
     mockSearchWord.mockResolvedValue([
       { id: 1, simp: '爱', trad: '愛', pinyin: 'ài', meaning: 'to love' },
     ]);
 
-    mockDecomposeCharacter.mockImplementation(async (char) => {
-      if (char === '爱') return [{ char: '友', meaning: 'friend', pinyin: 'yǒu' }];
-      if (char === '友') return [{ char: '又', meaning: 'again', pinyin: 'yòu' }];
-      return [];
-    });
+    mockDecomposeCharacter.mockResolvedValue([{ char: '友', meaning: 'friend', pinyin: 'yǒu' }]);
 
     renderWithProviders(<NewWord word={makeWord('爱你', 'ài nǐ', 'love you')} />, {
       store: makeNoSoundStore(),
@@ -446,19 +391,21 @@ describe('NewWord character decomposition', () => {
     const user = userEvent.setup();
     await user.click(screen.getByText('爱'));
 
-    // Wait for decomposition to appear
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /decompose 友/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /decompose/i })).toBeInTheDocument();
     });
 
-    // Click the component to drill down
-    await user.click(screen.getByRole('button', { name: /decompose 友/i }));
-
-    // Should show breadcrumb and new decomposition
+    // Open decomposition
+    await user.click(screen.getByRole('button', { name: /decompose/i }));
     await waitFor(() => {
-      expect(screen.getByLabelText('Navigate back to 爱')).toBeInTheDocument();
-      expect(screen.getByText('又')).toBeInTheDocument();
-      expect(screen.getByText('again')).toBeInTheDocument();
+      expect(screen.getByText('友')).toBeInTheDocument();
+    });
+
+    // Close decomposition by clicking the top-level Decompose button again
+    const decomposeButtons = screen.getAllByRole('button', { name: /decompose/i });
+    await user.click(decomposeButtons[0]);
+    await waitFor(() => {
+      expect(screen.queryByText('friend')).not.toBeInTheDocument();
     });
   });
 
@@ -477,7 +424,55 @@ describe('NewWord character decomposition', () => {
     await user.click(screen.getByText('大'));
 
     await waitFor(() => {
+      expect(screen.getByRole('button', { name: /decompose/i })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /decompose/i }));
+
+    await waitFor(() => {
       expect(screen.getByText('No decomposition available')).toBeInTheDocument();
+    });
+  });
+
+  it('allows recursive decomposition of component characters', async () => {
+    mockSearchWord.mockResolvedValue([
+      { id: 1, simp: '爱', trad: '愛', pinyin: 'ài', meaning: 'to love' },
+    ]);
+
+    mockDecomposeCharacter.mockImplementation(async (char) => {
+      if (char === '爱') return [{ char: '友', meaning: 'friend', pinyin: 'yǒu' }];
+      if (char === '友') return [{ char: '又', meaning: 'again', pinyin: 'yòu' }];
+      return [];
+    });
+
+    renderWithProviders(<NewWord word={makeWord('爱你', 'ài nǐ', 'love you')} />, {
+      store: makeNoSoundStore(),
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByText('爱'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /decompose/i })).toBeInTheDocument();
+    });
+
+    // Open top-level decomposition
+    await user.click(screen.getByRole('button', { name: /decompose/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('友')).toBeInTheDocument();
+    });
+
+    // Find and click the Decompose button on the 友 component row
+    const decomposeButtons = screen.getAllByRole('button', { name: /decompose/i });
+    // First is the top-level (now active/contained), second is on the 友 row
+    const friendDecompBtn = decomposeButtons[decomposeButtons.length - 1];
+    await user.click(friendDecompBtn);
+
+    // Should show nested decomposition of 友
+    await waitFor(() => {
+      expect(screen.getByText('又')).toBeInTheDocument();
+      expect(screen.getByText('again')).toBeInTheDocument();
     });
   });
 });
