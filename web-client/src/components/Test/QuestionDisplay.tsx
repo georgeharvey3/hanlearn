@@ -62,6 +62,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
         <Box
           component="button"
           onClick={onToggleShowPinyin}
+          aria-pressed={showQuestionPinyin}
           sx={{
             bgcolor: 'transparent',
             color: 'primary.dark',

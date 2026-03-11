@@ -398,24 +398,34 @@ const AddWords: React.FC<Props> = ({
 
   const clashTableRows = useMemo(
     () =>
-      state.clashWords.map((word, index) => (
-        <TableRow
-          key={index}
-          hover
-          sx={{ cursor: 'pointer' }}
-          onClick={() => {
-            handleSearchResult([word], word[state.charSet]);
-            updateState({
-              clashChar: '',
-              clashWords: [],
-              showClashTable: false,
-            });
-          }}
-        >
-          <TableCell>{word.pinyin}</TableCell>
-          <TableCell>{word.meaning}</TableCell>
-        </TableRow>
-      )),
+      state.clashWords.map((word, index) => {
+        const selectWord = () => {
+          handleSearchResult([word], word[state.charSet]);
+          updateState({
+            clashChar: '',
+            clashWords: [],
+            showClashTable: false,
+          });
+        };
+        return (
+          <TableRow
+            key={index}
+            hover
+            tabIndex={0}
+            sx={{ cursor: 'pointer' }}
+            onClick={selectWord}
+            onKeyDown={(e: React.KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                selectWord();
+              }
+            }}
+          >
+            <TableCell>{word.pinyin}</TableCell>
+            <TableCell>{word.meaning}</TableCell>
+          </TableRow>
+        );
+      }),
     [state.clashWords, state.charSet, handleSearchResult, updateState],
   );
 
