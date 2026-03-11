@@ -11,6 +11,7 @@ interface StreakCardProps {
 const StreakCard: React.FC<StreakCardProps> = ({ streak }) => (
   <Paper elevation={2} sx={{ p: 2, textAlign: 'center', borderRadius: 2, height: '100%' }}>
     <LocalFireDepartmentIcon
+      aria-hidden="true"
       sx={{ fontSize: 40, color: streak > 0 ? colors.primaryLight : colors.divider }}
     />
     <Typography variant="h3" sx={{ fontWeight: 'bold', color: colors.primaryDark }}>
