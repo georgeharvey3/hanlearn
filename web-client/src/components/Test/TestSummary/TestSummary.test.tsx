@@ -53,6 +53,11 @@ describe('TestSummary — heading and word count', () => {
     renderWithProviders(<TestSummary />);
     expect(screen.getByRole('heading', { name: /session summary/i })).toBeInTheDocument();
   });
+
+  it('shows "0 words tested" when scores is undefined', () => {
+    renderWithProviders(<TestSummary />);
+    expect(screen.getByText(/0 words tested/i)).toBeInTheDocument();
+  });
 });
 
 describe('TestSummary — score rows', () => {
