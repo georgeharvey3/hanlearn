@@ -52,6 +52,7 @@ export function authenticatedState(userId = 'test-user-123') {
       lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
       activeListId: 'default',
       words: [],
+      listStats: {},
       error: false,
       loading: false,
     },

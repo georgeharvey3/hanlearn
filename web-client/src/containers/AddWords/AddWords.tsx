@@ -70,6 +70,7 @@ const mapStateToProps = (state: RootState) => ({
   authInitialized: state.auth.initialized,
   lists: state.addWords.lists,
   activeListId: state.addWords.activeListId,
+  listStats: state.addWords.listStats,
 });
 
 const mapDispatchToProps = {
@@ -105,6 +106,7 @@ const AddWords: React.FC<Props> = ({
   onDeleteList,
   lists,
   activeListId,
+  listStats,
   history,
   isDemo,
 }) => {
@@ -539,6 +541,19 @@ const AddWords: React.FC<Props> = ({
       <Modal show={state.showErrorMessage} modalClosed={dismissModal}>
         <p>{state.errorMessage}</p>
       </Modal>
+      {!isDemo && (
+        <Box sx={{ mt: 3 }}>
+          <ListSelector
+            lists={lists}
+            activeListId={activeListId}
+            listStats={listStats}
+            onSwitchList={onSwitchList}
+            onCreateList={onCreateList}
+            onRenameList={onRenameList}
+            onDeleteList={onDeleteList}
+          />
+        </Box>
+      )}
       <MainBanner
         submitDisabled={state.newWord.length === 0}
         inputChanged={onInputChangedHandler}
@@ -546,16 +561,6 @@ const AddWords: React.FC<Props> = ({
         submitClicked={searchForWord}
         loading={state.loading}
       />
-      {!isDemo && (
-        <ListSelector
-          lists={lists}
-          activeListId={activeListId}
-          onSwitchList={onSwitchList}
-          onCreateList={onCreateList}
-          onRenameList={onRenameList}
-          onDeleteList={onDeleteList}
-        />
-      )}
       {state.addError && (
         <Typography
           role="alert"

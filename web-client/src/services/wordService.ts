@@ -388,6 +388,38 @@ export const moveWordToList = async (
 };
 
 /**
+ * Get word counts (total and due) grouped by list for all of a user's words.
+ * Used to show due-count badges across all lists without loading every word into Redux.
+ */
+export const getListStats = async (
+  userId: string,
+): Promise<Record<string, { due: number; total: number }>> => {
+  const userWordsRef = collection(db, 'users', userId, 'userWords');
+  const snapshot = await getDocs(userWordsRef);
+
+  const stats: Record<string, { due: number; total: number }> = {};
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  snapshot.docs.forEach((d) => {
+    const data = d.data() as UserWordDocument;
+    const listId = data.listId || 'default';
+    if (!stats[listId]) stats[listId] = { due: 0, total: 0 };
+    stats[listId].total++;
+
+    if (data.dueDate) {
+      const dueDate = data.dueDate.toDate();
+      dueDate.setHours(0, 0, 0, 0);
+      if (dueDate <= now) {
+        stats[listId].due++;
+      }
+    }
+  });
+
+  return stats;
+};
+
+/**
  * Format a date as YYYY/MM/DD
  */
 function formatDate(date: Date): string {

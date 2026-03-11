@@ -10,7 +10,6 @@ import Footer from '../../components/Home/Footer/Footer';
 import Chengyu from '../../components/Home/Chengyu/Chengyu';
 import HowItWorks from '../../components/Home/HowItWorks/HowItWorks';
 import FeatureHighlights from '../../components/Home/FeatureHighlights/FeatureHighlights';
-import ListSelector from '../../components/UI/ListSelector/ListSelector';
 
 import * as actions from '../../store/actions/index';
 import { RootState } from '../../types/store';
@@ -23,6 +22,7 @@ const mapStateToProps = (state: RootState) => ({
   wordsLoading: state.addWords.loading,
   lists: state.addWords.lists,
   activeListId: state.addWords.activeListId,
+  listStats: state.addWords.listStats,
 });
 
 const mapDispatchToProps = {
@@ -45,6 +45,7 @@ const Home: React.FC<Props> = ({
   wordsLoading,
   lists,
   activeListId,
+  listStats,
   onInitWords,
   onOpenAuthModal,
   onSwitchList,
@@ -103,26 +104,27 @@ const Home: React.FC<Props> = ({
         tryOutClicked={!isAuthenticated ? onTryOutClicked : undefined}
       />
       {isAuthenticated && (
-        <>
-          <ListSelector
-            lists={lists}
-            activeListId={activeListId}
-            onSwitchList={onSwitchList}
-            onCreateList={onCreateList}
-            onRenameList={onRenameList}
-            onDeleteList={onDeleteList}
-          />
-          <AccountSummary
-            numDue={numDue}
-            numTot={numTot}
-            testClicked={onTestClicked}
-            addWordsClicked={onAddWordsClicked}
-            loading={wordsLoading}
-            activeListName={activeListName}
-          />
-        </>
+        <AccountSummary
+          numDue={numDue}
+          numTot={numTot}
+          testClicked={onTestClicked}
+          addWordsClicked={onAddWordsClicked}
+          loading={wordsLoading}
+          activeListName={activeListName}
+          lists={lists}
+          activeListId={activeListId}
+          listStats={listStats}
+          onSwitchList={onSwitchList}
+          onCreateList={onCreateList}
+          onRenameList={onRenameList}
+          onDeleteList={onDeleteList}
+        />
       )}
-      {isAuthenticated && <Chengyu />}
+      {isAuthenticated && (
+        <Box sx={{ width: '95%', mx: 'auto' }}>
+          <Chengyu />
+        </Box>
+      )}
       <HowItWorks />
       <FeatureHighlights />
       {!isAuthenticated && (

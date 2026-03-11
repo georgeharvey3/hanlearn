@@ -9,6 +9,7 @@ const initialState: AddWordsState = {
   lists: [DEFAULT_LIST],
   activeListId: 'default',
   words: [],
+  listStats: {},
   error: false,
   loading: false,
 };
@@ -135,6 +136,11 @@ const reducer = (state = initialState, action: WordAction): AddWordsState => {
       return {
         ...state,
         activeListId: action.listId,
+      };
+    case actionTypes.SET_LIST_STATS:
+      return {
+        ...state,
+        listStats: action.listStats,
       };
 
     default:

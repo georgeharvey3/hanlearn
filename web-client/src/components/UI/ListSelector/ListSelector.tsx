@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
@@ -10,28 +11,34 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogActions from '@mui/material/DialogActions';
-import MuiButton from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import Button from '../Buttons/Button/Button';
 import { WordList } from '../../../types/models';
+import { ListStats } from '../../../types/store';
 
 interface ListSelectorProps {
   lists: WordList[];
   activeListId: string;
+  listStats: Record<string, ListStats>;
   onSwitchList: (listId: string) => void;
   onCreateList: (name: string) => void;
   onRenameList: (listId: string, newName: string) => void;
   onDeleteList: (listId: string) => void;
+  readOnly?: boolean;
 }
 
 const ListSelector: React.FC<ListSelectorProps> = ({
   lists,
   activeListId,
+  listStats,
   onSwitchList,
   onCreateList,
   onRenameList,
   onDeleteList,
+  readOnly,
 }) => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -75,7 +82,7 @@ const ListSelector: React.FC<ListSelectorProps> = ({
     setRenameDialogOpen(true);
   }, [activeList]);
 
-  if (safeLists.length === 0) return null;
+  if (safeLists.filter((l) => l.id !== 'default').length === 0) return null;
 
   return (
     <>
@@ -89,39 +96,76 @@ const ListSelector: React.FC<ListSelectorProps> = ({
         }}
       >
         <FormControl size="small" sx={{ minWidth: 160 }}>
-          <Select value={activeListId} onChange={handleListChange} data-testid="list-selector">
-            {safeLists.map((list) => (
-              <MenuItem key={list.id} value={list.id}>
-                {list.name}
-              </MenuItem>
-            ))}
+          <InputLabel
+            id="list-selector-label"
+            sx={{ '&, &.MuiInputLabel-shrink': { color: 'text.primary' } }}
+          >
+            Active list
+          </InputLabel>
+          <Select
+            labelId="list-selector-label"
+            label="Active list"
+            value={activeListId}
+            onChange={handleListChange}
+            data-testid="list-selector"
+            renderValue={(selected) => {
+              const list = safeLists.find((l) => l.id === selected);
+              return list?.name ?? selected;
+            }}
+          >
+            {safeLists.map((list) => {
+              const stats = listStats[list.id];
+              const dueCount = stats?.due ?? 0;
+              return (
+                <MenuItem
+                  key={list.id}
+                  value={list.id}
+                  sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5 }}
+                >
+                  <span>{list.name}</span>
+                  {stats && (
+                    <Chip
+                      label={`${dueCount} due`}
+                      size="small"
+                      color={dueCount > 0 ? 'primary' : 'default'}
+                      variant={dueCount > 0 ? 'filled' : 'outlined'}
+                      sx={{ ml: 'auto', height: 20, fontSize: '0.7rem' }}
+                    />
+                  )}
+                </MenuItem>
+              );
+            })}
           </Select>
         </FormControl>
-        <IconButton
-          size="small"
-          onClick={() => setCreateDialogOpen(true)}
-          aria-label="Create new list"
-        >
-          <AddIcon />
-        </IconButton>
-        {activeListId !== 'default' && (
+        {!readOnly && (
           <>
-            <IconButton size="small" onClick={openRenameDialog} aria-label="Rename list">
-              <EditIcon />
-            </IconButton>
             <IconButton
               size="small"
-              onClick={() => setDeleteDialogOpen(true)}
-              aria-label="Delete list"
+              onClick={() => setCreateDialogOpen(true)}
+              aria-label="Create new list"
             >
-              <DeleteIcon />
+              <AddIcon />
             </IconButton>
+            {activeListId !== 'default' && (
+              <>
+                <IconButton size="small" onClick={openRenameDialog} aria-label="Rename list">
+                  <EditIcon />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  aria-label="Delete list"
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </>
+            )}
           </>
         )}
       </Box>
 
       {/* Create List Dialog */}
-      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)}>
+      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} fullWidth>
         <DialogTitle>Create New List</DialogTitle>
         <DialogContent>
           <TextField
@@ -135,18 +179,23 @@ const ListSelector: React.FC<ListSelectorProps> = ({
               if (e.key === 'Enter') handleCreate();
             }}
             inputProps={{ maxLength: 50 }}
+            InputLabelProps={{
+              sx: { '&, &.MuiInputLabel-shrink': { color: 'text.primary' } },
+            }}
           />
         </DialogContent>
         <DialogActions>
-          <MuiButton onClick={() => setCreateDialogOpen(false)}>Cancel</MuiButton>
-          <MuiButton onClick={handleCreate} disabled={!newListName.trim()}>
+          <Button type="ghost" clicked={() => setCreateDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button clicked={handleCreate} disabled={!newListName.trim()}>
             Create
-          </MuiButton>
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* Rename List Dialog */}
-      <Dialog open={renameDialogOpen} onClose={() => setRenameDialogOpen(false)}>
+      <Dialog open={renameDialogOpen} onClose={() => setRenameDialogOpen(false)} fullWidth>
         <DialogTitle>Rename List</DialogTitle>
         <DialogContent>
           <TextField
@@ -160,18 +209,23 @@ const ListSelector: React.FC<ListSelectorProps> = ({
               if (e.key === 'Enter') handleRename();
             }}
             inputProps={{ maxLength: 50 }}
+            InputLabelProps={{
+              sx: { '&, &.MuiInputLabel-shrink': { color: 'text.primary' } },
+            }}
           />
         </DialogContent>
         <DialogActions>
-          <MuiButton onClick={() => setRenameDialogOpen(false)}>Cancel</MuiButton>
-          <MuiButton onClick={handleRename} disabled={!renameListName.trim()}>
+          <Button type="ghost" clicked={() => setRenameDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button clicked={handleRename} disabled={!renameListName.trim()}>
             Rename
-          </MuiButton>
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* Delete List Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} fullWidth>
         <DialogTitle>Delete List</DialogTitle>
         <DialogContent>
           <DialogContentText>
@@ -180,10 +234,12 @@ const ListSelector: React.FC<ListSelectorProps> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <MuiButton onClick={() => setDeleteDialogOpen(false)}>Cancel</MuiButton>
-          <MuiButton onClick={handleDelete} color="error">
+          <Button type="ghost" clicked={() => setDeleteDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button type="secondary" clicked={handleDelete}>
             Delete
-          </MuiButton>
+          </Button>
         </DialogActions>
       </Dialog>
     </>

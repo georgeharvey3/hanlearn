@@ -2,6 +2,7 @@ import { ThunkAction, ThunkDispatch } from 'redux-thunk';
 import { UnknownAction } from 'redux';
 import { RootState } from './store';
 import { Word, WordList } from './models';
+import { ListStats } from './store';
 
 // Action type constants
 export const ActionTypes = {
@@ -20,6 +21,7 @@ export const ActionTypes = {
   REMOVE_WORD_LIST: 'REMOVE_WORD_LIST',
   RENAME_WORD_LIST: 'RENAME_WORD_LIST',
   SET_ACTIVE_LIST: 'SET_ACTIVE_LIST',
+  SET_LIST_STATS: 'SET_LIST_STATS',
   AUTH_START: 'AUTH_START',
   AUTH_SUCCESS: 'AUTH_SUCCESS',
   AUTH_FAIL: 'AUTH_FAIL',
@@ -103,6 +105,11 @@ export interface SetActiveListAction {
   listId: string;
 }
 
+export interface SetListStatsAction {
+  type: typeof ActionTypes.SET_LIST_STATS;
+  listStats: Record<string, ListStats>;
+}
+
 // Auth actions
 export interface AuthStartAction {
   type: typeof ActionTypes.AUTH_START;
@@ -183,7 +190,8 @@ export type WordAction =
   | AddWordListAction
   | RemoveWordListAction
   | RenameWordListAction
-  | SetActiveListAction;
+  | SetActiveListAction
+  | SetListStatsAction;
 
 export type AuthAction =
   | AuthStartAction

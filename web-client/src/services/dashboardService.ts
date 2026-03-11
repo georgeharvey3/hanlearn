@@ -9,10 +9,13 @@ export interface DashboardStats {
   masteredCount: number;
 }
 
-export const getDashboardStats = async (userId: string): Promise<DashboardStats> => {
+export const getDashboardStats = async (
+  userId: string,
+  listId?: string,
+): Promise<DashboardStats> => {
   const [allWords, dueWords, streakData] = await Promise.all([
-    getUserWords(userId),
-    getDueUserWords(userId),
+    getUserWords(userId, listId),
+    getDueUserWords(userId, listId),
     getStreakData(userId),
   ]);
 

@@ -14,6 +14,7 @@ export const ADD_WORD_LIST = 'ADD_WORD_LIST' as const;
 export const REMOVE_WORD_LIST = 'REMOVE_WORD_LIST' as const;
 export const RENAME_WORD_LIST = 'RENAME_WORD_LIST' as const;
 export const SET_ACTIVE_LIST = 'SET_ACTIVE_LIST' as const;
+export const SET_LIST_STATS = 'SET_LIST_STATS' as const;
 
 export const AUTH_START = 'AUTH_START' as const;
 export const AUTH_SUCCESS = 'AUTH_SUCCESS' as const;

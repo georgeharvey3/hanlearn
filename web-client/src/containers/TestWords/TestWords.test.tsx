@@ -103,6 +103,7 @@ describe('TestWords — auth guard', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [],
+        listStats: {},
         loading: false,
         error: false,
       },
@@ -116,20 +117,21 @@ describe('TestWords — auth guard', () => {
 });
 
 describe('TestWords — empty bank / no words due', () => {
-  it('shows "No words due for testing" when word list is empty', async () => {
+  it('shows "No words due in active list" when word list is empty', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [],
+        listStats: {},
         loading: false,
         error: false,
       },
     });
     renderWithProviders(<TestWords />, { store });
     await waitFor(() => {
-      expect(screen.getByText(/no words due for testing/i)).toBeInTheDocument();
+      expect(screen.getByText(/no words due in/i)).toBeInTheDocument();
     });
   });
 
@@ -140,6 +142,7 @@ describe('TestWords — empty bank / no words due', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [],
+        listStats: {},
         loading: false,
         error: false,
       },
@@ -157,13 +160,14 @@ describe('TestWords — empty bank / no words due', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [],
+        listStats: {},
         loading: false,
         error: false,
       },
     });
     renderWithProviders(<TestWords />, { store });
     await waitFor(() => {
-      expect(screen.getByText(/no words due for testing/i)).toBeInTheDocument();
+      expect(screen.getByText(/no words due in/i)).toBeInTheDocument();
     });
     expect(screen.queryByRole('button', { name: /practice/i })).not.toBeInTheDocument();
   });
@@ -175,6 +179,7 @@ describe('TestWords — empty bank / no words due', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [futureWord(1, '你好')],
+        listStats: {},
         loading: false,
         error: false,
       },
@@ -194,6 +199,7 @@ describe('TestWords — initWords side-effect', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [],
+        listStats: {},
         loading: false,
         error: false,
       },
@@ -221,6 +227,7 @@ describe('TestWords — demo mode', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [],
+        listStats: {},
         loading: false,
         error: false,
       },
@@ -243,6 +250,7 @@ describe('TestWords — active session with due words', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [dueWord(1, '你好', 2)],
+        listStats: {},
         loading: false,
         error: false,
       },
@@ -260,6 +268,7 @@ describe('TestWords — active session with due words', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [dueWord(1, '你好', 1)],
+        listStats: {},
         loading: false,
         error: false,
       },
@@ -277,6 +286,7 @@ describe('TestWords — active session with due words', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [dueWord(1, '你好', 2)],
+        listStats: {},
         loading: false,
         error: false,
       },
@@ -295,6 +305,7 @@ describe('TestWords — active session with due words', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [dueWord(1, '你好', 1)],
+        listStats: {},
         loading: false,
         error: false,
       },
@@ -315,6 +326,7 @@ describe('TestWords — practice mode', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [futureWord(1, '你好')],
+        listStats: {},
         loading: false,
         error: false,
       },
@@ -344,6 +356,7 @@ describe('TestWords — stage transitions', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [dueWord(1, '你好', 2)],
+        listStats: {},
         loading: false,
         error: false,
       },
@@ -380,6 +393,7 @@ describe('TestWords — stage transitions', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [dueWord(1, '你好', 2)],
+        listStats: {},
         loading: false,
         error: false,
       },
@@ -410,6 +424,7 @@ describe('TestWords — stage transitions', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [dueWord(1, '你好', 2)],
+        listStats: {},
         loading: false,
         error: false,
       },
@@ -439,6 +454,7 @@ describe('TestWords — stage transitions', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [dueWord(1, '你好', 2)],
+        listStats: {},
         loading: false,
         error: false,
       },

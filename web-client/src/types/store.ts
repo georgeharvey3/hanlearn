@@ -1,10 +1,16 @@
 import { Word, WordList } from './models';
 
 // Individual slice states
+export interface ListStats {
+  due: number;
+  total: number;
+}
+
 export interface AddWordsState {
   lists: WordList[];
   activeListId: string;
   words: Word[];
+  listStats: Record<string, ListStats>;
   error: boolean;
   loading: boolean;
 }

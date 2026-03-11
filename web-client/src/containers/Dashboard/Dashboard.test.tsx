@@ -56,7 +56,7 @@ describe('Dashboard container', () => {
     renderWithProviders(<Dashboard />, {
       store: createTestStore(authenticatedState('uid-xyz')),
     });
-    await waitFor(() => expect(mockGetDashboardStats).toHaveBeenCalledWith('uid-xyz'));
+    await waitFor(() => expect(mockGetDashboardStats).toHaveBeenCalledWith('uid-xyz', 'default'));
   });
 
   it('shows an error message when the stats load fails', async () => {
@@ -102,6 +102,7 @@ describe('Dashboard container', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [],
+        listStats: {},
         error: false,
         loading: false,
       },
@@ -132,6 +133,7 @@ describe('Dashboard container', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [],
+        listStats: {},
         error: false,
         loading: false,
       },

@@ -12,8 +12,10 @@ import {
   RemoveWordListAction,
   RenameWordListAction,
   SetActiveListAction,
+  SetListStatsAction,
   AppThunk,
 } from '../../types/actions';
+import { ListStats } from '../../types/store';
 import * as wordService from '../../services/wordService';
 import { recordTestCompletion } from '../../services/streakService';
 
@@ -95,6 +97,13 @@ export const setActiveList = (listId: string): SetActiveListAction => {
   };
 };
 
+export const setListStats = (listStats: Record<string, ListStats>): SetListStatsAction => {
+  return {
+    type: actionTypes.SET_LIST_STATS,
+    listStats,
+  };
+};
+
 /**
  * Fetch all word lists and words for the active list from Firestore
  */
@@ -111,8 +120,12 @@ export const initWords = (): AppThunk => {
       dispatch(setWordLists(lists));
 
       const activeListId = addWords.activeListId;
-      const words = await wordService.getUserWords(auth.userId, activeListId);
+      const [words, stats] = await Promise.all([
+        wordService.getUserWords(auth.userId, activeListId),
+        wordService.getListStats(auth.userId),
+      ]);
       dispatch(setWords(words));
+      dispatch(setListStats(stats));
     } catch (error) {
       console.error('Failed to fetch words:', error);
       dispatch(fetchWordsFailed());
@@ -151,6 +164,7 @@ export const postCreateWordList = (name: string): AppThunk => {
     try {
       const list = await wordService.createWordList(auth.userId, name);
       dispatch(addWordList(list));
+      dispatch(switchActiveList(list.id));
     } catch (error) {
       console.error('Failed to create word list:', error);
     }
@@ -281,10 +295,14 @@ export const finishTest = (scores: { word_id: number; score: number }[]): AppThu
     try {
       await wordService.finishTest(auth.userId, scores);
 
-      // Re-fetch words so the local store has updated bank levels and due dates
+      // Re-fetch words and stats so the local store has updated bank levels and due dates
       try {
-        const updatedWords = await wordService.getUserWords(auth.userId, addWords.activeListId);
+        const [updatedWords, stats] = await Promise.all([
+          wordService.getUserWords(auth.userId, addWords.activeListId),
+          wordService.getListStats(auth.userId),
+        ]);
         dispatch(setWords(updatedWords));
+        dispatch(setListStats(stats));
       } catch (fetchError) {
         console.error('Failed to refresh words after test:', fetchError);
       }

@@ -453,6 +453,7 @@ describe('SentenceRead — word popup rendering', () => {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
         words: [{ id: 5, simp: '我是', trad: '我是', pinyin: 'wo3 shi4', meaning: 'to be' }],
+        listStats: {},
         error: false,
         loading: false,
       },

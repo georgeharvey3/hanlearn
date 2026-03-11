@@ -36,6 +36,7 @@ const sampleWords: Word[] = [
 describe('word action thunks', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedWordService.getListStats.mockResolvedValue({});
   });
 
   describe('initWords', () => {
@@ -68,6 +69,7 @@ describe('word action thunks', () => {
           lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
           activeListId: 'default',
           words: [],
+          listStats: {},
           error: false,
           loading: false,
         },
@@ -121,6 +123,7 @@ describe('word action thunks', () => {
           lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
           activeListId: 'default',
           words: [],
+          listStats: {},
           error: false,
           loading: false,
         },
@@ -143,6 +146,7 @@ describe('word action thunks', () => {
           lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
           activeListId: 'default',
           words: [sampleWord],
+          listStats: {},
           error: false,
           loading: false,
         },
@@ -164,6 +168,7 @@ describe('word action thunks', () => {
           lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
           activeListId: 'default',
           words: [sampleWord],
+          listStats: {},
           error: false,
           loading: false,
         },
@@ -243,6 +248,7 @@ describe('word action thunks', () => {
           lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
           activeListId: 'default',
           words: [],
+          listStats: {},
           error: false,
           loading: false,
         },

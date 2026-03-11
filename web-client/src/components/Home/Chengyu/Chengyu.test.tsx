@@ -64,6 +64,7 @@ function makeStore() {
       lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
       activeListId: 'default',
       words: [],
+      listStats: {},
       loading: false,
       error: false,
     },
