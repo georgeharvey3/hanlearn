@@ -32,7 +32,7 @@ const TestSummary: React.FC<TestSummaryProps> = ({ history, scores }) => {
         Session Summary
       </Typography>
       <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2.5 }}>
-        {scores?.length} word{scores && scores.length !== 1 ? 's' : ''} tested
+        {scores?.length ?? 0} word{(scores?.length ?? 0) !== 1 ? 's' : ''} tested
       </Typography>
 
       <Box
