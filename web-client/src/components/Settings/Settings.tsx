@@ -21,6 +21,7 @@ interface SettingsState {
   useEnglishSpeechRecognition: boolean;
   useHandwriting: boolean;
   useSound: boolean;
+  useSoundEffects: boolean;
   useAutoRecord: boolean;
   useFlashcards: boolean;
   newWords: boolean;
@@ -84,6 +85,7 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
     const useEnglishSpeechRecognition = localStorage.getItem('useEnglishSpeechRecognition');
     const useHandwriting = localStorage.getItem('useHandwriting');
     const useSound = localStorage.getItem('useSound');
+    const useSoundEffects = localStorage.getItem('useSoundEffects');
     const useAutoRecord = localStorage.getItem('useAutoRecord');
     const useFlashcards = localStorage.getItem('useFlashcards');
     const newWords = localStorage.getItem('newWords');
@@ -99,6 +101,7 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
       useEnglishSpeechRecognition: useEnglishSpeechRecognition === 'false' ? false : true,
       useHandwriting: useHandwriting === 'false' ? false : true,
       useSound: useSound === 'false' ? false : true,
+      useSoundEffects: useSoundEffects === 'false' ? false : true,
       useAutoRecord: useAutoRecord === 'false' ? false : true,
       useFlashcards: useFlashcards === 'false' ? false : true,
       newWords: newWords === 'false' ? false : true,
@@ -184,10 +187,17 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
   const checkboxItems = [
     {
       value: 'useSound',
-      label: 'Sound',
+      label: 'Text-to-speech',
       checked: state.useSound && synthAvailable,
       disabled: !synthAvailable,
       disabledTooltip: 'Speech synthesis is not available in this browser',
+    },
+    {
+      value: 'useSoundEffects',
+      label: 'Sound effects',
+      checked: state.useSoundEffects,
+      disabled: false,
+      disabledTooltip: '',
     },
     {
       value: 'useChineseSpeechRecognition',

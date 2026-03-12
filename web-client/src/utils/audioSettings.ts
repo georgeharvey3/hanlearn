@@ -1,5 +1,6 @@
 export interface AudioSettings {
   useSound: boolean;
+  useSoundEffects: boolean;
   useChineseSpeechRecognition: boolean;
   useEnglishSpeechRecognition: boolean;
   useAutoRecord: boolean;
@@ -8,6 +9,7 @@ export interface AudioSettings {
 
 export const getAudioSettings = (): AudioSettings => ({
   useSound: localStorage.getItem('useSound') !== 'false',
+  useSoundEffects: localStorage.getItem('useSoundEffects') !== 'false',
   useChineseSpeechRecognition: localStorage.getItem('useChineseSpeechRecognition') !== 'false',
   useEnglishSpeechRecognition: localStorage.getItem('useEnglishSpeechRecognition') !== 'false',
   useAutoRecord: localStorage.getItem('useAutoRecord') !== 'false',
@@ -39,8 +41,13 @@ export const getAudioSettingItems = (
 ): AudioSettingItem[] => [
   {
     key: 'useSound',
-    label: 'Sound',
+    label: 'Text-to-speech',
     disabled: !synthAvailable,
+  },
+  {
+    key: 'useSoundEffects',
+    label: 'Sound effects',
+    disabled: false,
   },
   {
     key: 'useChineseSpeechRecognition',

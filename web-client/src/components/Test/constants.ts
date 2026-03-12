@@ -68,6 +68,7 @@ export const createInitialState = (props: Props): TestState => {
     drawnCharacters: [],
     numSpeakTries: 0,
     useSound: true,
+    useSoundEffects: true,
     useHandwriting: true,
     useChineseSpeechRecognition: true,
     useEnglishSpeechRecognition: true,

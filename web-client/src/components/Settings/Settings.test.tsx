@@ -95,12 +95,12 @@ describe('Settings — character set radio buttons', () => {
 });
 
 describe('Settings — checkbox toggles', () => {
-  it('toggling Sound checkbox persists to localStorage', async () => {
+  it('toggling Text-to-speech checkbox persists to localStorage', async () => {
     const user = userEvent.setup();
     // synthAvailable=true so checkbox is enabled
     renderWithProviders(<Settings />, { store: makeStore(false, true) });
 
-    const soundCheckbox = screen.getByRole('checkbox', { name: /^sound$/i });
+    const soundCheckbox = screen.getByRole('checkbox', { name: /text-to-speech/i });
     // Default is checked (true), clicking unchecks
     await user.click(soundCheckbox);
     expect(localStorage.getItem('useSound')).toBe('false');
@@ -219,15 +219,15 @@ describe('Settings — priority radio buttons', () => {
 });
 
 describe('Settings — speech availability gating', () => {
-  it('disables Sound checkbox when synthAvailable is false', () => {
+  it('disables Text-to-speech checkbox when synthAvailable is false', () => {
     renderWithProviders(<Settings />, { store: makeStore(false, false) });
-    const soundCheckbox = screen.getByRole('checkbox', { name: /^sound$/i });
+    const soundCheckbox = screen.getByRole('checkbox', { name: /text-to-speech/i });
     expect(soundCheckbox).toBeDisabled();
   });
 
-  it('enables Sound checkbox when synthAvailable is true', () => {
+  it('enables Text-to-speech checkbox when synthAvailable is true', () => {
     renderWithProviders(<Settings />, { store: makeStore(false, true) });
-    const soundCheckbox = screen.getByRole('checkbox', { name: /^sound$/i });
+    const soundCheckbox = screen.getByRole('checkbox', { name: /text-to-speech/i });
     expect(soundCheckbox).not.toBeDisabled();
   });
 

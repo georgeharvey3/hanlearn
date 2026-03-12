@@ -19,7 +19,8 @@ describe('AudioSettingsDrawer', () => {
 
   it('renders all audio setting checkboxes when open', () => {
     render(<AudioSettingsDrawer {...defaultProps} />);
-    expect(screen.getByText('Sound')).toBeInTheDocument();
+    expect(screen.getByText('Text-to-speech')).toBeInTheDocument();
+    expect(screen.getByText('Sound effects')).toBeInTheDocument();
     expect(screen.getByText('Chinese speech recognition')).toBeInTheDocument();
     expect(screen.getByText('English speech recognition')).toBeInTheDocument();
     expect(screen.getByText('Automatic recording')).toBeInTheDocument();
@@ -31,10 +32,10 @@ describe('AudioSettingsDrawer', () => {
     expect(screen.getByText('Audio & Voice Settings')).toBeInTheDocument();
   });
 
-  it('disables sound checkbox when synthAvailable is false', () => {
+  it('disables text-to-speech checkbox when synthAvailable is false', () => {
     render(<AudioSettingsDrawer {...defaultProps} synthAvailable={false} />);
-    const soundCheckbox = screen.getByRole('checkbox', { name: /^Sound/ });
-    expect(soundCheckbox).toBeDisabled();
+    const ttsCheckbox = screen.getByRole('checkbox', { name: /^Text-to-speech/ });
+    expect(ttsCheckbox).toBeDisabled();
   });
 
   it('disables speech recognition checkboxes when speechAvailable is false', () => {
@@ -48,13 +49,13 @@ describe('AudioSettingsDrawer', () => {
   it('toggling a checkbox updates localStorage', async () => {
     const user = userEvent.setup();
     render(<AudioSettingsDrawer {...defaultProps} />);
-    const soundCheckbox = screen.getByRole('checkbox', { name: 'Sound' });
+    const soundEffectsCheckbox = screen.getByRole('checkbox', { name: 'Sound effects' });
 
     // Default is checked (localStorage has no 'false' value)
-    expect(soundCheckbox).toBeChecked();
+    expect(soundEffectsCheckbox).toBeChecked();
 
-    await user.click(soundCheckbox);
-    expect(localStorage.getItem('useSound')).toBe('false');
+    await user.click(soundEffectsCheckbox);
+    expect(localStorage.getItem('useSoundEffects')).toBe('false');
   });
 
   it('enforces mutual exclusivity between English speech recognition and flashcards', async () => {
@@ -76,6 +77,6 @@ describe('AudioSettingsDrawer', () => {
 
   it('does not render checkboxes when closed', () => {
     render(<AudioSettingsDrawer {...defaultProps} open={false} />);
-    expect(screen.queryByText('Sound')).not.toBeInTheDocument();
+    expect(screen.queryByText('Text-to-speech')).not.toBeInTheDocument();
   });
 });
