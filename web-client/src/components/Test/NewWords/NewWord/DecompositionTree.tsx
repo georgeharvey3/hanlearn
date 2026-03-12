@@ -230,9 +230,7 @@ const DecompositionTree: React.FC<DecompositionTreeProps> = ({ char }) => {
   if (error) {
     return (
       <Box sx={{ textAlign: 'center', py: 1 }}>
-        <Typography sx={{ fontSize: '0.85em', color: 'error.main' }}>
-          {error}
-        </Typography>
+        <Typography sx={{ fontSize: '0.85em', color: 'error.main' }}>{error}</Typography>
         <Button
           variant="text"
           size="small"
