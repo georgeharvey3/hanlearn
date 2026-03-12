@@ -13,9 +13,6 @@ import Typography from '@mui/material/Typography';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import Paper from '@mui/material/Paper';
-import useMediaQuery from '@mui/material/useMediaQuery';
-import { useTheme } from '@mui/material/styles';
-import MeaningEditor from '../../components/UI/MeaningEditor/MeaningEditor';
 import WordCard from '../../components/AddWords/WordCard';
 
 import Modal from '../../components/UI/Modal/Modal';
@@ -23,8 +20,6 @@ import MainBanner from '../../components/AddWords/MainBanner';
 import Table from '../../components/UI/Table/Table';
 import Button from '../../components/UI/Buttons/Button/Button';
 import * as wordActions from '../../store/actions/index';
-import Remove from '../../components/UI/Table/TableRow/Remove/Remove';
-import PlayPronunciation from '../../components/AddWords/PlayPronunciation';
 import Spinner from '../../components/UI/Spinner/Spinner';
 import Input from '../../components/UI/Input/Input';
 
@@ -33,7 +28,6 @@ import ListSelector from '../../components/UI/ListSelector/ListSelector';
 import { RootState } from '../../types/store';
 import { Word } from '../../types/models';
 import * as wordService from '../../services/wordService';
-import { formatRelativeDueDate } from '../../utils/formatRelativeDueDate';
 import {
   searchInputSchema,
   customWordTextSchema,
@@ -366,42 +360,7 @@ const AddWords: React.FC<Props> = ({
     [meaningSubmitClicked],
   );
 
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
-
-  const tableRows = useMemo(
-    () =>
-      words.map((row) => (
-        <TableRow key={row.id}>
-          <TableCell sx={{ textAlign: 'center', fontWeight: 500 }}>{row[state.charSet]}</TableCell>
-          <TableCell sx={{ textAlign: 'center' }}>{row.pinyin}</TableCell>
-          <TableCell>
-            <MeaningEditor
-              value={row.meaning}
-              onChange={(newMeaning) => onPostMeaningUpdate(row.id, newMeaning)}
-              size="small"
-            />
-          </TableCell>
-          <TableCell
-            sx={{
-              display: { xs: 'none', sm: 'table-cell' },
-              textAlign: 'center',
-            }}
-          >
-            {formatRelativeDueDate(row.due_date || '')}
-          </TableCell>
-          <TableCell sx={{ textAlign: 'center' }}>
-            <PlayPronunciation text={row[state.charSet]} />
-          </TableCell>
-          <TableCell sx={{ textAlign: 'center' }}>
-            <Remove clicked={() => onDeleteWord(row.id)} />
-          </TableCell>
-        </TableRow>
-      )),
-    [words, state.charSet, onPostMeaningUpdate, onDeleteWord],
-  );
-
-  const mobileCards = useMemo(
+  const wordCards = useMemo(
     () =>
       words.map((row) => (
         <WordCard
@@ -459,7 +418,7 @@ const AddWords: React.FC<Props> = ({
   let table: React.ReactNode = loading ? <Spinner /> : null;
 
   if (words) {
-    table = isMobile ? (
+    table = (
       <Paper
         elevation={2}
         sx={{
@@ -467,17 +426,13 @@ const AddWords: React.FC<Props> = ({
           maxWidth: 700,
           mx: 'auto',
           borderRadius: 2,
-          maxHeight: { xs: 220 },
+          maxHeight: { xs: 220, sm: 250 },
           overflowY: 'auto',
           '@media (min-height: 750px)': { maxHeight: 400 },
         }}
       >
-        {mobileCards}
+        {wordCards}
       </Paper>
-    ) : (
-      <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due', 'Play', 'Remove']}>
-        {tableRows}
-      </Table>
     );
   }
 

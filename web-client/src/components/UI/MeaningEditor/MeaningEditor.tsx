@@ -141,12 +141,9 @@ const MeaningEditor: React.FC<MeaningEditorProps> = ({
             onDelete={!readOnly && meanings.length > 1 ? () => deleteMeaning(index) : undefined}
             sx={{
               cursor: readOnly ? 'default' : 'pointer',
-              maxWidth: size === 'small' ? 150 : 250,
               height: 'auto',
               '& .MuiChip-label': {
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
+                whiteSpace: 'normal',
                 lineHeight: 1.3,
                 py: 0.75,
                 display: 'block',
