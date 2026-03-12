@@ -162,9 +162,7 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
             <Typography sx={{ fontSize: '0.75em', fontWeight: 'bold', mb: 0.5, opacity: 0.6 }}>
               Example
             </Typography>
-            <Typography sx={{ fontSize: '1.2em', mb: 0.5 }}>
-              {exampleSentence.chinese}
-            </Typography>
+            <Typography sx={{ fontSize: '1.2em', mb: 0.5 }}>{exampleSentence.chinese}</Typography>
             <Typography sx={{ fontSize: '0.85em', mb: 0.5, opacity: 0.8 }}>
               {exampleSentence.pinyin}
             </Typography>

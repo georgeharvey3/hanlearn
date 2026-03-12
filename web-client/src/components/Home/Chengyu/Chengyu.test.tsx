@@ -253,12 +253,8 @@ describe('Chengyu — example sentence after completion', () => {
 
     await waitFor(() => {
       expect(screen.getByText('这个人真是独一无二的天才。')).toBeInTheDocument();
-      expect(
-        screen.getByText('zhè ge rén zhēn shì dú yī wú èr de tiān cái.'),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText('This person is truly a one-of-a-kind genius.'),
-      ).toBeInTheDocument();
+      expect(screen.getByText('zhè ge rén zhēn shì dú yī wú èr de tiān cái.')).toBeInTheDocument();
+      expect(screen.getByText('This person is truly a one-of-a-kind genius.')).toBeInTheDocument();
     });
   });
 
