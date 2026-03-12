@@ -279,7 +279,9 @@ describe('Chengyu — save to word bank', () => {
     const user = userEvent.setup();
     const store = makeStore({
       userId: 'test-user',
-      words: [{ id: 1, simp: '独一无二', trad: '獨一無二', pinyin: 'dú yī wú èr', meaning: 'unique' }],
+      words: [
+        { id: 1, simp: '独一无二', trad: '獨一無二', pinyin: 'dú yī wú èr', meaning: 'unique' },
+      ],
     });
     renderWithProviders(<Chengyu />, { store });
 
