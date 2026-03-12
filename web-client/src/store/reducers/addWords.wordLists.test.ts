@@ -35,10 +35,7 @@ const anotherList: WordList = {
 describe('addWords reducer — word list actions', () => {
   describe('SET_WORD_LISTS', () => {
     it('replaces the lists array with the provided lists', () => {
-      const newLists = [
-        { id: 'default', name: 'General', createdAt: '', order: 0 },
-        extraList,
-      ];
+      const newLists = [{ id: 'default', name: 'General', createdAt: '', order: 0 }, extraList];
 
       const state = reducer(initialState, {
         type: actionTypes.SET_WORD_LISTS,
@@ -113,11 +110,7 @@ describe('addWords reducer — word list actions', () => {
   describe('REMOVE_WORD_LIST', () => {
     const stateWithMultipleLists: AddWordsState = {
       ...initialState,
-      lists: [
-        { id: 'default', name: 'General', createdAt: '', order: 0 },
-        extraList,
-        anotherList,
-      ],
+      lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }, extraList, anotherList],
       activeListId: 'list-1',
     };
 
@@ -164,10 +157,7 @@ describe('addWords reducer — word list actions', () => {
   describe('RENAME_WORD_LIST', () => {
     const stateWithList: AddWordsState = {
       ...initialState,
-      lists: [
-        { id: 'default', name: 'General', createdAt: '', order: 0 },
-        extraList,
-      ],
+      lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }, extraList],
     };
 
     it('renames the list with the matching id', () => {

@@ -158,10 +158,7 @@ describe('postRenameWordList', () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
-        lists: [
-          { id: 'default', name: 'General', createdAt: '', order: 0 },
-          sampleList,
-        ],
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }, sampleList],
         activeListId: 'list-1',
         words: [],
         listStats: {},
@@ -213,10 +210,7 @@ describe('postRenameWordList', () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
-        lists: [
-          { id: 'default', name: 'General', createdAt: '', order: 0 },
-          sampleList,
-        ],
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }, sampleList],
         activeListId: 'list-1',
         words: [],
         listStats: {},
@@ -243,10 +237,7 @@ describe('postDeleteWordList', () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
-        lists: [
-          { id: 'default', name: 'General', createdAt: '', order: 0 },
-          sampleList,
-        ],
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }, sampleList],
         activeListId: 'list-1',
         words: [],
         listStats: {},
@@ -296,10 +287,7 @@ describe('postDeleteWordList', () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
-        lists: [
-          { id: 'default', name: 'General', createdAt: '', order: 0 },
-          sampleList,
-        ],
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }, sampleList],
         activeListId: 'default',
         words: [],
         listStats: {},
