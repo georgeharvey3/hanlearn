@@ -64,9 +64,7 @@ describe('TestSummary — session accuracy', () => {
   it('shows accuracy line with correct count and percentage', () => {
     renderWithProviders(<TestSummary scores={allScores} />);
     // 2 correct (Very Strong + Strong) out of 5 = 40%
-    expect(screen.getByTestId('session-accuracy')).toHaveTextContent(
-      '2 / 5 correct (40%)',
-    );
+    expect(screen.getByTestId('session-accuracy')).toHaveTextContent('2 / 5 correct (40%)');
   });
 
   it('shows 100% when all scores are Strong or Very Strong', () => {
@@ -75,9 +73,7 @@ describe('TestSummary — session accuracy', () => {
       { char: '二', score: 'Strong' },
     ];
     renderWithProviders(<TestSummary scores={scores} />);
-    expect(screen.getByTestId('session-accuracy')).toHaveTextContent(
-      '2 / 2 correct (100%)',
-    );
+    expect(screen.getByTestId('session-accuracy')).toHaveTextContent('2 / 2 correct (100%)');
   });
 
   it('shows 0% when no scores are Strong or Very Strong', () => {
@@ -87,9 +83,7 @@ describe('TestSummary — session accuracy', () => {
       { char: '三', score: 'Very Weak' },
     ];
     renderWithProviders(<TestSummary scores={scores} />);
-    expect(screen.getByTestId('session-accuracy')).toHaveTextContent(
-      '0 / 3 correct (0%)',
-    );
+    expect(screen.getByTestId('session-accuracy')).toHaveTextContent('0 / 3 correct (0%)');
   });
 
   it('does not show accuracy line when scores is empty', () => {

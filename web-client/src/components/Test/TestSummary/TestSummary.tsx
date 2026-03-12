@@ -27,12 +27,10 @@ const TestSummary: React.FC<TestSummaryProps> = ({ history, scores }) => {
   };
 
   const total = scores?.length ?? 0;
-  const correct = scores?.filter(
-    (s) => s.score === 'Very Strong' || s.score === 'Strong',
-  ).length ?? 0;
+  const correct =
+    scores?.filter((s) => s.score === 'Very Strong' || s.score === 'Strong').length ?? 0;
   const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
-  const accuracyColor =
-    pct >= 70 ? 'success.main' : pct >= 40 ? 'warning.main' : 'error.main';
+  const accuracyColor = pct >= 70 ? 'success.main' : pct >= 40 ? 'warning.main' : 'error.main';
 
   return (
     <Box sx={{ textAlign: 'center' }}>
