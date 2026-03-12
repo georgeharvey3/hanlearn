@@ -585,8 +585,7 @@ describe('NewWord stroke order animation', () => {
   it('re-creates HanziWriter when a different character is clicked', async () => {
     mockSearchWord.mockImplementation(async (char) => {
       if (char === '大') return [{ id: 1, simp: '大', trad: '大', pinyin: 'dà', meaning: 'big' }];
-      if (char === '家')
-        return [{ id: 2, simp: '家', trad: '家', pinyin: 'jiā', meaning: 'home' }];
+      if (char === '家') return [{ id: 2, simp: '家', trad: '家', pinyin: 'jiā', meaning: 'home' }];
       return [];
     });
 
