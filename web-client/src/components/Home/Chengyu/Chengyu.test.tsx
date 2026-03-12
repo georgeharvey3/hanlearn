@@ -18,6 +18,14 @@ vi.mock('../../../services/wordService', () => ({
   addWordToBank: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('../../../services/chengyuSentenceService', () => ({
+  getChengyuExampleSentence: vi.fn().mockResolvedValue({
+    chinese: '这个人真是独一无二的天才。',
+    pinyin: 'zhè ge rén zhēn shì dú yī wú èr de tiān cái.',
+    english: 'This person is truly a one-of-a-kind genius.',
+  }),
+}));
+
 // Mock the data module to provide deterministic chengyu data
 vi.mock('../../../data/chengyus', () => ({
   getDailyChengyu: vi.fn(() => ({
@@ -59,6 +67,7 @@ import userEvent from '@testing-library/user-event';
 
 import Chengyu from './Chengyu';
 import { renderWithProviders, createTestStore } from '../../../test/utils';
+import { getChengyuExampleSentence } from '../../../services/chengyuSentenceService';
 
 function makeStore(overrides?: { userId?: string | null; words?: Array<Record<string, unknown>> }) {
   return createTestStore({
@@ -231,6 +240,63 @@ describe('Chengyu — character meanings after completion', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/alone; independent/i)).toBeInTheDocument();
+    });
+  });
+});
+
+describe('Chengyu — example sentence after completion', () => {
+  it('displays example sentence after selecting the correct answer', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Chengyu />, { store: makeStore() });
+
+    await user.click(screen.getByRole('button', { name: /^unique$/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText('这个人真是独一无二的天才。')).toBeInTheDocument();
+      expect(screen.getByText('zhè ge rén zhēn shì dú yī wú èr de tiān cái.')).toBeInTheDocument();
+      expect(screen.getByText('This person is truly a one-of-a-kind genius.')).toBeInTheDocument();
+    });
+  });
+
+  it('shows the "Example" label in the sentence block', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Chengyu />, { store: makeStore() });
+
+    await user.click(screen.getByRole('button', { name: /^unique$/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Example')).toBeInTheDocument();
+    });
+  });
+
+  it('does not show example sentence before answering', () => {
+    renderWithProviders(<Chengyu />, { store: makeStore() });
+    expect(screen.queryByText('Example')).not.toBeInTheDocument();
+  });
+
+  it('handles sentence fetch failure gracefully', async () => {
+    vi.mocked(getChengyuExampleSentence).mockRejectedValueOnce(new Error('Network error'));
+    const user = userEvent.setup();
+    renderWithProviders(<Chengyu />, { store: makeStore() });
+
+    await user.click(screen.getByRole('button', { name: /^unique$/ }));
+
+    // Should still show the character breakdown without crashing
+    await waitFor(() => {
+      expect(screen.getByRole('list', { name: /character breakdown/i })).toBeInTheDocument();
+    });
+    // No example sentence block
+    expect(screen.queryByText('Example')).not.toBeInTheDocument();
+  });
+
+  it('fetches sentence with the correct chengyu string', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Chengyu />, { store: makeStore() });
+
+    await user.click(screen.getByRole('button', { name: /^unique$/ }));
+
+    await waitFor(() => {
+      expect(getChengyuExampleSentence).toHaveBeenCalledWith('独一无二', 'simp');
     });
   });
 });
