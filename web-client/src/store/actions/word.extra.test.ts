@@ -34,7 +34,10 @@ describe('word action thunks — error paths', () => {
       mockedWordService.removeWordFromBank.mockRejectedValue(new Error('Firestore unavailable'));
       const store = createTestStore({
         ...authenticatedState(),
-        addWords: { words: [sampleWord], error: false, loading: false },
+        addWords: {
+          ...authenticatedState().addWords,
+          words: [sampleWord],
+        },
       });
 
       // Should not throw
@@ -51,7 +54,10 @@ describe('word action thunks — error paths', () => {
       mockedWordService.updateWordMeaning.mockRejectedValue(new Error('Permission denied'));
       const store = createTestStore({
         ...authenticatedState(),
-        addWords: { words: [sampleWord], error: false, loading: false },
+        addWords: {
+          ...authenticatedState().addWords,
+          words: [sampleWord],
+        },
       });
 
       await store.dispatch(wordActions.postUpdateMeaning(1, 'new meaning') as any);
@@ -90,7 +96,11 @@ describe('word action thunks — error paths', () => {
       await store.dispatch(wordActions.postWord(sampleWord) as any);
 
       expect(store.getState().addWords.words).toHaveLength(0);
-      expect(mockedWordService.addWordToBank).toHaveBeenCalledWith('test-user-123', sampleWord);
+      expect(mockedWordService.addWordToBank).toHaveBeenCalledWith(
+        'test-user-123',
+        sampleWord,
+        'default',
+      );
     });
   });
 
