@@ -21,6 +21,7 @@ const ComponentRow: React.FC<ComponentRowProps> = ({ component, depth }) => {
   const [expanded, setExpanded] = useState(false);
   const [children, setChildren] = useState<DecompositionComponent[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
 
   const handleDecompose = useCallback(async () => {
     if (expanded) {
@@ -32,12 +33,13 @@ const ComponentRow: React.FC<ComponentRowProps> = ({ component, depth }) => {
       return;
     }
     setLoading(true);
+    setFetchError(false);
     try {
       const result = await decomposeCharacter(component.char);
       setChildren(result);
       setExpanded(true);
     } catch {
-      setChildren([]);
+      setFetchError(true);
       setExpanded(true);
     } finally {
       setLoading(false);
@@ -89,7 +91,14 @@ const ComponentRow: React.FC<ComponentRowProps> = ({ component, depth }) => {
             size="small"
             onClick={handleDecompose}
             disabled={loading}
-            aria-pressed={expanded}
+            aria-pressed={expanded && !fetchError}
+            aria-label={
+              loading
+                ? `Loading decomposition for ${component.char}`
+                : expanded && !fetchError
+                  ? `Collapse decomposition for ${component.char}`
+                  : `Decompose ${component.char}`
+            }
             sx={
               expanded
                 ? {
@@ -113,12 +122,12 @@ const ComponentRow: React.FC<ComponentRowProps> = ({ component, depth }) => {
                   }
             }
           >
-            {loading ? <CircularProgress size={14} /> : 'Decompose'}
+            {loading ? <CircularProgress size={14} aria-hidden="true" /> : 'Decompose'}
           </Button>
         )}
       </Box>
 
-      {expanded && children !== null && children.length > 0 && (
+      {expanded && !fetchError && children !== null && children.length > 0 && (
         <Box
           sx={{
             ml: 3,
@@ -146,7 +155,7 @@ const ComponentRow: React.FC<ComponentRowProps> = ({ component, depth }) => {
         </Box>
       )}
 
-      {expanded && children !== null && children.length === 0 && (
+      {expanded && !fetchError && children !== null && children.length === 0 && (
         <Box
           sx={{
             ml: 3,
@@ -158,6 +167,22 @@ const ComponentRow: React.FC<ComponentRowProps> = ({ component, depth }) => {
         >
           <Typography sx={{ fontSize: '0.8em', color: 'text.disabled', py: 0.5 }}>
             No further decomposition
+          </Typography>
+        </Box>
+      )}
+
+      {expanded && fetchError && (
+        <Box
+          sx={{
+            ml: 3,
+            pl: 2,
+            borderLeft: '2px solid',
+            borderColor: 'error.light',
+            mb: 1,
+          }}
+        >
+          <Typography sx={{ fontSize: '0.8em', color: 'error.main', py: 0.5 }}>
+            Could not load decomposition
           </Typography>
         </Box>
       )}
@@ -202,7 +227,7 @@ const DecompositionTree: React.FC<DecompositionTreeProps> = ({ char }) => {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-        <CircularProgress size={20} />
+        <CircularProgress size={20} aria-label="Loading character decomposition" />
       </Box>
     );
   }
