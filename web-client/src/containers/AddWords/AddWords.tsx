@@ -24,6 +24,7 @@ import Table from '../../components/UI/Table/Table';
 import Button from '../../components/UI/Buttons/Button/Button';
 import * as wordActions from '../../store/actions/index';
 import Remove from '../../components/UI/Table/TableRow/Remove/Remove';
+import PlayPronunciation from '../../components/AddWords/PlayPronunciation';
 import Spinner from '../../components/UI/Spinner/Spinner';
 import Input from '../../components/UI/Input/Input';
 
@@ -390,6 +391,9 @@ const AddWords: React.FC<Props> = ({
             {formatRelativeDueDate(row.due_date || '')}
           </TableCell>
           <TableCell sx={{ textAlign: 'center' }}>
+            <PlayPronunciation text={row[state.charSet]} />
+          </TableCell>
+          <TableCell sx={{ textAlign: 'center' }}>
             <Remove clicked={() => onDeleteWord(row.id)} />
           </TableCell>
         </TableRow>
@@ -471,7 +475,7 @@ const AddWords: React.FC<Props> = ({
         {mobileCards}
       </Paper>
     ) : (
-      <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due', 'Remove']}>{tableRows}</Table>
+      <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due', 'Play', 'Remove']}>{tableRows}</Table>
     );
   }
 

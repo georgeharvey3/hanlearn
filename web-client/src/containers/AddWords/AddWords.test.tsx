@@ -6,6 +6,11 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
 vi.mock('../../services/wordService');
+vi.mock('../../services/ttsService', () => ({
+  speak: vi.fn(() => ({ play: vi.fn(), stop: vi.fn() })),
+  prefetch: vi.fn(),
+  stopAll: vi.fn(),
+}));
 vi.mock('../../services/streakService', () => ({
   recordTestCompletion: vi.fn(),
   getStreakData: vi.fn().mockResolvedValue([]),
@@ -19,6 +24,7 @@ import userEvent from '@testing-library/user-event';
 import AddWords from './AddWords';
 import { renderWithProviders, authenticatedState, createTestStore } from '../../test/utils';
 import * as wordService from '../../services/wordService';
+import * as ttsService from '../../services/ttsService';
 import { Word } from '../../types/models';
 
 const mockedWordService = vi.mocked(wordService);
@@ -471,6 +477,37 @@ describe('AddWords — confirm modal: adding word with edited meaning', () => {
     await waitFor(() => {
       expect(mockedWordService.addWordToBank).toHaveBeenCalled();
     });
+  });
+});
+
+describe('AddWords — pronunciation playback', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedWordService.getUserWords.mockResolvedValue([sampleWord]);
+  });
+
+  it('calls ttsService.speak when the play pronunciation button is clicked', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [sampleWord],
+        listStats: {},
+        error: false,
+        loading: false,
+      },
+    });
+    renderWithProviders(<AddWords />, { store });
+
+    const playButtons = await screen.findAllByRole('button', { name: /play pronunciation/i });
+    expect(playButtons.length).toBeGreaterThan(0);
+    await userEvent.click(playButtons[0]);
+
+    expect(ttsService.speak).toHaveBeenCalledWith(
+      '学习',
+      expect.objectContaining({ onEnd: expect.any(Function), onError: expect.any(Function) }),
+    );
   });
 });
 

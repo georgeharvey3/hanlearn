@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import MeaningEditor from '../UI/MeaningEditor/MeaningEditor';
 import Remove from '../UI/Table/TableRow/Remove/Remove';
 import { Word } from '../../types/models';
 import { formatRelativeDueDate } from '../../utils/formatRelativeDueDate';
+import * as ttsService from '../../services/ttsService';
 
 interface WordCardProps {
   word: Word;
@@ -19,6 +22,16 @@ const WordCard: React.FC<WordCardProps> = ({
   onDeleteWord,
   onPostMeaningUpdate,
 }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const handleSpeak = useCallback(() => {
+    setIsPlaying(true);
+    ttsService.speak(word[charSet], {
+      onEnd: () => setIsPlaying(false),
+      onError: () => setIsPlaying(false),
+    });
+  }, [word, charSet]);
+
   return (
     <Box
       sx={{
@@ -33,9 +46,19 @@ const WordCard: React.FC<WordCardProps> = ({
           <Typography sx={{ fontSize: '1.4rem', fontWeight: 600, lineHeight: 1.2 }}>
             {word[charSet]}
           </Typography>
-          <Typography sx={{ fontSize: '0.85rem', color: 'text.secondary', mt: 0.25 }}>
-            {word.pinyin}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.25 }}>
+            <Typography sx={{ fontSize: '0.85rem', color: 'text.secondary' }}>
+              {word.pinyin}
+            </Typography>
+            <IconButton
+              size="small"
+              onClick={handleSpeak}
+              aria-label="Play pronunciation"
+              sx={{ ml: 0.5, p: 0.25, color: isPlaying ? 'primary.main' : 'text.secondary' }}
+            >
+              <VolumeUpIcon sx={{ fontSize: '1rem' }} />
+            </IconButton>
+          </Box>
         </Box>
         <Remove clicked={() => onDeleteWord(word.id)} />
       </Box>
