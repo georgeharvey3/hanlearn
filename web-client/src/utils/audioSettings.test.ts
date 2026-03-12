@@ -11,6 +11,7 @@ describe('audioSettings', () => {
       const settings = getAudioSettings();
       expect(settings).toEqual({
         useSound: true,
+        useSoundEffects: true,
         useChineseSpeechRecognition: true,
         useEnglishSpeechRecognition: true,
         useAutoRecord: true,
@@ -67,9 +68,9 @@ describe('audioSettings', () => {
   });
 
   describe('getAudioSettingItems', () => {
-    it('returns 5 items', () => {
+    it('returns 6 items', () => {
       const items = getAudioSettingItems(true, true);
-      expect(items).toHaveLength(5);
+      expect(items).toHaveLength(6);
     });
 
     it('disables sound when synthAvailable is false', () => {

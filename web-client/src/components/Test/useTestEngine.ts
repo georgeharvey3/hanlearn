@@ -279,7 +279,7 @@ export const useTestEngine = (props: Props) => {
         idkDisabled: true,
         submitDisabled: true,
       });
-      if (current.useSound) {
+      if (current.useSoundEffects) {
         beep.play();
       }
       const permIndex = current.permList.indexOf(current.perm!);
@@ -349,7 +349,7 @@ export const useTestEngine = (props: Props) => {
     if (checkAnswer(current.answerInput)) {
       onCorrectAnswer();
     } else {
-      if (current.useSound) {
+      if (current.useSoundEffects) {
         fail.play();
       }
       let resultString = 'Try again';
@@ -418,7 +418,7 @@ export const useTestEngine = (props: Props) => {
         typeof current.answer === 'string' &&
         submission.replace(/[0-9]/g, '') === current.answer.replace(/[0-9]/g, '')
       ) {
-        if (current.useSound) {
+        if (current.useSoundEffects) {
           fail.play();
         }
         let sentence = 'Try different tones...';
@@ -441,7 +441,7 @@ export const useTestEngine = (props: Props) => {
           setTimeout(() => onListenRef.current(), 1500);
         }
       } else {
-        if (current.useSound) {
+        if (current.useSoundEffects) {
           fail.play();
         }
         if (current.numSpeakTries > 0) {
@@ -805,6 +805,8 @@ export const useTestEngine = (props: Props) => {
     const useSound =
       props.synthAvailable &&
       (!(localStorage.getItem('useSound') === 'false') || Boolean(props.isDemo));
+    const useSoundEffects =
+      !(localStorage.getItem('useSoundEffects') === 'false') || Boolean(props.isDemo);
     const useHandwriting =
       !(localStorage.getItem('useHandwriting') === 'false') || Boolean(props.isDemo);
     const useChineseSpeechRecognition =
@@ -819,6 +821,7 @@ export const useTestEngine = (props: Props) => {
 
     setStateMerged({
       useSound,
+      useSoundEffects,
       useHandwriting,
       useChineseSpeechRecognition,
       useEnglishSpeechRecognition,
@@ -905,7 +908,7 @@ export const useTestEngine = (props: Props) => {
 
       if (event.key === 'ArrowDown') {
         if (current.showAnswer && !current.idkDisabled) {
-          if (current.useSound) {
+          if (current.useSoundEffects) {
             fail.play();
           }
           setStateMerged({ noClicked: true });
@@ -1034,6 +1037,7 @@ export const useTestEngine = (props: Props) => {
     (updated: AudioSettings): void => {
       setStateMerged({
         useSound: updated.useSound && Boolean(props.synthAvailable),
+        useSoundEffects: updated.useSoundEffects,
         useChineseSpeechRecognition:
           updated.useChineseSpeechRecognition && Boolean(props.speechAvailable),
         useEnglishSpeechRecognition:

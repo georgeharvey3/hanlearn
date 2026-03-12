@@ -27,6 +27,7 @@ export interface TestState {
   drawnCharacters: string[];
   numSpeakTries: number;
   useSound: boolean;
+  useSoundEffects: boolean;
   useHandwriting: boolean;
   useChineseSpeechRecognition: boolean;
   useEnglishSpeechRecognition: boolean;
