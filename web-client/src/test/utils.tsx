@@ -48,7 +48,14 @@ export function authenticatedState(userId = 'test-user-123') {
       modalOpen: false,
       modalMode: 'login' as const,
     },
-    addWords: { words: [], error: false, loading: false },
+    addWords: {
+      lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+      activeListId: 'default',
+      words: [],
+      listStats: {},
+      error: false,
+      loading: false,
+    },
     settings: { speechAvailable: false, synthAvailable: false },
   };
 }

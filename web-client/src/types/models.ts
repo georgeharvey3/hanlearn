@@ -9,6 +9,14 @@ export interface Word {
   due_date?: string;
   bank?: number;
   ammended_meaning?: string;
+  listId?: string;
+}
+
+export interface WordList {
+  id: string;
+  name: string;
+  createdAt: string;
+  order: number;
 }
 
 export interface User {

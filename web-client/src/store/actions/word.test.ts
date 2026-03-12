@@ -36,16 +36,20 @@ const sampleWords: Word[] = [
 describe('word action thunks', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedWordService.getListStats.mockResolvedValue({});
   });
 
   describe('initWords', () => {
     it('fetches words and dispatches SET_WORDS on success', async () => {
+      mockedWordService.getUserWordLists.mockResolvedValue([
+        { id: 'default', name: 'General', createdAt: '', order: 0 },
+      ]);
       mockedWordService.getUserWords.mockResolvedValue(sampleWords);
       const store = createTestStore(authenticatedState());
 
       await store.dispatch(wordActions.initWords() as any);
 
-      expect(mockedWordService.getUserWords).toHaveBeenCalledWith('test-user-123');
+      expect(mockedWordService.getUserWords).toHaveBeenCalledWith('test-user-123', 'default');
       expect(store.getState().addWords.words).toEqual(sampleWords);
       expect(store.getState().addWords.error).toBe(false);
     });
@@ -61,7 +65,14 @@ describe('word action thunks', () => {
           modalOpen: false,
           modalMode: 'login',
         },
-        addWords: { words: [], error: false, loading: false },
+        addWords: {
+          lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+          activeListId: 'default',
+          words: [],
+          listStats: {},
+          error: false,
+          loading: false,
+        },
         settings: { speechAvailable: false, synthAvailable: false },
       });
 
@@ -72,7 +83,7 @@ describe('word action thunks', () => {
     });
 
     it('dispatches FETCH_WORDS_FAILED on service error', async () => {
-      mockedWordService.getUserWords.mockRejectedValue(new Error('Network error'));
+      mockedWordService.getUserWordLists.mockRejectedValue(new Error('Network error'));
       const store = createTestStore(authenticatedState());
 
       await store.dispatch(wordActions.initWords() as any);
@@ -88,7 +99,11 @@ describe('word action thunks', () => {
 
       await store.dispatch(wordActions.postWord(sampleWord) as any);
 
-      expect(mockedWordService.addWordToBank).toHaveBeenCalledWith('test-user-123', sampleWord);
+      expect(mockedWordService.addWordToBank).toHaveBeenCalledWith(
+        'test-user-123',
+        sampleWord,
+        'default',
+      );
       expect(store.getState().addWords.words).toHaveLength(1);
       expect(store.getState().addWords.words[0].simp).toBe('你好');
     });
@@ -104,7 +119,14 @@ describe('word action thunks', () => {
           modalOpen: false,
           modalMode: 'login',
         },
-        addWords: { words: [], error: false, loading: false },
+        addWords: {
+          lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+          activeListId: 'default',
+          words: [],
+          listStats: {},
+          error: false,
+          loading: false,
+        },
         settings: { speechAvailable: false, synthAvailable: false },
       });
 
@@ -120,7 +142,14 @@ describe('word action thunks', () => {
       mockedWordService.removeWordFromBank.mockResolvedValue(undefined);
       const store = createTestStore({
         ...authenticatedState(),
-        addWords: { words: [sampleWord], error: false, loading: false },
+        addWords: {
+          lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+          activeListId: 'default',
+          words: [sampleWord],
+          listStats: {},
+          error: false,
+          loading: false,
+        },
       });
 
       await store.dispatch(wordActions.deleteWord(1) as any);
@@ -135,7 +164,14 @@ describe('word action thunks', () => {
       mockedWordService.updateWordMeaning.mockResolvedValue(undefined);
       const store = createTestStore({
         ...authenticatedState(),
-        addWords: { words: [sampleWord], error: false, loading: false },
+        addWords: {
+          lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+          activeListId: 'default',
+          words: [sampleWord],
+          listStats: {},
+          error: false,
+          loading: false,
+        },
       });
 
       await store.dispatch(wordActions.postUpdateMeaning(1, 'hi there') as any);
@@ -165,7 +201,7 @@ describe('word action thunks', () => {
       await store.dispatch(wordActions.finishTest(scores) as any);
 
       expect(mockedWordService.finishTest).toHaveBeenCalledWith('test-user-123', scores);
-      expect(mockedWordService.getUserWords).toHaveBeenCalledWith('test-user-123');
+      expect(mockedWordService.getUserWords).toHaveBeenCalledWith('test-user-123', 'default');
       // Verify the store was updated with refreshed words
       expect(store.getState().addWords.words).toEqual(updatedWords);
       expect(mockedStreakService.recordTestCompletion).toHaveBeenCalledWith('test-user-123');
@@ -208,7 +244,14 @@ describe('word action thunks', () => {
           modalOpen: false,
           modalMode: 'login',
         },
-        addWords: { words: [], error: false, loading: false },
+        addWords: {
+          lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+          activeListId: 'default',
+          words: [],
+          listStats: {},
+          error: false,
+          loading: false,
+        },
         settings: { speechAvailable: false, synthAvailable: false },
       });
 
@@ -243,6 +286,7 @@ describe('word action thunks', () => {
         '学习',
         'to study',
         'simp',
+        'default',
       );
       expect(store.getState().addWords.words).toHaveLength(1);
       expect(store.getState().addWords.words[0].simp).toBe('学习');

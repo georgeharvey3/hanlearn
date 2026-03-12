@@ -20,11 +20,18 @@ const mapStateToProps = (state: RootState) => ({
   lang: state.settings.lang,
   words: state.addWords.words,
   wordsLoading: state.addWords.loading,
+  lists: state.addWords.lists,
+  activeListId: state.addWords.activeListId,
+  listStats: state.addWords.listStats,
 });
 
 const mapDispatchToProps = {
   onInitWords: actions.initWords,
   onOpenAuthModal: actions.openAuthModal,
+  onSwitchList: actions.switchActiveList,
+  onCreateList: actions.postCreateWordList,
+  onRenameList: actions.postRenameWordList,
+  onDeleteList: actions.postDeleteWordList,
 };
 
 const connector = connect(mapStateToProps, mapDispatchToProps);
@@ -36,8 +43,15 @@ const Home: React.FC<Props> = ({
   userId,
   words,
   wordsLoading,
+  lists,
+  activeListId,
+  listStats,
   onInitWords,
   onOpenAuthModal,
+  onSwitchList,
+  onCreateList,
+  onRenameList,
+  onDeleteList,
   history,
 }) => {
   const numTot = words.length;
@@ -55,6 +69,11 @@ const Home: React.FC<Props> = ({
       return due <= now;
     }).length;
   }, [words]);
+
+  const activeListName = useMemo(
+    () => (lists || []).find((l) => l.id === activeListId)?.name || 'General',
+    [lists, activeListId],
+  );
 
   useEffect(() => {
     if (isAuthenticated && userId) {
@@ -91,9 +110,21 @@ const Home: React.FC<Props> = ({
           testClicked={onTestClicked}
           addWordsClicked={onAddWordsClicked}
           loading={wordsLoading}
+          activeListName={activeListName}
+          lists={lists}
+          activeListId={activeListId}
+          listStats={listStats}
+          onSwitchList={onSwitchList}
+          onCreateList={onCreateList}
+          onRenameList={onRenameList}
+          onDeleteList={onDeleteList}
         />
       )}
-      {isAuthenticated && <Chengyu />}
+      {isAuthenticated && (
+        <Box sx={{ width: '95%', mx: 'auto' }}>
+          <Chengyu />
+        </Box>
+      )}
       <HowItWorks />
       <FeatureHighlights />
       {!isAuthenticated && (

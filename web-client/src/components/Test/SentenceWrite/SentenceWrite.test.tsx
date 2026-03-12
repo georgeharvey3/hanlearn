@@ -82,7 +82,14 @@ const mockSentenceResponse = {
 function makeStore(speechAvailable = false, synthAvailable = false) {
   return createTestStore({
     auth: { userId: 'u1', loading: false, initialized: true, modalOpen: false },
-    addWords: { words: [], loading: false, error: false },
+    addWords: {
+      lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+      activeListId: 'default',
+      words: [],
+      listStats: {},
+      loading: false,
+      error: false,
+    },
     settings: { speechAvailable, synthAvailable },
   });
 }

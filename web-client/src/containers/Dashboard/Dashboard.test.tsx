@@ -6,6 +6,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import Dashboard from './Dashboard';
 import { renderWithProviders, authenticatedState, createTestStore } from '../../test/utils';
 
+vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
 vi.mock('../../services/dashboardService', () => ({
   getDashboardStats: vi.fn(),
 }));
@@ -56,7 +57,7 @@ describe('Dashboard container', () => {
     renderWithProviders(<Dashboard />, {
       store: createTestStore(authenticatedState('uid-xyz')),
     });
-    await waitFor(() => expect(mockGetDashboardStats).toHaveBeenCalledWith('uid-xyz'));
+    await waitFor(() => expect(mockGetDashboardStats).toHaveBeenCalledWith('uid-xyz', 'default'));
   });
 
   it('shows an error message when the stats load fails', async () => {
@@ -98,7 +99,14 @@ describe('Dashboard container', () => {
         modalOpen: false,
         modalMode: 'login' as const,
       },
-      addWords: { words: [], error: false, loading: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        listStats: {},
+        error: false,
+        loading: false,
+      },
       settings: { speechAvailable: false, synthAvailable: false },
     };
     renderWithProviders(<Dashboard />, {
@@ -122,7 +130,14 @@ describe('Dashboard container', () => {
         modalOpen: false,
         modalMode: 'login' as const,
       },
-      addWords: { words: [], error: false, loading: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        listStats: {},
+        error: false,
+        loading: false,
+      },
       settings: { speechAvailable: false, synthAvailable: false },
     };
     renderWithProviders(<Dashboard />, {

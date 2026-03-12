@@ -144,8 +144,8 @@ describe('getDashboardStats', () => {
 
     await getDashboardStats('user-abc');
 
-    expect(mockedWordService.getUserWords).toHaveBeenCalledWith('user-abc');
-    expect(mockedWordService.getDueUserWords).toHaveBeenCalledWith('user-abc');
+    expect(mockedWordService.getUserWords).toHaveBeenCalledWith('user-abc', undefined);
+    expect(mockedWordService.getDueUserWords).toHaveBeenCalledWith('user-abc', undefined);
     expect(mockedStreakService.getStreakData).toHaveBeenCalledWith('user-abc');
   });
 });

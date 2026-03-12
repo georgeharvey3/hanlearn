@@ -28,6 +28,7 @@ import Spinner from '../../components/UI/Spinner/Spinner';
 import Input from '../../components/UI/Input/Input';
 
 import NewWord from '../../components/Test/NewWords/NewWord/NewWord';
+import ListSelector from '../../components/UI/ListSelector/ListSelector';
 import { RootState } from '../../types/store';
 import { Word } from '../../types/models';
 import * as wordService from '../../services/wordService';
@@ -67,6 +68,9 @@ const mapStateToProps = (state: RootState) => ({
   loading: state.addWords.loading,
   userId: state.auth.userId,
   authInitialized: state.auth.initialized,
+  lists: state.addWords.lists,
+  activeListId: state.addWords.activeListId,
+  listStats: state.addWords.listStats,
 });
 
 const mapDispatchToProps = {
@@ -75,6 +79,10 @@ const mapDispatchToProps = {
   onDeleteWord: wordActions.deleteWord,
   onInitWords: wordActions.initWords,
   onPostMeaningUpdate: wordActions.postUpdateMeaning,
+  onSwitchList: wordActions.switchActiveList,
+  onCreateList: wordActions.postCreateWordList,
+  onRenameList: wordActions.postRenameWordList,
+  onDeleteList: wordActions.postDeleteWordList,
 };
 
 const connector = connect(mapStateToProps, mapDispatchToProps);
@@ -92,6 +100,13 @@ const AddWords: React.FC<Props> = ({
   onPostCustomWord,
   onDeleteWord,
   onPostMeaningUpdate,
+  onSwitchList,
+  onCreateList,
+  onRenameList,
+  onDeleteList,
+  lists,
+  activeListId,
+  listStats,
   history,
   isDemo,
 }) => {
@@ -526,6 +541,19 @@ const AddWords: React.FC<Props> = ({
       <Modal show={state.showErrorMessage} modalClosed={dismissModal}>
         <p>{state.errorMessage}</p>
       </Modal>
+      {!isDemo && (
+        <Box sx={{ mt: 3 }}>
+          <ListSelector
+            lists={lists}
+            activeListId={activeListId}
+            listStats={listStats}
+            onSwitchList={onSwitchList}
+            onCreateList={onCreateList}
+            onRenameList={onRenameList}
+            onDeleteList={onDeleteList}
+          />
+        </Box>
+      )}
       <MainBanner
         submitDisabled={state.newWord.length === 0}
         inputChanged={onInputChangedHandler}

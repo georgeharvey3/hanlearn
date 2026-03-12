@@ -5,8 +5,10 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 
 import Spinner from '../../components/UI/Spinner/Spinner';
+import ListSelector from '../../components/UI/ListSelector/ListSelector';
 import { RootState } from '../../types/store';
 import { DashboardStats, getDashboardStats } from '../../services/dashboardService';
+import * as wordActions from '../../store/actions/index';
 import WordsDueCard from './widgets/WordsDueCard';
 import StreakCard from './widgets/StreakCard';
 import BankDistributionCard from './widgets/BankDistributionCard';
@@ -16,12 +18,31 @@ import ErrorBoundary from '../../components/ErrorBoundary/ErrorBoundary';
 
 const mapStateToProps = (state: RootState) => ({
   userId: state.auth.userId,
+  lists: state.addWords.lists,
+  activeListId: state.addWords.activeListId,
+  listStats: state.addWords.listStats,
 });
 
-const connector = connect(mapStateToProps);
+const mapDispatchToProps = {
+  onSwitchList: wordActions.switchActiveList,
+  onCreateList: wordActions.postCreateWordList,
+  onRenameList: wordActions.postRenameWordList,
+  onDeleteList: wordActions.postDeleteWordList,
+};
+
+const connector = connect(mapStateToProps, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 
-const Dashboard: React.FC<PropsFromRedux> = ({ userId }) => {
+const Dashboard: React.FC<PropsFromRedux> = ({
+  userId,
+  lists,
+  activeListId,
+  listStats,
+  onSwitchList,
+  onCreateList,
+  onRenameList,
+  onDeleteList,
+}) => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -33,7 +54,7 @@ const Dashboard: React.FC<PropsFromRedux> = ({ userId }) => {
     }
     setError(false);
     try {
-      const data = await getDashboardStats(userId);
+      const data = await getDashboardStats(userId, activeListId);
       setStats(data);
     } catch (err) {
       console.error('Failed to load dashboard stats:', err);
@@ -41,7 +62,7 @@ const Dashboard: React.FC<PropsFromRedux> = ({ userId }) => {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, activeListId]);
 
   const retryLoadStats = useCallback(() => {
     setLoading(true);
@@ -84,6 +105,16 @@ const Dashboard: React.FC<PropsFromRedux> = ({ userId }) => {
       <Typography variant="h4" sx={{ textAlign: 'left', fontWeight: 'bold' }}>
         Dashboard
       </Typography>
+      <ListSelector
+        lists={lists}
+        activeListId={activeListId}
+        listStats={listStats}
+        onSwitchList={onSwitchList}
+        onCreateList={onCreateList}
+        onRenameList={onRenameList}
+        onDeleteList={onDeleteList}
+        readOnly
+      />
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <WordsDueCard dueWords={stats?.dueWords ?? 0} totalWords={stats?.totalWords ?? 0} />

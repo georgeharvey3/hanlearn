@@ -5,6 +5,10 @@ export {
   deleteWord,
   postUpdateMeaning,
   finishTest,
+  switchActiveList,
+  postCreateWordList,
+  postRenameWordList,
+  postDeleteWordList,
 } from './word';
 export {
   auth,

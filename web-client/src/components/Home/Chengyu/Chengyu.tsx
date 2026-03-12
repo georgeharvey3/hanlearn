@@ -98,18 +98,12 @@ const Chengyu: React.FC = () => {
 
   return (
     <Paper
-      elevation={3}
       sx={{
-        width: '95%',
-        height: 'auto',
-        borderRadius: '10px',
-        mx: 'auto',
+        p: 3,
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-evenly',
         alignItems: 'center',
-        p: '20px',
-        boxSizing: 'border-box',
         color: 'text.primary',
         textAlign: 'center',
         fontSize: { xs: '1.1em', sm: '1.4em' },

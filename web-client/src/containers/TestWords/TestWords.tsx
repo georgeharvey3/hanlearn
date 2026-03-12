@@ -18,7 +18,7 @@ import { RootState } from '../../types/store';
 import { Word, WordScore } from '../../types/models';
 import { getDevTestConfig, DevTestConfig } from '../../utils/devTestMode';
 
-import { Box, Stepper, Step, StepLabel, Typography } from '@mui/material';
+import { Box, Chip, Stepper, Step, StepLabel, Typography } from '@mui/material';
 
 // Dev test mode config - loaded once on mount
 const devConfig: DevTestConfig | null = getDevTestConfig();
@@ -49,10 +49,14 @@ const mapStateToProps = (state: RootState) => ({
   wordsLoading: state.addWords.loading,
   userId: state.auth.userId,
   authInitialized: state.auth.initialized,
+  lists: state.addWords.lists,
+  activeListId: state.addWords.activeListId,
+  listStats: state.addWords.listStats,
 });
 
 const mapDispatchToProps = {
   onInitWords: wordActions.initWords,
+  onSwitchList: wordActions.switchActiveList,
 };
 
 const connector = connect(mapStateToProps, mapDispatchToProps);
@@ -65,7 +69,11 @@ const TestWords: React.FC<Props> = ({
   userId,
   authInitialized,
   isDemo,
+  lists,
+  activeListId,
+  listStats,
   onInitWords,
+  onSwitchList,
   history,
 }) => {
   const getInitialStage = (): Stage => {
@@ -346,11 +354,51 @@ const TestWords: React.FC<Props> = ({
     const nonChengyus = words.filter((word) => word.simp.length < 4);
     const hasWordsInBank = nonChengyus.length > 0;
 
+    const activeListName = (lists || []).find((l) => l.id === activeListId)?.name || 'General';
+
+    // Find other lists that have due words
+    const otherListsWithDue = (lists || [])
+      .filter((l) => l.id !== activeListId && (listStats[l.id]?.due ?? 0) > 0)
+      .map((l) => ({ ...l, due: listStats[l.id].due }));
+
+    const handleSwitchAndTest = (listId: string) => {
+      onSwitchList(listId);
+      // Navigate home so the user sees the updated list and can tap Test
+      history.push('/');
+    };
+
     content = (
       <Box sx={{ width: '90%', maxWidth: 400, mx: 'auto', py: 8, textAlign: 'center' }}>
-        <Typography variant="h6" sx={{ mb: 3, color: 'text.secondary' }}>
-          No words due for testing
+        <Typography variant="h6" sx={{ mb: 1, color: 'text.secondary' }}>
+          No words due in &ldquo;{activeListName}&rdquo;
         </Typography>
+
+        {otherListsWithDue.length > 0 && (
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
+              Other lists with words due:
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
+              {otherListsWithDue.map((l) => (
+                <Chip
+                  key={l.id}
+                  label={`${l.name} (${l.due} due)`}
+                  onClick={() => handleSwitchAndTest(l.id)}
+                  color="primary"
+                  variant="outlined"
+                  clickable
+                />
+              ))}
+            </Box>
+          </Box>
+        )}
+
+        {otherListsWithDue.length === 0 && (
+          <Typography variant="body2" sx={{ mb: 3, color: 'text.disabled' }}>
+            No words due in any list
+          </Typography>
+        )}
+
         <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center' }}>
           <Button clicked={onClickAddWords}>Add Words</Button>
           {hasWordsInBank && (
@@ -381,14 +429,25 @@ const TestWords: React.FC<Props> = ({
     };
     const activeStep = stageToStep[state.stage] ?? 0;
 
+    const activeListNameForStepper =
+      (lists || []).find((l) => l.id === activeListId)?.name || 'General';
+
     stepper = (
-      <Stepper activeStep={activeStep} alternativeLabel sx={{ pt: 2, pb: 1 }}>
-        {steps.map((label) => (
-          <Step key={label}>
-            <StepLabel>{label}</StepLabel>
-          </Step>
-        ))}
-      </Stepper>
+      <Box>
+        <Typography
+          variant="caption"
+          sx={{ display: 'block', textAlign: 'center', pt: 1.5, color: 'text.secondary' }}
+        >
+          Testing: {activeListNameForStepper}
+        </Typography>
+        <Stepper activeStep={activeStep} alternativeLabel sx={{ pt: 1, pb: 1 }}>
+          {steps.map((label) => (
+            <Step key={label}>
+              <StepLabel>{label}</StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      </Box>
     );
   }
 

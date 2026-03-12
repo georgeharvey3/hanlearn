@@ -85,6 +85,7 @@ const wordNoDueDate: Word = {
 describe('Home — unauthenticated state', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedWordService.getListStats.mockResolvedValue({});
   });
 
   it('shows sign-up banner text when not authenticated', () => {
@@ -98,7 +99,14 @@ describe('Home — unauthenticated state', () => {
         modalOpen: false,
         modalMode: 'login' as const,
       },
-      addWords: { words: [], error: false, loading: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        listStats: {},
+        error: false,
+        loading: false,
+      },
       settings: { speechAvailable: false, synthAvailable: false },
     });
     renderWithProviders(<Home />, { store });
@@ -118,7 +126,14 @@ describe('Home — unauthenticated state', () => {
         modalOpen: false,
         modalMode: 'login' as const,
       },
-      addWords: { words: [], error: false, loading: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        listStats: {},
+        error: false,
+        loading: false,
+      },
       settings: { speechAvailable: false, synthAvailable: false },
     });
     renderWithProviders(<Home />, { store });
@@ -134,6 +149,7 @@ describe('Home — authenticated state', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedWordService.getUserWords.mockResolvedValue([]);
+    mockedWordService.getListStats.mockResolvedValue({});
   });
 
   it('calls initWords on mount when authenticated', async () => {
@@ -142,7 +158,7 @@ describe('Home — authenticated state', () => {
     renderWithProviders(<Home />, { store });
 
     await waitFor(() => {
-      expect(mockedWordService.getUserWords).toHaveBeenCalledWith('test-user-123');
+      expect(mockedWordService.getUserWords).toHaveBeenCalledWith('test-user-123', 'default');
     });
   });
 
@@ -157,7 +173,14 @@ describe('Home — authenticated state', () => {
         modalOpen: false,
         modalMode: 'login' as const,
       },
-      addWords: { words: [], error: false, loading: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        listStats: {},
+        error: false,
+        loading: false,
+      },
       settings: { speechAvailable: false, synthAvailable: false },
     });
     renderWithProviders(<Home />, { store });
@@ -182,7 +205,10 @@ describe('Home — authenticated state', () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
         words: [wordDueToday, wordDueFuture],
+        listStats: { default: { due: 1, total: 2 } },
         error: false,
         loading: false,
       },
@@ -190,7 +216,7 @@ describe('Home — authenticated state', () => {
     renderWithProviders(<Home />, { store });
 
     await waitFor(() => {
-      // AccountSummary shows "X/Y words due for testing..." — 1 out of 2 due
+      // AccountSummary shows "X/Y words due for testing" — 1 out of 2 due
       expect(screen.getByText(/1\/2 words due/i)).toBeInTheDocument();
     });
   });
@@ -201,7 +227,10 @@ describe('Home — authenticated state', () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
         words: [wordNoDueDate, wordDueFuture],
+        listStats: { default: { due: 1, total: 2 } },
         error: false,
         loading: false,
       },
@@ -219,6 +248,7 @@ describe('Home — numDue with slash-format dates (Safari regression)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedWordService.getUserWords.mockResolvedValue([]);
+    mockedWordService.getListStats.mockResolvedValue({});
   });
 
   it('correctly parses YYYY/MM/DD slash-format due dates (Safari safe)', async () => {
@@ -255,7 +285,14 @@ describe('Home — numDue with slash-format dates (Safari regression)', () => {
 
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { words: [dueWord, futureWord], error: false, loading: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord, futureWord],
+        listStats: { default: { due: 1, total: 2 } },
+        error: false,
+        loading: false,
+      },
     });
     renderWithProviders(<Home />, { store });
 
@@ -269,6 +306,7 @@ describe('Home — navigation handlers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedWordService.getUserWords.mockResolvedValue([]);
+    mockedWordService.getListStats.mockResolvedValue({});
   });
 
   it('navigates to /test-words when test button is clicked (words due)', async () => {
@@ -276,7 +314,10 @@ describe('Home — navigation handlers', () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
         words: [wordDueToday],
+        listStats: { default: { due: 1, total: 1 } },
         error: false,
         loading: false,
       },
@@ -297,7 +338,10 @@ describe('Home — navigation handlers', () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
         words: [],
+        listStats: {},
         error: false,
         loading: false,
       },
@@ -323,7 +367,14 @@ describe('Home — navigation handlers', () => {
         modalOpen: false,
         modalMode: 'login' as const,
       },
-      addWords: { words: [], error: false, loading: false },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        listStats: {},
+        error: false,
+        loading: false,
+      },
       settings: { speechAvailable: false, synthAvailable: false },
     });
     renderWithProviders(<Home />, { store });
