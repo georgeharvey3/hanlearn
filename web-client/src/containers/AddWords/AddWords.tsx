@@ -475,7 +475,9 @@ const AddWords: React.FC<Props> = ({
         {mobileCards}
       </Paper>
     ) : (
-      <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due', 'Play', 'Remove']}>{tableRows}</Table>
+      <Table headings={['Character(s)', 'Pinyin', 'Meaning', 'Due', 'Play', 'Remove']}>
+        {tableRows}
+      </Table>
     );
   }
 

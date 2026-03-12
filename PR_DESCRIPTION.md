@@ -1,40 +1,35 @@
 ## Summary
 
-Implements multiple word lists (Issue #4), allowing users to organize vocabulary into separate lists (e.g., per-book, per-topic). Each user starts with a default "General" list and can create, rename, and delete additional lists. All word operations (add, test, view) are scoped to the active list.
+Adds a pronunciation playback (VolumeUp) button to the word bank so learners can hear any word spoken on demand — no study session required. This surfaces the existing `ttsService` (Cloud TTS with LRU cache + native SpeechSynthesis fallback) directly in the word bank views.
 
-### Changes
+- **Mobile card view** (`WordCard.tsx`): VolumeUp icon button placed beside the pinyin text
+- **Desktop table view** (`AddWords.tsx`): New "Play" column with a dedicated `PlayPronunciation` component in each row
+- Visual feedback: button color changes to `primary.main` while audio is playing
 
-**Data model & backend:**
-- Added `WordList` interface and `listId` field to `Word` model
-- Added `wordLists` subcollection rules to `firestore.rules`
-- Added composite Firestore index for `(listId, dueDate)` queries
-- New service functions: `getUserWordLists`, `createWordList`, `renameWordList`, `deleteWordList`, `moveWordToList`
-- `getUserWords`, `getDueUserWords`, `addWordToBank`, `addCustomWord` now accept optional `listId` parameter
+## Key implementation details
 
-**State management:**
-- Extended `AddWordsState` with `lists` and `activeListId`
-- New action types: `SET_WORD_LISTS`, `ADD_WORD_LIST`, `REMOVE_WORD_LIST`, `RENAME_WORD_LIST`, `SET_ACTIVE_LIST`
-- New thunks: `switchActiveList`, `postCreateWordList`, `postRenameWordList`, `postDeleteWordList`
-- `initWords` fetches lists first, then words filtered by active list
-- Deleting the active list falls back to the default list
+- Reuses `ttsService.speak()` — no new service functions or API calls needed
+- Respects the active `charSet` (simplified/traditional) setting so the correct characters are spoken
+- `PlayPronunciation` extracted as a small component to allow `useState` for playing state inside table row `useMemo`
+- `WordCard` uses inline state since it's already a per-word component
 
-**UI:**
-- New `ListSelector` component with MUI Select dropdown and create/rename/delete dialogs
-- `ListSelector` shown on Home and AddWords pages when authenticated
-- `AccountSummary` shows the active list name
-- Default list cannot be renamed or deleted
+## Decisions and trade-offs
 
-**Tests:**
-- All 43 test files (703 tests) updated and passing
-- Test state shapes updated to include `lists` and `activeListId`
+- **No `stop()` on unmount**: The TTS handle's `stop()` is not called on unmount because playback is short-lived and the existing `ttsService` already cancels previous audio when a new `speak()` is called
+- **No Redux state**: Playing state is local (`useState`) per the issue recommendation — no added complexity
+- **Separate component for desktop**: The desktop table rows are built inside `useMemo`, so a separate `PlayPronunciation` component was needed to use React hooks for the playing state
+
+## Files modified
+
+- `web-client/src/components/AddWords/WordCard.tsx` — Added VolumeUp button beside pinyin in mobile card
+- `web-client/src/components/AddWords/PlayPronunciation.tsx` — New component for pronunciation button (used in desktop table)
+- `web-client/src/containers/AddWords/AddWords.tsx` — Added PlayPronunciation in desktop table rows + "Play" column heading
+- `web-client/src/containers/AddWords/AddWords.test.tsx` — Added ttsService mock and test for pronunciation button click
 
 ## Test plan
 
-- [x] All existing tests pass (43 files, 703 tests)
-- [ ] Manual: Create a new list, switch between lists, verify words are scoped
-- [ ] Manual: Rename a custom list, verify name updates everywhere
-- [ ] Manual: Delete a custom list, verify fallback to default
-- [ ] Manual: Add words while on a custom list, verify they appear only in that list
-- [ ] Manual: Test words while on a custom list, verify only that list's words are tested
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+- [x] All 739 existing tests pass (45 files)
+- [x] New test verifies `ttsService.speak` is called with correct character text and callbacks
+- [ ] Manual: Click play button on mobile card view, verify audio plays
+- [ ] Manual: Click play button on desktop table view, verify audio plays
+- [ ] Manual: Switch charSet to traditional, verify traditional characters are spoken
