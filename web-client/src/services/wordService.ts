@@ -420,6 +420,34 @@ export const getListStats = async (
 };
 
 /**
+ * Backfill listId='default' on any userWords documents that lack a listId field.
+ * Safe to call multiple times — only writes to docs that need updating.
+ */
+export const migrateWordsWithoutListId = async (userId: string): Promise<number> => {
+  const userWordsRef = collection(db, 'users', userId, 'userWords');
+  const snapshot = await getDocs(userWordsRef);
+
+  const docsToUpdate = snapshot.docs.filter((d) => {
+    const data = d.data();
+    return !data.listId;
+  });
+
+  if (docsToUpdate.length === 0) return 0;
+
+  // Firestore batches are limited to 500 operations
+  for (let i = 0; i < docsToUpdate.length; i += 500) {
+    const batch = writeBatch(db);
+    const chunk = docsToUpdate.slice(i, i + 500);
+    for (const d of chunk) {
+      batch.update(d.ref, { listId: 'default' });
+    }
+    await batch.commit();
+  }
+
+  return docsToUpdate.length;
+};
+
+/**
  * Format a date as YYYY/MM/DD
  */
 function formatDate(date: Date): string {
