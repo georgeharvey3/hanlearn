@@ -3,7 +3,16 @@ import { connect, ConnectedProps } from 'react-redux';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 import { Howl } from 'howler';
 
-import { Box, CircularProgress, IconButton, Paper, Stack, Tooltip, Typography, Chip } from '@mui/material';
+import {
+  Box,
+  CircularProgress,
+  IconButton,
+  Paper,
+  Stack,
+  Tooltip,
+  Typography,
+  Chip,
+} from '@mui/material';
 
 import { colors } from '../../../theme';
 import Button from '../../UI/Buttons/Button/Button';
@@ -128,6 +137,9 @@ const SentenceRead: React.FC<Props> = ({
   const [slowMode, setSlowMode] = useState<boolean>(
     () => localStorage.getItem('slowMode') === 'true',
   );
+  const [googleTtsAvailable, setGoogleTtsAvailable] = useState<boolean | null>(
+    ttsService.isGoogleTtsAvailable,
+  );
 
   const [state, setState] = useState<SentenceReadState>({
     sentences: [],
@@ -195,12 +207,14 @@ const SentenceRead: React.FC<Props> = ({
         fallbackLang: lang || 'zh-CN',
         onStart: () => {
           updateState({ synthLoading: false });
+          setGoogleTtsAvailable(ttsService.isGoogleTtsAvailable());
         },
         onEnd: () => {
           updateState({ synthLoading: false });
         },
         onError: () => {
           updateState({ synthLoading: false });
+          setGoogleTtsAvailable(ttsService.isGoogleTtsAvailable());
         },
       });
     },
@@ -298,12 +312,14 @@ const SentenceRead: React.FC<Props> = ({
             fallbackLang: lang || 'zh-CN',
             onStart: () => {
               updateState({ synthLoading: false });
+              setGoogleTtsAvailable(ttsService.isGoogleTtsAvailable());
             },
             onEnd: () => {
               updateState({ synthLoading: false });
             },
             onError: () => {
               updateState({ synthLoading: false });
+              setGoogleTtsAvailable(ttsService.isGoogleTtsAvailable());
             },
           });
         }
@@ -531,26 +547,28 @@ const SentenceRead: React.FC<Props> = ({
                 />
               )}
             </Box>
-            <Tooltip title={slowMode ? 'Slow mode on' : 'Slow mode off'}>
-              <IconButton
-                aria-label="Toggle slow mode"
-                aria-pressed={slowMode}
-                onClick={onToggleSlowMode}
-                size="small"
-                sx={{
-                  fontSize: '1.2rem',
-                  color: slowMode ? 'primary.main' : 'text.disabled',
-                  bgcolor: slowMode ? 'primary.50' : 'transparent',
-                  border: '1px solid',
-                  borderColor: slowMode ? 'primary.main' : 'divider',
-                  '&:hover': {
-                    bgcolor: slowMode ? 'primary.100' : 'action.hover',
-                  },
-                }}
-              >
-                🐢
-              </IconButton>
-            </Tooltip>
+            {googleTtsAvailable && (
+              <Tooltip title={slowMode ? 'Slow mode on' : 'Slow mode off'}>
+                <IconButton
+                  aria-label="Toggle slow mode"
+                  aria-pressed={slowMode}
+                  onClick={onToggleSlowMode}
+                  size="small"
+                  sx={{
+                    fontSize: '1.2rem',
+                    color: slowMode ? 'primary.main' : 'text.disabled',
+                    bgcolor: slowMode ? 'primary.50' : 'transparent',
+                    border: '1px solid',
+                    borderColor: slowMode ? 'primary.main' : 'divider',
+                    '&:hover': {
+                      bgcolor: slowMode ? 'primary.100' : 'action.hover',
+                    },
+                  }}
+                >
+                  🐢
+                </IconButton>
+              </Tooltip>
+            )}
           </Stack>
           <Typography variant="caption" sx={{ color: 'text.secondary', letterSpacing: 0.3 }}>
             {state.synthLoading ? 'Loading audio…' : 'Tap to replay'}

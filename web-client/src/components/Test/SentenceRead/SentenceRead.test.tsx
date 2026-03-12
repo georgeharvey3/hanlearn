@@ -31,6 +31,7 @@ vi.mock('../../../services/ttsService', () => ({
   speak: vi.fn(() => ({ play: vi.fn(), stop: vi.fn() })),
   prefetch: vi.fn(),
   stopAll: vi.fn(),
+  isGoogleTtsAvailable: vi.fn(() => null),
 }));
 
 import React from 'react';
@@ -493,6 +494,13 @@ describe('SentenceRead — slow mode toggle', () => {
 
   beforeEach(() => {
     localStorage.removeItem('slowMode');
+    // Simulate Google TTS being available so the turtle button renders
+    vi.mocked(ttsService.isGoogleTtsAvailable).mockReturnValue(true);
+    vi.mocked(ttsService.speak).mockImplementation((_text, options) => {
+      // Trigger onStart so the component picks up googleTtsAvailable
+      setTimeout(() => options?.onStart?.(), 0);
+      return { play: vi.fn(), stop: vi.fn() };
+    });
   });
 
   it('renders a slow mode toggle button in audio mode', async () => {
