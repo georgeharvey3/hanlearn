@@ -199,30 +199,25 @@ const DecompositionTree: React.FC<DecompositionTreeProps> = ({ char }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadDecomposition = useCallback(() => {
     setLoading(true);
     setError(null);
     setComponents(null);
 
     decomposeCharacter(char)
       .then((result) => {
-        if (!cancelled) {
-          setComponents(result);
-          setLoading(false);
-        }
+        setComponents(result);
+        setLoading(false);
       })
       .catch(() => {
-        if (!cancelled) {
-          setError('Decomposition failed');
-          setLoading(false);
-        }
+        setError('Decomposition failed');
+        setLoading(false);
       });
-
-    return () => {
-      cancelled = true;
-    };
   }, [char]);
+
+  useEffect(() => {
+    loadDecomposition();
+  }, [loadDecomposition]);
 
   if (loading) {
     return (
@@ -234,9 +229,19 @@ const DecompositionTree: React.FC<DecompositionTreeProps> = ({ char }) => {
 
   if (error) {
     return (
-      <Typography sx={{ fontSize: '0.85em', color: 'error.main', textAlign: 'center', py: 1 }}>
-        {error}
-      </Typography>
+      <Box sx={{ textAlign: 'center', py: 1 }}>
+        <Typography sx={{ fontSize: '0.85em', color: 'error.main' }}>
+          {error}
+        </Typography>
+        <Button
+          variant="text"
+          size="small"
+          onClick={loadDecomposition}
+          sx={{ mt: 0.5, fontSize: '0.8em', color: 'primary.main' }}
+        >
+          Retry
+        </Button>
+      </Box>
     );
   }
 
