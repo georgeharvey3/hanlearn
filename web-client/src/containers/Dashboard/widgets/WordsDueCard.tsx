@@ -11,7 +11,11 @@ interface WordsDueCardProps {
   estimatedStudyTime?: string | null;
 }
 
-const WordsDueCard: React.FC<WordsDueCardProps> = ({ dueWords, totalWords, estimatedStudyTime }) => (
+const WordsDueCard: React.FC<WordsDueCardProps> = ({
+  dueWords,
+  totalWords,
+  estimatedStudyTime,
+}) => (
   <Paper elevation={2} sx={{ p: 2, textAlign: 'center', borderRadius: 2, height: '100%' }}>
     <Typography variant="h3" sx={{ fontWeight: 'bold', color: colors.primaryDark }}>
       {dueWords}

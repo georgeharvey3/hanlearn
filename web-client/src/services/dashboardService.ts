@@ -34,10 +34,7 @@ export const getDashboardStats = async (
   let estimatedStudyTime: string | null = null;
 
   if (dueCount > 0) {
-    const numWords = Math.min(
-      dueCount,
-      parseInt(localStorage.getItem('numWords') || '10', 10),
-    );
+    const numWords = Math.min(dueCount, parseInt(localStorage.getItem('numWords') || '10', 10));
     const totalSeconds = estimateTestTime({
       numWords,
       useHandwriting: localStorage.getItem('useHandwriting') === 'true',

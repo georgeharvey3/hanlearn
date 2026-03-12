@@ -158,7 +158,11 @@ describe('Dashboard container', () => {
   });
 
   it('hides the "Test Now" link when no words are due', async () => {
-    mockGetDashboardStats.mockResolvedValue({ ...sampleStats, dueWords: 0, estimatedStudyTime: null });
+    mockGetDashboardStats.mockResolvedValue({
+      ...sampleStats,
+      dueWords: 0,
+      estimatedStudyTime: null,
+    });
     renderWithProviders(<Dashboard />, {
       store: createTestStore(authenticatedState()),
     });
@@ -175,7 +179,11 @@ describe('Dashboard container', () => {
   });
 
   it('hides estimated study time when no words are due', async () => {
-    mockGetDashboardStats.mockResolvedValue({ ...sampleStats, dueWords: 0, estimatedStudyTime: null });
+    mockGetDashboardStats.mockResolvedValue({
+      ...sampleStats,
+      dueWords: 0,
+      estimatedStudyTime: null,
+    });
     renderWithProviders(<Dashboard />, {
       store: createTestStore(authenticatedState()),
     });
