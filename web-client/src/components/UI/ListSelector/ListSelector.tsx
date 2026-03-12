@@ -28,6 +28,7 @@ interface ListSelectorProps {
   onRenameList: (listId: string, newName: string) => void;
   onDeleteList: (listId: string) => void;
   readOnly?: boolean;
+  alwaysShow?: boolean;
 }
 
 const ListSelector: React.FC<ListSelectorProps> = ({
@@ -39,6 +40,7 @@ const ListSelector: React.FC<ListSelectorProps> = ({
   onRenameList,
   onDeleteList,
   readOnly,
+  alwaysShow,
 }) => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -82,7 +84,7 @@ const ListSelector: React.FC<ListSelectorProps> = ({
     setRenameDialogOpen(true);
   }, [activeList]);
 
-  if (safeLists.filter((l) => l.id !== 'default').length === 0) return null;
+  if (!alwaysShow && safeLists.filter((l) => l.id !== 'default').length === 0) return null;
 
   return (
     <>

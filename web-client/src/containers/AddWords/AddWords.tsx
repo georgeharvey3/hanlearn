@@ -557,6 +557,7 @@ const AddWords: React.FC<Props> = ({
             onCreateList={onCreateList}
             onRenameList={onRenameList}
             onDeleteList={onDeleteList}
+            alwaysShow
           />
         </Box>
       )}
