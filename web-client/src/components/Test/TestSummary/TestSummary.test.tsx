@@ -60,6 +60,43 @@ describe('TestSummary — heading and word count', () => {
   });
 });
 
+describe('TestSummary — session accuracy', () => {
+  it('shows accuracy line with correct count and percentage', () => {
+    renderWithProviders(<TestSummary scores={allScores} />);
+    // 2 correct (Very Strong + Strong) out of 5 = 40%
+    expect(screen.getByTestId('session-accuracy')).toHaveTextContent('2 / 5 correct (40%)');
+  });
+
+  it('shows 100% when all scores are Strong or Very Strong', () => {
+    const scores: WordScore[] = [
+      { char: '一', score: 'Very Strong' },
+      { char: '二', score: 'Strong' },
+    ];
+    renderWithProviders(<TestSummary scores={scores} />);
+    expect(screen.getByTestId('session-accuracy')).toHaveTextContent('2 / 2 correct (100%)');
+  });
+
+  it('shows 0% when no scores are Strong or Very Strong', () => {
+    const scores: WordScore[] = [
+      { char: '一', score: 'Average' },
+      { char: '二', score: 'Weak' },
+      { char: '三', score: 'Very Weak' },
+    ];
+    renderWithProviders(<TestSummary scores={scores} />);
+    expect(screen.getByTestId('session-accuracy')).toHaveTextContent('0 / 3 correct (0%)');
+  });
+
+  it('does not show accuracy line when scores is empty', () => {
+    renderWithProviders(<TestSummary scores={[]} />);
+    expect(screen.queryByTestId('session-accuracy')).not.toBeInTheDocument();
+  });
+
+  it('does not show accuracy line when scores is undefined', () => {
+    renderWithProviders(<TestSummary />);
+    expect(screen.queryByTestId('session-accuracy')).not.toBeInTheDocument();
+  });
+});
+
 describe('TestSummary — score rows', () => {
   it('renders each word character', () => {
     renderWithProviders(<TestSummary scores={allScores} />);

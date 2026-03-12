@@ -765,6 +765,10 @@ const SentenceRead: React.FC<Props> = ({
         Listen &amp; translate
       </Typography>
 
+      <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary' }}>
+        Word {state.wordIndex + 1} of {words.length}
+      </Typography>
+
       {/* Sentence card */}
       <Paper
         elevation={2}
