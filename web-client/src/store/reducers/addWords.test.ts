@@ -8,6 +8,7 @@ const initialState: AddWordsState = {
   lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
   activeListId: 'default',
   words: [],
+  listStats: {},
   error: false,
   loading: false,
 };

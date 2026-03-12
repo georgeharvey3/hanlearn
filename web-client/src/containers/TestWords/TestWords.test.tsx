@@ -17,6 +17,7 @@ vi.mock('../../store/actions/index', () => ({
   initWords: vi.fn(() => ({ type: 'INIT_WORDS_NOOP' })),
   finishTest: vi.fn(() => ({ type: 'FINISH_TEST_NOOP' })),
   postWord: vi.fn(() => ({ type: 'POST_WORD_NOOP' })),
+  switchActiveList: vi.fn(() => ({ type: 'SWITCH_LIST_NOOP' })),
 }));
 
 // Howler is used by child components — mock it globally
@@ -131,7 +132,7 @@ describe('TestWords — empty bank / no words due', () => {
     });
     renderWithProviders(<TestWords />, { store });
     await waitFor(() => {
-      expect(screen.getByText(/no words due in/i)).toBeInTheDocument();
+      expect(screen.getByText(/no words due in \u201c/i)).toBeInTheDocument();
     });
   });
 
@@ -167,7 +168,7 @@ describe('TestWords — empty bank / no words due', () => {
     });
     renderWithProviders(<TestWords />, { store });
     await waitFor(() => {
-      expect(screen.getByText(/no words due in/i)).toBeInTheDocument();
+      expect(screen.getByText(/no words due in \u201c/i)).toBeInTheDocument();
     });
     expect(screen.queryByRole('button', { name: /practice/i })).not.toBeInTheDocument();
   });

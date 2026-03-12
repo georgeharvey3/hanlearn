@@ -6,6 +6,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import Dashboard from './Dashboard';
 import { renderWithProviders, authenticatedState, createTestStore } from '../../test/utils';
 
+vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
 vi.mock('../../services/dashboardService', () => ({
   getDashboardStats: vi.fn(),
 }));
