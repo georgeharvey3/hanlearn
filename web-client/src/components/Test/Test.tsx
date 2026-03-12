@@ -163,11 +163,12 @@ const Test: React.FC<Props> = (props) => {
               color:
                 state.result === 'Correct' || state.result === 'Finished!'
                   ? 'success.main'
-                  : (state.result.startsWith('Answer was') && !state.showAnswer) ||
-                      state.result.startsWith('Try') ||
-                      state.result === 'Incorrect tones'
-                    ? 'error.main'
-                    : 'text.primary',
+                  : state.result === 'Incorrect tones'
+                    ? 'warning.main'
+                    : (state.result.startsWith('Answer was') && !state.showAnswer) ||
+                        state.result.startsWith('Try')
+                      ? 'error.main'
+                      : 'text.primary',
             }}
           >
             {state.result}
