@@ -26,14 +26,31 @@ const TestSummary: React.FC<TestSummaryProps> = ({ history, scores }) => {
     history.push('/');
   };
 
+  const total = scores?.length ?? 0;
+  const correct = scores?.filter(
+    (s) => s.score === 'Very Strong' || s.score === 'Strong',
+  ).length ?? 0;
+  const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+  const accuracyColor =
+    pct >= 70 ? 'success.main' : pct >= 40 ? 'warning.main' : 'error.main';
+
   return (
     <Box sx={{ textAlign: 'center' }}>
       <Typography variant="h5" component="h3" sx={{ fontWeight: 700, mb: 0.5 }}>
         Session Summary
       </Typography>
-      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2.5 }}>
-        {scores?.length ?? 0} word{(scores?.length ?? 0) !== 1 ? 's' : ''} tested
+      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
+        {total} word{total !== 1 ? 's' : ''} tested
       </Typography>
+      {total > 0 && (
+        <Typography
+          variant="subtitle1"
+          data-testid="session-accuracy"
+          sx={{ fontWeight: 600, color: accuracyColor, mb: 2.5 }}
+        >
+          {correct} / {total} correct ({pct}%)
+        </Typography>
+      )}
 
       <Box
         sx={{
