@@ -37,6 +37,19 @@ const makeWord = (simp: string, pinyin: string, meaning: string) => ({
   meaning,
 });
 
+const mockAnimateCharacter = vi.fn().mockResolvedValue(undefined);
+const mockHanziWriterCreate = vi.fn().mockReturnValue({
+  animateCharacter: mockAnimateCharacter,
+  showCharacter: vi.fn(),
+  hideCharacter: vi.fn(),
+  showOutline: vi.fn(),
+  hideOutline: vi.fn(),
+  animateStroke: vi.fn(),
+  quiz: vi.fn(),
+  cancelQuiz: vi.fn(),
+  setCharacter: vi.fn(),
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockSearchWord.mockResolvedValue([]);
@@ -52,6 +65,10 @@ beforeEach(() => {
     voice = null;
     onerror = null;
   } as unknown as typeof SpeechSynthesisUtterance;
+  // Stub HanziWriter
+  window.HanziWriter = {
+    create: mockHanziWriterCreate,
+  };
 });
 
 describe('NewWord character interaction', () => {
@@ -474,5 +491,139 @@ describe('NewWord character decomposition', () => {
       expect(screen.getByText('又')).toBeInTheDocument();
       expect(screen.getByText('again')).toBeInTheDocument();
     });
+  });
+});
+
+describe('NewWord stroke order animation', () => {
+  function makeNoSoundStore() {
+    return createTestStore({
+      auth: { userId: 'test-user', loading: false, initialized: true },
+      settings: { speechAvailable: false, synthAvailable: false },
+    });
+  }
+
+  it('shows Stroke Order button after clicking a character', async () => {
+    mockSearchWord.mockResolvedValue([
+      { id: 1, simp: '大', trad: '大', pinyin: 'dà', meaning: 'big' },
+    ]);
+
+    renderWithProviders(<NewWord word={makeWord('大家', 'dàjiā', 'everyone')} />, {
+      store: makeNoSoundStore(),
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByText('大'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /stroke order/i })).toBeInTheDocument();
+    });
+  });
+
+  it('creates HanziWriter and animates when Stroke Order is clicked', async () => {
+    mockSearchWord.mockResolvedValue([
+      { id: 1, simp: '大', trad: '大', pinyin: 'dà', meaning: 'big' },
+    ]);
+
+    renderWithProviders(<NewWord word={makeWord('大家', 'dàjiā', 'everyone')} />, {
+      store: makeNoSoundStore(),
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByText('大'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /stroke order/i })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /stroke order/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('stroke-order-container')).toBeInTheDocument();
+    });
+
+    expect(mockHanziWriterCreate).toHaveBeenCalledWith(
+      expect.any(HTMLElement),
+      '大',
+      expect.objectContaining({
+        width: 120,
+        height: 120,
+        showOutline: true,
+      }),
+    );
+    expect(mockAnimateCharacter).toHaveBeenCalled();
+  });
+
+  it('toggles stroke order off when button is clicked again', async () => {
+    mockSearchWord.mockResolvedValue([
+      { id: 1, simp: '大', trad: '大', pinyin: 'dà', meaning: 'big' },
+    ]);
+
+    renderWithProviders(<NewWord word={makeWord('大家', 'dàjiā', 'everyone')} />, {
+      store: makeNoSoundStore(),
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByText('大'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /stroke order/i })).toBeInTheDocument();
+    });
+
+    // Open stroke order
+    await user.click(screen.getByRole('button', { name: /stroke order/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId('stroke-order-container')).toBeInTheDocument();
+    });
+
+    // Close stroke order
+    await user.click(screen.getByRole('button', { name: /stroke order/i }));
+    await waitFor(() => {
+      expect(screen.queryByTestId('stroke-order-container')).not.toBeInTheDocument();
+    });
+  });
+
+  it('re-creates HanziWriter when a different character is clicked', async () => {
+    mockSearchWord.mockImplementation(async (char) => {
+      if (char === '大') return [{ id: 1, simp: '大', trad: '大', pinyin: 'dà', meaning: 'big' }];
+      if (char === '家')
+        return [{ id: 2, simp: '家', trad: '家', pinyin: 'jiā', meaning: 'home' }];
+      return [];
+    });
+
+    renderWithProviders(<NewWord word={makeWord('大家', 'dàjiā', 'everyone')} />, {
+      store: makeNoSoundStore(),
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByText('大'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /stroke order/i })).toBeInTheDocument();
+    });
+
+    // Open stroke order for 大
+    await user.click(screen.getByRole('button', { name: /stroke order/i }));
+    await waitFor(() => {
+      expect(mockHanziWriterCreate).toHaveBeenCalledWith(
+        expect.any(HTMLElement),
+        '大',
+        expect.any(Object),
+      );
+    });
+
+    mockHanziWriterCreate.mockClear();
+    mockAnimateCharacter.mockClear();
+
+    // Click a different character — stroke order should update
+    await user.click(screen.getByText('家'));
+
+    await waitFor(() => {
+      expect(mockHanziWriterCreate).toHaveBeenCalledWith(
+        expect.any(HTMLElement),
+        '家',
+        expect.any(Object),
+      );
+    });
+    expect(mockAnimateCharacter).toHaveBeenCalled();
   });
 });

@@ -3,6 +3,7 @@ import { connect, ConnectedProps } from 'react-redux';
 
 import { Box, Button, ButtonBase, CircularProgress, Paper, Typography } from '@mui/material';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import GestureOutlinedIcon from '@mui/icons-material/GestureOutlined';
 
 import MeaningEditor from '../../../UI/MeaningEditor/MeaningEditor';
 import PictureButton from '../../../UI/Buttons/PictureButton/PictureButton';
@@ -66,6 +67,9 @@ const NewWord: React.FC<Props> = ({
   );
   const [synthLoading, setSynthLoading] = useState(false);
   const [decompOpen, setDecompOpen] = useState(false);
+  const [strokeOrderOpen, setStrokeOrderOpen] = useState(false);
+  const strokeOrderRef = useRef<HTMLDivElement>(null);
+  const writerRef = useRef<HanziWriterInstance | null>(null);
 
   const onSpeakPinyin = useCallback(
     (pinyinWord: string): void => {
@@ -144,6 +148,10 @@ const NewWord: React.FC<Props> = ({
     setClickedIndex(null);
     setCharLoading(false);
     setDecompOpen(false);
+    setStrokeOrderOpen(false);
+    if (writerRef.current) {
+      writerRef.current = null;
+    }
     charCache.current.clear();
   }, [charSet, useSound, wordId]);
 
@@ -181,6 +189,37 @@ const NewWord: React.FC<Props> = ({
     [onMeaningChange],
   );
 
+  // Create/destroy HanziWriter when stroke order is toggled or character changes
+  useEffect(() => {
+    if (!strokeOrderOpen || clickedIndex === null || !strokeOrderRef.current) {
+      writerRef.current = null;
+      return;
+    }
+
+    const container = strokeOrderRef.current;
+    container.innerHTML = '';
+
+    const char = chars[clickedIndex];
+    try {
+      const writer = window.HanziWriter.create(container, char, {
+        width: 120,
+        height: 120,
+        showOutline: true,
+        strokeAnimationSpeed: 1,
+        delayBetweenStrokes: 200,
+      });
+      writerRef.current = writer;
+      writer.animateCharacter();
+    } catch {
+      // HanziWriter may fail for unsupported characters
+    }
+
+    return () => {
+      container.innerHTML = '';
+      writerRef.current = null;
+    };
+  }, [strokeOrderOpen, clickedIndex, chars]);
+
   const charInfo: React.ReactNode =
     charData === null ? (
       <Typography
@@ -211,7 +250,7 @@ const NewWord: React.FC<Props> = ({
             <Box sx={{ mt: 0.5, display: 'flex', justifyContent: 'center' }}>
               <MeaningEditor value={charData.meanings.join('/')} readOnly size="small" />
             </Box>
-            <Box sx={{ mt: 1.5, display: 'flex', justifyContent: 'center' }}>
+            <Box sx={{ mt: 1.5, display: 'flex', justifyContent: 'center', gap: 1 }}>
               <Button
                 variant={decompOpen ? 'contained' : 'outlined'}
                 size="small"
@@ -235,7 +274,52 @@ const NewWord: React.FC<Props> = ({
               >
                 Decompose
               </Button>
+              <Button
+                variant={strokeOrderOpen ? 'contained' : 'outlined'}
+                size="small"
+                startIcon={<GestureOutlinedIcon />}
+                onClick={() => setStrokeOrderOpen((prev) => !prev)}
+                aria-pressed={strokeOrderOpen}
+                aria-label="Stroke Order"
+                sx={
+                  strokeOrderOpen
+                    ? {
+                        px: 2.5,
+                        bgcolor: 'primary.dark',
+                        color: '#fff',
+                        '&:hover': { bgcolor: '#145233' },
+                      }
+                    : {
+                        px: 2.5,
+                        color: 'text.secondary',
+                        borderColor: 'divider',
+                      }
+                }
+              >
+                Stroke Order
+              </Button>
             </Box>
+            {strokeOrderOpen && (
+              <Box
+                sx={{
+                  mt: 1.5,
+                  display: 'flex',
+                  justifyContent: 'center',
+                }}
+              >
+                <Box
+                  ref={strokeOrderRef}
+                  data-testid="stroke-order-container"
+                  sx={{
+                    width: 120,
+                    height: 120,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                  }}
+                />
+              </Box>
+            )}
             {decompOpen && <DecompositionTree char={charData.simp} />}
           </>
         )}
