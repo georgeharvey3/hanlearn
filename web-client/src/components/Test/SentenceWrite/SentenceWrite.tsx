@@ -433,10 +433,7 @@ const SentenceWrite: React.FC<Props> = ({
           Write in Chinese
         </Typography>
 
-        <Typography
-          variant="body2"
-          sx={{ textAlign: 'center', color: 'text.secondary' }}
-        >
+        <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary' }}>
           Word {state.wordIndex + 1} of {words.length}
         </Typography>
 
@@ -520,10 +517,7 @@ const SentenceWrite: React.FC<Props> = ({
         Write in Chinese
       </Typography>
 
-      <Typography
-        variant="body2"
-        sx={{ textAlign: 'center', color: 'text.secondary' }}
-      >
+      <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary' }}>
         Word {state.wordIndex + 1} of {words.length}
       </Typography>
 
