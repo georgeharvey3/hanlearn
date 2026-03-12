@@ -169,7 +169,7 @@ describe('getDashboardStats', () => {
     expect(stats.estimatedStudyTime).toMatch(/min/);
   });
 
-  it('caps session words to numWords setting from localStorage', async () => {
+  it('uses numWords setting from localStorage for time estimate', async () => {
     localStorage.setItem('numWords', '2');
     const dueWords = Array.from({ length: 10 }, (_, i) => makeWord(i + 1, 1));
     mockedWordService.getUserWords.mockResolvedValue(dueWords);
@@ -177,9 +177,9 @@ describe('getDashboardStats', () => {
 
     const stats = await getDashboardStats('user-1');
 
-    // With 2 words and default settings (36s/word base): 72s → ~2 min
-    // Plus newWords enabled by default: 2*5 = 10s → total 82s → ~2 min
-    expect(stats.estimatedStudyTime).toBe('~2 min');
+    // With 2 words and default settings (all stages enabled):
+    // 2 × (8+8+10+10+15 + 5+30+30) = 2 × 116 = 232s → ~4 min
+    expect(stats.estimatedStudyTime).toBe('~4 min');
   });
 
   it('respects user settings from localStorage for time estimate', async () => {

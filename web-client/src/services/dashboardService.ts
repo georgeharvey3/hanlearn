@@ -34,15 +34,15 @@ export const getDashboardStats = async (
   let estimatedStudyTime: string | null = null;
 
   if (dueCount > 0) {
-    const numWords = Math.min(dueCount, parseInt(localStorage.getItem('numWords') || '10', 10));
+    const numWords = parseInt(localStorage.getItem('numWords') || '5', 10);
     const totalSeconds = estimateTestTime({
       numWords,
-      useHandwriting: localStorage.getItem('useHandwriting') === 'true',
+      useHandwriting: localStorage.getItem('useHandwriting') !== 'false',
       priority: localStorage.getItem('priority') || 'none',
       onlyPriority: localStorage.getItem('onlyPriority') === 'true',
       newWordsEnabled: localStorage.getItem('newWords') !== 'false',
-      sentenceReadEnabled: localStorage.getItem('sentenceRead') === 'true',
-      sentenceWriteEnabled: localStorage.getItem('sentenceWrite') === 'true',
+      sentenceReadEnabled: localStorage.getItem('sentenceRead') !== 'false',
+      sentenceWriteEnabled: localStorage.getItem('sentenceWrite') !== 'false',
     });
 
     if (totalSeconds >= 3600) {
