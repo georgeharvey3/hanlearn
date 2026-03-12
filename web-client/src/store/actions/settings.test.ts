@@ -36,7 +36,10 @@ describe('settings action creators', () => {
 
   describe('setVoice', () => {
     it('creates SET_VOICE action with the provided voice', () => {
-      const mockVoice = { name: 'Google 普通话（中国大陆）', lang: 'zh-CN' } as SpeechSynthesisVoice;
+      const mockVoice = {
+        name: 'Google 普通话（中国大陆）',
+        lang: 'zh-CN',
+      } as SpeechSynthesisVoice;
       const action = setVoice(mockVoice);
       expect(action.type).toBe('SET_VOICE');
       expect(action.voice).toBe(mockVoice);
