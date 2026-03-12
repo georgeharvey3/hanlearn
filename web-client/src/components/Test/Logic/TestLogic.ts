@@ -146,6 +146,16 @@ export const setPermList = (
 
 const ranChoice = <T>(array: T[]): T => array[Math.floor(Math.random() * array.length)];
 
+function resolveCategory(
+  category: QuestionCategory,
+  word: Word,
+  charSet: 'simp' | 'trad',
+): { value: string | string[]; label: string } {
+  if (category === 'C') return { value: word[charSet], label: 'character' };
+  if (category === 'P') return { value: word.pinyin, label: 'pinyin' };
+  return { value: parseMeanings(word.meaning), label: 'meaning' };
+}
+
 export interface AssignQAResult {
   perm: TestPerm;
   chosenCharacter: string;
@@ -170,35 +180,11 @@ export const assignQA = (
   const perm = priorityPerms.length > 0 ? ranChoice(priorityPerms) : ranChoice(permList);
   const ranWord = testSet[parseInt(perm.index)];
 
-  let Ax: string | string[];
-  let ACs: string;
-  let Qx: string | string[];
-  let QCs: string;
-
-  if (perm.aCategory === 'C') {
-    Ax = ranWord[charSet];
-    ACs = 'character';
-  } else if (perm.aCategory === 'P') {
-    Ax = ranWord.pinyin;
-    ACs = 'pinyin';
-  } else {
-    Ax = parseMeanings(ranWord.meaning);
-    ACs = 'meaning';
-  }
-
-  if (perm.qCategory === 'C') {
-    Qx = ranWord[charSet];
-    QCs = 'character';
-  } else if (perm.qCategory === 'P') {
-    Qx = ranWord.pinyin;
-    QCs = 'pinyin';
-  } else {
-    Qx = parseMeanings(ranWord.meaning);
-    QCs = 'meaning';
-  }
+  const { value: Ax, label: ACs } = resolveCategory(perm.aCategory, ranWord, charSet);
+  const { value: Qx, label: QCs } = resolveCategory(perm.qCategory, ranWord, charSet);
 
   return {
-    perm: perm,
+    perm,
     chosenCharacter: ranWord[charSet],
     answer: Ax,
     answerCategory: ACs,
