@@ -14,6 +14,9 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 vi.mock('../../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('../../../services/wordService', () => ({
+  addWordToBank: vi.fn().mockResolvedValue(undefined),
+}));
 
 // Mock the data module to provide deterministic chengyu data
 vi.mock('../../../data/chengyus', () => ({
@@ -57,13 +60,18 @@ import userEvent from '@testing-library/user-event';
 import Chengyu from './Chengyu';
 import { renderWithProviders, createTestStore } from '../../../test/utils';
 
-function makeStore() {
+function makeStore(overrides?: { userId?: string | null; words?: Array<Record<string, unknown>> }) {
   return createTestStore({
-    auth: { userId: null, loading: false, initialized: true, modalOpen: false },
+    auth: {
+      userId: overrides?.userId ?? null,
+      loading: false,
+      initialized: true,
+      modalOpen: false,
+    },
     addWords: {
       lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
       activeListId: 'default',
-      words: [],
+      words: overrides?.words ?? [],
       listStats: {},
       loading: false,
       error: false,
@@ -224,5 +232,68 @@ describe('Chengyu — character meanings after completion', () => {
     await waitFor(() => {
       expect(screen.getByText(/alone; independent/i)).toBeInTheDocument();
     });
+  });
+});
+
+describe('Chengyu — save to word bank', () => {
+  it('does not show save button when user is not authenticated', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Chengyu />, { store: makeStore() });
+
+    await user.click(screen.getByRole('button', { name: /^unique$/ }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('list', { name: /character breakdown/i })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /save to my words/i })).not.toBeInTheDocument();
+  });
+
+  it('shows save button after correct answer when authenticated', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Chengyu />, { store: makeStore({ userId: 'test-user' }) });
+
+    await user.click(screen.getByRole('button', { name: /^unique$/ }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /save to my words/i })).toBeInTheDocument();
+    });
+  });
+
+  it('changes button text to "Saved!" after clicking save', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Chengyu />, { store: makeStore({ userId: 'test-user' }) });
+
+    await user.click(screen.getByRole('button', { name: /^unique$/ }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /save to my words/i })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /save to my words/i }));
+
+    expect(screen.getByRole('button', { name: /saved!/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /saved!/i })).toBeDisabled();
+  });
+
+  it('shows "Already saved" when chengyu is already in word bank', async () => {
+    const user = userEvent.setup();
+    const store = makeStore({
+      userId: 'test-user',
+      words: [{ id: 1, simp: '独一无二', trad: '獨一無二', pinyin: 'dú yī wú èr', meaning: 'unique' }],
+    });
+    renderWithProviders(<Chengyu />, { store });
+
+    await user.click(screen.getByRole('button', { name: /^unique$/ }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /already saved/i })).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /already saved/i })).toBeDisabled();
+  });
+
+  it('does not show save button before answering correctly', () => {
+    renderWithProviders(<Chengyu />, { store: makeStore({ userId: 'test-user' }) });
+
+    expect(screen.queryByRole('button', { name: /save to my words/i })).not.toBeInTheDocument();
   });
 });

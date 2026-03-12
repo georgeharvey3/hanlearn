@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { connect, ConnectedProps } from 'react-redux';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
@@ -11,11 +13,27 @@ import {
   convertDailyChengyu,
   lookupCharacterMeanings,
 } from '../../../data/chengyus';
+import { RootState } from '../../../types/store';
+import { Word } from '../../../types/models';
+import { postWord } from '../../../store/actions/word';
 
-const Chengyu: React.FC = () => {
+const mapStateToProps = (state: RootState) => ({
+  userId: state.auth.userId,
+  words: state.addWords.words,
+});
+
+const mapDispatchToProps = {
+  onSaveWord: postWord,
+};
+
+const connector = connect(mapStateToProps, mapDispatchToProps);
+type PropsFromRedux = ConnectedProps<typeof connector>;
+
+const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
   const [finished, setFinished] = useState(false);
   const [incorrect, setIncorrect] = useState<number[]>([]);
   const [charMeanings, setCharMeanings] = useState<Map<string, string>>(new Map());
+  const [saved, setSaved] = useState(false);
   const [charSet] = useState<'simp' | 'trad'>(
     (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
   );
@@ -48,6 +66,24 @@ const Chengyu: React.FC = () => {
     } else {
       setFinished(true);
     }
+  };
+
+  const alreadySaved = useMemo(() => {
+    const simpChars = dailyChengyu.chengyu;
+    return words.some((w) => w.simp === simpChars || w.trad === simpChars);
+  }, [words, dailyChengyu.chengyu]);
+
+  const handleSave = () => {
+    if (!userId || alreadySaved || saved) return;
+    const word: Word = {
+      id: Date.now(),
+      simp: dailyChengyu.chengyu,
+      trad: dailyChengyu.tradChengyu,
+      pinyin: dailyChengyu.pinyin,
+      meaning: dailyChengyu.correct,
+    };
+    onSaveWord(word);
+    setSaved(true);
   };
 
   let details: React.ReactNode = null;
@@ -95,6 +131,19 @@ const Chengyu: React.FC = () => {
       </List>
     );
   }
+
+  const saveButton =
+    finished && userId ? (
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={handleSave}
+        disabled={alreadySaved || saved}
+        sx={{ mt: 2 }}
+      >
+        {saved ? 'Saved!' : alreadySaved ? 'Already saved' : 'Save to my words'}
+      </Button>
+    ) : null;
 
   return (
     <Paper
@@ -188,8 +237,9 @@ const Chengyu: React.FC = () => {
         })}
       </List>
       {details}
+      {saveButton}
     </Paper>
   );
 };
 
-export default Chengyu;
+export default connector(Chengyu);
