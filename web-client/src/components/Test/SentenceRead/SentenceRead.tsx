@@ -3,7 +3,7 @@ import { connect, ConnectedProps } from 'react-redux';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 import { Howl } from 'howler';
 
-import { Box, CircularProgress, Paper, Stack, Typography, Chip } from '@mui/material';
+import { Box, CircularProgress, IconButton, Paper, Stack, Tooltip, Typography, Chip } from '@mui/material';
 
 import { colors } from '../../../theme';
 import Button from '../../UI/Buttons/Button/Button';
@@ -125,6 +125,10 @@ const SentenceRead: React.FC<Props> = ({
   isDemo,
   history,
 }) => {
+  const [slowMode, setSlowMode] = useState<boolean>(
+    () => localStorage.getItem('slowMode') === 'true',
+  );
+
   const [state, setState] = useState<SentenceReadState>({
     sentences: [],
     totalCount: 0,
@@ -143,6 +147,19 @@ const SentenceRead: React.FC<Props> = ({
     message: '',
     recognition: null,
   });
+
+  const slowModeRef = useRef(slowMode);
+  useEffect(() => {
+    slowModeRef.current = slowMode;
+  }, [slowMode]);
+
+  const onToggleSlowMode = useCallback((): void => {
+    setSlowMode((prev) => {
+      const next = !prev;
+      localStorage.setItem('slowMode', String(next));
+      return next;
+    });
+  }, []);
 
   const stateRef = useRef(state);
   const hasInitialized = useRef(false);
@@ -173,6 +190,7 @@ const SentenceRead: React.FC<Props> = ({
 
       updateState({ synthLoading: true });
       ttsService.speak(sentence, {
+        speed: slowModeRef.current ? 0.7 : 1.0,
         fallbackVoice: voice,
         fallbackLang: lang || 'zh-CN',
         onStart: () => {
@@ -275,6 +293,7 @@ const SentenceRead: React.FC<Props> = ({
           stateRef.current.recognition?.abort();
           ttsService.stopAll();
           ttsService.speak(resolved.chinese.sentence, {
+            speed: slowModeRef.current ? 0.7 : 1.0,
             fallbackVoice: voice,
             fallbackLang: lang || 'zh-CN',
             onStart: () => {
@@ -491,26 +510,48 @@ const SentenceRead: React.FC<Props> = ({
       // Audio mode: centred speaker button with hint
       sentenceCardContent = (
         <Stack alignItems="center" spacing={1}>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: 40,
-              width: 40,
-            }}
-          >
-            {state.synthLoading ? (
-              <CircularProgress size={24} color="primary" />
-            ) : (
-              <PictureButton
-                type="secondary"
-                src={speakerPic}
-                aria-label="Play sentence"
-                clicked={() => onSpeakPinyin(currentSentence.chinese.sentence)}
-              />
-            )}
-          </Box>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: 40,
+                width: 40,
+              }}
+            >
+              {state.synthLoading ? (
+                <CircularProgress size={24} color="primary" />
+              ) : (
+                <PictureButton
+                  type="secondary"
+                  src={speakerPic}
+                  aria-label="Play sentence"
+                  clicked={() => onSpeakPinyin(currentSentence.chinese.sentence)}
+                />
+              )}
+            </Box>
+            <Tooltip title={slowMode ? 'Slow mode on' : 'Slow mode off'}>
+              <IconButton
+                aria-label="Toggle slow mode"
+                aria-pressed={slowMode}
+                onClick={onToggleSlowMode}
+                size="small"
+                sx={{
+                  fontSize: '1.2rem',
+                  color: slowMode ? 'primary.main' : 'text.disabled',
+                  bgcolor: slowMode ? 'primary.50' : 'transparent',
+                  border: '1px solid',
+                  borderColor: slowMode ? 'primary.main' : 'divider',
+                  '&:hover': {
+                    bgcolor: slowMode ? 'primary.100' : 'action.hover',
+                  },
+                }}
+              >
+                🐢
+              </IconButton>
+            </Tooltip>
+          </Stack>
           <Typography variant="caption" sx={{ color: 'text.secondary', letterSpacing: 0.3 }}>
             {state.synthLoading ? 'Loading audio…' : 'Tap to replay'}
           </Typography>

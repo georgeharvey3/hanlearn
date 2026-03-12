@@ -41,6 +41,7 @@ import SentenceRead from './SentenceRead';
 import { renderWithProviders, authenticatedState, createTestStore } from '../../../test/utils';
 import * as sentenceService from '../../../services/sentenceService';
 import * as dictionaryService from '../../../services/dictionaryService';
+import * as ttsService from '../../../services/ttsService';
 import { Word } from '../../../types/models';
 
 const mockedGetSegmentedSentence = vi.mocked(sentenceService.getSegmentedSentence);
@@ -479,6 +480,92 @@ describe('SentenceRead — word popup rendering', () => {
       expect(addedBtn).toBeInTheDocument();
       expect(addedBtn).toBeDisabled();
     });
+  });
+});
+
+describe('SentenceRead — slow mode toggle', () => {
+  function makeStoreWithSound() {
+    return createTestStore({
+      ...authenticatedState(),
+      settings: { speechAvailable: true, synthAvailable: true },
+    });
+  }
+
+  beforeEach(() => {
+    localStorage.removeItem('slowMode');
+  });
+
+  it('renders a slow mode toggle button in audio mode', async () => {
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStoreWithSound() },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /toggle slow mode/i })).toBeInTheDocument();
+    });
+  });
+
+  it('persists slow mode preference to localStorage when toggled', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStoreWithSound() },
+    );
+
+    const toggleBtn = await screen.findByRole('button', { name: /toggle slow mode/i });
+    expect(localStorage.getItem('slowMode')).not.toBe('true');
+
+    await user.click(toggleBtn);
+    expect(localStorage.getItem('slowMode')).toBe('true');
+
+    await user.click(toggleBtn);
+    expect(localStorage.getItem('slowMode')).toBe('false');
+  });
+
+  it('initialises slow mode from localStorage', async () => {
+    localStorage.setItem('slowMode', 'true');
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStoreWithSound() },
+    );
+
+    const toggleBtn = await screen.findByRole('button', { name: /toggle slow mode/i });
+    expect(toggleBtn).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('passes speed 0.7 to ttsService.speak when slow mode is enabled', async () => {
+    localStorage.setItem('slowMode', 'true');
+    const mockedSpeak = vi.mocked(ttsService.speak);
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStoreWithSound() },
+    );
+
+    // Wait for the sentence to load and auto-speak
+    await waitFor(() => {
+      expect(mockedSpeak).toHaveBeenCalled();
+    });
+
+    // The speak call should include speed: 0.7
+    const lastCall = mockedSpeak.mock.calls[mockedSpeak.mock.calls.length - 1];
+    expect(lastCall[1]).toEqual(expect.objectContaining({ speed: 0.7 }));
+  });
+
+  it('passes speed 1.0 to ttsService.speak when slow mode is disabled', async () => {
+    localStorage.setItem('slowMode', 'false');
+    const mockedSpeak = vi.mocked(ttsService.speak);
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStoreWithSound() },
+    );
+
+    await waitFor(() => {
+      expect(mockedSpeak).toHaveBeenCalled();
+    });
+
+    const lastCall = mockedSpeak.mock.calls[mockedSpeak.mock.calls.length - 1];
+    expect(lastCall[1]).toEqual(expect.objectContaining({ speed: 1.0 }));
   });
 });
 
