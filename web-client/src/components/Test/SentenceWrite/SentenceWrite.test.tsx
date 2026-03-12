@@ -150,6 +150,31 @@ describe('SentenceWrite — prompt display', () => {
     });
   });
 
+  it('shows progress indicator "Word 1 of 2" for the first word', async () => {
+    const secondWord: Word = { ...testWord, id: 2, simp: '学习', trad: '學習' };
+    renderWithProviders(<SentenceWrite words={[testWord, secondWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Word 1 of 2')).toBeInTheDocument();
+    });
+  });
+
+  it('shows progress indicator on the comparison view after submission', async () => {
+    const user = userEvent.setup();
+    const secondWord: Word = { ...testWord, id: 2, simp: '学习', trad: '學習' };
+    renderWithProviders(<SentenceWrite words={[testWord, secondWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+
+    const input = await screen.findByPlaceholderText(/type chinese and press enter/i);
+    await user.type(input, '你好{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByText('Word 1 of 2')).toBeInTheDocument();
+    });
+  });
+
   it('renders the answer input field', async () => {
     renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
       store: makeStore(),
