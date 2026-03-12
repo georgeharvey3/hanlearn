@@ -4,6 +4,7 @@ import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
@@ -16,6 +17,10 @@ import {
 import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
 import { postWord } from '../../../store/actions/word';
+import {
+  getChengyuExampleSentence,
+  ChengyuSentence,
+} from '../../../services/chengyuSentenceService';
 
 const mapStateToProps = (state: RootState) => ({
   userId: state.auth.userId,
@@ -34,6 +39,8 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
   const [incorrect, setIncorrect] = useState<number[]>([]);
   const [charMeanings, setCharMeanings] = useState<Map<string, string>>(new Map());
   const [saved, setSaved] = useState(false);
+  const [exampleSentence, setExampleSentence] = useState<ChengyuSentence | null>(null);
+  const [sentenceLoading, setSentenceLoading] = useState(false);
   const [charSet] = useState<'simp' | 'trad'>(
     (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
   );
@@ -57,8 +64,15 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
         });
         setCharMeanings(meanings);
       });
+
+      // Fetch example sentence
+      setSentenceLoading(true);
+      getChengyuExampleSentence(dailyChengyu.chengyu, charSet)
+        .then((sentence) => setExampleSentence(sentence))
+        .catch(() => setExampleSentence(null))
+        .finally(() => setSentenceLoading(false));
     }
-  }, [finished, charPinyins, charSet]);
+  }, [finished, charPinyins, charSet, dailyChengyu.chengyu]);
 
   const optionClicked = (_event: React.MouseEvent, index: number): void => {
     if (dailyChengyu.options[index] !== dailyChengyu.correct) {
@@ -128,6 +142,37 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
         >
           {dailyChengyu.correct}
         </Box>
+        {sentenceLoading && (
+          <Box component="li" sx={{ listStyle: 'none', mt: 2 }}>
+            <CircularProgress size={20} />
+          </Box>
+        )}
+        {exampleSentence && (
+          <Box
+            component="li"
+            aria-label="Example sentence"
+            sx={{
+              listStyle: 'none',
+              backgroundColor: 'action.hover',
+              borderRadius: '8px',
+              p: 2,
+              mt: 2,
+            }}
+          >
+            <Typography sx={{ fontSize: '0.75em', fontWeight: 'bold', mb: 0.5, opacity: 0.6 }}>
+              Example
+            </Typography>
+            <Typography sx={{ fontSize: '1.2em', mb: 0.5 }}>
+              {exampleSentence.chinese}
+            </Typography>
+            <Typography sx={{ fontSize: '0.85em', mb: 0.5, opacity: 0.8 }}>
+              {exampleSentence.pinyin}
+            </Typography>
+            <Typography sx={{ fontSize: '0.85em', fontStyle: 'italic', opacity: 0.8 }}>
+              {exampleSentence.english}
+            </Typography>
+          </Box>
+        )}
       </List>
     );
   }
