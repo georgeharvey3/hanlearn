@@ -33,6 +33,11 @@ function base64ToBlobUrl(base64: string): string {
 }
 
 let currentHowl: Howl | null = null;
+let _googleTtsAvailable: boolean | null = null;
+
+export function isGoogleTtsAvailable(): boolean | null {
+  return _googleTtsAvailable;
+}
 
 export interface TtsHandle {
   play: () => void;
@@ -123,6 +128,7 @@ export function speak(text: string, options: SpeakOptions = {}): TtsHandle {
     .then((result) => {
       if (stopped) return;
 
+      _googleTtsAvailable = true;
       const blobUrl = base64ToBlobUrl(result.data.audioContent);
       evictIfNeeded();
       cache.set(text, blobUrl);
@@ -134,6 +140,7 @@ export function speak(text: string, options: SpeakOptions = {}): TtsHandle {
     .catch(() => {
       if (stopped) return;
 
+      _googleTtsAvailable = false;
       // Fall back to native SpeechSynthesis
       const handle = speakWithNativeFallback(text, options);
       activeHandle = handle;
