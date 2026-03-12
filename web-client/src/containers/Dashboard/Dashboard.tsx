@@ -117,7 +117,7 @@ const Dashboard: React.FC<PropsFromRedux> = ({
       />
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <WordsDueCard dueWords={stats?.dueWords ?? 0} totalWords={stats?.totalWords ?? 0} />
+          <WordsDueCard dueWords={stats?.dueWords ?? 0} totalWords={stats?.totalWords ?? 0} estimatedStudyTime={stats?.estimatedStudyTime} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StreakCard streak={stats?.streak ?? 0} />

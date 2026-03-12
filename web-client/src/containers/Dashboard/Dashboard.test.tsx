@@ -25,6 +25,7 @@ const sampleStats = {
   streak: 5,
   bankDistribution: { 1: 10, 2: 10, 3: 10, 4: 10, 5: 10 },
   masteredCount: 10,
+  estimatedStudyTime: '~10 min',
 };
 
 describe('Dashboard container', () => {
@@ -157,11 +158,28 @@ describe('Dashboard container', () => {
   });
 
   it('hides the "Test Now" link when no words are due', async () => {
-    mockGetDashboardStats.mockResolvedValue({ ...sampleStats, dueWords: 0 });
+    mockGetDashboardStats.mockResolvedValue({ ...sampleStats, dueWords: 0, estimatedStudyTime: null });
     renderWithProviders(<Dashboard />, {
       store: createTestStore(authenticatedState()),
     });
     await waitFor(() => expect(screen.getByText('Dashboard')).toBeInTheDocument());
     expect(screen.queryByText('Test Now')).not.toBeInTheDocument();
+  });
+
+  it('displays estimated study time when words are due', async () => {
+    mockGetDashboardStats.mockResolvedValue(sampleStats);
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(authenticatedState()),
+    });
+    await waitFor(() => expect(screen.getByText('~10 min')).toBeInTheDocument());
+  });
+
+  it('hides estimated study time when no words are due', async () => {
+    mockGetDashboardStats.mockResolvedValue({ ...sampleStats, dueWords: 0, estimatedStudyTime: null });
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(authenticatedState()),
+    });
+    await waitFor(() => expect(screen.getByText('Dashboard')).toBeInTheDocument());
+    expect(screen.queryByText(/min/)).not.toBeInTheDocument();
   });
 });

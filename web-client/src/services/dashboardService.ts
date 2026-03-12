@@ -1,5 +1,6 @@
 import { getUserWords, getDueUserWords } from './wordService';
 import { getStreakData, calculateStreak } from './streakService';
+import { estimateTestTime, formatTestTime } from '../utils/estimateTestTime';
 
 export interface DashboardStats {
   totalWords: number;
@@ -7,6 +8,7 @@ export interface DashboardStats {
   streak: number;
   bankDistribution: Record<number, number>;
   masteredCount: number;
+  estimatedStudyTime: string | null;
 }
 
 export const getDashboardStats = async (
@@ -28,11 +30,37 @@ export const getDashboardStats = async (
   const streak = calculateStreak(streakData.map((d) => d.date));
   const masteredCount = bankDistribution[5] || 0;
 
+  const dueCount = dueWords.length;
+  let estimatedStudyTime: string | null = null;
+
+  if (dueCount > 0) {
+    const numWords = Math.min(
+      dueCount,
+      parseInt(localStorage.getItem('numWords') || '10', 10),
+    );
+    const totalSeconds = estimateTestTime({
+      numWords,
+      useHandwriting: localStorage.getItem('useHandwriting') === 'true',
+      priority: localStorage.getItem('priority') || 'none',
+      onlyPriority: localStorage.getItem('onlyPriority') === 'true',
+      newWordsEnabled: localStorage.getItem('newWords') !== 'false',
+      sentenceReadEnabled: localStorage.getItem('sentenceRead') === 'true',
+      sentenceWriteEnabled: localStorage.getItem('sentenceWrite') === 'true',
+    });
+
+    if (totalSeconds >= 3600) {
+      estimatedStudyTime = '~60+ min';
+    } else {
+      estimatedStudyTime = formatTestTime(totalSeconds);
+    }
+  }
+
   return {
     totalWords: allWords.length,
-    dueWords: dueWords.length,
+    dueWords: dueCount,
     streak,
     bankDistribution,
     masteredCount,
+    estimatedStudyTime,
   };
 };

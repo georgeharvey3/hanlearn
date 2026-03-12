@@ -8,9 +8,10 @@ import { colors } from '../../../theme';
 interface WordsDueCardProps {
   dueWords: number;
   totalWords: number;
+  estimatedStudyTime?: string | null;
 }
 
-const WordsDueCard: React.FC<WordsDueCardProps> = ({ dueWords, totalWords }) => (
+const WordsDueCard: React.FC<WordsDueCardProps> = ({ dueWords, totalWords, estimatedStudyTime }) => (
   <Paper elevation={2} sx={{ p: 2, textAlign: 'center', borderRadius: 2, height: '100%' }}>
     <Typography variant="h3" sx={{ fontWeight: 'bold', color: colors.primaryDark }}>
       {dueWords}
@@ -21,6 +22,11 @@ const WordsDueCard: React.FC<WordsDueCardProps> = ({ dueWords, totalWords }) => 
     <Typography variant="caption" color="text.secondary">
       out of {totalWords} total
     </Typography>
+    {estimatedStudyTime && (
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+        {estimatedStudyTime}
+      </Typography>
+    )}
     {dueWords > 0 && (
       <Button
         component={NavLink}
