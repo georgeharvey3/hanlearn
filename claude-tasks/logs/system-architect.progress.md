@@ -1,1 +1,0 @@
-2026-03-05 10:00 | Checked: npm audit (5 vulns), redux-connect pattern, service layer, CSS modules vs MUI sx, circular imports, firebase imports, TODOs, tech debt. Actions: created #69, #70, #71, updated CLAUDE.md.

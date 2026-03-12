@@ -37,8 +37,6 @@ migration/service-account.json
 migration/*.json
 !migration/package.json
 
-# Claude task runner
-claude-tasks/backups
 
 # Playwright
 web-client/playwright-report/
