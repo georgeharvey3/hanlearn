@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getDashboardStats } from './dashboardService';
 import * as wordService from './wordService';
 import * as streakService from './streakService';
@@ -26,6 +26,7 @@ function makeWord(id: number, bank: number): Word {
 describe('getDashboardStats', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     // calculateStreak is a real function imported by dashboardService;
     // mock it to return a fixed value for determinism
     mockedStreakService.calculateStreak.mockReturnValue(3);
@@ -147,5 +148,53 @@ describe('getDashboardStats', () => {
     expect(mockedWordService.getUserWords).toHaveBeenCalledWith('user-abc', undefined);
     expect(mockedWordService.getDueUserWords).toHaveBeenCalledWith('user-abc', undefined);
     expect(mockedStreakService.getStreakData).toHaveBeenCalledWith('user-abc');
+  });
+
+  it('returns null estimatedStudyTime when no words are due', async () => {
+    mockedWordService.getUserWords.mockResolvedValue([makeWord(1, 1)]);
+    mockedWordService.getDueUserWords.mockResolvedValue([]);
+
+    const stats = await getDashboardStats('user-1');
+
+    expect(stats.estimatedStudyTime).toBeNull();
+  });
+
+  it('returns a formatted estimatedStudyTime when words are due', async () => {
+    const dueWords = [makeWord(1, 1), makeWord(2, 1), makeWord(3, 1)];
+    mockedWordService.getUserWords.mockResolvedValue(dueWords);
+    mockedWordService.getDueUserWords.mockResolvedValue(dueWords);
+
+    const stats = await getDashboardStats('user-1');
+
+    expect(stats.estimatedStudyTime).toMatch(/min/);
+  });
+
+  it('uses numWords setting from localStorage for time estimate', async () => {
+    localStorage.setItem('numWords', '2');
+    const dueWords = Array.from({ length: 10 }, (_, i) => makeWord(i + 1, 1));
+    mockedWordService.getUserWords.mockResolvedValue(dueWords);
+    mockedWordService.getDueUserWords.mockResolvedValue(dueWords);
+
+    const stats = await getDashboardStats('user-1');
+
+    // With 2 words and default settings (all stages enabled):
+    // 2 × (8+8+10+10+15 + 5+30+30) = 2 × 116 = 232s → ~4 min
+    expect(stats.estimatedStudyTime).toBe('~4 min');
+  });
+
+  it('respects user settings from localStorage for time estimate', async () => {
+    localStorage.setItem('numWords', '20');
+    localStorage.setItem('useHandwriting', 'true');
+    localStorage.setItem('newWords', 'true');
+    localStorage.setItem('sentenceRead', 'true');
+    localStorage.setItem('sentenceWrite', 'true');
+    const dueWords = Array.from({ length: 20 }, (_, i) => makeWord(i + 1, 1));
+    mockedWordService.getUserWords.mockResolvedValue(dueWords);
+    mockedWordService.getDueUserWords.mockResolvedValue(dueWords);
+
+    const stats = await getDashboardStats('user-1');
+
+    // 20 words × (8+8+10+10+15 + 5+30+30) s/word = 2320s → ~39 min
+    expect(stats.estimatedStudyTime).toBe('~39 min');
   });
 });
