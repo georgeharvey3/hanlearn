@@ -433,6 +433,13 @@ const SentenceWrite: React.FC<Props> = ({
           Write in Chinese
         </Typography>
 
+        <Typography
+          variant="body2"
+          sx={{ textAlign: 'center', color: 'text.secondary' }}
+        >
+          Word {state.wordIndex + 1} of {words.length}
+        </Typography>
+
         <Stack spacing={2} alignItems="center">
           <Stack spacing={1} sx={{ width: '100%' }}>
             <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: 1 }}>
@@ -511,6 +518,13 @@ const SentenceWrite: React.FC<Props> = ({
         sx={{ textAlign: 'center', color: 'text.secondary', letterSpacing: 2, display: 'block' }}
       >
         Write in Chinese
+      </Typography>
+
+      <Typography
+        variant="body2"
+        sx={{ textAlign: 'center', color: 'text.secondary' }}
+      >
+        Word {state.wordIndex + 1} of {words.length}
       </Typography>
 
       {/* Prompt card */}
