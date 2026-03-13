@@ -9,10 +9,9 @@ import Button from '../../UI/Buttons/Button/Button';
 import Input from '../../UI/Input/Input';
 import PictureButton from '../../UI/Buttons/PictureButton/PictureButton';
 import Spinner from '../../UI/Spinner/Spinner';
+import SimilarityScore from '../../UI/SimilarityScore/SimilarityScore';
 
 import micPic from '../../../assets/images/microphone.png';
-import likePic from '../../../assets/images/like.png';
-import dislikePic from '../../../assets/images/dislike.png';
 
 import successSound from '../../../assets/sounds/success1.wav';
 import failSound from '../../../assets/sounds/failure1.wav';
@@ -26,6 +25,7 @@ import {
   SentenceWord,
 } from '../../../utils/sentenceUtils';
 import { parseMeanings } from '../../../utils/meaningUtils';
+import { getSimilarityScore } from '../../../services/similarityService';
 
 const beep = new Howl({ src: [successSound], volume: 0.5 });
 const fail = new Howl({ src: [failSound], volume: 0.7 });
@@ -62,6 +62,10 @@ interface SentenceWriteState {
   // Results
   results: SentenceResult[];
   message: string;
+
+  // Similarity scoring
+  score: number | null;
+  scoreLoading: boolean;
 }
 
 const mapStateToProps = (state: RootState) => ({
@@ -131,6 +135,8 @@ const SentenceWrite: React.FC<Props> = ({
     submitted: false,
     results: [],
     message: '',
+    score: null,
+    scoreLoading: false,
   }));
 
   const stateRef = useRef(state);
@@ -298,6 +304,8 @@ const SentenceWrite: React.FC<Props> = ({
       translationResults: [],
       showTranslation: false,
       message: '',
+      score: null,
+      scoreLoading: false,
     }));
 
     if (nextIndex < words.length) {
@@ -318,6 +326,8 @@ const SentenceWrite: React.FC<Props> = ({
       selectedWordIndices: new Set<number>(),
       translationResults: [],
       showTranslation: false,
+      score: null,
+      scoreLoading: false,
     }));
   }, []);
 
@@ -398,7 +408,18 @@ const SentenceWrite: React.FC<Props> = ({
     if (event.key !== 'Enter' || stateRef.current.entered.trim() === '') return;
     document.getElementById('answerInput')?.blur();
     clearTranslation();
-    updateState({ submitted: true, message: '' });
+    updateState({ submitted: true, message: '', scoreLoading: true, score: null });
+
+    const { originalChinese, entered } = stateRef.current;
+    if (originalChinese) {
+      getSimilarityScore(entered, originalChinese, 'zh')
+        .then((result) => {
+          updateState({ score: result.score, scoreLoading: false });
+        })
+        .catch(() => {
+          updateState({ score: null, scoreLoading: false });
+        });
+    }
   };
 
   // Loading state
@@ -482,22 +503,23 @@ const SentenceWrite: React.FC<Props> = ({
             </Paper>
           </Stack>
 
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            How did you do?
-          </Typography>
-          <Stack direction="row" spacing={3} justifyContent="center">
-            <PictureButton
-              style={{ width: 56, height: 56 }}
-              clicked={onYesClicked}
-              src={likePic}
-              aria-label="I got it right"
-            />
-            <PictureButton
-              style={{ width: 56, height: 56 }}
-              clicked={onNoClicked}
-              src={dislikePic}
-              aria-label="I got it wrong"
-            />
+          {state.scoreLoading ? (
+            <SimilarityScore score={0} loading />
+          ) : state.score !== null ? (
+            <SimilarityScore score={state.score} />
+          ) : (
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              Score unavailable
+            </Typography>
+          )}
+
+          <Stack direction="row" spacing={2} justifyContent="center">
+            <Button clicked={onYesClicked} aria-label="Next word">
+              Next Word
+            </Button>
+            <Button clicked={onNoClicked} type="secondary" aria-label="Try again">
+              Try Again
+            </Button>
           </Stack>
         </Stack>
       </Box>

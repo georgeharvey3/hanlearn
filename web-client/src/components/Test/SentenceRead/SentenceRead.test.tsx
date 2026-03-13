@@ -33,6 +33,9 @@ vi.mock('../../../services/ttsService', () => ({
   stopAll: vi.fn(),
   isGoogleTtsAvailable: vi.fn(() => null),
 }));
+vi.mock('../../../services/similarityService', () => ({
+  getSimilarityScore: vi.fn(),
+}));
 
 import React from 'react';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
@@ -43,11 +46,13 @@ import { renderWithProviders, authenticatedState, createTestStore } from '../../
 import * as sentenceService from '../../../services/sentenceService';
 import * as dictionaryService from '../../../services/dictionaryService';
 import * as ttsService from '../../../services/ttsService';
+import * as similarityService from '../../../services/similarityService';
 import { Word } from '../../../types/models';
 
 const mockedGetSegmentedSentence = vi.mocked(sentenceService.getSegmentedSentence);
 const mockedSearchWord = vi.mocked(dictionaryService.searchWord);
 const mockedSubstringMatch = vi.mocked(dictionaryService.substringMatch);
+const mockedGetSimilarityScore = vi.mocked(similarityService.getSimilarityScore);
 
 const testWord: Word = {
   id: 1,
@@ -92,6 +97,8 @@ beforeEach(() => {
   mockedSubstringMatch.mockResolvedValue([
     { id: -1, simp: '—', trad: '—', pinyin: '', meaning: '' },
   ]);
+  // Default: similarity scoring returns a score of 85
+  mockedGetSimilarityScore.mockResolvedValue({ score: 85, rawSimilarity: 0.925 });
 });
 
 describe('SentenceRead — loading state', () => {
@@ -177,7 +184,7 @@ describe('SentenceRead — submitting a translation', () => {
     });
   });
 
-  it('shows "How did you do?" and like/dislike buttons after submission', async () => {
+  it('shows similarity score and Next Word/Try Again buttons after submission', async () => {
     const user = userEvent.setup();
     renderWithProviders(
       <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
@@ -188,12 +195,18 @@ describe('SentenceRead — submitting a translation', () => {
     await user.type(input, 'Hello{Enter}');
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /i got it right/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /i got it wrong/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /next word/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+    });
+
+    // Similarity score should appear
+    await waitFor(() => {
+      expect(screen.getByText('85%')).toBeInTheDocument();
+      expect(screen.getByText('Great')).toBeInTheDocument();
     });
   });
 
-  it('resets to input view when No (I got it wrong) is clicked', async () => {
+  it('resets to input view when Try Again is clicked', async () => {
     const user = userEvent.setup();
     renderWithProviders(
       <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
@@ -204,11 +217,11 @@ describe('SentenceRead — submitting a translation', () => {
     await user.type(input, 'Hello{Enter}');
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /i got it wrong/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
     });
 
-    const noBtn = screen.getByRole('button', { name: /i got it wrong/i });
-    await user.click(noBtn);
+    const tryAgainBtn = screen.getByRole('button', { name: /try again/i });
+    await user.click(tryAgainBtn);
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/type here and press enter/i)).toBeInTheDocument();
@@ -312,7 +325,7 @@ describe('SentenceRead — text mode (useSound=false)', () => {
 });
 
 describe('SentenceRead — stage completion', () => {
-  it('calls startSentenceWrite after Yes on the last word (sentenceWriteEnabled=true)', async () => {
+  it('calls startSentenceWrite after Next Word on the last word (sentenceWriteEnabled=true)', async () => {
     const user = userEvent.setup();
     const startSentenceWrite = vi.fn();
     renderWithProviders(
@@ -327,8 +340,8 @@ describe('SentenceRead — stage completion', () => {
     const input = await screen.findByPlaceholderText(/type here and press enter/i);
     await user.type(input, 'Hello{Enter}');
 
-    const yesBtn = await screen.findByRole('button', { name: /i got it right/i });
-    await user.click(yesBtn);
+    const nextBtn = await screen.findByRole('button', { name: /next word/i });
+    await user.click(nextBtn);
 
     await waitFor(() => {
       expect(startSentenceWrite).toHaveBeenCalledTimes(1);

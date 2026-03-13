@@ -19,9 +19,8 @@ import Button from '../../UI/Buttons/Button/Button';
 import Input from '../../UI/Input/Input';
 import PictureButton from '../../UI/Buttons/PictureButton/PictureButton';
 import Spinner from '../../UI/Spinner/Spinner';
+import SimilarityScore from '../../UI/SimilarityScore/SimilarityScore';
 
-import likePic from '../../../assets/images/like.png';
-import dislikePic from '../../../assets/images/dislike.png';
 import speakerPic from '../../../assets/images/speaker.png';
 import micPic from '../../../assets/images/microphone.png';
 
@@ -36,6 +35,7 @@ import { getSegmentedSentence } from '../../../services/sentenceService';
 import { parseMeanings } from '../../../utils/meaningUtils';
 import { resolveSentence, SentenceWord, ResolvedSentence } from '../../../utils/sentenceUtils';
 import * as ttsService from '../../../services/ttsService';
+import { getSimilarityScore } from '../../../services/similarityService';
 
 const beep = new Howl({ src: [successSound], volume: 0.5 });
 const fail = new Howl({ src: [failSound], volume: 0.7 });
@@ -57,6 +57,8 @@ interface SentenceReadState {
   openPopup: string;
   message: string;
   recognition: SpeechRecognition | null;
+  score: number | null;
+  scoreLoading: boolean;
 }
 
 const mapStateToProps = (state: RootState) => ({
@@ -158,6 +160,8 @@ const SentenceRead: React.FC<Props> = ({
     openPopup: '',
     message: '',
     recognition: null,
+    score: null,
+    scoreLoading: false,
   });
 
   const slowModeRef = useRef(slowMode);
@@ -384,13 +388,15 @@ const SentenceRead: React.FC<Props> = ({
         submitted: false,
         entered: '',
         showText: false,
+        score: null,
+        scoreLoading: false,
       }));
     }
   };
 
   const onNoClicked = (): void => {
     if (stateRef.current.useSound) fail.play();
-    updateState({ entered: '', submitted: false });
+    updateState({ entered: '', submitted: false, score: null, scoreLoading: false });
   };
 
   const onInputChanged = (event: ChangeEvent<HTMLInputElement>): void => {
@@ -399,7 +405,18 @@ const SentenceRead: React.FC<Props> = ({
 
   const onKeyPressed = (event: KeyboardEvent<HTMLInputElement>): void => {
     if (event.key !== 'Enter' || stateRef.current.entered === '') return;
-    updateState({ submitted: true });
+    updateState({ submitted: true, scoreLoading: true, score: null });
+
+    const currentSentence = stateRef.current.sentences[stateRef.current.sentenceIndex];
+    if (currentSentence) {
+      getSimilarityScore(stateRef.current.entered, currentSentence.english.sentence, 'en')
+        .then((result) => {
+          updateState({ score: result.score, scoreLoading: false });
+        })
+        .catch(() => {
+          updateState({ score: null, scoreLoading: false });
+        });
+    }
   };
 
   const onKeyUp = useCallback(
@@ -718,22 +735,23 @@ const SentenceRead: React.FC<Props> = ({
           </Paper>
         </Stack>
 
-        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          How did you do?
-        </Typography>
-        <Stack direction="row" spacing={3} justifyContent="center">
-          <PictureButton
-            style={{ width: 56, height: 56 }}
-            clicked={onYesClicked}
-            src={likePic}
-            aria-label="I got it right"
-          />
-          <PictureButton
-            style={{ width: 56, height: 56 }}
-            clicked={onNoClicked}
-            src={dislikePic}
-            aria-label="I got it wrong"
-          />
+        {state.scoreLoading ? (
+          <SimilarityScore score={0} loading />
+        ) : state.score !== null ? (
+          <SimilarityScore score={state.score} />
+        ) : (
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            Score unavailable
+          </Typography>
+        )}
+
+        <Stack direction="row" spacing={2} justifyContent="center">
+          <Button clicked={onYesClicked} aria-label="Next word">
+            Next Word
+          </Button>
+          <Button clicked={onNoClicked} type="secondary" aria-label="Try again">
+            Try Again
+          </Button>
         </Stack>
       </Stack>
     );

@@ -25,6 +25,9 @@ export {
 // Re-export TTS Cloud Function
 export { textToSpeech } from './tts';
 
+// Re-export similarity scoring Cloud Function
+export { scoreSimilarity } from './similarity';
+
 const db = admin.firestore();
 
 /**
