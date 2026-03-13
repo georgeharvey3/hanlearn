@@ -288,10 +288,7 @@ describe('resetPassword', () => {
 
     await resetPassword('user@example.com');
 
-    expect(mockSendPasswordResetEmail).toHaveBeenCalledWith(
-      expect.anything(),
-      'user@example.com',
-    );
+    expect(mockSendPasswordResetEmail).toHaveBeenCalledWith(expect.anything(), 'user@example.com');
   });
 
   it('resolves without a value on success', async () => {

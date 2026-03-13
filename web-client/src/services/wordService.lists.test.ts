@@ -135,10 +135,7 @@ describe('getUserWordLists', () => {
 
   it('returns lists from Firestore sorted by order', async () => {
     mockGetDocs.mockResolvedValue(
-      makeFakeSnapshot([
-        makeListDoc('hsk1', 'HSK 1', 1),
-        makeListDoc('hsk2', 'HSK 2', 2),
-      ]),
+      makeFakeSnapshot([makeListDoc('hsk1', 'HSK 1', 1), makeListDoc('hsk2', 'HSK 2', 2)]),
     );
 
     const lists = await getUserWordLists('user-1');
@@ -151,9 +148,7 @@ describe('getUserWordLists', () => {
   });
 
   it('does not duplicate "default" list when it is already in Firestore', async () => {
-    mockGetDocs.mockResolvedValue(
-      makeFakeSnapshot([makeListDoc('default', 'General', 0)]),
-    );
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([makeListDoc('default', 'General', 0)]));
 
     const lists = await getUserWordLists('user-1');
 
@@ -192,9 +187,7 @@ describe('createWordList', () => {
 
   it('adds a new list doc with order = maxOrder + 1', async () => {
     // Existing list has order = 3
-    mockGetDocs.mockResolvedValue(
-      makeFakeSnapshot([makeListDoc('hsk1', 'HSK 1', 3)]),
-    );
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([makeListDoc('hsk1', 'HSK 1', 3)]));
     mockAddDoc.mockResolvedValue({ id: 'new-list-id' });
 
     await createWordList('user-1', 'New List');
@@ -266,10 +259,7 @@ describe('deleteWordList', () => {
 
   it('deletes all words in the list and the list document via a batch', async () => {
     mockGetDocs.mockResolvedValue(
-      makeFakeSnapshot([
-        makeWordDocWithList('w1', 'list-1'),
-        makeWordDocWithList('w2', 'list-1'),
-      ]),
+      makeFakeSnapshot([makeWordDocWithList('w1', 'list-1'), makeWordDocWithList('w2', 'list-1')]),
     );
 
     await deleteWordList('user-1', 'list-1');
@@ -492,12 +482,6 @@ describe('moveWordToList', () => {
 
     await moveWordToList('user-2', 99, 'list-abc');
 
-    expect(mockDoc).toHaveBeenCalledWith(
-      expect.anything(),
-      'users',
-      'user-2',
-      'userWords',
-      '99',
-    );
+    expect(mockDoc).toHaveBeenCalledWith(expect.anything(), 'users', 'user-2', 'userWords', '99');
   });
 });
