@@ -62,6 +62,14 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 
 - [web-client/src/services/wordService.ts](web-client/src/services/wordService.ts) - All Firestore operations for word management
 - [web-client/src/services/dictionaryService.ts](web-client/src/services/dictionaryService.ts) - Static dictionary loading and search (lazy-loaded, indexed in-memory)
+- [web-client/src/services/streakService.ts](web-client/src/services/streakService.ts) - Read/write `testCompletions` subcollection; calculates streak from completion dates
+- [web-client/src/services/dashboardService.ts](web-client/src/services/dashboardService.ts) - Aggregates stats (due count, streak, bank distribution) for the Dashboard
+- [web-client/src/services/sentenceService.ts](web-client/src/services/sentenceService.ts) - Firebase AI Logic: generates and caches example sentences in `sentenceCache`
+- [web-client/src/services/chengyuSentenceService.ts](web-client/src/services/chengyuSentenceService.ts) - Generates example sentences for chengyu display
+- [web-client/src/services/decompositionService.ts](web-client/src/services/decompositionService.ts) - Calls cloud function to decompose characters into radicals/components
+- [web-client/src/services/ttsService.ts](web-client/src/services/ttsService.ts) - Text-to-speech via Howler.js; called directly from components (not via Redux)
+
+Note: `ttsService`, `sentenceService`, `decompositionService`, and `dictionaryService` are called directly from components (not via Redux thunks) — this is intentional for operations that are UI-local and do not need shared global state.
 
 #### Component Pattern
 
@@ -76,14 +84,24 @@ Configuration in [web-client/src/firebase/config.ts](web-client/src/firebase/con
 ```
 users/{userId}/
   ├── email, username, createdAt
-  └── userWords/{wordId}
-      ├── wordData: { simp, trad, pinyin, meaning }
-      ├── amendedMeaning: string | null
-      ├── bank: 1-5              # Spaced repetition level
-      └── dueDate: Timestamp     # Next review date
+  ├── wordLists/{listId}
+  │   └── name, order, createdAt
+  ├── userWords/{wordId}
+  │   ├── wordData: { simp, trad, pinyin, meaning }
+  │   ├── amendedMeaning: string | null
+  │   ├── bank: 1-5              # Spaced repetition level
+  │   ├── dueDate: Timestamp     # Next review date
+  │   └── listId?: string        # Optional word list membership
+  └── testCompletions/{dateId}   # Streak tracking (dateId = YYYY-MM-DD)
+      ├── testsCount: number
+      └── completedAt: Timestamp
 
-chengyus/{chengyuId}
+words/{wordId}                   # Read-only shared dictionary (admin-managed)
+chengyus/{chengyuId}             # Read-only (admin-managed)
   └── characters, pinyin, meaning
+dailyChengyu/{dateKey}           # Written by cloud function, read-only to clients
+sentenceCache/{word}             # AI-generated sentences; public read, auth write
+rateLimits/{userId}/...          # Cloud Functions only (Admin SDK); client access denied
 ```
 
 Security rules in [firestore.rules](firestore.rules): users can only access their own data.
@@ -138,10 +156,11 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 - Testing libraries upgraded to RTL v16, user-event v14, Vitest — 40 tests passing as of 2026-02-26
 - Redux `connect()` pattern is used throughout; consider migrating to hooks (`useSelector`/`useDispatch`) over time
 - React Router v5 is used; v6 migration would be beneficial but is a large refactor
-- `react-redux` is pinned to v7.2.1; should be updated to v9 for React 18 compatibility
 - `ammended_meaning` field on the `Word` model has a typo (double-m); threaded through models, service, and tests — fix requires coordinated rename
 - Error boundaries exist (`components/ErrorBoundary/`) but coverage is incomplete
 - Speech synthesis/recognition is browser-dependent with no consistent fallback UI
+- `Chengyu` interface defined twice: `types/models.ts` (has `story?`) and `data/chengyus.ts` (has `trad`) — shapes differ; should consolidate
+- `data/chengyus.ts` mixes 900+ lines of static data with a service-dependent helper (`lookupCharMeanings`); should split into data + utility
 
 ## Prioritised Roadmap
 
@@ -150,8 +169,8 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 
 ### Next
 - Improve spaced repetition: show due-date countdown, allow manual bank adjustment
-- Dashboard improvements: learning statistics, streak tracking, progress charts
-- Better chengyu UX: example sentences, stroke order hints
+- Dashboard improvements: streak and bank distribution are implemented; progress charts still TODO
+- Better chengyu UX: example sentences added; stroke order hints still TODO
 
 ### Later
 - Offline support via service worker + IndexedDB caching
