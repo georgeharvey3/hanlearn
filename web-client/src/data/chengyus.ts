@@ -910,4 +910,3 @@ export function convertDailyChengyu(
   }
   return { chengyu: dailyChengyu.chengyu, charPinyins: dailyChengyu.charPinyins };
 }
-
