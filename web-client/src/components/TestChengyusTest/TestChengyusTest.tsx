@@ -75,15 +75,19 @@ const TestChengyusTest: React.FC<Props> = ({
   );
 
   const onDisplayMeaning = (char: string): void => {
-    fetch(`/api/lookup-chengyu-char/${char}`).then((response) => {
-      if (response.ok) {
-        response.json().then((data: CharData) => {
-          setState((prev) => ({ ...prev, charData: data }));
-        });
-      } else {
+    fetch(`/api/lookup-chengyu-char/${char}`)
+      .then((response) => {
+        if (response.ok) {
+          response.json().then((data: CharData) => {
+            setState((prev) => ({ ...prev, charData: data }));
+          });
+        } else {
+          setState((prev) => ({ ...prev, errorMessage: 'Error looking up character' }));
+        }
+      })
+      .catch(() => {
         setState((prev) => ({ ...prev, errorMessage: 'Error looking up character' }));
-      }
-    });
+      });
   };
 
   const onChangeWord = (direction: number): void => {
@@ -134,13 +138,10 @@ const TestChengyusTest: React.FC<Props> = ({
 
   useEffect(() => {
     document.addEventListener('keydown', onKeyDown);
-    if (state.useSound) {
-      onSpeakPinyin(words[0][state.charSet]);
-    }
     return () => {
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [onKeyDown, onSpeakPinyin, state.charSet, state.useSound, words]);
+  }, [onKeyDown]);
 
   useEffect(() => {
     if (state.useSound) {
