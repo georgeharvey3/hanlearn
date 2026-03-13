@@ -14,8 +14,20 @@ vi.mock('../../services/ttsService', () => ({
 }));
 
 const mockWords: Word[] = [
-  { id: 1, simp: '一石二鸟', trad: '一石二鳥', pinyin: 'yī shí èr niǎo', meaning: 'kill two birds with one stone' },
-  { id: 2, simp: '半途而废', trad: '半途而廢', pinyin: 'bàn tú ér fèi', meaning: 'give up halfway' },
+  {
+    id: 1,
+    simp: '一石二鸟',
+    trad: '一石二鳥',
+    pinyin: 'yī shí èr niǎo',
+    meaning: 'kill two birds with one stone',
+  },
+  {
+    id: 2,
+    simp: '半途而废',
+    trad: '半途而廢',
+    pinyin: 'bàn tú ér fèi',
+    meaning: 'give up halfway',
+  },
 ];
 
 describe('TestChengyusTest', () => {
