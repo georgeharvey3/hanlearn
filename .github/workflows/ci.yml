@@ -145,9 +145,9 @@ jobs:
               cat /tmp/emulator.log
               exit 1
             fi
-            FIRESTORE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://localhost:8082/ 2>/dev/null || echo "000")
-            AUTH=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://localhost:9099/ 2>/dev/null || echo "000")
-            FUNCTIONS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://localhost:5001/ 2>/dev/null || echo "000")
+            FIRESTORE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://localhost:8082/ 2>/dev/null) || true
+            AUTH=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://localhost:9099/ 2>/dev/null) || true
+            FUNCTIONS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://localhost:5001/ 2>/dev/null) || true
             echo "Attempt $i: Firestore=$FIRESTORE Auth=$AUTH Functions=$FUNCTIONS"
             if [ "$FIRESTORE" != "000" ] && [ "$AUTH" != "000" ] && [ "$FUNCTIONS" != "000" ]; then
               echo "All emulators ready (PID $PID)"
