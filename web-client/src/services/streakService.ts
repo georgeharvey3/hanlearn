@@ -64,6 +64,36 @@ function parseLocalDate(dateStr: string): Date {
 /**
  * Calculate current streak from an array of completion date strings (already sorted desc).
  */
+export interface WeeklyStats {
+  sessions: number;
+  wordsReviewed: number;
+}
+
+/**
+ * Compute weekly stats (last 7 days) from already-fetched streak data.
+ * Data must be sorted descending by date.
+ */
+export const computeWeeklyStats = (
+  data: { date: string; testsCount: number }[],
+): WeeklyStats => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(today.getDate() - 6);
+
+  let sessions = 0;
+  let wordsReviewed = 0;
+
+  for (const entry of data) {
+    const entryDate = parseLocalDate(entry.date);
+    if (entryDate < sevenDaysAgo) break;
+    sessions++;
+    wordsReviewed += entry.testsCount || 0;
+  }
+
+  return { sessions, wordsReviewed };
+};
+
 export const calculateStreak = (dates: string[]): number => {
   if (dates.length === 0) return 0;
 
