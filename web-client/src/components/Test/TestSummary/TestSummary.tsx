@@ -78,7 +78,9 @@ const TestSummary: React.FC<TestSummaryProps> = ({ history, scores }) => {
                 borderColor: 'grey.200',
               }}
             >
-              <Typography sx={{ fontSize: '1.1rem', fontWeight: 500 }}>{row.char}</Typography>
+              <Typography lang="zh" sx={{ fontSize: '1.1rem', fontWeight: 500 }}>
+                {row.char}
+              </Typography>
               <Chip
                 label={config.label}
                 color={config.color}

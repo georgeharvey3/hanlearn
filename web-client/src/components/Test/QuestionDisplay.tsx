@@ -57,7 +57,9 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
           )}
         </div>
         {showQuestionPinyin ? (
-          <p style={{ color: colors.text, margin: '4px 0' }}>{question}</p>
+          <p lang="zh-Latn" style={{ color: colors.text, margin: '4px 0' }}>
+            {question}
+          </p>
         ) : null}
         <Box
           component="button"
@@ -81,7 +83,9 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
     );
   }
 
-  return <h2>{questionText}</h2>;
+  const langAttr =
+    questionCategory === 'character' ? 'zh' : questionCategory === 'pinyin' ? 'zh-Latn' : undefined;
+  return <h2 lang={langAttr}>{questionText}</h2>;
 };
 
 export default React.memo(QuestionDisplay);

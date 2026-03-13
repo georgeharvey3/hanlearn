@@ -7,7 +7,12 @@ interface SpinnerProps {
 }
 
 const Spinner: React.FC<SpinnerProps> = (props) => (
-  <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }} style={props.style}>
+  <Box
+    role="status"
+    aria-label="Loading"
+    sx={{ display: 'flex', justifyContent: 'center', p: 2 }}
+    style={props.style}
+  >
     <CircularProgress color="primary" />
   </Box>
 );

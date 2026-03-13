@@ -24,6 +24,7 @@ vi.mock('../../services/streakService', () => ({
 import React from 'react';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { axe } from 'vitest-axe';
 
 import AuthModal from './AuthModal';
 import { renderWithProviders, createTestStore } from '../../test/utils';
@@ -59,6 +60,26 @@ function renderModal(
   });
   return renderWithProviders(<AuthModal />, { store });
 }
+
+describe('AuthModal — accessibility', () => {
+  it('has no accessibility violations in login mode', async () => {
+    const { container } = renderModal('login');
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
+
+  it('has no accessibility violations in register mode', async () => {
+    const { container } = renderModal('register');
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
+
+  it('has no accessibility violations in forgot-password mode', async () => {
+    const { container } = renderModal('forgot-password');
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
+});
 
 describe('AuthModal — login mode', () => {
   beforeEach(() => {

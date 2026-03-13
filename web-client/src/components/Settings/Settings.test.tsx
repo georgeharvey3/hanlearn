@@ -18,6 +18,7 @@ vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {
 import React from 'react';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { axe } from 'vitest-axe';
 
 import Settings from './Settings';
 import { renderWithProviders, createTestStore } from '../../test/utils';
@@ -40,6 +41,14 @@ function makeStore(speechAvailable = false, synthAvailable = false) {
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
+});
+
+describe('Settings — accessibility', () => {
+  it('has no accessibility violations', async () => {
+    const { container } = renderWithProviders(<Settings />, { store: makeStore() });
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
 });
 
 describe('Settings — initial render from localStorage', () => {

@@ -43,11 +43,11 @@ const WordCard: React.FC<WordCardProps> = ({
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Box>
-          <Typography sx={{ fontSize: '1.4rem', fontWeight: 600, lineHeight: 1.2 }}>
+          <Typography lang="zh" sx={{ fontSize: '1.4rem', fontWeight: 600, lineHeight: 1.2 }}>
             {word[charSet]}
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.25 }}>
-            <Typography sx={{ fontSize: '0.85rem', color: 'text.secondary' }}>
+            <Typography lang="zh-Latn" sx={{ fontSize: '0.85rem', color: 'text.secondary' }}>
               {word.pinyin}
             </Typography>
             <IconButton

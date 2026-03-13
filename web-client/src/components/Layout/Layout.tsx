@@ -5,6 +5,7 @@ import Container from '@mui/material/Container';
 import Toolbar from '../Navigation/Toolbar/Toolbar';
 import SideDrawer from '../Navigation/SideDrawer/SideDrawer';
 import Sidebar, { SIDEBAR_WIDTH } from '../Navigation/Sidebar/Sidebar';
+import SkipLink from './SkipLink';
 import { RootState } from '../../types/store';
 
 interface LayoutState {
@@ -41,6 +42,7 @@ const Layout: React.FC<Props> = ({ isAuthenticated, children }) => {
 
   return (
     <>
+      <SkipLink />
       <Toolbar drawerToggleClicked={sideDrawerToggleHandler} isAuth={isAuthenticated} />
       <SideDrawer
         open={state.showSideDrawer}
@@ -49,6 +51,7 @@ const Layout: React.FC<Props> = ({ isAuthenticated, children }) => {
       />
       {isAuthenticated && <Sidebar />}
       <Container
+        id="main-content"
         component="main"
         maxWidth={false}
         sx={{
