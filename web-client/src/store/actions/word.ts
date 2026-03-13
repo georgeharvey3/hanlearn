@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react';
 import * as actionTypes from './actionTypes';
 import { Word, WordList } from '../../types/models';
 import {
@@ -131,6 +132,7 @@ export const initWords = (): AppThunk => {
       dispatch(setListStats(stats));
     } catch (error) {
       console.error('Failed to fetch words:', error);
+      Sentry.captureException(error);
       dispatch(fetchWordsFailed());
     }
   };
@@ -151,6 +153,7 @@ export const switchActiveList = (listId: string): AppThunk => {
       dispatch(setWords(words));
     } catch (error) {
       console.error('Failed to fetch words for list:', error);
+      Sentry.captureException(error);
       dispatch(fetchWordsFailed());
     }
   };
@@ -170,6 +173,7 @@ export const postCreateWordList = (name: string): AppThunk => {
       dispatch(switchActiveList(list.id));
     } catch (error) {
       console.error('Failed to create word list:', error);
+      Sentry.captureException(error);
     }
   };
 };
@@ -187,6 +191,7 @@ export const postRenameWordList = (listId: string, newName: string): AppThunk =>
       dispatch(renameWordListAction(listId, newName));
     } catch (error) {
       console.error('Failed to rename word list:', error);
+      Sentry.captureException(error);
     }
   };
 };
@@ -204,6 +209,7 @@ export const postDeleteWordList = (listId: string): AppThunk => {
       dispatch(removeWordList(listId));
     } catch (error) {
       console.error('Failed to delete word list:', error);
+      Sentry.captureException(error);
     }
   };
 };
@@ -221,6 +227,7 @@ export const postWord = (word: Word): AppThunk => {
       dispatch(addWord({ ...word, listId: addWords.activeListId }));
     } catch (error) {
       console.error('Failed to add word:', error);
+      Sentry.captureException(error);
     }
   };
 };
@@ -248,6 +255,7 @@ export const postCustomWord = (word: {
       dispatch(addCustomWord(newWord));
     } catch (error) {
       console.error('Failed to add custom word:', error);
+      Sentry.captureException(error);
     }
   };
 };
@@ -265,6 +273,7 @@ export const deleteWord = (wordID: number): AppThunk => {
       dispatch(removeWord(wordID));
     } catch (error) {
       console.error('Failed to delete word:', error);
+      Sentry.captureException(error);
     }
   };
 };
@@ -282,6 +291,7 @@ export const postUpdateMeaning = (wordID: number, newMeaning: string): AppThunk 
       dispatch(updateMeaning(wordID, newMeaning));
     } catch (error) {
       console.error('Failed to update meaning:', error);
+      Sentry.captureException(error);
     }
   };
 };
@@ -317,6 +327,7 @@ export const finishTest = (scores: { word_id: number; score: number }[]): AppThu
       }
     } catch (error) {
       console.error('Failed to finish test:', error);
+      Sentry.captureException(error);
     }
   };
 };
