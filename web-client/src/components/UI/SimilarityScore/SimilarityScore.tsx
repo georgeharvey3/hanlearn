@@ -21,11 +21,7 @@ function getScoreLabel(score: number): string {
   return 'Keep trying';
 }
 
-const SimilarityScore: React.FC<SimilarityScoreProps> = ({
-  score,
-  size = 80,
-  loading = false,
-}) => {
+const SimilarityScore: React.FC<SimilarityScoreProps> = ({ score, size = 80, loading = false }) => {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
