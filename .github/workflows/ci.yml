@@ -128,6 +128,11 @@ jobs:
         run: npx playwright install --with-deps chromium
         working-directory: web-client
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
