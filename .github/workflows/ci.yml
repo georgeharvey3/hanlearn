@@ -132,19 +132,23 @@ jobs:
         run: npm install -g firebase-tools
 
       - name: Start emulators
-        run: firebase emulators:start --project hanlearn-dd14f &
+        run: firebase emulators:start --project hanlearn-dd14f > /tmp/emulator.log 2>&1 &
 
       - name: Wait for emulators
         run: |
           for i in $(seq 1 60); do
-            if curl -s http://localhost:8082/ > /dev/null 2>&1 && \
-               curl -s http://localhost:9099/ > /dev/null 2>&1 && \
-               curl -s http://localhost:5001/ > /dev/null 2>&1; then
+            FIRESTORE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://localhost:8082/ 2>/dev/null || echo "000")
+            AUTH=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://localhost:9099/ 2>/dev/null || echo "000")
+            FUNCTIONS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://localhost:5001/ 2>/dev/null || echo "000")
+            echo "Attempt $i: Firestore=$FIRESTORE Auth=$AUTH Functions=$FUNCTIONS"
+            if [ "$FIRESTORE" != "000" ] && [ "$AUTH" != "000" ] && [ "$FUNCTIONS" != "000" ]; then
               echo "All emulators ready"
               exit 0
             fi
-            sleep 1
+            sleep 2
           done
+          echo "--- Emulator log ---"
+          cat /tmp/emulator.log
           echo "Emulators failed to start" && exit 1
 
       - name: Run E2E tests
@@ -152,8 +156,15 @@ jobs:
         working-directory: web-client
 
       - name: Upload Playwright report
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: web-client/playwright-report/
+
+      - name: Upload emulator logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-log
+          path: /tmp/emulator.log
