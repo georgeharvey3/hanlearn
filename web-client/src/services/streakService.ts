@@ -73,9 +73,7 @@ export interface WeeklyStats {
  * Compute weekly stats (last 7 days) from already-fetched streak data.
  * Data must be sorted descending by date.
  */
-export const computeWeeklyStats = (
-  data: { date: string; testsCount: number }[],
-): WeeklyStats => {
+export const computeWeeklyStats = (data: { date: string; testsCount: number }[]): WeeklyStats => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const sevenDaysAgo = new Date(today);

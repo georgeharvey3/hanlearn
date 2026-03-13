@@ -44,7 +44,12 @@ vi.mock('firebase/firestore', () => ({
 
 vi.mock('../firebase/config', () => ({ db: {} }));
 
-import { calculateStreak, computeWeeklyStats, recordTestCompletion, getStreakData } from './streakService';
+import {
+  calculateStreak,
+  computeWeeklyStats,
+  recordTestCompletion,
+  getStreakData,
+} from './streakService';
 
 // ─── calculateStreak (pure function) ─────────────────────────────────────────
 describe('calculateStreak', () => {
