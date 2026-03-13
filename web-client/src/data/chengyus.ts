@@ -1,5 +1,3 @@
-import { searchWord } from '../services/dictionaryService';
-
 export interface Chengyu {
   characters: string;
   // Traditional character equivalent. Must be provided for every entry.
@@ -913,25 +911,3 @@ export function convertDailyChengyu(
   return { chengyu: dailyChengyu.chengyu, charPinyins: dailyChengyu.charPinyins };
 }
 
-/**
- * Look up meanings for each character in the chengyu
- */
-export async function lookupCharacterMeanings(
-  chars: string[],
-  charSet: 'simp' | 'trad' = 'simp',
-): Promise<{ char: string; meaning: string }[]> {
-  const results = await Promise.all(
-    chars.map(async (char) => {
-      try {
-        const wordResults = await searchWord(char, charSet);
-        // Get the first meaning if available
-        const meaning = wordResults.length > 0 ? wordResults[0].meaning : '';
-        return { char, meaning };
-      } catch (error) {
-        console.error(`Failed to lookup character ${char}:`, error);
-        return { char, meaning: '' };
-      }
-    }),
-  );
-  return results;
-}

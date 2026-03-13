@@ -31,6 +31,8 @@ vi.mock('../../data/chengyus', () => ({
     ],
   })),
   convertDailyChengyu: vi.fn().mockImplementation((chengyu: unknown) => Promise.resolve(chengyu)),
+}));
+vi.mock('../../services/chengyuService', () => ({
   lookupCharacterMeanings: vi.fn().mockResolvedValue([]),
 }));
 

@@ -9,11 +9,8 @@ import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 
-import {
-  getDailyChengyu,
-  convertDailyChengyu,
-  lookupCharacterMeanings,
-} from '../../../data/chengyus';
+import { getDailyChengyu, convertDailyChengyu } from '../../../data/chengyus';
+import { lookupCharacterMeanings } from '../../../services/chengyuService';
 import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
 import { postWord } from '../../../store/actions/word';
