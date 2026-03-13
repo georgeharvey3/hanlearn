@@ -69,40 +69,65 @@ export class TestWordsPage {
   }
 
   /**
-   * Complete a test session by answering all questions with "I Don't Know".
-   * This reliably gets through the test regardless of question types.
+   * Complete a test session using flashcard mode.
+   *
+   * Test settings configure flashcard mode with MP (meaning answer,
+   * pinyin question) as the only priority. Each question shows a
+   * "Show Answer" button, then like/dislike buttons.
+   *
+   * - "I knew this" (like) → onCorrectAnswer → removes the perm
+   * - "I didn't know this" (dislike) → onIDontKnow → keeps the perm,
+   *   adds to IDK list, auto-advances after 2s
+   *
+   * @param targetIdkRounds Number of "I didn't know this" clicks before
+   *   switching to "I knew this" to finish. Use 0 for good scores, or
+   *   a higher number (e.g. 8) for poor scores ("Weak"/"Very Weak").
    */
-  async completeTestWithIDK(): Promise<void> {
-    // Keep clicking IDK until we reach the summary
-    for (let i = 0; i < 50; i++) {
+  async completeTestWithIDK(targetIdkRounds: number = 0): Promise<void> {
+    let idkRounds = 0;
+    for (let i = 0; i < 100; i++) {
       const summaryVisible = await this.page.getByText('Session Summary').isVisible();
       if (summaryVisible) return;
 
-      const idkVisible = await this.idkButton.isVisible();
-      if (idkVisible) {
-        const isDisabled = await this.idkButton.isDisabled();
-        if (!isDisabled) {
-          await this.idkButton.click();
-          await this.page.waitForTimeout(500);
-          continue;
-        }
-      }
-
-      // If IDK is not available, try Show Answer flow
+      // Wait for "Show Answer" button (flashcard mode)
       const showAnswer = this.page.getByRole('button', { name: 'Show Answer' });
       if (await showAnswer.isVisible()) {
         await showAnswer.click();
         await this.page.waitForTimeout(300);
-        // Click "I didn't know this"
-        const didntKnow = this.page.getByRole('button', { name: /didn.*know/i });
-        if (await didntKnow.isVisible()) {
-          await didntKnow.click();
-          await this.page.waitForTimeout(500);
+
+        if (idkRounds < targetIdkRounds) {
+          // Phase 1: Click "I didn't know this" to accumulate IDK counts
+          const dislike = this.page.locator('[aria-label="I didn\'t know this"]');
+          if (await dislike.isVisible()) {
+            await dislike.click();
+            idkRounds++;
+            // onIDontKnow shows answer for 2s then auto-advances
+            await this.page.waitForTimeout(2500);
+            continue;
+          }
+        }
+
+        // Phase 2: Click "I knew this" to remove the perm and finish
+        const like = this.page.locator('[aria-label="I knew this"]');
+        if (await like.isVisible()) {
+          await like.click();
+          // onCorrectAnswer removes perm, waits 1s, then next question
+          await this.page.waitForTimeout(1500);
           continue;
         }
       }
 
-      await this.page.waitForTimeout(500);
+      // Fallback: IDK button visible (non-flashcard question)
+      const idkVisible = await this.idkButton.isVisible();
+      if (idkVisible && !(await this.idkButton.isDisabled())) {
+        await this.idkButton.click();
+        await this.page.waitForTimeout(2500);
+        idkRounds++;
+        continue;
+      }
+
+      // Wait and retry
+      await this.page.waitForTimeout(1000);
     }
   }
 

@@ -81,8 +81,8 @@ test.describe('Study flow', () => {
       page.getByText(/pinyin|character|meaning/i).first(),
     ).toBeVisible({ timeout: 15000 });
 
-    // Use IDK for all questions
-    await testPage.completeTestWithIDK();
+    // Use IDK 3 times then mark as known to finish — gives "Weak" score
+    await testPage.completeTestWithIDK(3);
     await testPage.waitForSummary();
 
     // Should show weak/very weak scores
@@ -109,8 +109,8 @@ test.describe('Study flow', () => {
     const testPage = new TestWordsPage(page);
     await testPage.navigateTo();
 
-    // Should see "No words due" message with Practice option
-    await expect(page.getByText(/No words due/i)).toBeVisible({ timeout: 15000 });
+    // Should see "No words due" heading with Practice option
+    await expect(page.getByText(/No words due/i).first()).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole('button', { name: 'Practice' })).toBeVisible();
   });
 
@@ -132,7 +132,7 @@ test.describe('Study flow', () => {
     await testPage.navigateTo();
 
     // Wait for no words due screen
-    await expect(page.getByText(/No words due/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/No words due/i).first()).toBeVisible({ timeout: 15000 });
 
     // Click Practice
     await testPage.clickPractice();
@@ -152,8 +152,8 @@ test.describe('Study flow', () => {
     const testPage = new TestWordsPage(page);
     await testPage.navigateTo();
 
-    // Should show "No words due" with Add Words button but no Practice button
-    await expect(page.getByText(/No words due/i)).toBeVisible({ timeout: 15000 });
+    // Should show "No words due" with Add Words button
+    await expect(page.getByText(/No words due/i).first()).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole('button', { name: 'Add Words' })).toBeVisible();
   });
 });

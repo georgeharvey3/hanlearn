@@ -5,14 +5,13 @@ async function globalSetup(): Promise<void> {
   const endpoints = [
     { name: 'Firestore emulator', url: 'http://localhost:8082/' },
     { name: 'Auth emulator', url: 'http://localhost:9099/' },
+    { name: 'Functions emulator', url: 'http://localhost:5001/' },
   ];
 
   for (const { name, url } of endpoints) {
     try {
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error(`${name} returned status ${res.status}`);
-      }
+      // Just verify connectivity — some emulators return 404 at root
+      await fetch(url);
     } catch (error) {
       throw new Error(
         `${name} is not running at ${url}. ` +

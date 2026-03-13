@@ -16,18 +16,22 @@ export class AuthPage {
   }
 
   async openLoginModal(): Promise<void> {
-    const trigger = this.page.getByRole('button', { name: /log in|sign up/i }).first();
+    // Nav bar button says "Login" (one word, no space)
+    const trigger = this.page.getByRole('button', { name: /^Login$/i });
     await trigger.click();
-    await this.emailInput.waitFor({ state: 'visible' });
+    await this.emailInput.waitFor({ state: 'visible', timeout: 5000 });
   }
 
   async switchToRegister(): Promise<void> {
-    await this.page.getByText('Sign Up', { exact: false }).filter({ hasText: /sign up/i }).last().click();
+    // Click the "Sign Up" link at the bottom of the modal (not the submit button)
+    // Use last() to disambiguate from the submit button which also says "Sign Up"
+    await this.page.locator('button:text-is("Sign Up")').last().click();
     await expect(this.page.getByText('Create Account')).toBeVisible();
   }
 
   async switchToLogin(): Promise<void> {
-    await this.page.getByText('Log In', { exact: false }).filter({ hasText: /log in/i }).last().click();
+    // Click the "Log In" link at the bottom of the modal
+    await this.page.locator('button:text-is("Log In")').last().click();
     await expect(this.page.getByText('Welcome Back')).toBeVisible();
   }
 
@@ -44,6 +48,8 @@ export class AuthPage {
   }
 
   async submitRegister(): Promise<void> {
+    // Wait for form validation to enable the button
+    await expect(this.signUpButton).toBeEnabled({ timeout: 5000 });
     await this.signUpButton.click();
   }
 
@@ -72,7 +78,7 @@ export class AuthPage {
 
   async expectLoggedOut(): Promise<void> {
     await expect(
-      this.page.getByRole('button', { name: /log in|sign up/i }).first(),
+      this.page.getByRole('button', { name: /^Login$/i }),
     ).toBeVisible({ timeout: 10000 });
   }
 

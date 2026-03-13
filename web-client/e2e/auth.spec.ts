@@ -51,9 +51,8 @@ test.describe('Auth flow', () => {
     await auth.openLoginModal();
     await auth.login('nonexistent@hanlearn.test', 'wrongpassword');
 
-    // Should show an error message (Firebase auth error)
-    // The error text varies but should be visible
-    await expect(page.locator('text=/invalid|wrong|not found|error/i')).toBeVisible({
+    // Should show an error message (Firebase auth emulator returns "No account found...")
+    await expect(page.getByText(/invalid|wrong|no account|not found|error/i).first()).toBeVisible({
       timeout: 5000,
     });
   });

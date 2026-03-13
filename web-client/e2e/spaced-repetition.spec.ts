@@ -39,11 +39,11 @@ test.describe('Spaced repetition', () => {
       page.getByText(/pinyin|character|meaning/i).first(),
     ).toBeVisible({ timeout: 15000 });
 
-    // Answer poorly — use IDK for everything
-    await testPage.completeTestWithIDK();
+    // Answer poorly — use IDK 3 times then mark as known to finish
+    await testPage.completeTestWithIDK(3);
     await testPage.waitForSummary();
 
-    // Verify summary shows weak score
+    // Verify summary shows weak score (3 IDKs → "Weak")
     await expect(page.getByText(/Very Weak|Weak/i).first()).toBeVisible();
 
     // Verify Firestore state — bank should be reset to 1
@@ -72,8 +72,8 @@ test.describe('Spaced repetition', () => {
       page.getByText(/pinyin|character|meaning/i).first(),
     ).toBeVisible({ timeout: 15000 });
 
-    // Complete the test (IDK will result in bank reset to 1, which is already 1)
-    await testPage.completeTestWithIDK();
+    // Complete the test poorly (IDK 3 times → score 1 → bank resets to 1)
+    await testPage.completeTestWithIDK(3);
     await testPage.waitForSummary();
 
     // Verify Firestore was updated (due date should have changed)

@@ -16,14 +16,20 @@ export class AddWordsPage {
   }
 
   async searchWord(text: string): Promise<void> {
+    await this.searchInput.waitFor({ state: 'visible', timeout: 10000 });
     await this.searchInput.fill(text);
-    await this.submitButton.click();
+    // Submit via Enter key on the input (triggers form submission)
+    await this.searchInput.press('Enter');
+    // Cloud Functions dictionary search may take time on first call
+    await this.page.waitForTimeout(3000);
   }
 
   async confirmAddWord(): Promise<void> {
     // Wait for the "Add to Word Bank?" modal
     await expect(this.page.getByText('Add to Word Bank?')).toBeVisible({ timeout: 10000 });
-    await this.page.getByRole('button', { name: 'Add' }).click();
+    // Two buttons named "Add" exist: the "+ Add" meaning chip and the confirm button.
+    // The confirm button is the last one.
+    await this.page.getByRole('button', { name: 'Add', exact: true }).last().click();
   }
 
   async selectClashEntry(index: number): Promise<void> {

@@ -14,7 +14,7 @@ export const TEST_USER = {
 
 const AUTH_EMULATOR = 'http://localhost:9099';
 const FIRESTORE_EMULATOR = 'http://localhost:8082';
-const PROJECT_ID = 'hanlearn-demo';
+const PROJECT_ID = 'hanlearn-dd14f';
 
 /**
  * Returns the Firestore emulator REST API URL for a given document path.
@@ -42,16 +42,23 @@ export async function clearEmulatorData(): Promise<void> {
  * Create a test user in the Auth emulator and a corresponding Firestore user document.
  */
 export async function seedTestUser(): Promise<void> {
-  // Create user in Auth emulator
+  // Create user in Auth emulator via admin batchCreate (supports localId for deterministic UID)
   const signUpRes = await fetch(
-    `${AUTH_EMULATOR}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key`,
+    `${AUTH_EMULATOR}/identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts:batchCreate`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer owner',
+      },
       body: JSON.stringify({
-        email: TEST_USER.email,
-        password: TEST_USER.password,
-        localId: TEST_USER.uid,
+        users: [
+          {
+            localId: TEST_USER.uid,
+            email: TEST_USER.email,
+            rawPassword: TEST_USER.password,
+          },
+        ],
       }),
     },
   );
@@ -59,10 +66,10 @@ export async function seedTestUser(): Promise<void> {
     throw new Error(`Failed to seed test user: ${await signUpRes.text()}`);
   }
 
-  // Create user document in Firestore
+  // Create user document in Firestore (use Bearer owner to bypass security rules)
   await fetch(emulatorFirestoreUrl(`users/${TEST_USER.uid}?documentId=${TEST_USER.uid}`), {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer owner' },
     body: JSON.stringify({
       fields: {
         email: { stringValue: TEST_USER.email },
@@ -108,7 +115,7 @@ export async function seedWords(
     const url = emulatorFirestoreUrl(`users/${userId}/userWords/${word.id}`);
     const res = await fetch(url, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer owner' },
       body: JSON.stringify({
         fields: {
           wordId: { stringValue: word.id.toString() },
@@ -144,7 +151,7 @@ export async function readWordFromFirestore(
   wordId: number,
 ): Promise<{ bank: number; dueDate: string } | null> {
   const url = emulatorFirestoreUrl(`users/${userId}/userWords/${wordId}`);
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: { 'Authorization': 'Bearer owner' } });
   if (!res.ok) return null;
   const data = await res.json();
   return {
@@ -159,20 +166,21 @@ export async function readWordFromFirestore(
 export async function loginViaUI(page: Page): Promise<void> {
   await page.goto('/');
 
-  // Click the Log In / Sign Up button in the toolbar
-  const loginButton = page.getByRole('button', { name: /log in|sign up/i }).first();
+  // Click the "Login" button in the toolbar (single word, no space)
+  const loginButton = page.getByRole('button', { name: /^Login$/i });
   await loginButton.click();
+
+  // Wait for the auth modal to appear (should open in login mode with "Welcome Back")
+  await page.locator('input[placeholder="Email"]').waitFor({ state: 'visible', timeout: 5000 });
 
   // Fill login form
   await page.locator('input[placeholder="Email"]').fill(TEST_USER.email);
   await page.locator('input[placeholder="Password"]').fill(TEST_USER.password);
 
-  // Submit
+  // Submit — the modal button says "Log In" (with space)
   await page.getByRole('button', { name: 'Log In' }).click();
 
-  // Wait for navigation to authenticated state — sidebar or dashboard should appear
-  await page.waitForURL('**/', { timeout: 10000 });
-  // Wait for the dashboard or nav to be ready
+  // Wait for authenticated state — nav should show Dashboard/Add Words links
   await page.getByText(/Dashboard|Add Words/i).first().waitFor({ timeout: 10000 });
 }
 
@@ -186,7 +194,13 @@ export async function configureTestSettings(page: Page, overrides: Record<string
     localStorage.setItem('useSound', 'false');
     localStorage.setItem('useChineseSpeechRecognition', 'false');
     localStorage.setItem('useEnglishSpeechRecognition', 'false');
-    localStorage.setItem('useFlashcards', 'false');
+    // Disable handwriting — HanziWriter is not available in headless Chromium
+    localStorage.setItem('useHandwriting', 'false');
+    // Use flashcard mode with meaning-only answers for reliable E2E test flow
+    // (flashcard "I knew this" / "I didn't know this" buttons reliably advance the test)
+    localStorage.setItem('useFlashcards', 'true');
+    localStorage.setItem('priority', 'MP');
+    localStorage.setItem('onlyPriority', 'true');
     // Disable sentence stages for simpler test flow
     localStorage.setItem('sentenceRead', 'false');
     localStorage.setItem('sentenceWrite', 'false');
