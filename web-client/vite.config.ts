@@ -20,6 +20,7 @@ export default defineConfig(async () => {
     plugins,
     build: {
       outDir: 'dist',
+      sourcemap: 'hidden',
       rollupOptions: {
         output: {
           manualChunks: {
@@ -27,6 +28,7 @@ export default defineConfig(async () => {
             'vendor-mui': ['@mui/material', '@mui/icons-material'],
             'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
             'vendor-redux': ['redux', 'react-redux', 'redux-thunk'],
+            'vendor-sentry': ['@sentry/react'],
           },
         },
       },

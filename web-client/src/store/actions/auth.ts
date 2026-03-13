@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react';
 import * as actionTypes from './actionTypes';
 import {
   AuthStartAction,
@@ -209,8 +210,10 @@ export const initAuthListener = (): AppThunk => {
   return (dispatch) => {
     subscribeToAuthChanges((user) => {
       if (user) {
+        Sentry.setUser({ id: user.uid });
         dispatch(authSuccess(user.uid));
       } else {
+        Sentry.setUser(null);
         dispatch(authInitialized());
       }
     });
