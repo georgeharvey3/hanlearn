@@ -26,6 +26,7 @@ const sampleStats = {
   bankDistribution: { 1: 10, 2: 10, 3: 10, 4: 10, 5: 10 },
   masteredCount: 10,
   estimatedStudyTime: '~10 min',
+  weeklyStats: { sessions: 4, wordsReviewed: 38 },
 };
 
 describe('Dashboard container', () => {
@@ -176,6 +177,30 @@ describe('Dashboard container', () => {
       store: createTestStore(authenticatedState()),
     });
     await waitFor(() => expect(screen.getByText('~10 min')).toBeInTheDocument());
+  });
+
+  it('renders weekly stats card with sessions and words reviewed', async () => {
+    mockGetDashboardStats.mockResolvedValue(sampleStats);
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(authenticatedState()),
+    });
+    await waitFor(() => expect(screen.getByText('Dashboard')).toBeInTheDocument());
+    expect(screen.getByText('4')).toBeInTheDocument();
+    expect(screen.getByText('sessions')).toBeInTheDocument();
+    expect(screen.getByText('38')).toBeInTheDocument();
+    expect(screen.getByText('words reviewed')).toBeInTheDocument();
+    expect(screen.getByText('Last 7 days')).toBeInTheDocument();
+  });
+
+  it('shows singular "session" when weekly sessions is 1', async () => {
+    mockGetDashboardStats.mockResolvedValue({
+      ...sampleStats,
+      weeklyStats: { sessions: 1, wordsReviewed: 10 },
+    });
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(authenticatedState()),
+    });
+    await waitFor(() => expect(screen.getByText('session')).toBeInTheDocument());
   });
 
   it('hides estimated study time when no words are due', async () => {

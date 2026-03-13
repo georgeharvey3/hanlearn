@@ -12,7 +12,7 @@ import * as wordActions from '../../store/actions/index';
 import WordsDueCard from './widgets/WordsDueCard';
 import StreakCard from './widgets/StreakCard';
 import BankDistributionCard from './widgets/BankDistributionCard';
-import MasteryCard from './widgets/MasteryCard';
+import WeeklyStatsCard from './widgets/WeeklyStatsCard';
 import Chengyu from '../../components/Home/Chengyu/Chengyu';
 import ErrorBoundary from '../../components/ErrorBoundary/ErrorBoundary';
 
@@ -127,13 +127,13 @@ const Dashboard: React.FC<PropsFromRedux> = ({
           <StreakCard streak={stats?.streak ?? 0} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <BankDistributionCard distribution={stats?.bankDistribution ?? {}} />
+          <WeeklyStatsCard
+            sessions={stats?.weeklyStats?.sessions ?? 0}
+            wordsReviewed={stats?.weeklyStats?.wordsReviewed ?? 0}
+          />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <MasteryCard
-            masteredCount={stats?.masteredCount ?? 0}
-            totalWords={stats?.totalWords ?? 0}
-          />
+          <BankDistributionCard distribution={stats?.bankDistribution ?? {}} />
         </Grid>
       </Grid>
       <ErrorBoundary>

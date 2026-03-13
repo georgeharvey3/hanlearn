@@ -44,7 +44,12 @@ vi.mock('firebase/firestore', () => ({
 
 vi.mock('../firebase/config', () => ({ db: {} }));
 
-import { calculateStreak, recordTestCompletion, getStreakData } from './streakService';
+import {
+  calculateStreak,
+  computeWeeklyStats,
+  recordTestCompletion,
+  getStreakData,
+} from './streakService';
 
 // ─── calculateStreak (pure function) ─────────────────────────────────────────
 describe('calculateStreak', () => {
@@ -108,6 +113,47 @@ describe('calculateStreak', () => {
   it('handles month boundary correctly', () => {
     vi.setSystemTime(new Date(2026, 2, 1, 10, 0, 0)); // March 1
     expect(calculateStreak(['2026-03-01', '2026-02-28'])).toBe(2);
+  });
+});
+
+// ─── computeWeeklyStats (pure function) ─────────────────────────────────────
+describe('computeWeeklyStats', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 2, 10, 10, 0, 0)); // March 10, 2026
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('returns zeros for empty data', () => {
+    expect(computeWeeklyStats([])).toEqual({ sessions: 0, wordsReviewed: 0 });
+  });
+
+  it('sums sessions and words within the last 7 days', () => {
+    const data = [
+      { date: '2026-03-10', testsCount: 5 },
+      { date: '2026-03-09', testsCount: 8 },
+      { date: '2026-03-05', testsCount: 3 },
+      { date: '2026-03-04', testsCount: 10 }, // 6 days ago = within range
+      { date: '2026-03-03', testsCount: 99 }, // 7 days ago = out of range
+    ];
+    const result = computeWeeklyStats(data);
+    expect(result).toEqual({ sessions: 4, wordsReviewed: 26 });
+  });
+
+  it('includes today in the count', () => {
+    const data = [{ date: '2026-03-10', testsCount: 7 }];
+    expect(computeWeeklyStats(data)).toEqual({ sessions: 1, wordsReviewed: 7 });
+  });
+
+  it('excludes entries older than 7 days', () => {
+    const data = [
+      { date: '2026-03-02', testsCount: 5 }, // 8 days ago
+      { date: '2026-03-01', testsCount: 3 },
+    ];
+    expect(computeWeeklyStats(data)).toEqual({ sessions: 0, wordsReviewed: 0 });
   });
 });
 

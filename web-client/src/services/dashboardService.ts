@@ -1,5 +1,5 @@
 import { getUserWords, getDueUserWords } from './wordService';
-import { getStreakData, calculateStreak } from './streakService';
+import { getStreakData, calculateStreak, computeWeeklyStats, WeeklyStats } from './streakService';
 import { estimateTestTime, formatTestTime } from '../utils/estimateTestTime';
 
 export interface DashboardStats {
@@ -9,6 +9,7 @@ export interface DashboardStats {
   bankDistribution: Record<number, number>;
   masteredCount: number;
   estimatedStudyTime: string | null;
+  weeklyStats: WeeklyStats;
 }
 
 export const getDashboardStats = async (
@@ -28,6 +29,7 @@ export const getDashboardStats = async (
   }
 
   const streak = calculateStreak(streakData.map((d) => d.date));
+  const weeklyStats = computeWeeklyStats(streakData);
   const masteredCount = bankDistribution[5] || 0;
 
   const dueCount = dueWords.length;
@@ -59,5 +61,6 @@ export const getDashboardStats = async (
     bankDistribution,
     masteredCount,
     estimatedStudyTime,
+    weeklyStats,
   };
 };
