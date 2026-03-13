@@ -53,6 +53,9 @@ vi.mock('../../../data/chengyus', () => ({
     }
     return { chengyu: dailyChengyu.chengyu, charPinyins: dailyChengyu.charPinyins };
   }),
+}));
+
+vi.mock('../../../services/chengyuService', () => ({
   lookupCharacterMeanings: vi.fn().mockResolvedValue([
     { char: '独', meaning: 'alone; independent' },
     { char: '一', meaning: 'one; a' },
