@@ -57,3 +57,16 @@ export interface Sentence {
   translation: string;
   highlighted?: string;
 }
+
+export interface CloudSentence {
+  chinese: {
+    sentence: string;
+    highlight: number[][];
+    segments: string[];
+    targetIndex: number;
+  };
+  english: {
+    sentence: string;
+    highlight: number[][];
+  };
+}

@@ -23,6 +23,9 @@ vi.mock('howler', () => ({
 vi.mock('../../../services/sentenceService', () => ({
   getSegmentedSentence: vi.fn(),
 }));
+vi.mock('../../../services/similarityService', () => ({
+  getSimilarityScore: vi.fn(),
+}));
 vi.mock('../../../utils/sentenceUtils', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../utils/sentenceUtils')>();
   return {
@@ -49,9 +52,11 @@ import userEvent from '@testing-library/user-event';
 import SentenceWrite from './SentenceWrite';
 import { renderWithProviders, createTestStore } from '../../../test/utils';
 import * as sentenceService from '../../../services/sentenceService';
+import * as similarityService from '../../../services/similarityService';
 import { Word } from '../../../types/models';
 
 const mockedGetSegmentedSentence = vi.mocked(sentenceService.getSegmentedSentence);
+const mockedGetSimilarityScore = vi.mocked(similarityService.getSimilarityScore);
 
 const testWord: Word = {
   id: 1,
@@ -97,6 +102,7 @@ function makeStore(speechAvailable = false, synthAvailable = false) {
 beforeEach(() => {
   vi.clearAllMocks();
   mockedGetSegmentedSentence.mockResolvedValue(mockSentenceResponse);
+  mockedGetSimilarityScore.mockResolvedValue({ score: 72, rawSimilarity: 0.86 });
 });
 
 describe('SentenceWrite — loading state', () => {
@@ -302,7 +308,7 @@ describe('SentenceWrite — submitting an answer', () => {
     });
   });
 
-  it('shows yes/no buttons after submission', async () => {
+  it('shows Next Word/Try Again buttons and similarity score after submission', async () => {
     const user = userEvent.setup();
     renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
       store: makeStore(),
@@ -312,12 +318,18 @@ describe('SentenceWrite — submitting an answer', () => {
     await user.type(input, '你好{Enter}');
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /i got it right/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /i got it wrong/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /next word/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+    });
+
+    // Similarity score should appear
+    await waitFor(() => {
+      expect(screen.getByText('72%')).toBeInTheDocument();
+      expect(screen.getByText('Good')).toBeInTheDocument();
     });
   });
 
-  it('resets to input view when No clicked', async () => {
+  it('resets to input view when Try Again clicked', async () => {
     const user = userEvent.setup();
     renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
       store: makeStore(),
@@ -326,8 +338,8 @@ describe('SentenceWrite — submitting an answer', () => {
     const input = await screen.findByPlaceholderText(/type chinese and press enter/i);
     await user.type(input, '你好{Enter}');
 
-    const noBtn = await screen.findByRole('button', { name: /i got it wrong/i });
-    await user.click(noBtn);
+    const tryAgainBtn = await screen.findByRole('button', { name: /try again/i });
+    await user.click(tryAgainBtn);
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/type chinese and press enter/i)).toBeInTheDocument();
@@ -351,7 +363,7 @@ describe('SentenceWrite — submitting an answer', () => {
 });
 
 describe('SentenceWrite — stage completion', () => {
-  it('calls onComplete after Yes click on the last word', async () => {
+  it('calls onComplete after Next Word click on the last word', async () => {
     const user = userEvent.setup();
     const onComplete = vi.fn();
     renderWithProviders(<SentenceWrite words={[testWord]} onComplete={onComplete} />, {
@@ -361,13 +373,13 @@ describe('SentenceWrite — stage completion', () => {
     const input = await screen.findByPlaceholderText(/type chinese and press enter/i);
     await user.type(input, '你好{Enter}');
 
-    const yesBtn = await screen.findByRole('button', { name: /i got it right/i });
-    await user.click(yesBtn);
+    const nextBtn = await screen.findByRole('button', { name: /next word/i });
+    await user.click(nextBtn);
 
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
-  it('fetches next word sentence after Yes on a non-last word', async () => {
+  it('fetches next word sentence after Next Word on a non-last word', async () => {
     const user = userEvent.setup();
     const secondWord: Word = { ...testWord, id: 2, simp: '学习', trad: '學習' };
     const onComplete = vi.fn();
@@ -379,8 +391,8 @@ describe('SentenceWrite — stage completion', () => {
     const input = await screen.findByPlaceholderText(/type chinese and press enter/i);
     await user.type(input, '你好{Enter}');
 
-    const yesBtn = await screen.findByRole('button', { name: /i got it right/i });
-    await user.click(yesBtn);
+    const nextBtn = await screen.findByRole('button', { name: /next word/i });
+    await user.click(nextBtn);
 
     // onComplete should NOT fire yet (still has a second word to do)
     expect(onComplete).not.toHaveBeenCalled();
