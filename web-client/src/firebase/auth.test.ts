@@ -10,6 +10,7 @@ const {
   mockSignOut,
   mockOnAuthStateChanged,
   mockSignInWithPopup,
+  mockSendPasswordResetEmail,
   mockGetDoc,
   mockSetDoc,
   mockDoc,
@@ -23,6 +24,7 @@ const {
     mockSignOut: vi.fn(),
     mockOnAuthStateChanged: vi.fn(),
     mockSignInWithPopup: vi.fn(),
+    mockSendPasswordResetEmail: vi.fn(),
     mockGetDoc: vi.fn(),
     mockSetDoc: vi.fn(),
     mockDoc: vi.fn((_db: unknown, ...path: string[]) => ({ path: path.join('/') })),
@@ -40,6 +42,7 @@ vi.mock('firebase/auth', () => ({
     setCustomParameters() {}
   },
   signInWithPopup: mockSignInWithPopup,
+  sendPasswordResetEmail: mockSendPasswordResetEmail,
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -66,6 +69,8 @@ import {
   logoutUser,
   subscribeToAuthChanges,
   getCurrentUser,
+  signInWithGoogle,
+  resetPassword,
 } from './auth';
 
 function makeUser(uid: string, email = 'test@example.com', displayName: string | null = null) {
@@ -226,5 +231,78 @@ describe('getCurrentUser', () => {
     const user = makeUser('current-uid');
     mockAuthCurrentUser.value = user;
     expect(getCurrentUser()).toBe(user);
+  });
+});
+
+describe('signInWithGoogle', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('calls signInWithPopup and returns the user', async () => {
+    const user = makeUser('google-uid', 'google@example.com', 'Google User');
+    mockSignInWithPopup.mockResolvedValue({ user });
+    mockGetDoc.mockResolvedValue({ exists: () => false });
+    mockSetDoc.mockResolvedValue(undefined);
+
+    const result = await signInWithGoogle();
+
+    expect(mockSignInWithPopup).toHaveBeenCalledOnce();
+    expect(result).toBe(user);
+  });
+
+  it('creates a Firestore user document on first Google sign-in', async () => {
+    const user = makeUser('google-uid-2', 'g2@example.com', 'Alice');
+    mockSignInWithPopup.mockResolvedValue({ user });
+    mockGetDoc.mockResolvedValue({ exists: () => false });
+    mockSetDoc.mockResolvedValue(undefined);
+
+    await signInWithGoogle();
+
+    expect(mockSetDoc).toHaveBeenCalledOnce();
+    const docData = mockSetDoc.mock.calls[0][1];
+    expect(docData.email).toBe('g2@example.com');
+    expect(docData.username).toBe('Alice'); // uses displayName
+  });
+
+  it('skips creating Firestore document when user doc already exists', async () => {
+    const user = makeUser('returning-google-uid');
+    mockSignInWithPopup.mockResolvedValue({ user });
+    mockGetDoc.mockResolvedValue({ exists: () => true });
+
+    await signInWithGoogle();
+
+    expect(mockSetDoc).not.toHaveBeenCalled();
+  });
+
+  it('propagates errors from signInWithPopup', async () => {
+    mockSignInWithPopup.mockRejectedValue(new Error('auth/popup-blocked'));
+
+    await expect(signInWithGoogle()).rejects.toThrow('auth/popup-blocked');
+  });
+});
+
+describe('resetPassword', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('calls sendPasswordResetEmail with the given address', async () => {
+    mockSendPasswordResetEmail.mockResolvedValue(undefined);
+
+    await resetPassword('user@example.com');
+
+    expect(mockSendPasswordResetEmail).toHaveBeenCalledWith(
+      expect.anything(),
+      'user@example.com',
+    );
+  });
+
+  it('resolves without a value on success', async () => {
+    mockSendPasswordResetEmail.mockResolvedValue(undefined);
+
+    await expect(resetPassword('user@example.com')).resolves.toBeUndefined();
+  });
+
+  it('propagates errors from sendPasswordResetEmail', async () => {
+    mockSendPasswordResetEmail.mockRejectedValue(new Error('auth/user-not-found'));
+
+    await expect(resetPassword('ghost@example.com')).rejects.toThrow('auth/user-not-found');
   });
 });
