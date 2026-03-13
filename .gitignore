@@ -41,6 +41,7 @@ migration/*.json
 # Playwright
 web-client/playwright-report/
 web-client/test-results/
+test-results/
 
 # Test coverage reports
 web-client/coverage/
