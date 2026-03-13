@@ -45,6 +45,8 @@ export interface TestPerm {
 
 export interface Chengyu {
   characters: string;
+  // Traditional character equivalent. Must be provided for every entry.
+  trad: string;
   pinyin: string;
   meaning: string;
   story?: string;
