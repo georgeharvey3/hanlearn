@@ -60,7 +60,7 @@ const FeatureHighlights: React.FC = () => (
                 }}
               >
                 <Icon sx={{ fontSize: 48, color: 'primary.dark', mb: 2 }} />
-                <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, mb: 1 }}>
+                <Typography variant="h6" component="h5" sx={{ color: 'text.primary', fontWeight: 600, mb: 1 }}>
                   {feature.heading}
                 </Typography>
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
