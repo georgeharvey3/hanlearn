@@ -67,6 +67,7 @@ vi.mock('../../../services/chengyuService', () => ({
 import React from 'react';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { axe } from 'vitest-axe';
 
 import Chengyu from './Chengyu';
 import { renderWithProviders, createTestStore } from '../../../test/utils';
@@ -95,6 +96,14 @@ function makeStore(overrides?: { userId?: string | null; words?: Array<Record<st
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
+});
+
+describe('Chengyu — accessibility', () => {
+  it('has no accessibility violations', async () => {
+    const { container } = renderWithProviders(<Chengyu />, { store: makeStore() });
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
 });
 
 describe('Chengyu — initial render', () => {

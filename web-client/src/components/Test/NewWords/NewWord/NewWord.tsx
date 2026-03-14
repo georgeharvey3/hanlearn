@@ -236,6 +236,7 @@ const NewWord: React.FC<Props> = ({
     ) : (
       <Box sx={{ textAlign: 'center', py: 1.5, flex: 1, display: 'flex', flexDirection: 'column' }}>
         <Typography
+          lang="zh"
           sx={{ fontSize: '2.8em', fontWeight: 500, lineHeight: 1.2, color: 'text.primary' }}
         >
           {clickedIndex !== null && clickedIndex >= 0 ? chars[clickedIndex] : charData.simp}
@@ -244,7 +245,10 @@ const NewWord: React.FC<Props> = ({
           <CircularProgress size={24} sx={{ mt: 1.5 }} />
         ) : (
           <>
-            <Typography sx={{ fontSize: '1.2em', color: 'primary.dark', fontWeight: 500, mt: 0.5 }}>
+            <Typography
+              lang="zh-Latn"
+              sx={{ fontSize: '1.2em', color: 'primary.dark', fontWeight: 500, mt: 0.5 }}
+            >
               {charData.pinyins.join(' / ')}
             </Typography>
             <Box sx={{ mt: 0.5, display: 'flex', justifyContent: 'center' }}>
@@ -351,6 +355,7 @@ const NewWord: React.FC<Props> = ({
             return (
               <ButtonBase
                 key={index}
+                lang="zh"
                 onClick={() => onCharacterClick(char, index)}
                 aria-label={`Show details for ${char}`}
                 aria-pressed={isActive}
@@ -378,6 +383,7 @@ const NewWord: React.FC<Props> = ({
           })}
         </Box>
         <Typography
+          lang="zh-Latn"
           sx={{ fontSize: '0.55em', textAlign: 'center', color: 'text.secondary', mt: 0.5 }}
         >
           {word.pinyin}

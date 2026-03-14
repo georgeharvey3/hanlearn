@@ -115,10 +115,15 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
                   mb: 1,
                 }}
               >
-                <Typography sx={{ fontSize: '1.5em', m: '3px auto', fontWeight: 'normal' }}>
+                <Typography
+                  lang="zh"
+                  sx={{ fontSize: '1.5em', m: '3px auto', fontWeight: 'normal' }}
+                >
                   {c.char}
                 </Typography>
-                <Typography sx={{ fontSize: '0.9em', mb: '5px' }}>({c.pinyin})</Typography>
+                <Typography lang="zh-Latn" sx={{ fontSize: '0.9em', mb: '5px' }}>
+                  ({c.pinyin})
+                </Typography>
                 {meaning && (
                   <Typography sx={{ fontSize: '0.85em', fontStyle: 'italic', opacity: 0.8 }}>
                     {meaning}
@@ -159,8 +164,10 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
             <Typography sx={{ fontSize: '0.75em', fontWeight: 'bold', mb: 0.5, opacity: 0.6 }}>
               Example
             </Typography>
-            <Typography sx={{ fontSize: '1.2em', mb: 0.5 }}>{exampleSentence.chinese}</Typography>
-            <Typography sx={{ fontSize: '0.85em', mb: 0.5, opacity: 0.8 }}>
+            <Typography lang="zh" sx={{ fontSize: '1.2em', mb: 0.5 }}>
+              {exampleSentence.chinese}
+            </Typography>
+            <Typography lang="zh-Latn" sx={{ fontSize: '0.85em', mb: 0.5, opacity: 0.8 }}>
               {exampleSentence.pinyin}
             </Typography>
             <Typography sx={{ fontSize: '0.85em', fontStyle: 'italic', opacity: 0.8 }}>
@@ -201,7 +208,7 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
       <Typography variant="h5" sx={{ m: '5px 0' }}>
         Chengyu Of The Day
       </Typography>
-      <Typography variant="h4" fontWeight="bold">
+      <Typography variant="h4" fontWeight="bold" lang="zh">
         {displayChengyu}
       </Typography>
       <Typography variant="body1" sx={{ m: '5px 0', fontSize: { xs: '1.1em', sm: '1.3em' } }}>
@@ -225,7 +232,12 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
             ? 'Incorrect. Try again.'
             : ''}
       </Box>
-      <List sx={{ p: 0, width: '100%', maxWidth: 600 }} aria-label="Answer options">
+      <List
+        component="div"
+        role="group"
+        sx={{ p: 0, width: '100%', maxWidth: 600 }}
+        aria-label="Answer options"
+      >
         {dailyChengyu.options.map((op, index) => {
           const isCorrect = op === dailyChengyu.correct;
           const isIncorrect = incorrect.includes(index);

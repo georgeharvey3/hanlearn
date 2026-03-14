@@ -3,6 +3,10 @@
 // expect(element).toHaveTextContent(/react/i)
 // learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
+import { expect } from 'vitest';
+import * as vitestAxeMatchers from 'vitest-axe/matchers';
+
+expect.extend(vitestAxeMatchers);
 
 // Mock Web Speech API (not available in jsdom)
 Object.defineProperty(window, 'speechSynthesis', {

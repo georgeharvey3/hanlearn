@@ -40,6 +40,12 @@ interface MainBannerProps {
 const MainBanner: React.FC<MainBannerProps> = ({ signUpClicked, tryOutClicked }) => {
   const { scrollProgress, sectionProgress, ref, outerRef } = useParallax();
   const [mounted, setMounted] = React.useState(false);
+  const prefersReducedMotion = React.useMemo(
+    () =>
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    [],
+  );
 
   React.useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
@@ -47,8 +53,8 @@ const MainBanner: React.FC<MainBannerProps> = ({ signUpClicked, tryOutClicked })
   }, []);
   const isTouchDevice = 'ontouchstart' in window;
   const textSpeed = isTouchDevice ? 0.3 * 0.3 : 0.3;
-  const textOffset = scrollProgress * textSpeed * -100;
-  const activeSection = getActiveSection(sectionProgress);
+  const textOffset = prefersReducedMotion ? 0 : scrollProgress * textSpeed * -100;
+  const activeSection = prefersReducedMotion ? 0 : getActiveSection(sectionProgress);
 
   return (
     <Box
@@ -124,7 +130,9 @@ const MainBanner: React.FC<MainBannerProps> = ({ signUpClicked, tryOutClicked })
                   ...textBoxSx,
                   opacity: isActive && mounted ? 1 : 0,
                   transform: isActive && mounted ? 'translateY(0)' : 'translateY(30px)',
-                  transition: 'opacity 0.6s ease-out, transform 0.6s ease-out',
+                  transition: prefersReducedMotion
+                    ? 'none'
+                    : 'opacity 0.6s ease-out, transform 0.6s ease-out',
                   pointerEvents: isActive ? 'auto' : 'none',
                 }}
               >

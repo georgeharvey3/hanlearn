@@ -33,6 +33,26 @@ const theme = createTheme({
     fontFamily: "'Cabin', sans-serif",
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        '*, *::before, *::after': {
+          '&:focus-visible': {
+            outline: `2px solid ${colors.primaryDark}`,
+            outlineOffset: '2px',
+          },
+        },
+      },
+    },
+    MuiButtonBase: {
+      styleOverrides: {
+        root: {
+          '&:focus-visible': {
+            outline: `2px solid ${colors.primaryDark}`,
+            outlineOffset: '2px',
+          },
+        },
+      },
+    },
     MuiButton: {
       styleOverrides: {
         root: {
