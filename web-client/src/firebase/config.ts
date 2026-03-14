@@ -3,6 +3,8 @@ import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import { getAI, GoogleAIBackend } from 'firebase/ai';
+import { type FirebasePerformance, getPerformance } from 'firebase/performance';
+import { type Analytics, getAnalytics } from 'firebase/analytics';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -19,6 +21,15 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const functions = getFunctions(app);
 export const ai = getAI(app, { backend: new GoogleAIBackend() });
+
+// Firebase Performance and Analytics — production only (no emulators available)
+export let perf: FirebasePerformance | null = null;
+export let analytics: Analytics | null = null;
+
+if (!import.meta.env.DEV) {
+  perf = getPerformance(app);
+  analytics = getAnalytics(app);
+}
 
 // Connect to emulators in development mode
 if (import.meta.env.DEV) {

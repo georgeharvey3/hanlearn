@@ -4,9 +4,19 @@ import * as wordService from './wordService';
 import * as streakService from './streakService';
 import { Word } from '../types/models';
 
-vi.mock('../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('../firebase/config', () => ({
+  auth: {},
+  db: {},
+  functions: {},
+  ai: {},
+  perf: null,
+  analytics: null,
+}));
 vi.mock('./wordService');
 vi.mock('./streakService');
+vi.mock('./performanceService', () => ({
+  traceAsync: vi.fn((_name: string, fn: () => Promise<unknown>) => fn()),
+}));
 
 const mockedWordService = vi.mocked(wordService);
 const mockedStreakService = vi.mocked(streakService);

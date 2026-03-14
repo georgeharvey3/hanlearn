@@ -1,6 +1,7 @@
 import { getUserWords, getDueUserWords } from './wordService';
 import { getStreakData, calculateStreak, computeWeeklyStats, WeeklyStats } from './streakService';
 import { estimateTestTime, formatTestTime } from '../utils/estimateTestTime';
+import { traceAsync } from './performanceService';
 
 export interface DashboardStats {
   totalWords: number;
@@ -15,7 +16,7 @@ export interface DashboardStats {
 export const getDashboardStats = async (
   userId: string,
   listId?: string,
-): Promise<DashboardStats> => {
+): Promise<DashboardStats> => traceAsync('dashboard_stats_load', async () => {
   const [allWords, dueWords, streakData] = await Promise.all([
     getUserWords(userId, listId),
     getDueUserWords(userId, listId),
@@ -63,4 +64,4 @@ export const getDashboardStats = async (
     estimatedStudyTime,
     weeklyStats,
   };
-};
+});

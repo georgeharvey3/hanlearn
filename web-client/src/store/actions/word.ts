@@ -19,6 +19,8 @@ import {
 import { ListStats } from '../../types/store';
 import * as wordService from '../../services/wordService';
 import { recordTestCompletion } from '../../services/streakService';
+import { traceAsync } from '../../services/performanceService';
+import { trackFeatureUsage } from '../../services/analyticsService';
 
 export const addWord = (word: Word): AddWordAction => {
   return {
@@ -225,6 +227,7 @@ export const postWord = (word: Word): AppThunk => {
     try {
       await wordService.addWordToBank(auth.userId, word, addWords.activeListId);
       dispatch(addWord({ ...word, listId: addWords.activeListId }));
+      trackFeatureUsage('word_added');
     } catch (error) {
       console.error('Failed to add word:', error);
       Sentry.captureException(error);
@@ -306,25 +309,29 @@ export const finishTest = (scores: { word_id: number; score: number }[]): AppThu
     if (!auth.userId) return;
 
     try {
-      await wordService.finishTest(auth.userId, scores);
+      await traceAsync('finish_test', async () => {
+        await wordService.finishTest(auth.userId!, scores);
 
-      // Re-fetch words and stats so the local store has updated bank levels and due dates
-      try {
-        const [updatedWords, stats] = await Promise.all([
-          wordService.getUserWords(auth.userId, addWords.activeListId),
-          wordService.getListStats(auth.userId),
-        ]);
-        dispatch(setWords(updatedWords));
-        dispatch(setListStats(stats));
-      } catch (fetchError) {
-        console.error('Failed to refresh words after test:', fetchError);
-      }
+        // Re-fetch words and stats so the local store has updated bank levels and due dates
+        try {
+          const [updatedWords, stats] = await Promise.all([
+            wordService.getUserWords(auth.userId!, addWords.activeListId),
+            wordService.getListStats(auth.userId!),
+          ]);
+          dispatch(setWords(updatedWords));
+          dispatch(setListStats(stats));
+        } catch (fetchError) {
+          console.error('Failed to refresh words after test:', fetchError);
+        }
 
-      try {
-        await recordTestCompletion(auth.userId);
-      } catch (streakError) {
-        console.error('Failed to record streak:', streakError);
-      }
+        try {
+          await recordTestCompletion(auth.userId!);
+        } catch (streakError) {
+          console.error('Failed to record streak:', streakError);
+        }
+      });
+
+      trackFeatureUsage('test_completed', { word_count: String(scores.length) });
     } catch (error) {
       console.error('Failed to finish test:', error);
       Sentry.captureException(error);
