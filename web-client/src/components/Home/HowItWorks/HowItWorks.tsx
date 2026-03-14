@@ -86,7 +86,11 @@ const HowItWorks: React.FC = () => (
               >
                 Step {step.number}
               </Typography>
-              <Typography variant="h6" component="h5" sx={{ color: 'text.primary', fontWeight: 600, mb: 1 }}>
+              <Typography
+                variant="h6"
+                component="h5"
+                sx={{ color: 'text.primary', fontWeight: 600, mb: 1 }}
+              >
                 {step.heading}
               </Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
