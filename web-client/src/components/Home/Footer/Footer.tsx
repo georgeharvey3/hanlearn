@@ -18,7 +18,7 @@ const Footer: React.FC = () => (
       borderRadius: '.5rem .5rem 0 0',
     }}
   >
-    <Typography variant="body2" sx={{ mb: 1, opacity: 0.85 }}>
+    <Typography variant="body2" sx={{ mb: 1 }}>
       HanLearn is a free, open source Chinese learning app.
     </Typography>
     <IconButton
@@ -31,7 +31,7 @@ const Footer: React.FC = () => (
     >
       <GitHubIcon />
     </IconButton>
-    <Typography variant="caption" display="block" sx={{ opacity: 0.6 }}>
+    <Typography variant="caption" display="block" sx={{ color: 'text.secondary' }}>
       &copy; {new Date().getFullYear()}{' '}
       <Link
         href="https://github.com/georgeharvey3"

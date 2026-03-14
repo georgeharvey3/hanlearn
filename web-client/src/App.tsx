@@ -132,8 +132,8 @@ const App: React.FC<Props> = ({
         <ErrorBoundary>
           <Suspense
             fallback={
-              <Box sx={{ display: 'flex', justifyContent: 'center', pt: 4 }}>
-                <CircularProgress />
+              <Box role="status" sx={{ display: 'flex', justifyContent: 'center', pt: 4 }}>
+                <CircularProgress aria-label="Loading" />
               </Box>
             }
           >

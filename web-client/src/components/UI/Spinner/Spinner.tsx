@@ -13,7 +13,7 @@ const Spinner: React.FC<SpinnerProps> = (props) => (
     sx={{ display: 'flex', justifyContent: 'center', p: 2 }}
     style={props.style}
   >
-    <CircularProgress color="primary" />
+    <CircularProgress color="primary" aria-label="Loading" />
   </Box>
 );
 
