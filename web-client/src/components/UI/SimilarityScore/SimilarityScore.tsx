@@ -25,7 +25,7 @@ const SimilarityScore: React.FC<SimilarityScoreProps> = ({ score, size = 80, loa
   if (loading) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-        <CircularProgress size={size} />
+        <CircularProgress size={size} aria-label="Calculating similarity score" />
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
           Scoring…
         </Typography>

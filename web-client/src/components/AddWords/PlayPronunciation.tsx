@@ -22,7 +22,8 @@ const PlayPronunciation: React.FC<PlayPronunciationProps> = ({ text }) => {
     <IconButton
       size="small"
       onClick={handleSpeak}
-      aria-label="Play pronunciation"
+      disabled={isPlaying}
+      aria-label={isPlaying ? 'Playing pronunciation' : 'Play pronunciation'}
       sx={{ color: isPlaying ? 'primary.main' : 'text.secondary' }}
     >
       <VolumeUpIcon fontSize="small" />
