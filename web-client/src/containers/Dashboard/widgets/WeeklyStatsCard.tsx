@@ -11,7 +11,12 @@ interface WeeklyStatsCardProps {
 }
 
 const WeeklyStatsCard: React.FC<WeeklyStatsCardProps> = ({ sessions, wordsReviewed }) => (
-  <Paper elevation={2} sx={{ p: 2, textAlign: 'center', borderRadius: 2, height: '100%' }} role="region" aria-label="Weekly stats">
+  <Paper
+    elevation={2}
+    sx={{ p: 2, textAlign: 'center', borderRadius: 2, height: '100%' }}
+    role="region"
+    aria-label="Weekly stats"
+  >
     <CalendarMonthIcon
       aria-hidden="true"
       sx={{ fontSize: 40, color: sessions > 0 ? colors.primaryLight : colors.divider }}
