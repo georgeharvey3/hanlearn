@@ -309,8 +309,7 @@ describe('TestChengyusTest', () => {
   it('speaks character in demo mode when synthAvailable is true', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
-      json: () =>
-        Promise.resolve({ simp: '一', pinyins: ['yī'], meanings: ['one'] }),
+      json: () => Promise.resolve({ simp: '一', pinyins: ['yī'], meanings: ['one'] }),
     });
 
     // Turn off useSound but enable demo + synth
