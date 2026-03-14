@@ -28,6 +28,10 @@ vi.mock('./services/sentenceService', () => ({
   checkSentenceAvailability: vi.fn().mockResolvedValue(false),
   getHintSentence: vi.fn().mockResolvedValue(null),
 }));
+vi.mock('./services/analyticsService', () => ({
+  trackPageView: vi.fn(),
+  trackFeatureUsage: vi.fn(),
+}));
 
 import React from 'react';
 import { render } from '@testing-library/react';

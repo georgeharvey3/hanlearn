@@ -16,6 +16,12 @@ vi.mock('firebase/functions', () => ({
 
 vi.mock('../firebase/config', () => ({
   functions: {},
+  perf: null,
+  analytics: null,
+}));
+
+vi.mock('./performanceService', () => ({
+  traceAsync: vi.fn((_name: string, fn: () => Promise<unknown>) => fn()),
 }));
 
 describe('dictionaryService', () => {

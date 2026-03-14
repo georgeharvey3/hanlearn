@@ -9,9 +9,22 @@ import * as wordActions from './word';
 import * as wordService from '../../services/wordService';
 import { WordList } from '../../types/models';
 
-vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('../../firebase/config', () => ({
+  auth: {},
+  db: {},
+  functions: {},
+  ai: {},
+  perf: null,
+  analytics: null,
+}));
 vi.mock('../../services/wordService');
 vi.mock('../../services/streakService');
+vi.mock('../../services/performanceService', () => ({
+  traceAsync: vi.fn((_name: string, fn: () => Promise<unknown>) => fn()),
+}));
+vi.mock('../../services/analyticsService', () => ({
+  trackFeatureUsage: vi.fn(),
+}));
 
 const mockedWordService = vi.mocked(wordService);
 

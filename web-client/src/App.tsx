@@ -1,5 +1,5 @@
 import React, { Suspense, useCallback, useEffect } from 'react';
-import { Route, Switch, withRouter, RouteComponentProps } from 'react-router-dom';
+import { Route, Switch, withRouter, useLocation, RouteComponentProps } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import { connect, ConnectedProps } from 'react-redux';
@@ -9,6 +9,7 @@ import { RootState } from './types/store';
 import AuthModal from './components/Auth/AuthModal';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import * as actions from './store/actions/index';
+import { trackPageView } from './services/analyticsService';
 
 const Home = React.lazy(() => import('./containers/Home/Home'));
 const Dashboard = React.lazy(() => import('./containers/Dashboard/Dashboard'));
@@ -40,6 +41,12 @@ const App: React.FC<Props> = ({
   onSetVoice,
   onSetLang,
 }) => {
+  const location = useLocation();
+
+  useEffect(() => {
+    trackPageView(location.pathname);
+  }, [location.pathname]);
+
   const setSpeech = useCallback((): Promise<SpeechSynthesisVoice[]> => {
     return new Promise(function (resolve, reject) {
       const synth = window.speechSynthesis;

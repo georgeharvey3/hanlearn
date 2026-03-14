@@ -9,6 +9,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase/config';
 import { Word } from '../types/models';
 import { searchInputSchema } from '../validation/schemas';
+import { traceAsync } from './performanceService';
 
 /**
  * Search for words by exact character match.
@@ -17,12 +18,14 @@ export async function searchWord(character: string, charSet: 'simp' | 'trad'): P
   const parsed = searchInputSchema.safeParse(character);
   if (!parsed.success || parsed.data.length === 0) return [];
 
-  const fn = httpsCallable<{ character: string; charSet: string }, Word[]>(
-    functions,
-    'dictionarySearchWord',
-  );
-  const result = await fn({ character: parsed.data, charSet });
-  return result.data;
+  return traceAsync('dictionary_search', async () => {
+    const fn = httpsCallable<{ character: string; charSet: string }, Word[]>(
+      functions,
+      'dictionarySearchWord',
+    );
+    const result = await fn({ character: parsed.data, charSet });
+    return result.data;
+  });
 }
 
 /**
@@ -76,12 +79,14 @@ export async function substringMatch(text: string, charSet: 'simp' | 'trad'): Pr
   const parsed = searchInputSchema.safeParse(text);
   if (!parsed.success || parsed.data.length === 0) return [];
 
-  const fn = httpsCallable<{ text: string; charSet: string }, Word[]>(
-    functions,
-    'dictionarySubstringMatch',
-  );
-  const result = await fn({ text: parsed.data, charSet });
-  return result.data;
+  return traceAsync('dictionary_substring_match', async () => {
+    const fn = httpsCallable<{ text: string; charSet: string }, Word[]>(
+      functions,
+      'dictionarySubstringMatch',
+    );
+    const result = await fn({ text: parsed.data, charSet });
+    return result.data;
+  });
 }
 
 /**

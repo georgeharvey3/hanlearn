@@ -1,6 +1,7 @@
 import { getUserWords, getDueUserWords } from './wordService';
 import { getStreakData, calculateStreak, computeWeeklyStats, WeeklyStats } from './streakService';
 import { estimateTestTime, formatTestTime } from '../utils/estimateTestTime';
+import { traceAsync } from './performanceService';
 
 export interface DashboardStats {
   totalWords: number;
@@ -12,55 +13,53 @@ export interface DashboardStats {
   weeklyStats: WeeklyStats;
 }
 
-export const getDashboardStats = async (
-  userId: string,
-  listId?: string,
-): Promise<DashboardStats> => {
-  const [allWords, dueWords, streakData] = await Promise.all([
-    getUserWords(userId, listId),
-    getDueUserWords(userId, listId),
-    getStreakData(userId),
-  ]);
+export const getDashboardStats = async (userId: string, listId?: string): Promise<DashboardStats> =>
+  traceAsync('dashboard_stats_load', async () => {
+    const [allWords, dueWords, streakData] = await Promise.all([
+      getUserWords(userId, listId),
+      getDueUserWords(userId, listId),
+      getStreakData(userId),
+    ]);
 
-  const bankDistribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  for (const word of allWords) {
-    const bank = word.bank ?? 1;
-    bankDistribution[bank] = (bankDistribution[bank] || 0) + 1;
-  }
-
-  const streak = calculateStreak(streakData.map((d) => d.date));
-  const weeklyStats = computeWeeklyStats(streakData);
-  const masteredCount = bankDistribution[5] || 0;
-
-  const dueCount = dueWords.length;
-  let estimatedStudyTime: string | null = null;
-
-  if (dueCount > 0) {
-    const numWords = parseInt(localStorage.getItem('numWords') || '5', 10);
-    const totalSeconds = estimateTestTime({
-      numWords,
-      useHandwriting: localStorage.getItem('useHandwriting') !== 'false',
-      priority: localStorage.getItem('priority') || 'none',
-      onlyPriority: localStorage.getItem('onlyPriority') === 'true',
-      newWordsEnabled: localStorage.getItem('newWords') !== 'false',
-      sentenceReadEnabled: localStorage.getItem('sentenceRead') !== 'false',
-      sentenceWriteEnabled: localStorage.getItem('sentenceWrite') !== 'false',
-    });
-
-    if (totalSeconds >= 3600) {
-      estimatedStudyTime = '~60+ min';
-    } else {
-      estimatedStudyTime = formatTestTime(totalSeconds);
+    const bankDistribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    for (const word of allWords) {
+      const bank = word.bank ?? 1;
+      bankDistribution[bank] = (bankDistribution[bank] || 0) + 1;
     }
-  }
 
-  return {
-    totalWords: allWords.length,
-    dueWords: dueCount,
-    streak,
-    bankDistribution,
-    masteredCount,
-    estimatedStudyTime,
-    weeklyStats,
-  };
-};
+    const streak = calculateStreak(streakData.map((d) => d.date));
+    const weeklyStats = computeWeeklyStats(streakData);
+    const masteredCount = bankDistribution[5] || 0;
+
+    const dueCount = dueWords.length;
+    let estimatedStudyTime: string | null = null;
+
+    if (dueCount > 0) {
+      const numWords = parseInt(localStorage.getItem('numWords') || '5', 10);
+      const totalSeconds = estimateTestTime({
+        numWords,
+        useHandwriting: localStorage.getItem('useHandwriting') !== 'false',
+        priority: localStorage.getItem('priority') || 'none',
+        onlyPriority: localStorage.getItem('onlyPriority') === 'true',
+        newWordsEnabled: localStorage.getItem('newWords') !== 'false',
+        sentenceReadEnabled: localStorage.getItem('sentenceRead') !== 'false',
+        sentenceWriteEnabled: localStorage.getItem('sentenceWrite') !== 'false',
+      });
+
+      if (totalSeconds >= 3600) {
+        estimatedStudyTime = '~60+ min';
+      } else {
+        estimatedStudyTime = formatTestTime(totalSeconds);
+      }
+    }
+
+    return {
+      totalWords: allWords.length,
+      dueWords: dueCount,
+      streak,
+      bankDistribution,
+      masteredCount,
+      estimatedStudyTime,
+      weeklyStats,
+    };
+  });
