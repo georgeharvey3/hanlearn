@@ -74,7 +74,10 @@ function makeAIResponse(obj: object) {
 // ─── Cache hit ────────────────────────────────────────────────────────────────
 
 describe('getChengyuExampleSentence — cache hit', () => {
-  beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
 
   it('returns the cached sentence for simp charSet without calling AI', async () => {
     mockGetDoc.mockResolvedValue({
@@ -108,7 +111,10 @@ describe('getChengyuExampleSentence — cache hit', () => {
 // ─── Cache miss + AI generation ───────────────────────────────────────────────
 
 describe('getChengyuExampleSentence — cache miss', () => {
-  beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
 
   it('calls AI when cache is empty and returns the generated sentence', async () => {
     mockGetDoc.mockResolvedValue({ exists: () => false });
@@ -195,7 +201,10 @@ describe('getChengyuExampleSentence — cache miss', () => {
 // ─── Error handling ───────────────────────────────────────────────────────────
 
 describe('getChengyuExampleSentence — error handling', () => {
-  beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
 
   it('falls through to AI when Firestore cache read throws', async () => {
     // Cache read failure
