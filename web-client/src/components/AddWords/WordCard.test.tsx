@@ -52,10 +52,13 @@ describe('WordCard', () => {
     const playButton = screen.getByRole('button', { name: /play pronunciation/i });
     fireEvent.click(playButton);
 
-    expect(mockedSpeak).toHaveBeenCalledWith('你好', expect.objectContaining({
-      onEnd: expect.any(Function),
-      onError: expect.any(Function),
-    }));
+    expect(mockedSpeak).toHaveBeenCalledWith(
+      '你好',
+      expect.objectContaining({
+        onEnd: expect.any(Function),
+        onError: expect.any(Function),
+      }),
+    );
   });
 
   it('uses the trad character for TTS when charSet is trad', () => {
