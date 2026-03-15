@@ -330,31 +330,20 @@ export const addCustomWord = async (
   let simp = '';
   let trad = '';
 
+  const lookupFn = charSet === 'simp' ? lookupCharacter : lookupCharacterByTrad;
+
   for (let i = 0; i < validatedText.length; i++) {
     const char = validatedText[i];
+    const charData = await lookupFn(char);
 
-    if (charSet === 'simp') {
-      const charData = await lookupCharacter(char);
-      if (charData) {
-        if (pinyin && charData.pinyin) pinyin += ' ';
-        pinyin += charData.pinyin || '';
-        simp += char;
-        trad += charData.trad || char;
-      } else {
-        simp += char;
-        trad += char;
-      }
+    if (charData) {
+      if (pinyin && charData.pinyin) pinyin += ' ';
+      pinyin += charData.pinyin || '';
+      simp += charSet === 'simp' ? char : charData.simp || char;
+      trad += charSet === 'trad' ? char : charData.trad || char;
     } else {
-      const charData = await lookupCharacterByTrad(char);
-      if (charData) {
-        if (pinyin && charData.pinyin) pinyin += ' ';
-        pinyin += charData.pinyin || '';
-        simp += charData.simp || char;
-        trad += char;
-      } else {
-        simp += char;
-        trad += char;
-      }
+      simp += char;
+      trad += char;
     }
   }
 

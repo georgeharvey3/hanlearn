@@ -1,8 +1,6 @@
 import React, { ChangeEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
-import { Howl } from 'howler';
-
 import {
   Box,
   CircularProgress,
@@ -24,8 +22,7 @@ import SimilarityScore from '../../UI/SimilarityScore/SimilarityScore';
 import speakerPic from '../../../assets/images/speaker.png';
 import micPic from '../../../assets/images/microphone.png';
 
-import successSound from '../../../assets/sounds/success1.wav';
-import failSound from '../../../assets/sounds/failure1.wav';
+import { beep, fail } from '../constants';
 
 import * as wordActions from '../../../store/actions/index';
 import { RootState } from '../../../types/store';
@@ -36,9 +33,6 @@ import { parseMeanings } from '../../../utils/meaningUtils';
 import { resolveSentence, SentenceWord, ResolvedSentence } from '../../../utils/sentenceUtils';
 import * as ttsService from '../../../services/ttsService';
 import { getSimilarityScore } from '../../../services/similarityService';
-
-const beep = new Howl({ src: [successSound], volume: 0.5 });
-const fail = new Howl({ src: [failSound], volume: 0.7 });
 
 interface SentenceReadState {
   sentences: ResolvedSentence[];
