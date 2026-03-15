@@ -87,5 +87,20 @@ service cloud.firestore {
         && request.resource.data.sentences is list
         && request.resource.data.sentences.size() <= 10;
     }
+
+    // Chengyu sentence cache - AI-generated example sentences for daily chengyus.
+    // Public read so all users see the same cached sentence.
+    // Auth write to prevent abuse.
+    match /chengyuSentences/{chengyu} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.data.keys().hasAll(['sentence', 'generatedAt'])
+        && request.resource.data.sentence.chinese is string
+        && request.resource.data.sentence.chinese.size() <= 200
+        && request.resource.data.sentence.pinyin is string
+        && request.resource.data.sentence.pinyin.size() <= 500
+        && request.resource.data.sentence.english is string
+        && request.resource.data.sentence.english.size() <= 500;
+    }
   }
 }
