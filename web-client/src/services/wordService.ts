@@ -339,8 +339,8 @@ export const addCustomWord = async (
     if (charData) {
       if (pinyin && charData.pinyin) pinyin += ' ';
       pinyin += charData.pinyin || '';
-      simp += charSet === 'simp' ? char : (charData.simp || char);
-      trad += charSet === 'trad' ? char : (charData.trad || char);
+      simp += charSet === 'simp' ? char : charData.simp || char;
+      trad += charSet === 'trad' ? char : charData.trad || char;
     } else {
       simp += char;
       trad += char;
