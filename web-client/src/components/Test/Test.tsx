@@ -87,7 +87,7 @@ const Test: React.FC<Props> = (props) => {
               zIndex: 1200,
             }}
           >
-            <CircularProgress />
+            <CircularProgress aria-label="Loading test" />
           </Box>
         )}
         <Box
