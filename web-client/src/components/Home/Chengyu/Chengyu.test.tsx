@@ -329,7 +329,7 @@ describe('Chengyu — persistence of revealed state', () => {
     expect(storedDate).toBe(today);
   });
 
-  it('starts in revealed state when localStorage has today\'s date', async () => {
+  it("starts in revealed state when localStorage has today's date", async () => {
     const today = new Date().toISOString().slice(0, 10);
     localStorage.setItem('chengyuRevealedDate', today);
 
