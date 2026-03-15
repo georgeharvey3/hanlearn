@@ -217,4 +217,144 @@ describe('sentenceService', () => {
       expect(available).toBe(false);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // generateSentencesWithAI — edge cases
+  // ---------------------------------------------------------------------------
+  describe('generateSentencesWithAI edge cases', () => {
+    it('returns empty result when AI returns a non-array response', async () => {
+      mockGetDoc.mockResolvedValue({ exists: () => false });
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => JSON.stringify({ not: 'an array' }) },
+      });
+      mockSetDoc.mockResolvedValue(undefined);
+
+      const result = await getSegmentedSentence('测试', 'simp', 0);
+      expect(result.sentence).toBeNull();
+      expect(result.totalCount).toBe(0);
+    });
+
+    it('filters out AI items missing required fields', async () => {
+      const malformed = [
+        { chinese: '有中文', english: 'Has English' }, // missing segments & targetIndex
+        { chinese: 123, english: 'wrong type', segments: [], targetIndex: 0 },
+        ...AI_SENTENCES,
+      ];
+      mockGetDoc.mockResolvedValue({ exists: () => false });
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => JSON.stringify(malformed) },
+      });
+      mockSetDoc.mockResolvedValue(undefined);
+
+      const result = await getSegmentedSentence('学习', 'simp', 0);
+      expect(result.totalCount).toBe(1);
+      expect(result.sentence!.chinese.sentence).toBe('我在学习中文。');
+    });
+
+    it('does not write to cache when AI returns no valid sentences', async () => {
+      mockGetDoc.mockResolvedValue({ exists: () => false });
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => '[]' },
+      });
+
+      await getSegmentedSentence('空的', 'simp', 0);
+      expect(mockSetDoc).not.toHaveBeenCalled();
+    });
+
+    it('limits results to SENTENCES_PER_WORD (5)', async () => {
+      const manySentences = Array.from({ length: 10 }, (_, i) => ({
+        chinese: `我学习第${i}课。`,
+        english: `I study lesson ${i}.`,
+        segments: ['我', '学习', `第${i}课`],
+        targetIndex: 1,
+      }));
+      mockGetDoc.mockResolvedValue({ exists: () => false });
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => JSON.stringify(manySentences) },
+      });
+      mockSetDoc.mockResolvedValue(undefined);
+
+      const result = await getSegmentedSentence('学习', 'simp', 0);
+      expect(result.totalCount).toBe(5);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // calculateHighlightIndices — multiple occurrences
+  // ---------------------------------------------------------------------------
+  describe('highlight calculation', () => {
+    it('finds multiple occurrences of the word in a sentence', async () => {
+      const sentences = [
+        {
+          chinese: '学习学习再学习',
+          english: 'Study study and study again',
+          segments: ['学习', '学习', '再', '学习'],
+          targetIndex: 0,
+        },
+      ];
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        data: () => ({ sentences }),
+      });
+
+      const result = await getSegmentedSentence('学习', 'simp', 0);
+      // '学习' appears at index 0, 2, and 5
+      expect(result.sentence!.chinese.highlight).toEqual([
+        [0, 2],
+        [2, 4],
+        [5, 7],
+      ]);
+    });
+
+    it('returns empty highlight array when word is not in sentence text', async () => {
+      const sentences = [
+        {
+          chinese: '这是一句话',
+          english: 'This is a sentence',
+          segments: ['这', '是', '一句话'],
+          targetIndex: 0,
+        },
+      ];
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        data: () => ({ sentences }),
+      });
+
+      const result = await getSegmentedSentence('别的', 'simp', 0);
+      expect(result.sentence!.chinese.highlight).toEqual([]);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // getHintSentence — caching behavior
+  // ---------------------------------------------------------------------------
+  describe('getHintSentence with AI-generated sentences', () => {
+    it('returns a hint from AI-generated sentences when cache is empty', async () => {
+      mockGetDoc.mockResolvedValue({ exists: () => false });
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => JSON.stringify(AI_SENTENCES) },
+      });
+      mockSetDoc.mockResolvedValue(undefined);
+
+      const hint = await getHintSentence('学习');
+      expect(hint).not.toBeNull();
+      expect(hint!.chinese).toBe('我在学习中文。');
+      expect(hint!.english).toBe('I am studying Chinese.');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // checkSentenceAvailability with trad charSet
+  // ---------------------------------------------------------------------------
+  describe('checkSentenceAvailability with trad', () => {
+    it('returns true for a cached word in trad mode', async () => {
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        data: () => ({ sentences: AI_SENTENCES }),
+      });
+
+      const available = await checkSentenceAvailability('学习', 'trad');
+      expect(available).toBe(true);
+    });
+  });
 });

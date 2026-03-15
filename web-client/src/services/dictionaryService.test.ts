@@ -117,6 +117,72 @@ describe('dictionaryService', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // searchWord — input validation branches
+  // ---------------------------------------------------------------------------
+  describe('searchWord input validation', () => {
+    it('returns empty array for empty string input', async () => {
+      const results = await mod.searchWord('', 'simp');
+      expect(results).toEqual([]);
+      expect(mockCallable).not.toHaveBeenCalled();
+    });
+
+    it('returns empty array for whitespace-only input', async () => {
+      const results = await mod.searchWord('   ', 'simp');
+      expect(results).toEqual([]);
+      expect(mockCallable).not.toHaveBeenCalled();
+    });
+
+    it('returns empty array for input exceeding max length', async () => {
+      const longInput = '学'.repeat(101);
+      const results = await mod.searchWord(longInput, 'simp');
+      expect(results).toEqual([]);
+      expect(mockCallable).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // convertText — input validation branches
+  // ---------------------------------------------------------------------------
+  describe('convertText input validation', () => {
+    it('returns empty string for empty input', async () => {
+      const result = await mod.convertText('', 'trad');
+      expect(result).toBe('');
+      expect(mockCallable).not.toHaveBeenCalled();
+    });
+
+    it('returns empty string for whitespace-only input', async () => {
+      const result = await mod.convertText('   ', 'simp');
+      expect(result).toBe('');
+      expect(mockCallable).not.toHaveBeenCalled();
+    });
+
+    it('returns empty string for input exceeding max length', async () => {
+      const longInput = '学'.repeat(101);
+      const result = await mod.convertText(longInput, 'trad');
+      expect(result).toBe('');
+      expect(mockCallable).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // substringMatch — input validation branches
+  // ---------------------------------------------------------------------------
+  describe('substringMatch input validation', () => {
+    it('returns empty array for whitespace-only input', async () => {
+      const results = await mod.substringMatch('   ', 'simp');
+      expect(results).toEqual([]);
+      expect(mockCallable).not.toHaveBeenCalled();
+    });
+
+    it('returns empty array for input exceeding max length', async () => {
+      const longInput = '学'.repeat(101);
+      const results = await mod.substringMatch(longInput, 'simp');
+      expect(results).toEqual([]);
+      expect(mockCallable).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // isDictionaryLoaded / preloadDictionary
   // ---------------------------------------------------------------------------
   describe('isDictionaryLoaded', () => {
