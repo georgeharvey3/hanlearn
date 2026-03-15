@@ -313,6 +313,49 @@ describe('Chengyu — example sentence after completion', () => {
   });
 });
 
+describe('Chengyu — persistence of revealed state', () => {
+  it('persists revealed state to localStorage when correct answer is selected', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Chengyu />, { store: makeStore() });
+
+    await user.click(screen.getByRole('button', { name: /^unique$/ }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('list', { name: /character breakdown/i })).toBeInTheDocument();
+    });
+
+    const storedDate = localStorage.getItem('chengyuRevealedDate');
+    const today = new Date().toISOString().slice(0, 10);
+    expect(storedDate).toBe(today);
+  });
+
+  it("starts in revealed state when localStorage has today's date", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem('chengyuRevealedDate', today);
+
+    renderWithProviders(<Chengyu />, { store: makeStore() });
+
+    // Should immediately show the character breakdown without clicking
+    await waitFor(() => {
+      expect(screen.getByRole('list', { name: /character breakdown/i })).toBeInTheDocument();
+    });
+  });
+
+  it('does not start revealed when localStorage has a past date', () => {
+    localStorage.setItem('chengyuRevealedDate', '2020-01-01');
+
+    renderWithProviders(<Chengyu />, { store: makeStore() });
+
+    expect(screen.queryByRole('list', { name: /character breakdown/i })).not.toBeInTheDocument();
+  });
+
+  it('does not start revealed when localStorage has no date', () => {
+    renderWithProviders(<Chengyu />, { store: makeStore() });
+
+    expect(screen.queryByRole('list', { name: /character breakdown/i })).not.toBeInTheDocument();
+  });
+});
+
 describe('Chengyu — save to word bank', () => {
   it('does not show save button when user is not authenticated', async () => {
     const user = userEvent.setup();
