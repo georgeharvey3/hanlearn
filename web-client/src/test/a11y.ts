@@ -1,5 +1,5 @@
 import { axe, AxeOptions } from 'vitest-axe';
-import { renderWithProviders } from './utils';
+import { renderWithProviders, createTestStore } from './utils';
 
 /**
  * Render a component with providers and run axe-core accessibility checks.
@@ -10,7 +10,8 @@ export async function checkA11y(
   options?: AxeOptions,
   storeState?: Record<string, unknown>,
 ) {
-  const { container } = renderWithProviders(ui, { store: undefined, ...storeState });
+  const store = storeState ? createTestStore(storeState) : undefined;
+  const { container } = renderWithProviders(ui, { store });
   return axe(container, options);
 }
 

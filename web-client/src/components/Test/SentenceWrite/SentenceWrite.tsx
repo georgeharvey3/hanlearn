@@ -185,11 +185,8 @@ const SentenceWrite: React.FC<Props> = ({
 
       const skipToNextWord = (): void => {
         if (wordIndex >= words.length - 1) {
-          if (stateRef.current.results.length === 0) {
-            history.push('/');
-          } else {
-            updateState({ loading: false, wordIndex: words.length });
-          }
+          updateState({ loading: false });
+          history.push('/');
         } else {
           const nextIndex = wordIndex + 1;
           const nextOffset = (seenOffsets?.[words[nextIndex].simp]?.offset ?? -1) + 1;
