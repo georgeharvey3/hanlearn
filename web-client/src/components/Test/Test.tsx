@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { withRouter } from 'react-router-dom';
 import { connect } from 'react-redux';
 
@@ -53,14 +53,7 @@ const Test: React.FC<Props> = (props) => {
   } = useTestEngine(props);
 
   const keyboardVisible = useKeyboardVisible();
-  const answerAreaRef = useRef<HTMLDivElement>(null);
   const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
-
-  useEffect(() => {
-    if (keyboardVisible && answerAreaRef.current) {
-      answerAreaRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, [keyboardVisible]);
 
   const handleSettingsClose = useCallback(
     (updated: AudioSettings) => {
@@ -169,7 +162,6 @@ const Test: React.FC<Props> = (props) => {
             sx={{
               minHeight: keyboardVisible ? 0 : 30,
               mt: keyboardVisible ? 0.5 : 1.5,
-              display: keyboardVisible ? 'none' : 'block',
               fontSize: '0.95rem',
               fontWeight: 500,
               color:
@@ -186,7 +178,6 @@ const Test: React.FC<Props> = (props) => {
             {state.result}
           </Typography>
           <Box
-            ref={answerAreaRef}
             sx={{
               minHeight: keyboardVisible ? 0 : 160,
               transition: 'min-height 0.15s ease',
