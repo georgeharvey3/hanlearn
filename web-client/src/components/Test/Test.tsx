@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useEffect, useState } from 'react';
 import { withRouter } from 'react-router-dom';
 import { connect } from 'react-redux';
 
@@ -12,6 +12,7 @@ import TestActions from './TestActions';
 import AudioSettingsDrawer from './AudioSettingsDrawer/AudioSettingsDrawer';
 import { useTestEngine } from './useTestEngine';
 import { AudioSettings } from '../../utils/audioSettings';
+import useKeyboardVisible from '../../hooks/useKeyboardVisible';
 
 import { RootState } from '../../types/store';
 import { AppDispatch } from '../../types/actions';
@@ -51,7 +52,15 @@ const Test: React.FC<Props> = (props) => {
     refreshSettings,
   } = useTestEngine(props);
 
+  const keyboardVisible = useKeyboardVisible();
+  const answerAreaRef = useRef<HTMLDivElement>(null);
   const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    if (keyboardVisible && answerAreaRef.current) {
+      answerAreaRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [keyboardVisible]);
 
   const handleSettingsClose = useCallback(
     (updated: AudioSettings) => {
@@ -88,7 +97,8 @@ const Test: React.FC<Props> = (props) => {
             maxWidth: 400,
             textAlign: 'center',
             mx: 'auto',
-            py: '30px',
+            py: keyboardVisible ? '8px' : '30px',
+            transition: 'padding 0.15s ease',
             color: 'text.primary',
             '& h3': {
               fontWeight: 500,
@@ -132,10 +142,11 @@ const Test: React.FC<Props> = (props) => {
               borderColor: 'divider',
               color: 'text.primary',
               borderRadius: 3,
-              minHeight: 160,
+              minHeight: keyboardVisible ? 80 : 160,
+              transition: 'min-height 0.15s ease, padding 0.15s ease',
               boxSizing: 'border-box',
               mx: 'auto',
-              p: '20px 12px',
+              p: keyboardVisible ? '8px 12px' : '20px 12px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
@@ -156,8 +167,9 @@ const Test: React.FC<Props> = (props) => {
           </Paper>
           <Typography
             sx={{
-              minHeight: 30,
-              mt: 1.5,
+              minHeight: keyboardVisible ? 0 : 30,
+              mt: keyboardVisible ? 0.5 : 1.5,
+              display: keyboardVisible ? 'none' : 'block',
               fontSize: '0.95rem',
               fontWeight: 500,
               color:
@@ -174,8 +186,10 @@ const Test: React.FC<Props> = (props) => {
             {state.result}
           </Typography>
           <Box
+            ref={answerAreaRef}
             sx={{
-              minHeight: 160,
+              minHeight: keyboardVisible ? 0 : 160,
+              transition: 'min-height 0.15s ease',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'flex-end',

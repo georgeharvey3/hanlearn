@@ -57,7 +57,9 @@ const Layout: React.FC<Props> = ({ isAuthenticated, children }) => {
         sx={{
           mt: '56px',
           pt: 3,
-          height: '100%',
+          height: 'calc(100% - 56px)',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
           ...(isAuthenticated
             ? {
                 ml: { xs: 0, sm: `${SIDEBAR_WIDTH}px` },

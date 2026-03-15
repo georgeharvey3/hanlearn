@@ -1,4 +1,4 @@
-import React, { KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
+import React, { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 import { Howl } from 'howler';
@@ -26,6 +26,7 @@ import {
 } from '../../../utils/sentenceUtils';
 import { parseMeanings } from '../../../utils/meaningUtils';
 import { getSimilarityScore } from '../../../services/similarityService';
+import useKeyboardVisible from '../../../hooks/useKeyboardVisible';
 
 const beep = new Howl({ src: [successSound], volume: 0.5 });
 const fail = new Howl({ src: [failSound], volume: 0.7 });
@@ -422,6 +423,26 @@ const SentenceWrite: React.FC<Props> = ({
     }
   };
 
+  const keyboardVisible = useKeyboardVisible();
+  const answerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (keyboardVisible && answerRef.current) {
+      answerRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [keyboardVisible]);
+
+  const outerSx = useMemo(() => ({
+    width: '90%',
+    maxWidth: 520,
+    mx: 'auto',
+    py: keyboardVisible ? 1 : 4,
+    transition: 'padding 0.15s ease',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: keyboardVisible ? 1.5 : 3,
+  }), [keyboardVisible]);
+
   // Loading state
   if (state.loading) {
     return (
@@ -432,16 +453,6 @@ const SentenceWrite: React.FC<Props> = ({
   }
 
   const currentWord = words[state.wordIndex];
-
-  const outerSx = {
-    width: '90%',
-    maxWidth: 520,
-    mx: 'auto',
-    py: 4,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 3,
-  };
 
   // Comparison view (after submission)
   if (state.submitted) {
@@ -687,7 +698,7 @@ const SentenceWrite: React.FC<Props> = ({
       </Typography>
 
       {/* Answer input */}
-      <Stack spacing={1.5} alignItems="center">
+      <Stack ref={answerRef} spacing={1.5} alignItems="center">
         <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: 1 }}>
           Your answer
         </Typography>

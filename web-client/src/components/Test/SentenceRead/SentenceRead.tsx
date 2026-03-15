@@ -36,6 +36,7 @@ import { parseMeanings } from '../../../utils/meaningUtils';
 import { resolveSentence, SentenceWord, ResolvedSentence } from '../../../utils/sentenceUtils';
 import * as ttsService from '../../../services/ttsService';
 import { getSimilarityScore } from '../../../services/similarityService';
+import useKeyboardVisible from '../../../hooks/useKeyboardVisible';
 
 const beep = new Howl({ src: [successSound], volume: 0.5 });
 const fail = new Howl({ src: [failSound], volume: 0.7 });
@@ -136,6 +137,15 @@ const SentenceRead: React.FC<Props> = ({
   isDemo,
   history,
 }) => {
+  const keyboardVisible = useKeyboardVisible();
+  const inputAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (keyboardVisible && inputAreaRef.current) {
+      inputAreaRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [keyboardVisible]);
+
   const [slowMode, setSlowMode] = useState<boolean>(
     () => localStorage.getItem('slowMode') === 'true',
   );
@@ -828,10 +838,11 @@ const SentenceRead: React.FC<Props> = ({
         width: '90%',
         maxWidth: 520,
         mx: 'auto',
-        py: 4,
+        py: keyboardVisible ? 1 : 4,
+        transition: 'padding 0.15s ease',
         display: 'flex',
         flexDirection: 'column',
-        gap: 3,
+        gap: keyboardVisible ? 1.5 : 3,
       }}
     >
       {/* Header */}
@@ -853,8 +864,9 @@ const SentenceRead: React.FC<Props> = ({
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          minHeight: 110,
-          p: 3,
+          minHeight: keyboardVisible ? 60 : 110,
+          transition: 'min-height 0.15s ease, padding 0.15s ease',
+          p: keyboardVisible ? 1.5 : 3,
           borderRadius: 3,
           bgcolor: '#fff',
           textAlign: 'center',
@@ -903,7 +915,7 @@ const SentenceRead: React.FC<Props> = ({
       </Paper>
 
       {/* Input / result area */}
-      {mainContent}
+      <Box ref={inputAreaRef}>{mainContent}</Box>
     </Box>
   );
 };
