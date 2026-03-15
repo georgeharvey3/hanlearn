@@ -554,7 +554,7 @@ const SentenceRead: React.FC<Props> = ({
               }}
             >
               {state.synthLoading ? (
-                <CircularProgress size={24} color="primary" />
+                <CircularProgress size={24} color="primary" aria-label="Loading speech" />
               ) : (
                 <PictureButton
                   type="secondary"

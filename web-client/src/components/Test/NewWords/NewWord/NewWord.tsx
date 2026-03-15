@@ -242,7 +242,7 @@ const NewWord: React.FC<Props> = ({
           {clickedIndex !== null && clickedIndex >= 0 ? chars[clickedIndex] : charData.simp}
         </Typography>
         {charLoading ? (
-          <CircularProgress size={24} sx={{ mt: 1.5 }} />
+          <CircularProgress size={24} sx={{ mt: 1.5 }} aria-label="Loading character data" />
         ) : (
           <>
             <Typography
@@ -399,7 +399,7 @@ const NewWord: React.FC<Props> = ({
             }}
           >
             {synthLoading ? (
-              <CircularProgress size={24} color="primary" />
+              <CircularProgress size={24} color="primary" aria-label="Loading speech" />
             ) : (
               <PictureButton
                 type="secondary"
