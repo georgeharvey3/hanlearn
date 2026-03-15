@@ -4,7 +4,11 @@ import useKeyboardVisible from './useKeyboardVisible';
 
 describe('useKeyboardVisible', () => {
   let resizeHandler: (() => void) | null;
-  let mockViewport: { height: number; addEventListener: ReturnType<typeof vi.fn>; removeEventListener: ReturnType<typeof vi.fn> };
+  let mockViewport: {
+    height: number;
+    addEventListener: ReturnType<typeof vi.fn>;
+    removeEventListener: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     resizeHandler = null;

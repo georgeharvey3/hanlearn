@@ -432,16 +432,19 @@ const SentenceWrite: React.FC<Props> = ({
     }
   }, [keyboardVisible]);
 
-  const outerSx = useMemo(() => ({
-    width: '90%',
-    maxWidth: 520,
-    mx: 'auto',
-    py: keyboardVisible ? 1 : 4,
-    transition: 'padding 0.15s ease',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: keyboardVisible ? 1.5 : 3,
-  }), [keyboardVisible]);
+  const outerSx = useMemo(
+    () => ({
+      width: '90%',
+      maxWidth: 520,
+      mx: 'auto',
+      py: keyboardVisible ? 1 : 4,
+      transition: 'padding 0.15s ease',
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: keyboardVisible ? 1.5 : 3,
+    }),
+    [keyboardVisible],
+  );
 
   // Loading state
   if (state.loading) {
