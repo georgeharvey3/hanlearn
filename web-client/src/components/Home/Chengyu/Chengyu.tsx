@@ -31,8 +31,22 @@ const mapDispatchToProps = {
 const connector = connect(mapStateToProps, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 
+const CHENGYU_REVEALED_DATE_KEY = 'chengyuRevealedDate';
+
+function isChengyuRevealedToday(): boolean {
+  const stored = localStorage.getItem(CHENGYU_REVEALED_DATE_KEY);
+  if (!stored) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return stored === today;
+}
+
+function markChengyuRevealed(): void {
+  const today = new Date().toISOString().slice(0, 10);
+  localStorage.setItem(CHENGYU_REVEALED_DATE_KEY, today);
+}
+
 const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
-  const [finished, setFinished] = useState(false);
+  const [finished, setFinished] = useState(() => isChengyuRevealedToday());
   const [incorrect, setIncorrect] = useState<number[]>([]);
   const [charMeanings, setCharMeanings] = useState<Map<string, string>>(new Map());
   const [saved, setSaved] = useState(false);
@@ -76,6 +90,7 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
       setIncorrect((prev) => prev.concat(index));
     } else {
       setFinished(true);
+      markChengyuRevealed();
     }
   };
 
