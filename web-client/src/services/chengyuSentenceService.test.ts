@@ -74,7 +74,10 @@ function makeAIResponse(obj: object) {
 // ─── Cache hit ────────────────────────────────────────────────────────────────
 
 describe('getChengyuExampleSentence — cache hit', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
 
   it('returns the cached sentence for simp charSet without calling AI', async () => {
     mockGetDoc.mockResolvedValue({
@@ -108,7 +111,10 @@ describe('getChengyuExampleSentence — cache hit', () => {
 // ─── Cache miss + AI generation ───────────────────────────────────────────────
 
 describe('getChengyuExampleSentence — cache miss', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
 
   it('calls AI when cache is empty and returns the generated sentence', async () => {
     mockGetDoc.mockResolvedValue({ exists: () => false });
@@ -195,7 +201,10 @@ describe('getChengyuExampleSentence — cache miss', () => {
 // ─── Error handling ───────────────────────────────────────────────────────────
 
 describe('getChengyuExampleSentence — error handling', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
 
   it('falls through to AI when Firestore cache read throws', async () => {
     // Cache read failure
@@ -223,6 +232,34 @@ describe('getChengyuExampleSentence — error handling', () => {
     const result = await getChengyuExampleSentence('半途而废', 'simp');
 
     expect(result).toBeNull();
+  });
+
+  it('returns localStorage-cached sentence without hitting Firestore', async () => {
+    // Pre-populate localStorage cache
+    localStorage.setItem(
+      'chengyuSentenceCache',
+      JSON.stringify({ chengyu: '半途而废', sentence: SAMPLE_SENTENCE }),
+    );
+
+    const result = await getChengyuExampleSentence('半途而废', 'simp');
+
+    expect(result).toEqual(SAMPLE_SENTENCE);
+    // Should not touch Firestore at all
+    expect(mockGetDoc).not.toHaveBeenCalled();
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+  });
+
+  it('localStorage cache is populated after Firestore cache hit', async () => {
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ sentence: SAMPLE_SENTENCE }),
+    });
+
+    await getChengyuExampleSentence('半途而废', 'simp');
+
+    const cached = JSON.parse(localStorage.getItem('chengyuSentenceCache')!);
+    expect(cached.chengyu).toBe('半途而废');
+    expect(cached.sentence).toEqual(SAMPLE_SENTENCE);
   });
 
   it('still returns the generated sentence when cache write (setDoc) fails', async () => {

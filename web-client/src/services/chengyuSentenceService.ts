@@ -67,24 +67,57 @@ Requirements:
   return null;
 }
 
+const LOCAL_CACHE_KEY = 'chengyuSentenceCache';
+
+function getLocalCachedSentence(chengyu: string): ChengyuSentence | null {
+  try {
+    const raw = localStorage.getItem(LOCAL_CACHE_KEY);
+    if (!raw) return null;
+    const cache = JSON.parse(raw) as { chengyu: string; sentence: ChengyuSentence };
+    if (cache.chengyu === chengyu) return cache.sentence;
+  } catch {
+    // Corrupted cache — ignore
+  }
+  return null;
+}
+
+function setLocalCachedSentence(chengyu: string, sentence: ChengyuSentence): void {
+  try {
+    localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify({ chengyu, sentence }));
+  } catch {
+    // Storage full or unavailable — not critical
+  }
+}
+
+function applyCharSet(sentence: ChengyuSentence, charSet: 'simp' | 'trad'): ChengyuSentence {
+  if (charSet === 'trad') {
+    return {
+      chinese: getToTraditional()(sentence.chinese),
+      pinyin: sentence.pinyin,
+      english: sentence.english,
+    };
+  }
+  return sentence;
+}
+
 export async function getChengyuExampleSentence(
   chengyu: string,
   charSet: 'simp' | 'trad',
 ): Promise<ChengyuSentence | null> {
+  // Check localStorage first to avoid any network calls on repeated views
+  const localCached = getLocalCachedSentence(chengyu);
+  if (localCached) {
+    return applyCharSet(localCached, charSet);
+  }
+
   const cacheRef = doc(db, 'chengyuSentences', chengyu);
 
   try {
     const cached = await getDoc(cacheRef);
     if (cached.exists()) {
       const data = cached.data().sentence as ChengyuSentence;
-      if (charSet === 'trad') {
-        return {
-          chinese: getToTraditional()(data.chinese),
-          pinyin: data.pinyin,
-          english: data.english,
-        };
-      }
-      return data;
+      setLocalCachedSentence(chengyu, data);
+      return applyCharSet(data, charSet);
     }
   } catch {
     // Cache read unavailable — fall through to AI generation
@@ -98,19 +131,15 @@ export async function getChengyuExampleSentence(
   }
 
   if (sentence) {
+    setLocalCachedSentence(chengyu, sentence);
+
     try {
       await setDoc(cacheRef, { sentence, generatedAt: serverTimestamp() });
     } catch {
       // Cache write failed — not critical
     }
 
-    if (charSet === 'trad') {
-      return {
-        chinese: getToTraditional()(sentence.chinese),
-        pinyin: sentence.pinyin,
-        english: sentence.english,
-      };
-    }
+    return applyCharSet(sentence, charSet);
   }
 
   return sentence;
