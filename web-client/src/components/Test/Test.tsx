@@ -175,7 +175,7 @@ const Test: React.FC<Props> = (props) => {
           </Typography>
           <Box
             sx={{
-              minHeight: 160,
+              minHeight: { xs: 0, sm: 160 },
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'flex-end',
