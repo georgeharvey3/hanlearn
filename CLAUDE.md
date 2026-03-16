@@ -20,6 +20,8 @@ npm run emulators        # Just Firebase emulators
 npm run build            # Build dictionary + frontend
 npm run build:dict       # Build static dictionary JSON from CC-CEDICT
 npm run deploy           # Build and deploy to Firebase Hosting
+npm run deploy:functions # Build and deploy Cloud Functions only
+npm run deploy:all       # Build and deploy everything (hosting, functions, rules, indexes)
 ```
 
 ### Frontend (web-client/)
@@ -202,8 +204,30 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 
 ## Git Conventions
 
-- Always create a new branch: `claude/{task-description}` (e.g. `claude/fix-auth-redirect`)
+### Branching Model
+
+```
+feature/xyz ──PR──▸ develop ──PR──▸ main ──▸ production deploy + GitHub Release
+```
+
+- `develop` — integration branch; all feature PRs target this
+- `main` — production branch; only updated via PRs from `develop`
+
+### Branch Rules
+
+- Always create a new branch from `develop`: `claude/{task-description}` (e.g. `claude/fix-auth-redirect`)
 - Commit messages should summarise what was done and why, not just what files changed
-- Never push directly to main
+- Never push directly to `main` or `develop`
 - All Claude-authored changes go through a PR for review
-- Pull the latest main before starting any task: `git checkout main && git pull`
+- Pull the latest `develop` before starting any task: `git checkout develop && git pull`
+
+### Release Process
+
+1. Feature branches are merged into `develop` via PR (CI runs automatically)
+2. When ready to release, create a PR from `develop` → `main`
+3. On merge to `main`, the deploy workflow automatically:
+   - Builds web-client and Cloud Functions
+   - Deploys hosting, functions, Firestore rules, and indexes to Firebase
+4. After a successful deploy, the release workflow automatically:
+   - Creates a date-based git tag (e.g. `v1.2026.0316`)
+   - Creates a GitHub Release with auto-generated changelog

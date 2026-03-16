@@ -3,6 +3,7 @@ name: Firebase Hosting Preview
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    branches: [develop]
 
 jobs:
   build-and-preview:
