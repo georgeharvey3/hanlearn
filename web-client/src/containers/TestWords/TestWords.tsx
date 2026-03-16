@@ -346,8 +346,8 @@ const TestWords: React.FC<Props> = ({
           />
         );
     }
-  } else if (devConfig && (wordsLoading || !hasInitialized.current)) {
-    // Still loading words from user's bank for dev stages
+  } else if (wordsLoading) {
+    // Still loading words from user's bank
     content = <Spinner />;
   } else {
     // Check if user has words in bank (even if none due)
