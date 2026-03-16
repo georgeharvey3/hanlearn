@@ -71,7 +71,10 @@ const Home: React.FC<Props> = ({
   }, [words]);
 
   const activeListName = useMemo(
-    () => (lists || []).find((l) => l.id === activeListId)?.name || 'General',
+    () =>
+      activeListId === '__all__'
+        ? 'All Lists'
+        : (lists || []).find((l) => l.id === activeListId)?.name || 'General',
     [lists, activeListId],
   );
 
