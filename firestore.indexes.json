@@ -1,27 +1,6 @@
 {
   "indexes": [
     {
-      "collectionGroup": "words",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "simp", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "words",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "trad", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "userWords",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "dueDate", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "userWords",
       "queryScope": "COLLECTION",
       "fields": [
