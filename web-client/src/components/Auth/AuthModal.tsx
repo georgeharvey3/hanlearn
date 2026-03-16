@@ -178,7 +178,9 @@ const AuthModal: React.FC<Props> = ({
         </Typography>
 
         {error && (
-          <Typography role="alert" sx={{ color: 'error.main', mb: 2, fontSize: '0.875rem' }}>{error}</Typography>
+          <Typography role="alert" sx={{ color: 'error.main', mb: 2, fontSize: '0.875rem' }}>
+            {error}
+          </Typography>
         )}
 
         {mode !== 'forgot-password' && (
