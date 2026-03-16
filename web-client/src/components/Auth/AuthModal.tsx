@@ -178,7 +178,7 @@ const AuthModal: React.FC<Props> = ({
         </Typography>
 
         {error && (
-          <Typography sx={{ color: 'error.main', mb: 2, fontSize: '0.875rem' }}>{error}</Typography>
+          <Typography role="alert" sx={{ color: 'error.main', mb: 2, fontSize: '0.875rem' }}>{error}</Typography>
         )}
 
         {mode !== 'forgot-password' && (
@@ -202,7 +202,7 @@ const AuthModal: React.FC<Props> = ({
               Continue with Google
             </Button>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', my: 2.5 }}>
+            <Box aria-hidden="true" sx={{ display: 'flex', alignItems: 'center', my: 2.5 }}>
               <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
               <Typography sx={{ px: 2, color: 'text.secondary', fontSize: '0.8rem' }}>
                 or

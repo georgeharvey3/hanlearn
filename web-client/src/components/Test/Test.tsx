@@ -163,6 +163,7 @@ const Test: React.FC<Props> = (props) => {
             />
           </Paper>
           <Typography
+            aria-live="polite"
             sx={{
               minHeight: 30,
               mt: 1.5,
