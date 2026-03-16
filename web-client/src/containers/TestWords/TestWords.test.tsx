@@ -343,6 +343,71 @@ describe('TestWords — practice mode', () => {
   });
 });
 
+describe('TestWords — cross-list (Test All) mode', () => {
+  it('shows "Testing: All Lists" in stepper when activeListId is __all__', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [
+          { id: 'default', name: 'General', createdAt: '', order: 0 },
+          { id: 'list-1', name: 'HSK 1', createdAt: '', order: 1 },
+        ],
+        activeListId: '__all__',
+        words: [dueWord(1, '你好', 2), dueWord(2, '学生', 2)],
+        listStats: { default: { due: 1, total: 3 }, 'list-1': { due: 1, total: 2 } },
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+    await waitFor(() => {
+      expect(screen.getByText('Testing: All Lists')).toBeInTheDocument();
+    });
+  });
+
+  it('shows "No words due" with "All Lists" when __all__ is active and no words due', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [
+          { id: 'default', name: 'General', createdAt: '', order: 0 },
+          { id: 'list-1', name: 'HSK 1', createdAt: '', order: 1 },
+        ],
+        activeListId: '__all__',
+        words: [],
+        listStats: {},
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+    await waitFor(() => {
+      expect(screen.getByText(/no words due in \u201cAll Lists\u201d/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows "Test All Lists" chip when viewing single list with due words in other lists', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [
+          { id: 'default', name: 'General', createdAt: '', order: 0 },
+          { id: 'list-1', name: 'HSK 1', createdAt: '', order: 1 },
+        ],
+        activeListId: 'default',
+        words: [],
+        listStats: { default: { due: 0, total: 3 }, 'list-1': { due: 2, total: 5 } },
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+    await waitFor(() => {
+      expect(screen.getByText(/Test All Lists/)).toBeInTheDocument();
+    });
+  });
+});
+
 describe('TestWords — stage transitions', () => {
   /**
    * These tests use the capturedTestProps ref populated by the mocked Test component.
