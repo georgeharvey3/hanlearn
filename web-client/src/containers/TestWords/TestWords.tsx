@@ -367,10 +367,7 @@ const TestWords: React.FC<Props> = ({
           .map((l) => ({ ...l, due: listStats[l.id].due }));
 
     // Total due across all lists (for suggesting "Test All")
-    const totalDueAcrossLists = Object.values(listStats).reduce(
-      (sum, s) => sum + (s?.due ?? 0),
-      0,
-    );
+    const totalDueAcrossLists = Object.values(listStats).reduce((sum, s) => sum + (s?.due ?? 0), 0);
     const hasMultipleLists = (lists || []).filter((l) => l.id !== 'default').length > 0;
 
     const handleSwitchAndTest = (listId: string) => {
