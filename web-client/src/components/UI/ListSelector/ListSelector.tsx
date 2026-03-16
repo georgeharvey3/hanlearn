@@ -84,6 +84,10 @@ const ListSelector: React.FC<ListSelectorProps> = ({
     setRenameDialogOpen(true);
   }, [activeList]);
 
+  // Show "All Lists" option when user has 2+ lists
+  const showAllListsOption = safeLists.filter((l) => l.id !== 'default').length > 0;
+  const totalDue = Object.values(listStats || {}).reduce((sum, s) => sum + (s?.due ?? 0), 0);
+
   if (!alwaysShow && safeLists.filter((l) => l.id !== 'default').length === 0) return null;
 
   return (
@@ -111,10 +115,26 @@ const ListSelector: React.FC<ListSelectorProps> = ({
             onChange={handleListChange}
             data-testid="list-selector"
             renderValue={(selected) => {
+              if (selected === '__all__') return 'All Lists';
               const list = safeLists.find((l) => l.id === selected);
               return list?.name ?? selected;
             }}
           >
+            {showAllListsOption && (
+              <MenuItem
+                value="__all__"
+                sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5 }}
+              >
+                <span>All Lists</span>
+                <Chip
+                  label={`${totalDue} due`}
+                  size="small"
+                  color={totalDue > 0 ? 'primary' : 'default'}
+                  variant={totalDue > 0 ? 'filled' : 'outlined'}
+                  sx={{ ml: 'auto', height: 20, fontSize: '0.7rem' }}
+                />
+              </MenuItem>
+            )}
             {safeLists.map((list) => {
               const stats = listStats[list.id];
               const dueCount = stats?.due ?? 0;
@@ -148,7 +168,7 @@ const ListSelector: React.FC<ListSelectorProps> = ({
             >
               <AddIcon />
             </IconButton>
-            {activeListId !== 'default' && (
+            {activeListId !== 'default' && activeListId !== '__all__' && (
               <>
                 <IconButton size="small" onClick={openRenameDialog} aria-label="Rename list">
                   <EditIcon />
