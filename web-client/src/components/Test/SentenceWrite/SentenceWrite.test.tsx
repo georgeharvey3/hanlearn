@@ -448,3 +448,285 @@ describe('SentenceWrite — stage completion', () => {
     });
   });
 });
+
+describe('SentenceWrite — duplicate sentence avoidance', () => {
+  it('retries with next offset when sentence matches seenOffsets text', async () => {
+    const seenOffsets = {
+      你好: { offset: 0, text: '你好，我是学生。', english: 'Hello, I am a student.' },
+    };
+
+    // First call returns a sentence whose chinese matches seenText → duplicate
+    const duplicateSentence = {
+      sentence: {
+        chinese: {
+          sentence: '你好，我是学生。',
+          highlight: [[0, 2]] as number[][],
+          segments: ['你好'],
+          targetIndex: 0,
+        },
+        english: {
+          sentence: 'Different English.',
+          highlight: [] as number[][],
+        },
+      },
+      totalCount: 3,
+    };
+
+    mockedGetSegmentedSentence
+      .mockResolvedValueOnce(duplicateSentence) // offset 1: dup by chinese text
+      .mockResolvedValue(mockSentenceResponse); // offset 2: fresh
+
+    renderWithProviders(
+      <SentenceWrite words={[testWord]} seenOffsets={seenOffsets} onComplete={vi.fn()} />,
+      { store: makeStore() },
+    );
+
+    await waitFor(() => {
+      // Should have retried with offset 2 after detecting the duplicate
+      expect(mockedGetSegmentedSentence).toHaveBeenCalledWith('你好', expect.any(String), 2);
+    });
+  });
+
+  it('retries with next offset when sentence matches seenOffsets english', async () => {
+    const seenOffsets = {
+      你好: { offset: 0, text: 'different text', english: 'Hello, I am a student.' },
+    };
+
+    // First call returns sentence whose english matches seenEnglish
+    const dupByEnglish = {
+      sentence: {
+        chinese: {
+          sentence: '你好世界',
+          highlight: [[0, 2]] as number[][],
+          segments: ['你好'],
+          targetIndex: 0,
+        },
+        english: {
+          sentence: 'Hello, I am a student.',
+          highlight: [] as number[][],
+        },
+      },
+      totalCount: 3,
+    };
+
+    mockedGetSegmentedSentence
+      .mockResolvedValueOnce(dupByEnglish) // offset 1: dup by english
+      .mockResolvedValue(mockSentenceResponse); // offset 2: fresh
+
+    renderWithProviders(
+      <SentenceWrite words={[testWord]} seenOffsets={seenOffsets} onComplete={vi.fn()} />,
+      { store: makeStore() },
+    );
+
+    await waitFor(() => {
+      expect(mockedGetSegmentedSentence).toHaveBeenCalledWith('你好', expect.any(String), 2);
+    });
+  });
+
+  it('skips to next word when all offsets are duplicates', async () => {
+    const secondWord: Word = { ...testWord, id: 2, simp: '学习', trad: '學習' };
+    const seenOffsets = {
+      你好: { offset: 0, text: '你好，我是学生。', english: 'Hello, I am a student.' },
+    };
+
+    // Only 1 total sentence available and it's a duplicate
+    const dupSentence = {
+      sentence: {
+        chinese: {
+          sentence: '你好，我是学生。',
+          highlight: [[0, 2]] as number[][],
+          segments: ['你好'],
+          targetIndex: 0,
+        },
+        english: {
+          sentence: 'Whatever.',
+          highlight: [] as number[][],
+        },
+      },
+      totalCount: 1,
+    };
+
+    mockedGetSegmentedSentence
+      .mockResolvedValueOnce(dupSentence) // offset 1: returns dup, totalCount=1 → no more to try
+      .mockResolvedValue(mockSentenceResponse); // next word
+
+    renderWithProviders(
+      <SentenceWrite words={[testWord, secondWord]} seenOffsets={seenOffsets} onComplete={vi.fn()} />,
+      { store: makeStore() },
+    );
+
+    await waitFor(() => {
+      // Should skip to second word
+      expect(mockedGetSegmentedSentence).toHaveBeenCalledWith('学习', expect.any(String), expect.any(Number));
+    });
+  });
+});
+
+describe('SentenceWrite — fetch error handling', () => {
+  it('hides spinner and stays on input when fetch throws', async () => {
+    mockedGetSegmentedSentence.mockRejectedValue(new Error('Network error'));
+
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+  });
+
+  it('falls back to offset 0 when non-zero offset returns null sentence', async () => {
+    const seenOffsets = {
+      你好: { offset: 0, text: 'other text', english: 'other english' },
+    };
+
+    // offset 1 returns null, then fallback to offset 0
+    mockedGetSegmentedSentence
+      .mockResolvedValueOnce({ sentence: null, totalCount: 2 }) // offset 1: null
+      .mockResolvedValueOnce(mockSentenceResponse); // fallback offset 0
+
+    renderWithProviders(
+      <SentenceWrite words={[testWord]} seenOffsets={seenOffsets} onComplete={vi.fn()} />,
+      { store: makeStore() },
+    );
+
+    await waitFor(() => {
+      // Second call should be offset 0 fallback
+      expect(mockedGetSegmentedSentence).toHaveBeenCalledWith('你好', expect.any(String), 0);
+    });
+
+    // Should eventually show the prompt
+    await waitFor(() => {
+      expect(screen.getByText('Hello,')).toBeInTheDocument();
+    });
+  });
+});
+
+describe('SentenceWrite — similarity score edge cases', () => {
+  it('shows "Score unavailable" when similarity service fails', async () => {
+    const user = userEvent.setup();
+    mockedGetSimilarityScore.mockRejectedValue(new Error('Service down'));
+
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+
+    const input = await screen.findByPlaceholderText(/type chinese and press enter/i);
+    await user.type(input, '你好{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByText(/score unavailable/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows loading state before score resolves', async () => {
+    const user = userEvent.setup();
+    // Never resolve the similarity score
+    mockedGetSimilarityScore.mockReturnValue(new Promise(() => {}));
+
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+
+    const input = await screen.findByPlaceholderText(/type chinese and press enter/i);
+    await user.type(input, '你好{Enter}');
+
+    // The comparison view should show while score is loading
+    await waitFor(() => {
+      expect(screen.getByText(/your answer/i)).toBeInTheDocument();
+    });
+  });
+});
+
+describe('SentenceWrite — keyboard shortcuts', () => {
+  it('navigates home on Space key when finished (all words done)', async () => {
+    const user = userEvent.setup();
+    const onComplete = vi.fn();
+
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={onComplete} />, {
+      store: makeStore(),
+    });
+
+    // Submit answer
+    const input = await screen.findByPlaceholderText(/type chinese and press enter/i);
+    await user.type(input, '你好{Enter}');
+
+    // Click "Next Word" to advance past the last word
+    const nextBtn = await screen.findByRole('button', { name: /next word/i });
+    await user.click(nextBtn);
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('advances to next word on ArrowUp when submitted', async () => {
+    const user = userEvent.setup();
+    const secondWord: Word = { ...testWord, id: 2, simp: '学习', trad: '學習' };
+
+    renderWithProviders(
+      <SentenceWrite words={[testWord, secondWord]} onComplete={vi.fn()} />,
+      { store: makeStore() },
+    );
+
+    const input = await screen.findByPlaceholderText(/type chinese and press enter/i);
+    await user.type(input, '你好{Enter}');
+
+    // Wait for comparison view
+    await waitFor(() => {
+      expect(screen.getByText(/your answer/i)).toBeInTheDocument();
+    });
+
+    // Press ArrowUp to trigger onYesClicked
+    await user.keyboard('{ArrowUp}');
+
+    // Should fetch next word's sentence
+    await waitFor(() => {
+      expect(mockedGetSegmentedSentence).toHaveBeenCalledWith(
+        '学习',
+        expect.any(String),
+        expect.any(Number),
+      );
+    });
+  });
+
+  it('resets to input view on ArrowDown when submitted', async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+
+    const input = await screen.findByPlaceholderText(/type chinese and press enter/i);
+    await user.type(input, '你好{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByText(/your answer/i)).toBeInTheDocument();
+    });
+
+    // Press ArrowDown to trigger onNoClicked (Try Again)
+    await user.keyboard('{ArrowDown}');
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/type chinese and press enter/i)).toBeInTheDocument();
+    });
+  });
+
+  it('toggles English word selection via keyboard Enter', async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('student.')).toBeInTheDocument();
+    });
+
+    // Focus the word button and press Enter
+    const wordBtn = screen.getByRole('button', { name: /student\.: tap to select for translation/i });
+    wordBtn.focus();
+    await user.keyboard('{Enter}');
+
+    // Translate button should appear
+    expect(screen.getByRole('button', { name: /translate/i })).toBeInTheDocument();
+  });
+});
