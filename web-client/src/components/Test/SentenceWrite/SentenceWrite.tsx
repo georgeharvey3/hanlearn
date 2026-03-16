@@ -1,8 +1,6 @@
 import React, { KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
-import { Howl } from 'howler';
-
 import { Box, Paper, Stack, Typography } from '@mui/material';
 
 import Button from '../../UI/Buttons/Button/Button';
@@ -13,8 +11,7 @@ import SimilarityScore from '../../UI/SimilarityScore/SimilarityScore';
 
 import micPic from '../../../assets/images/microphone.png';
 
-import successSound from '../../../assets/sounds/success1.wav';
-import failSound from '../../../assets/sounds/failure1.wav';
+import { beep, fail } from '../constants';
 
 import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
@@ -26,9 +23,6 @@ import {
 } from '../../../utils/sentenceUtils';
 import { parseMeanings } from '../../../utils/meaningUtils';
 import { getSimilarityScore } from '../../../services/similarityService';
-
-const beep = new Howl({ src: [successSound], volume: 0.5 });
-const fail = new Howl({ src: [failSound], volume: 0.7 });
 
 interface SentenceResult {
   original: string;
@@ -185,11 +179,8 @@ const SentenceWrite: React.FC<Props> = ({
 
       const skipToNextWord = (): void => {
         if (wordIndex >= words.length - 1) {
-          if (stateRef.current.results.length === 0) {
-            history.push('/');
-          } else {
-            updateState({ loading: false, wordIndex: words.length });
-          }
+          updateState({ loading: false });
+          history.push('/');
         } else {
           const nextIndex = wordIndex + 1;
           const nextOffset = (seenOffsets?.[words[nextIndex].simp]?.offset ?? -1) + 1;

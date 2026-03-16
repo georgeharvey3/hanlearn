@@ -33,6 +33,14 @@ const mapDispatchToProps = (dispatch: AppDispatch) => ({
 
 export const connector = connect(mapStateToProps, mapDispatchToProps);
 
+export function getResultColor(result: string, showAnswer: boolean): string {
+  if (result === 'Correct' || result === 'Finished!') return 'success.main';
+  if (result === 'Incorrect tones') return 'warning.main';
+  if ((result.startsWith('Answer was') && !showAnswer) || result.startsWith('Try'))
+    return 'error.main';
+  return 'text.primary';
+}
+
 const Test: React.FC<Props> = (props) => {
   const {
     state,
@@ -79,7 +87,7 @@ const Test: React.FC<Props> = (props) => {
               zIndex: 1200,
             }}
           >
-            <CircularProgress />
+            <CircularProgress aria-label="Loading test" />
           </Box>
         )}
         <Box
@@ -160,22 +168,14 @@ const Test: React.FC<Props> = (props) => {
               mt: 1.5,
               fontSize: '0.95rem',
               fontWeight: 500,
-              color:
-                state.result === 'Correct' || state.result === 'Finished!'
-                  ? 'success.main'
-                  : state.result === 'Incorrect tones'
-                    ? 'warning.main'
-                    : (state.result.startsWith('Answer was') && !state.showAnswer) ||
-                        state.result.startsWith('Try')
-                      ? 'error.main'
-                      : 'text.primary',
+              color: getResultColor(state.result, state.showAnswer),
             }}
           >
             {state.result}
           </Typography>
           <Box
             sx={{
-              minHeight: 160,
+              minHeight: { xs: 0, sm: 160 },
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'flex-end',
