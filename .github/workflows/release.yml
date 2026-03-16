@@ -1,0 +1,42 @@
+name: Create Release
+
+on:
+  workflow_run:
+    workflows: ["Deploy to Production"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate version tag
+        id: version
+        run: |
+          BASE_TAG="v1.$(date +%Y.%m%d)"
+          if git rev-parse "$BASE_TAG" >/dev/null 2>&1; then
+            COUNT=2
+            while git rev-parse "${BASE_TAG}.${COUNT}" >/dev/null 2>&1; do
+              COUNT=$((COUNT + 1))
+            done
+            echo "tag=${BASE_TAG}.${COUNT}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${BASE_TAG}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          generate_release_notes: true
+          make_latest: true
