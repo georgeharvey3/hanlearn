@@ -1,8 +1,6 @@
 import React, { ChangeEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
-import { Howl } from 'howler';
-
 import {
   Box,
   CircularProgress,
@@ -24,8 +22,7 @@ import SimilarityScore from '../../UI/SimilarityScore/SimilarityScore';
 import speakerPic from '../../../assets/images/speaker.png';
 import micPic from '../../../assets/images/microphone.png';
 
-import successSound from '../../../assets/sounds/success1.wav';
-import failSound from '../../../assets/sounds/failure1.wav';
+import { beep, fail } from '../constants';
 
 import * as wordActions from '../../../store/actions/index';
 import { RootState } from '../../../types/store';
@@ -36,10 +33,6 @@ import { parseMeanings } from '../../../utils/meaningUtils';
 import { resolveSentence, SentenceWord, ResolvedSentence } from '../../../utils/sentenceUtils';
 import * as ttsService from '../../../services/ttsService';
 import { getSimilarityScore } from '../../../services/similarityService';
-import useKeyboardVisible from '../../../hooks/useKeyboardVisible';
-
-const beep = new Howl({ src: [successSound], volume: 0.5 });
-const fail = new Howl({ src: [failSound], volume: 0.7 });
 
 interface SentenceReadState {
   sentences: ResolvedSentence[];
@@ -137,15 +130,6 @@ const SentenceRead: React.FC<Props> = ({
   isDemo,
   history,
 }) => {
-  const keyboardVisible = useKeyboardVisible();
-  const inputAreaRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (keyboardVisible && inputAreaRef.current) {
-      inputAreaRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, [keyboardVisible]);
-
   const [slowMode, setSlowMode] = useState<boolean>(
     () => localStorage.getItem('slowMode') === 'true',
   );
@@ -564,7 +548,7 @@ const SentenceRead: React.FC<Props> = ({
               }}
             >
               {state.synthLoading ? (
-                <CircularProgress size={24} color="primary" />
+                <CircularProgress size={24} color="primary" aria-label="Loading speech" />
               ) : (
                 <PictureButton
                   type="secondary"
@@ -838,11 +822,10 @@ const SentenceRead: React.FC<Props> = ({
         width: '90%',
         maxWidth: 520,
         mx: 'auto',
-        py: keyboardVisible ? 1 : 4,
-        transition: 'padding 0.15s ease',
+        py: 4,
         display: 'flex',
         flexDirection: 'column',
-        gap: keyboardVisible ? 1.5 : 3,
+        gap: 3,
       }}
     >
       {/* Header */}
@@ -864,9 +847,8 @@ const SentenceRead: React.FC<Props> = ({
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          minHeight: keyboardVisible ? 60 : 110,
-          transition: 'min-height 0.15s ease, padding 0.15s ease',
-          p: keyboardVisible ? 1.5 : 3,
+          minHeight: 110,
+          p: 3,
           borderRadius: 3,
           bgcolor: '#fff',
           textAlign: 'center',
@@ -915,7 +897,7 @@ const SentenceRead: React.FC<Props> = ({
       </Paper>
 
       {/* Input / result area */}
-      <Box ref={inputAreaRef}>{mainContent}</Box>
+      {mainContent}
     </Box>
   );
 };

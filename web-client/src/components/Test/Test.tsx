@@ -12,7 +12,6 @@ import TestActions from './TestActions';
 import AudioSettingsDrawer from './AudioSettingsDrawer/AudioSettingsDrawer';
 import { useTestEngine } from './useTestEngine';
 import { AudioSettings } from '../../utils/audioSettings';
-import useKeyboardVisible from '../../hooks/useKeyboardVisible';
 
 import { RootState } from '../../types/store';
 import { AppDispatch } from '../../types/actions';
@@ -34,6 +33,14 @@ const mapDispatchToProps = (dispatch: AppDispatch) => ({
 
 export const connector = connect(mapStateToProps, mapDispatchToProps);
 
+export function getResultColor(result: string, showAnswer: boolean): string {
+  if (result === 'Correct' || result === 'Finished!') return 'success.main';
+  if (result === 'Incorrect tones') return 'warning.main';
+  if ((result.startsWith('Answer was') && !showAnswer) || result.startsWith('Try'))
+    return 'error.main';
+  return 'text.primary';
+}
+
 const Test: React.FC<Props> = (props) => {
   const {
     state,
@@ -52,7 +59,6 @@ const Test: React.FC<Props> = (props) => {
     refreshSettings,
   } = useTestEngine(props);
 
-  const keyboardVisible = useKeyboardVisible();
   const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
 
   const handleSettingsClose = useCallback(
@@ -81,7 +87,7 @@ const Test: React.FC<Props> = (props) => {
               zIndex: 1200,
             }}
           >
-            <CircularProgress />
+            <CircularProgress aria-label="Loading test" />
           </Box>
         )}
         <Box
@@ -90,8 +96,7 @@ const Test: React.FC<Props> = (props) => {
             maxWidth: 400,
             textAlign: 'center',
             mx: 'auto',
-            py: keyboardVisible ? '8px' : '30px',
-            transition: 'padding 0.15s ease',
+            py: '30px',
             color: 'text.primary',
             '& h3': {
               fontWeight: 500,
@@ -135,11 +140,10 @@ const Test: React.FC<Props> = (props) => {
               borderColor: 'divider',
               color: 'text.primary',
               borderRadius: 3,
-              minHeight: keyboardVisible ? 80 : 160,
-              transition: 'min-height 0.15s ease, padding 0.15s ease',
+              minHeight: 160,
               boxSizing: 'border-box',
               mx: 'auto',
-              p: keyboardVisible ? '8px 12px' : '20px 12px',
+              p: '20px 12px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
@@ -160,27 +164,18 @@ const Test: React.FC<Props> = (props) => {
           </Paper>
           <Typography
             sx={{
-              minHeight: keyboardVisible ? 0 : 30,
-              mt: keyboardVisible ? 0.5 : 1.5,
+              minHeight: 30,
+              mt: 1.5,
               fontSize: '0.95rem',
               fontWeight: 500,
-              color:
-                state.result === 'Correct' || state.result === 'Finished!'
-                  ? 'success.main'
-                  : state.result === 'Incorrect tones'
-                    ? 'warning.main'
-                    : (state.result.startsWith('Answer was') && !state.showAnswer) ||
-                        state.result.startsWith('Try')
-                      ? 'error.main'
-                      : 'text.primary',
+              color: getResultColor(state.result, state.showAnswer),
             }}
           >
             {state.result}
           </Typography>
           <Box
             sx={{
-              minHeight: keyboardVisible ? 0 : 160,
-              transition: 'min-height 0.15s ease',
+              minHeight: { xs: 0, sm: 160 },
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'flex-end',
