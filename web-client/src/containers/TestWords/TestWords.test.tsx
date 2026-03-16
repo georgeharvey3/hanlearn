@@ -597,9 +597,7 @@ describe('TestWords — other lists with due words', () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
-        lists: [
-          { id: 'mylist', name: 'My Study List', createdAt: '', order: 0 },
-        ],
+        lists: [{ id: 'mylist', name: 'My Study List', createdAt: '', order: 0 }],
         activeListId: 'mylist',
         words: [dueWord(1, '你好', 2)],
         listStats: {},

@@ -551,13 +551,21 @@ describe('SentenceWrite — duplicate sentence avoidance', () => {
       .mockResolvedValue(mockSentenceResponse); // next word
 
     renderWithProviders(
-      <SentenceWrite words={[testWord, secondWord]} seenOffsets={seenOffsets} onComplete={vi.fn()} />,
+      <SentenceWrite
+        words={[testWord, secondWord]}
+        seenOffsets={seenOffsets}
+        onComplete={vi.fn()}
+      />,
       { store: makeStore() },
     );
 
     await waitFor(() => {
       // Should skip to second word
-      expect(mockedGetSegmentedSentence).toHaveBeenCalledWith('学习', expect.any(String), expect.any(Number));
+      expect(mockedGetSegmentedSentence).toHaveBeenCalledWith(
+        '学习',
+        expect.any(String),
+        expect.any(Number),
+      );
     });
   });
 });
@@ -662,10 +670,9 @@ describe('SentenceWrite — keyboard shortcuts', () => {
     const user = userEvent.setup();
     const secondWord: Word = { ...testWord, id: 2, simp: '学习', trad: '學習' };
 
-    renderWithProviders(
-      <SentenceWrite words={[testWord, secondWord]} onComplete={vi.fn()} />,
-      { store: makeStore() },
-    );
+    renderWithProviders(<SentenceWrite words={[testWord, secondWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
 
     const input = await screen.findByPlaceholderText(/type chinese and press enter/i);
     await user.type(input, '你好{Enter}');
@@ -722,7 +729,9 @@ describe('SentenceWrite — keyboard shortcuts', () => {
     });
 
     // Focus the word button and press Enter
-    const wordBtn = screen.getByRole('button', { name: /student\.: tap to select for translation/i });
+    const wordBtn = screen.getByRole('button', {
+      name: /student\.: tap to select for translation/i,
+    });
     wordBtn.focus();
     await user.keyboard('{Enter}');
 
