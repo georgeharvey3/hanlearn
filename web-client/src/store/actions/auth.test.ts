@@ -359,4 +359,92 @@ describe('auth action thunks', () => {
       expect(store.getState().auth.error).toBe('An error occurred');
     });
   });
+
+  describe('getErrorMessage — all Firebase error codes', () => {
+    it('maps auth/operation-not-allowed to friendly message', async () => {
+      const error = new FirebaseError('auth/operation-not-allowed', 'Firebase error');
+      mockedAuth.loginUser.mockRejectedValue(error);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.auth('user@example.com', 'pw') as any);
+
+      expect(store.getState().auth.error).toBe('Email/password accounts are not enabled');
+    });
+
+    it('maps auth/user-disabled to friendly message', async () => {
+      const error = new FirebaseError('auth/user-disabled', 'Firebase error');
+      mockedAuth.loginUser.mockRejectedValue(error);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.auth('user@example.com', 'pw') as any);
+
+      expect(store.getState().auth.error).toBe('This account has been disabled');
+    });
+
+    it('maps auth/user-not-found to friendly message', async () => {
+      const error = new FirebaseError('auth/user-not-found', 'Firebase error');
+      mockedAuth.loginUser.mockRejectedValue(error);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.auth('user@example.com', 'pw') as any);
+
+      expect(store.getState().auth.error).toBe('No account found with this email');
+    });
+
+    it('maps auth/wrong-password to friendly message', async () => {
+      const error = new FirebaseError('auth/wrong-password', 'Firebase error');
+      mockedAuth.loginUser.mockRejectedValue(error);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.auth('user@example.com', 'pw') as any);
+
+      expect(store.getState().auth.error).toBe('Invalid password');
+    });
+
+    it('maps auth/invalid-email to friendly message', async () => {
+      const error = new FirebaseError('auth/invalid-email', 'Firebase error');
+      mockedAuth.loginUser.mockRejectedValue(error);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.auth('bad-email', 'pw') as any);
+
+      expect(store.getState().auth.error).toBe('Invalid email address');
+    });
+
+    it('maps auth/account-exists-with-different-credential to friendly message', async () => {
+      const error = new FirebaseError(
+        'auth/account-exists-with-different-credential',
+        'Firebase error',
+      );
+      mockedAuth.signInWithGoogle.mockRejectedValue(error);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.googleSignIn() as any);
+
+      expect(store.getState().auth.error).toBe(
+        'An account already exists with this email. Please sign in with email/password',
+      );
+    });
+
+    it('maps auth/cancelled-popup-request to empty string (silent)', async () => {
+      const error = new FirebaseError('auth/cancelled-popup-request', 'Firebase error');
+      mockedAuth.signInWithGoogle.mockRejectedValue(error);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.googleSignIn() as any);
+
+      expect(store.getState().auth.error).toBe('');
+    });
+  });
+
+  describe('authCheckState (deprecated)', () => {
+    it('delegates to initAuthListener', () => {
+      mockedAuth.subscribeToAuthChanges.mockImplementation(() => vi.fn());
+      const store = createTestStore(defaultStoreState);
+
+      store.dispatch(authActions.authCheckState() as any);
+
+      expect(mockedAuth.subscribeToAuthChanges).toHaveBeenCalled();
+    });
+  });
 });
