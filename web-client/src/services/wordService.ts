@@ -152,21 +152,37 @@ export const deleteWordList = async (userId: string, listId: string): Promise<vo
     throw new Error('Cannot delete the default word list');
   }
 
-  // Delete all words in this list
+  // Delete all words in this list (chunk into batches of 499 to stay under the 500 limit)
   const userWordsRef = collection(db, 'users', userId, 'userWords');
   const q = query(userWordsRef, where('listId', '==', listId));
   const snapshot = await getDocs(q);
 
-  const batch = writeBatch(db);
-  snapshot.docs.forEach((wordDoc) => {
-    batch.delete(wordDoc.ref);
-  });
+  const BATCH_LIMIT = 499; // Reserve 1 slot for the list document in the final batch
+  for (let i = 0; i < snapshot.docs.length; i += BATCH_LIMIT) {
+    const chunk = snapshot.docs.slice(i, i + BATCH_LIMIT);
+    const isLastChunk = i + BATCH_LIMIT >= snapshot.docs.length;
 
-  // Delete the list document itself
-  const listRef = doc(db, 'users', userId, 'wordLists', listId);
-  batch.delete(listRef);
+    const batch = writeBatch(db);
+    chunk.forEach((wordDoc) => {
+      batch.delete(wordDoc.ref);
+    });
 
-  await batch.commit();
+    // Include the list document deletion in the final batch
+    if (isLastChunk) {
+      const listRef = doc(db, 'users', userId, 'wordLists', listId);
+      batch.delete(listRef);
+    }
+
+    await batch.commit();
+  }
+
+  // If there were no words, still delete the list document
+  if (snapshot.docs.length === 0) {
+    const listRef = doc(db, 'users', userId, 'wordLists', listId);
+    const batch = writeBatch(db);
+    batch.delete(listRef);
+    await batch.commit();
+  }
 };
 
 // ─── Word Operations ─────────────────────────────────────────────────────────

@@ -158,6 +158,17 @@ const TestWords: React.FC<Props> = ({
 
   // Track whether we've already initialized to prevent re-running setSelectedWords
   const hasInitialized = useRef(false);
+  const prevActiveListId = useRef(activeListId);
+
+  // Reset initialization when active list changes (e.g. "Test All Lists" clicked)
+  // so that test words get re-selected from the new word set.
+  useEffect(() => {
+    if (prevActiveListId.current !== activeListId) {
+      prevActiveListId.current = activeListId;
+      hasInitialized.current = false;
+      setState((prev) => ({ ...prev, selectedWords: [], newWords: [] }));
+    }
+  }, [activeListId]);
 
   useEffect(() => {
     if (!isDemo && userId !== null) {
