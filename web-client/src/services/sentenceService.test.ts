@@ -217,4 +217,120 @@ describe('sentenceService', () => {
       expect(available).toBe(false);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Demo sentence at offset 3 — exercises lines 39–42 (4th DEMO_SENTENCES entry)
+  // ---------------------------------------------------------------------------
+  describe('getSegmentedSentence with demo word at offset 3', () => {
+    it('returns the 4th demo sentence for 你好 at offset 3', async () => {
+      const result = await getSegmentedSentence('你好', 'simp', 3);
+      expect(result.sentence).not.toBeNull();
+      expect(result.sentence!.chinese.sentence).toBe('老师对每位学生说你好。');
+      expect(result.sentence!.english.sentence).toBe(
+        'The teacher said hello to every student.',
+      );
+      expect(result.sentence!.chinese.targetIndex).toBe(5);
+    });
+
+    it('includes correct segments for the 4th demo sentence', async () => {
+      const result = await getSegmentedSentence('你好', 'simp', 3);
+      expect(result.sentence!.chinese.segments).toEqual([
+        '老师',
+        '对',
+        '每位',
+        '学生',
+        '说',
+        '你好',
+      ]);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // AI response edge cases — generateSentencesWithAI filtering/validation
+  // ---------------------------------------------------------------------------
+  describe('generateSentencesWithAI edge cases', () => {
+    it('returns empty when AI returns a non-array response', async () => {
+      mockGetDoc.mockResolvedValue({ exists: () => false });
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => '"just a string"' },
+      });
+
+      const result = await getSegmentedSentence('测试', 'simp', 0);
+      expect(result.sentence).toBeNull();
+      expect(result.totalCount).toBe(0);
+    });
+
+    it('filters out items with missing or wrong-type fields', async () => {
+      const mixedItems = [
+        // Missing chinese field
+        { english: 'test', segments: ['a'], targetIndex: 0 },
+        // targetIndex is string instead of number
+        { chinese: '测试句子', english: 'test', segments: ['测试', '句子'], targetIndex: '0' },
+        // Valid
+        {
+          chinese: '这是一个测试。',
+          english: 'This is a test.',
+          segments: ['这是', '一个', '测试'],
+          targetIndex: 2,
+        },
+      ];
+
+      mockGetDoc.mockResolvedValue({ exists: () => false });
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => JSON.stringify(mixedItems) },
+      });
+
+      const result = await getSegmentedSentence('测试', 'simp', 0);
+      expect(result.sentence).not.toBeNull();
+      expect(result.sentence!.chinese.sentence).toBe('这是一个测试。');
+      expect(result.totalCount).toBe(1);
+    });
+
+    it('does not cache empty AI results', async () => {
+      mockGetDoc.mockResolvedValue({ exists: () => false });
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => '[]' },
+      });
+
+      await getSegmentedSentence('空词', 'simp', 0);
+      expect(mockSetDoc).not.toHaveBeenCalled();
+    });
+
+    it('limits AI results to SENTENCES_PER_WORD (5)', async () => {
+      const manySentences = Array.from({ length: 8 }, (_, i) => ({
+        chinese: `测试句子${i}，包含测试。`,
+        english: `Test sentence ${i}.`,
+        segments: ['测试', `句子${i}`],
+        targetIndex: 0,
+      }));
+
+      mockGetDoc.mockResolvedValue({ exists: () => false });
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => JSON.stringify(manySentences) },
+      });
+
+      const result = await getSegmentedSentence('测试', 'simp', 0);
+      expect(result.totalCount).toBeLessThanOrEqual(5);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // getHintSentence — random selection from available sentences
+  // ---------------------------------------------------------------------------
+  describe('getHintSentence with Firestore cache', () => {
+    it('returns a random sentence from cached results', async () => {
+      const sentences = [
+        { chinese: '学习中文很有趣。', english: 'Learning Chinese is fun.', segments: ['学习'], targetIndex: 0 },
+        { chinese: '他在学习数学。', english: 'He is studying math.', segments: ['学习'], targetIndex: 0 },
+      ];
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        data: () => ({ sentences }),
+      });
+
+      const hint = await getHintSentence('学习');
+      expect(hint).not.toBeNull();
+      expect(sentences.map((s) => s.chinese)).toContain(hint!.chinese);
+    });
+  });
 });
