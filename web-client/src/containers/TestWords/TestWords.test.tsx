@@ -343,6 +343,71 @@ describe('TestWords — practice mode', () => {
   });
 });
 
+describe('TestWords — cross-list (Test All) mode', () => {
+  it('shows "Testing: All Lists" in stepper when activeListId is __all__', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [
+          { id: 'default', name: 'General', createdAt: '', order: 0 },
+          { id: 'list-1', name: 'HSK 1', createdAt: '', order: 1 },
+        ],
+        activeListId: '__all__',
+        words: [dueWord(1, '你好', 2), dueWord(2, '学生', 2)],
+        listStats: { default: { due: 1, total: 3 }, 'list-1': { due: 1, total: 2 } },
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+    await waitFor(() => {
+      expect(screen.getByText('Testing: All Lists')).toBeInTheDocument();
+    });
+  });
+
+  it('shows "No words due" with "All Lists" when __all__ is active and no words due', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [
+          { id: 'default', name: 'General', createdAt: '', order: 0 },
+          { id: 'list-1', name: 'HSK 1', createdAt: '', order: 1 },
+        ],
+        activeListId: '__all__',
+        words: [],
+        listStats: {},
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+    await waitFor(() => {
+      expect(screen.getByText(/no words due in \u201cAll Lists\u201d/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows "Test All Lists" chip when viewing single list with due words in other lists', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [
+          { id: 'default', name: 'General', createdAt: '', order: 0 },
+          { id: 'list-1', name: 'HSK 1', createdAt: '', order: 1 },
+        ],
+        activeListId: 'default',
+        words: [],
+        listStats: { default: { due: 0, total: 3 }, 'list-1': { due: 2, total: 5 } },
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+    await waitFor(() => {
+      expect(screen.getByText(/Test All Lists/)).toBeInTheDocument();
+    });
+  });
+});
+
 describe('TestWords — stage transitions', () => {
   /**
    * These tests use the capturedTestProps ref populated by the mocked Test component.
@@ -465,6 +530,150 @@ describe('TestWords — stage transitions', () => {
     await waitFor(() => {
       // Practice step should appear in the stepper (sentenceRead is enabled by default)
       expect(screen.getByText('Practice')).toBeInTheDocument();
+    });
+  });
+
+  it('skips to summary when sentenceWriteEnabled=false and startSentenceWrite is invoked', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
+      if (key === 'sentenceWrite') return 'false';
+      return null;
+    });
+
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord(1, '你好', 2)],
+        listStats: {},
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+
+    // Wait for Test component to render
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test')).toBeInTheDocument();
+      expect(typeof capturedTestProps.startSentenceRead).toBe('function');
+    });
+
+    // Transition to SentenceRead first
+    const sentenceWords = [dueWord(2, '学生', 2)];
+    (capturedTestProps.startSentenceRead as (words: import('../../types/models').Word[]) => void)(
+      sentenceWords,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-sentence-read')).toBeInTheDocument();
+    });
+
+    vi.restoreAllMocks();
+  });
+});
+
+describe('TestWords — other lists with due words', () => {
+  it('shows chips for other lists that have due words', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [
+          { id: 'default', name: 'General', createdAt: '', order: 0 },
+          { id: 'hsk1', name: 'HSK 1', createdAt: '', order: 1 },
+          { id: 'hsk2', name: 'HSK 2', createdAt: '', order: 2 },
+        ],
+        activeListId: 'default',
+        words: [],
+        listStats: {
+          hsk1: { due: 3, total: 10 },
+          hsk2: { due: 0, total: 5 },
+        },
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+
+    await waitFor(() => {
+      expect(screen.getByText(/no words due in \u201c/i)).toBeInTheDocument();
+    });
+
+    // Should show HSK 1 chip (has due words) but NOT HSK 2 (0 due)
+    expect(screen.getByText('HSK 1 (3 due)')).toBeInTheDocument();
+    expect(screen.queryByText(/HSK 2/)).not.toBeInTheDocument();
+    // Should show "Other lists with words due:" text
+    expect(screen.getByText(/other lists with words due/i)).toBeInTheDocument();
+  });
+
+  it('shows "No words due in any list" when no other lists have due words', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [
+          { id: 'default', name: 'General', createdAt: '', order: 0 },
+          { id: 'hsk1', name: 'HSK 1', createdAt: '', order: 1 },
+        ],
+        activeListId: 'default',
+        words: [],
+        listStats: {
+          hsk1: { due: 0, total: 5 },
+        },
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+
+    await waitFor(() => {
+      expect(screen.getByText(/no words due in any list/i)).toBeInTheDocument();
+    });
+  });
+
+  it('calls switchActiveList when a list chip is clicked', async () => {
+    const user = userEvent.setup();
+    const mockedSwitchList = vi.mocked(wordActions.switchActiveList);
+    mockedSwitchList.mockReturnValue({ type: 'SWITCH_LIST_NOOP' } as any);
+
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [
+          { id: 'default', name: 'General', createdAt: '', order: 0 },
+          { id: 'hsk1', name: 'HSK 1', createdAt: '', order: 1 },
+        ],
+        activeListId: 'default',
+        words: [],
+        listStats: {
+          hsk1: { due: 5, total: 10 },
+        },
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+
+    const chip = await screen.findByText('HSK 1 (5 due)');
+    await user.click(chip);
+
+    expect(mockedSwitchList).toHaveBeenCalledWith('hsk1');
+  });
+
+  it('shows active list name in stepper header', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [{ id: 'mylist', name: 'My Study List', createdAt: '', order: 0 }],
+        activeListId: 'mylist',
+        words: [dueWord(1, '你好', 2)],
+        listStats: {},
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Testing: My Study List/)).toBeInTheDocument();
     });
   });
 });

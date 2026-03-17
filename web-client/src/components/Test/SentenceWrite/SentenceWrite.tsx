@@ -231,7 +231,7 @@ const SentenceWrite: React.FC<Props> = ({
         });
       } catch (error) {
         console.error('Error fetching sentence for SentenceWrite:', error);
-        updateState({ loading: false });
+        updateState({ loading: false, message: 'Could not load sentence. Please try again.' });
       }
     },
     [seenOffsets, updateState, words],

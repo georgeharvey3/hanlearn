@@ -53,6 +53,7 @@ const WordCard: React.FC<WordCardProps> = ({
             <IconButton
               size="small"
               onClick={handleSpeak}
+              disabled={isPlaying}
               aria-label="Play pronunciation"
               sx={{ ml: 0.5, p: 0.25, color: isPlaying ? 'primary.main' : 'text.secondary' }}
             >

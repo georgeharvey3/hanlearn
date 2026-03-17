@@ -12,7 +12,6 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
-import Paper from '@mui/material/Paper';
 import WordCard from '../../components/AddWords/WordCard';
 
 import Modal from '../../components/UI/Modal/Modal';
@@ -419,20 +418,15 @@ const AddWords: React.FC<Props> = ({
 
   if (words) {
     table = (
-      <Paper
-        elevation={2}
+      <Box
         sx={{
           width: '100%',
           maxWidth: 700,
           mx: 'auto',
-          borderRadius: 2,
-          maxHeight: { xs: 220, sm: 250 },
-          overflowY: 'auto',
-          '@media (min-height: 750px)': { maxHeight: 400 },
         }}
       >
         {wordCards}
-      </Paper>
+      </Box>
     );
   }
 
@@ -533,11 +527,35 @@ const AddWords: React.FC<Props> = ({
       )}
       {words.length > 0 ? (
         <>
-          <Box sx={{ mb: 4, '& h3': { color: 'text.primary' } }}>{table}</Box>
-          <Button clicked={onTestHandler}>Test</Button>
-          <Button type="ghost" clicked={toggleWords}>
-            {buttonText}
-          </Button>
+          <Box sx={{ mb: 0, '& h3': { color: 'text.primary' } }}>{table}</Box>
+          <Box
+            sx={(theme) => ({
+              position: 'sticky',
+              bottom: 0,
+              zIndex: 10,
+              pt: 1,
+              pb: 2,
+              display: 'flex',
+              justifyContent: 'center',
+              gap: 1,
+              backgroundColor: theme.palette.background.default,
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: -24,
+                left: 0,
+                right: 0,
+                height: 24,
+                background: `linear-gradient(to bottom, transparent, ${theme.palette.background.default})`,
+                pointerEvents: 'none',
+              },
+            })}
+          >
+            <Button clicked={onTestHandler}>Test</Button>
+            <Button type="ghost" clicked={toggleWords}>
+              {buttonText}
+            </Button>
+          </Box>
         </>
       ) : (
         <Typography

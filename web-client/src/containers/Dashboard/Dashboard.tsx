@@ -79,7 +79,7 @@ const Dashboard: React.FC<PropsFromRedux> = ({
 
   if (error) {
     return (
-      <Box sx={{ textAlign: 'center', py: 4 }}>
+      <Box sx={{ textAlign: 'center', py: 4 }} role="alert">
         <Typography sx={{ color: 'error.main', mb: 2 }}>Could not load dashboard data.</Typography>
         <Typography
           component="button"

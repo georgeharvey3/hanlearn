@@ -249,4 +249,25 @@ describe('ListSelector', () => {
       expect(screen.getByTestId('list-selector')).toBeInTheDocument();
     });
   });
+
+  describe('All Lists option', () => {
+    it('shows "All Lists" as the rendered value when activeListId is __all__', () => {
+      renderListSelector({
+        lists: [defaultList, hskList],
+        activeListId: '__all__',
+        listStats: { default: { due: 2, total: 5 }, 'list-1': { due: 3, total: 8 } },
+      });
+      // renderValue should display "All Lists"
+      expect(screen.getByText('All Lists')).toBeInTheDocument();
+    });
+
+    it('does not show rename/delete buttons when __all__ is active', () => {
+      renderListSelector({
+        lists: [defaultList, hskList],
+        activeListId: '__all__',
+      });
+      expect(screen.queryByLabelText('Rename list')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Delete list')).not.toBeInTheDocument();
+    });
+  });
 });

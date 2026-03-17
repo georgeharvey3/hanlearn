@@ -127,7 +127,10 @@ export const initWords = (): AppThunk => {
 
       const activeListId = addWords.activeListId;
       const [words, stats] = await Promise.all([
-        wordService.getUserWords(auth.userId, activeListId),
+        wordService.getUserWords(
+          auth.userId,
+          activeListId === '__all__' ? undefined : activeListId,
+        ),
         wordService.getListStats(auth.userId),
       ]);
       dispatch(setWords(words));
@@ -141,7 +144,8 @@ export const initWords = (): AppThunk => {
 };
 
 /**
- * Switch the active list and fetch its words
+ * Switch the active list and fetch its words.
+ * Pass '__all__' to fetch words across all lists (cross-list mode).
  */
 export const switchActiveList = (listId: string): AppThunk => {
   return async (dispatch, getState) => {
@@ -151,7 +155,10 @@ export const switchActiveList = (listId: string): AppThunk => {
     if (!auth.userId) return;
 
     try {
-      const words = await wordService.getUserWords(auth.userId, listId);
+      const words = await wordService.getUserWords(
+        auth.userId,
+        listId === '__all__' ? undefined : listId,
+      );
       dispatch(setWords(words));
     } catch (error) {
       console.error('Failed to fetch words for list:', error);
@@ -225,8 +232,10 @@ export const postWord = (word: Word): AppThunk => {
     if (!auth.userId) return;
 
     try {
-      await wordService.addWordToBank(auth.userId, word, addWords.activeListId);
-      dispatch(addWord({ ...word, listId: addWords.activeListId }));
+      // '__all__' is a virtual list for cross-list mode; words must belong to a real list
+      const targetListId = addWords.activeListId === '__all__' ? 'default' : addWords.activeListId;
+      await wordService.addWordToBank(auth.userId, word, targetListId);
+      dispatch(addWord({ ...word, listId: targetListId }));
       trackFeatureUsage('word_added');
     } catch (error) {
       console.error('Failed to add word:', error);
@@ -248,12 +257,13 @@ export const postCustomWord = (word: {
     if (!auth.userId) return;
 
     try {
+      const targetListId = addWords.activeListId === '__all__' ? 'default' : addWords.activeListId;
       const newWord = await wordService.addCustomWord(
         auth.userId,
         word.text,
         word.meaning,
         word.charSet,
-        addWords.activeListId,
+        targetListId,
       );
       dispatch(addCustomWord(newWord));
     } catch (error) {
@@ -315,7 +325,10 @@ export const finishTest = (scores: { word_id: number; score: number }[]): AppThu
         // Re-fetch words and stats so the local store has updated bank levels and due dates
         try {
           const [updatedWords, stats] = await Promise.all([
-            wordService.getUserWords(auth.userId!, addWords.activeListId),
+            wordService.getUserWords(
+              auth.userId!,
+              addWords.activeListId === '__all__' ? undefined : addWords.activeListId,
+            ),
             wordService.getListStats(auth.userId!),
           ]);
           dispatch(setWords(updatedWords));

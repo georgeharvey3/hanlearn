@@ -158,6 +158,17 @@ const TestWords: React.FC<Props> = ({
 
   // Track whether we've already initialized to prevent re-running setSelectedWords
   const hasInitialized = useRef(false);
+  const prevActiveListId = useRef(activeListId);
+
+  // Reset initialization when active list changes (e.g. "Test All Lists" clicked)
+  // so that test words get re-selected from the new word set.
+  useEffect(() => {
+    if (prevActiveListId.current !== activeListId) {
+      prevActiveListId.current = activeListId;
+      hasInitialized.current = false;
+      setState((prev) => ({ ...prev, selectedWords: [], newWords: [] }));
+    }
+  }, [activeListId]);
 
   useEffect(() => {
     if (!isDemo && userId !== null) {
@@ -346,25 +357,40 @@ const TestWords: React.FC<Props> = ({
           />
         );
     }
-  } else if (devConfig && (wordsLoading || !hasInitialized.current)) {
-    // Still loading words from user's bank for dev stages
+  } else if (wordsLoading) {
+    // Still loading words from user's bank
     content = <Spinner />;
   } else {
     // Check if user has words in bank (even if none due)
     const nonChengyus = words.filter((word) => word.simp.length < 4);
     const hasWordsInBank = nonChengyus.length > 0;
 
-    const activeListName = (lists || []).find((l) => l.id === activeListId)?.name || 'General';
+    const isAllLists = activeListId === '__all__';
+    const activeListName = isAllLists
+      ? 'All Lists'
+      : (lists || []).find((l) => l.id === activeListId)?.name || 'General';
 
     // Find other lists that have due words
-    const otherListsWithDue = (lists || [])
-      .filter((l) => l.id !== activeListId && (listStats[l.id]?.due ?? 0) > 0)
-      .map((l) => ({ ...l, due: listStats[l.id].due }));
+    const otherListsWithDue = isAllLists
+      ? []
+      : (lists || [])
+          .filter((l) => l.id !== activeListId && (listStats[l.id]?.due ?? 0) > 0)
+          .map((l) => ({ ...l, due: listStats[l.id].due }));
+
+    // Total due across all lists (for suggesting "Test All")
+    const totalDueAcrossLists = Object.values(listStats).reduce((sum, s) => sum + (s?.due ?? 0), 0);
+    const hasMultipleLists = (lists || []).filter((l) => l.id !== 'default').length > 0;
 
     const handleSwitchAndTest = (listId: string) => {
       onSwitchList(listId);
       // Navigate home so the user sees the updated list and can tap Test
       history.push('/');
+    };
+
+    const handleTestAll = () => {
+      onSwitchList('__all__');
+      // Re-navigate to test-words so the component re-initialises with all words
+      history.replace('/test-words');
     };
 
     content = (
@@ -373,7 +399,7 @@ const TestWords: React.FC<Props> = ({
           No words due in &ldquo;{activeListName}&rdquo;
         </Typography>
 
-        {otherListsWithDue.length > 0 && (
+        {!isAllLists && otherListsWithDue.length > 0 && (
           <Box sx={{ mb: 3 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
               Other lists with words due:
@@ -393,7 +419,25 @@ const TestWords: React.FC<Props> = ({
           </Box>
         )}
 
-        {otherListsWithDue.length === 0 && (
+        {!isAllLists && hasMultipleLists && totalDueAcrossLists > 0 && (
+          <Box sx={{ mb: 3 }}>
+            <Chip
+              label={`Test All Lists (${totalDueAcrossLists} due)`}
+              onClick={handleTestAll}
+              color="primary"
+              variant="filled"
+              clickable
+            />
+          </Box>
+        )}
+
+        {otherListsWithDue.length === 0 && !isAllLists && (
+          <Typography variant="body2" sx={{ mb: 3, color: 'text.disabled' }}>
+            No words due in any list
+          </Typography>
+        )}
+
+        {isAllLists && (
           <Typography variant="body2" sx={{ mb: 3, color: 'text.disabled' }}>
             No words due in any list
           </Typography>
@@ -430,7 +474,9 @@ const TestWords: React.FC<Props> = ({
     const activeStep = stageToStep[state.stage] ?? 0;
 
     const activeListNameForStepper =
-      (lists || []).find((l) => l.id === activeListId)?.name || 'General';
+      activeListId === '__all__'
+        ? 'All Lists'
+        : (lists || []).find((l) => l.id === activeListId)?.name || 'General';
 
     stepper = (
       <Box>
