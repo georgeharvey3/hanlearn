@@ -146,7 +146,7 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
         </Box>
         {sentenceLoading && (
           <Box component="li" sx={{ listStyle: 'none', mt: 2 }}>
-            <CircularProgress size={20} />
+            <CircularProgress size={20} aria-label="Loading example sentence" />
           </Box>
         )}
         {exampleSentence && (
