@@ -226,9 +226,7 @@ describe('sentenceService', () => {
       const result = await getSegmentedSentence('你好', 'simp', 3);
       expect(result.sentence).not.toBeNull();
       expect(result.sentence!.chinese.sentence).toBe('老师对每位学生说你好。');
-      expect(result.sentence!.english.sentence).toBe(
-        'The teacher said hello to every student.',
-      );
+      expect(result.sentence!.english.sentence).toBe('The teacher said hello to every student.');
       expect(result.sentence!.chinese.targetIndex).toBe(5);
     });
 
@@ -320,8 +318,18 @@ describe('sentenceService', () => {
   describe('getHintSentence with Firestore cache', () => {
     it('returns a random sentence from cached results', async () => {
       const sentences = [
-        { chinese: '学习中文很有趣。', english: 'Learning Chinese is fun.', segments: ['学习'], targetIndex: 0 },
-        { chinese: '他在学习数学。', english: 'He is studying math.', segments: ['学习'], targetIndex: 0 },
+        {
+          chinese: '学习中文很有趣。',
+          english: 'Learning Chinese is fun.',
+          segments: ['学习'],
+          targetIndex: 0,
+        },
+        {
+          chinese: '他在学习数学。',
+          english: 'He is studying math.',
+          segments: ['学习'],
+          targetIndex: 0,
+        },
       ];
       mockGetDoc.mockResolvedValue({
         exists: () => true,
