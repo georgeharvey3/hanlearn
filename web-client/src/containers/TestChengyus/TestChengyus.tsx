@@ -89,7 +89,7 @@ const TestChengyus: React.FC<Props> = ({
 
   // Wait for auth to initialize before redirecting
   if (!authInitialized && !isDemo) {
-    return null;
+    return <Spinner />;
   }
   if (userId === null && !isDemo) {
     return <Redirect to="/" />;

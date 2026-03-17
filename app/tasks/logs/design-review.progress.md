@@ -1,0 +1,1 @@
+2026-03-17 13:51 | Reviewed: Chengyu, TestChengyus, SentenceWrite, Dashboard, WordCard. Fixed: Chengyu spinner aria-label, TestChengyus auth-loading spinner, SentenceWrite error message on fetch failure, Dashboard error role="alert", WordCard speak button disabled while playing. Issues: None.
