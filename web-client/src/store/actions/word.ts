@@ -232,8 +232,10 @@ export const postWord = (word: Word): AppThunk => {
     if (!auth.userId) return;
 
     try {
-      await wordService.addWordToBank(auth.userId, word, addWords.activeListId);
-      dispatch(addWord({ ...word, listId: addWords.activeListId }));
+      // '__all__' is a virtual list for cross-list mode; words must belong to a real list
+      const targetListId = addWords.activeListId === '__all__' ? 'default' : addWords.activeListId;
+      await wordService.addWordToBank(auth.userId, word, targetListId);
+      dispatch(addWord({ ...word, listId: targetListId }));
       trackFeatureUsage('word_added');
     } catch (error) {
       console.error('Failed to add word:', error);
@@ -255,12 +257,13 @@ export const postCustomWord = (word: {
     if (!auth.userId) return;
 
     try {
+      const targetListId = addWords.activeListId === '__all__' ? 'default' : addWords.activeListId;
       const newWord = await wordService.addCustomWord(
         auth.userId,
         word.text,
         word.meaning,
         word.charSet,
-        addWords.activeListId,
+        targetListId,
       );
       dispatch(addCustomWord(newWord));
     } catch (error) {

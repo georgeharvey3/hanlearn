@@ -148,6 +148,66 @@ describe('word action thunks', () => {
       expect(mockedWordService.addWordToBank).not.toHaveBeenCalled();
       expect(store.getState().addWords.words).toHaveLength(0);
     });
+
+    it('resolves __all__ to default listId when in cross-list mode', async () => {
+      mockedWordService.addWordToBank.mockResolvedValue(undefined);
+      const store = createTestStore({
+        ...authenticatedState(),
+        addWords: {
+          lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+          activeListId: '__all__',
+          words: [],
+          listStats: {},
+          error: false,
+          loading: false,
+        },
+      });
+
+      await store.dispatch(wordActions.postWord(sampleWord) as any);
+
+      expect(mockedWordService.addWordToBank).toHaveBeenCalledWith(
+        'test-user-123',
+        sampleWord,
+        'default',
+      );
+      expect(store.getState().addWords.words[0].listId).toBe('default');
+    });
+  });
+
+  describe('postCustomWord', () => {
+    it('resolves __all__ to default listId when in cross-list mode', async () => {
+      mockedWordService.addCustomWord.mockResolvedValue({
+        id: -1,
+        simp: '猫',
+        trad: '貓',
+        pinyin: 'māo',
+        meaning: 'cat',
+        listId: 'default',
+      });
+      const store = createTestStore({
+        ...authenticatedState(),
+        addWords: {
+          lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+          activeListId: '__all__',
+          words: [],
+          listStats: {},
+          error: false,
+          loading: false,
+        },
+      });
+
+      await store.dispatch(
+        wordActions.postCustomWord({ text: '猫', meaning: 'cat', charSet: 'simp' }) as any,
+      );
+
+      expect(mockedWordService.addCustomWord).toHaveBeenCalledWith(
+        'test-user-123',
+        '猫',
+        'cat',
+        'simp',
+        'default',
+      );
+    });
   });
 
   describe('deleteWord', () => {
