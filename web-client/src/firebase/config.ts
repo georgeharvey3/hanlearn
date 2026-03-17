@@ -28,8 +28,16 @@ export let perf: FirebasePerformance | null = null;
 export let analytics: Analytics | null = null;
 
 if (!import.meta.env.DEV) {
-  perf = getPerformance(app);
-  analytics = getAnalytics(app);
+  try {
+    perf = getPerformance(app);
+  } catch (e) {
+    console.warn('Firebase Performance failed to initialize:', e);
+  }
+  try {
+    analytics = getAnalytics(app);
+  } catch (e) {
+    console.warn('Firebase Analytics failed to initialize:', e);
+  }
 }
 
 // Connect to emulators in development mode
