@@ -77,8 +77,6 @@ describe('similarityService', () => {
   it('propagates errors from Gemini', async () => {
     mockGenerateContent.mockRejectedValue(new Error('API error'));
 
-    await expect(
-      getSimilarityScore('a', 'b', 'en'),
-    ).rejects.toThrow('API error');
+    await expect(getSimilarityScore('a', 'b', 'en')).rejects.toThrow('API error');
   });
 });
