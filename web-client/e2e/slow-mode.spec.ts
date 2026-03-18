@@ -56,27 +56,6 @@ async function seedSentenceCache(word: string): Promise<void> {
   });
 }
 
-/**
- * Intercept the Cloud Functions callable endpoint for textToSpeech and
- * return a fake base64-encoded MP3 response. This makes the component
- * set googleTtsAvailable=true so the slow mode button renders.
- */
-async function mockTextToSpeechFunction(page: import('@playwright/test').Page): Promise<void> {
-  // Minimal valid MP3 frame (a silent 0.1s) encoded as base64
-  const FAKE_AUDIO_BASE64 =
-    'SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYlNuq8AAAAAAAAAAAAAAAAAAAAAP/7UMQAA';
-
-  await page.route('**/textToSpeech', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        result: { audioContent: FAKE_AUDIO_BASE64 },
-      }),
-    });
-  });
-}
-
 test.describe('Slow mode toggle', () => {
   const dueWord: TestWord = {
     id: 7001,
@@ -116,7 +95,6 @@ test.describe('Slow mode toggle', () => {
       sentenceWrite: 'false',
       numWords: '1',
     });
-    await mockTextToSpeechFunction(page);
     await loginViaUI(page);
     await seedWords(TEST_USER.uid, [dueWord]);
   });
@@ -135,7 +113,7 @@ test.describe('Slow mode toggle', () => {
     // Wait for the SentenceRead stage to load — look for "Listen & translate"
     await expect(page.getByText(/listen.*translate/i)).toBeVisible({ timeout: 20000 });
 
-    // The slow mode toggle button should appear once Google TTS responds
+    // The slow mode toggle button should appear in audio mode
     const slowToggle = page.getByRole('button', { name: /toggle slow mode/i });
     await expect(slowToggle).toBeVisible({ timeout: 10000 });
 
