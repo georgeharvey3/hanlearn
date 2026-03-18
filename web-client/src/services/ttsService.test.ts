@@ -39,6 +39,7 @@ beforeEach(() => {
   } as unknown as SpeechSynthesis;
   global.SpeechSynthesisUtterance = class {
     lang = '';
+    rate = 1;
     voice = null;
     onerror: ((e: unknown) => void) | null = null;
     onend: (() => void) | null = null;
@@ -92,6 +93,47 @@ describe('ttsService', () => {
       mockCallable.mockResolvedValue({ data: { audioContent: btoa('data') } });
       speak('speed-test', { speed: 0.8 });
       expect(mockCallable).toHaveBeenCalledWith({ text: 'speed-test', speed: 0.8 });
+    });
+
+    it('caches normal and slow speech separately so slow mode replays at correct speed', async () => {
+      const fakeAudio = btoa('normal-audio');
+      const fakeSlowAudio = btoa('slow-audio');
+      mockCallable
+        .mockResolvedValueOnce({ data: { audioContent: fakeAudio } })
+        .mockResolvedValueOnce({ data: { audioContent: fakeSlowAudio } });
+
+      // First call at normal speed
+      speak('cache-speed-test');
+      await vi.waitFor(() => {
+        expect(MockHowl).toHaveBeenCalledTimes(1);
+      });
+
+      // Second call at slow speed — should NOT use the normal-speed cache
+      speak('cache-speed-test', { speed: 0.7 });
+      await vi.waitFor(() => {
+        expect(mockCallable).toHaveBeenCalledTimes(2);
+        expect(MockHowl).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('sets utterance.rate on native fallback when speed option is provided', async () => {
+      mockCallable.mockRejectedValue(new Error('Network error'));
+
+      let capturedUtterance: { rate?: number; lang: string } | null = null;
+      (window.speechSynthesis.speak as ReturnType<typeof vi.fn>).mockImplementation(
+        (utt: SpeechSynthesisUtterance) => {
+          capturedUtterance = utt as unknown as { rate?: number; lang: string };
+        },
+      );
+
+      speak('rate-test', { speed: 0.7, fallbackLang: 'zh-CN' });
+
+      await vi.waitFor(() => {
+        expect(window.speechSynthesis.speak).toHaveBeenCalled();
+      });
+
+      expect(capturedUtterance).not.toBeNull();
+      expect((capturedUtterance as unknown as { rate: number }).rate).toBe(0.7);
     });
   });
 
