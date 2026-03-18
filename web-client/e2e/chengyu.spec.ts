@@ -69,6 +69,27 @@ test.describe('Chengyu daily challenge', () => {
     // If it was correct on first try, that's also fine — the test still passes
   });
 
+  test('character meanings are visible instantly in breakdown after solving', async ({ page }) => {
+    const dashboard = new DashboardPage(page);
+    await dashboard.navigateTo();
+
+    await expect(page.getByText('Chengyu Of The Day')).toBeVisible({ timeout: 10000 });
+
+    // Solve the chengyu
+    await dashboard.solveChengyu();
+
+    // Character breakdown should be visible with pre-loaded meanings
+    const chars = await dashboard.getChengyuCharacterBreakdown();
+    expect(chars.length).toBeGreaterThanOrEqual(2);
+
+    // Every character should have a non-empty meaning (pre-loaded, no async fetch needed)
+    for (const entry of chars) {
+      expect(entry.char).toBeTruthy();
+      expect(entry.pinyin).toBeTruthy();
+      expect(entry.meaning.length).toBeGreaterThan(0);
+    }
+  });
+
   test('save chengyu to word bank after solving', async ({ page }) => {
     const dashboard = new DashboardPage(page);
     await dashboard.navigateTo();

@@ -45,6 +45,44 @@ export class DashboardPage {
   }
 
   /**
+   * Get the character breakdown items after the chengyu is revealed.
+   * Returns character + pinyin + meaning for each character.
+   */
+  async getChengyuCharacterBreakdown(): Promise<
+    { char: string; pinyin: string; meaning: string }[]
+  > {
+    const breakdown = this.page.locator('[aria-label="Character breakdown"]');
+    await expect(breakdown).toBeVisible({ timeout: 5000 });
+
+    const items = breakdown.locator(':scope > li');
+    const count = await items.count();
+    const results: { char: string; pinyin: string; meaning: string }[] = [];
+
+    for (let i = 0; i < count; i++) {
+      const item = items.nth(i);
+      // Character items have lang="zh" on the first Typography
+      const charEl = item.locator('[lang="zh"]');
+      if ((await charEl.count()) === 0) continue;
+
+      const char = ((await charEl.first().textContent()) || '').trim();
+      const pinyinEl = item.locator('[lang="zh-Latn"]');
+      const pinyin = ((await pinyinEl.textContent()) || '').trim();
+
+      // Meaning is the third Typography (italic style) if present
+      const allTypos = item.locator('.MuiTypography-root');
+      const typoCount = await allTypos.count();
+      let meaning = '';
+      if (typoCount >= 3) {
+        meaning = ((await allTypos.nth(2).textContent()) || '').trim();
+      }
+
+      results.push({ char, pinyin, meaning });
+    }
+
+    return results;
+  }
+
+  /**
    * Try each chengyu option until the correct one is found.
    * Returns the index of the correct option.
    */
