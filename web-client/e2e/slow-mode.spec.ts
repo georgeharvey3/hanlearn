@@ -12,24 +12,14 @@ import {
 /**
  * Seed a sentence cache entry in Firestore emulator so SentenceRead can load
  * without hitting a real AI service.
+ *
+ * The sentenceCache stores SentenceExample objects:
+ *   { chinese: string, english: string, segments: string[], targetIndex: number }
  */
 async function seedSentenceCache(word: string): Promise<void> {
   const FIRESTORE_EMULATOR = 'http://localhost:8082';
   const PROJECT_ID = 'hanlearn-dd14f';
   const url = `${FIRESTORE_EMULATOR}/v1/projects/${PROJECT_ID}/databases/(default)/documents/sentenceCache/${word}`;
-
-  const sentence = {
-    chinese: {
-      sentence: `我很${word}。`,
-      highlight: [[2, 2 + word.length]],
-      segments: ['我', '很', word, '。'],
-      targetIndex: 2,
-    },
-    english: {
-      sentence: 'I am very good.',
-      highlight: [[10, 14]],
-    },
-  };
 
   await fetch(url, {
     method: 'PATCH',
@@ -42,7 +32,19 @@ async function seedSentenceCache(word: string): Promise<void> {
               {
                 mapValue: {
                   fields: {
-                    data: { stringValue: JSON.stringify(sentence) },
+                    chinese: { stringValue: `我很${word}。` },
+                    english: { stringValue: 'I am very good.' },
+                    segments: {
+                      arrayValue: {
+                        values: [
+                          { stringValue: '我' },
+                          { stringValue: '很' },
+                          { stringValue: word },
+                          { stringValue: '。' },
+                        ],
+                      },
+                    },
+                    targetIndex: { integerValue: '2' },
                   },
                 },
               },
