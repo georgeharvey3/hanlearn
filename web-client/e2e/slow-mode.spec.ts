@@ -61,7 +61,8 @@ async function seedSentenceCache(word: string): Promise<void> {
  */
 async function mockTextToSpeechFunction(page: import('@playwright/test').Page): Promise<void> {
   // Minimal valid MP3 frame (a silent 0.1s) encoded as base64
-  const FAKE_AUDIO_BASE64 = 'SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYlNuq8AAAAAAAAAAAAAAAAAAAAAP/7UMQAA';
+  const FAKE_AUDIO_BASE64 =
+    'SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYlNuq8AAAAAAAAAAAAAAAAAAAAAP/7UMQAA';
 
   await page.route('**/textToSpeech', async (route) => {
     await route.fulfill({
@@ -104,6 +105,14 @@ test.describe('Slow mode toggle', () => {
   test('slow mode toggle appears and persists state to localStorage', async ({ page }) => {
     await page.goto('/test-words');
 
+    // Complete the vocab/flashcard stage first to reach SentenceRead
+    const showAnswer = page.getByRole('button', { name: 'Show Answer' });
+    await expect(showAnswer).toBeVisible({ timeout: 20000 });
+    await showAnswer.click();
+    const like = page.locator('[aria-label="I knew this"]');
+    await expect(like).toBeVisible({ timeout: 5000 });
+    await like.click();
+
     // Wait for the SentenceRead stage to load — look for "Listen & translate"
     await expect(page.getByText(/listen.*translate/i)).toBeVisible({ timeout: 20000 });
 
@@ -137,6 +146,14 @@ test.describe('Slow mode toggle', () => {
     });
 
     await page.goto('/test-words');
+
+    // Complete the vocab/flashcard stage first to reach SentenceRead
+    const showAnswer = page.getByRole('button', { name: 'Show Answer' });
+    await expect(showAnswer).toBeVisible({ timeout: 20000 });
+    await showAnswer.click();
+    const like = page.locator('[aria-label="I knew this"]');
+    await expect(like).toBeVisible({ timeout: 5000 });
+    await like.click();
 
     await expect(page.getByText(/listen.*translate/i)).toBeVisible({ timeout: 20000 });
 
