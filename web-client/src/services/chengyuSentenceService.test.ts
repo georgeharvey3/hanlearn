@@ -9,13 +9,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ─── Hoisted mocks ────────────────────────────────────────────────────────────
 
-const {
-  mockGetDoc,
-  mockDoc,
-  mockHttpsCallable,
-  mockCallable,
-  mockConverter,
-} = vi.hoisted(() => {
+const { mockGetDoc, mockDoc, mockHttpsCallable, mockCallable, mockConverter } = vi.hoisted(() => {
   const mockCallable = vi.fn();
   const mockHttpsCallable = vi.fn(() => mockCallable);
   // opencc-js Converter returns a function that performs simplified→traditional conversion

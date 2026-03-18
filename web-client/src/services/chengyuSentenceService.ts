@@ -54,10 +54,10 @@ function applyCharSet(sentence: ChengyuSentence, charSet: 'simp' | 'trad'): Chen
 async function generateChengyuSentenceViaFunction(
   chengyu: string,
 ): Promise<ChengyuSentence | null> {
-  const callable = httpsCallable<
-    { chengyu: string },
-    { sentence: ChengyuSentence | null }
-  >(functions, 'generateChengyuSentence');
+  const callable = httpsCallable<{ chengyu: string }, { sentence: ChengyuSentence | null }>(
+    functions,
+    'generateChengyuSentence',
+  );
   const result = await callable({ chengyu });
   return result.data.sentence;
 }
