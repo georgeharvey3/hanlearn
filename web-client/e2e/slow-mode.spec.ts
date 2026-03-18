@@ -92,6 +92,23 @@ test.describe('Slow mode toggle', () => {
     await clearEmulatorData();
     await seedTestUser();
     await seedSentenceCache('好');
+
+    // Mock speechSynthesis.getVoices() so the app detects a Chinese voice and
+    // sets synthAvailable=true (headless Chromium has no voices by default).
+    await page.addInitScript(() => {
+      const fakeVoice = {
+        name: 'Google 普通话',
+        lang: 'zh-CN',
+        localService: false,
+        default: false,
+        voiceURI: 'Google 普通话',
+      };
+
+      window.speechSynthesis.getVoices = () => [fakeVoice as SpeechSynthesisVoice];
+      // Fire voiceschanged so the app picks up the fake voice
+      window.speechSynthesis.dispatchEvent(new Event('voiceschanged'));
+    });
+
     // Enable sound and sentenceRead for the slow mode test
     await configureTestSettings(page, {
       useSound: 'true',
