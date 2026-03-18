@@ -1,4 +1,5 @@
 import { Chengyu } from '../types/models';
+import { chengyuCharMeanings } from './chengyuCharMeanings';
 
 export const chengyus: Chengyu[] = [
   {
@@ -867,14 +868,14 @@ export function getDailyChengyu(): {
   const charPinyins = chars.map((char, i) => ({
     char,
     pinyin: pinyinParts[i] || '',
-    meaning: undefined as string | undefined,
+    meaning: chengyuCharMeanings[char] as string | undefined,
   }));
 
   const tradChars = Array.from(todaysChengyu.trad).filter((c) => c !== '，' && c !== ',');
   const tradCharPinyins = tradChars.map((char, i) => ({
     char,
     pinyin: pinyinParts[i] || '',
-    meaning: undefined as string | undefined,
+    meaning: chengyuCharMeanings[char] as string | undefined,
   }));
 
   return {

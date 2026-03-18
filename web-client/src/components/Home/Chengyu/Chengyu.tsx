@@ -10,7 +10,6 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 
 import { getDailyChengyu, convertDailyChengyu } from '../../../data/chengyus';
-import { lookupCharacterMeanings } from '../../../services/chengyuService';
 import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
 import { postWord } from '../../../store/actions/word';
@@ -48,7 +47,6 @@ function markChengyuRevealed(): void {
 const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
   const [finished, setFinished] = useState(() => isChengyuRevealedToday());
   const [incorrect, setIncorrect] = useState<number[]>([]);
-  const [charMeanings, setCharMeanings] = useState<Map<string, string>>(new Map());
   const [saved, setSaved] = useState(false);
   const [exampleSentence, setExampleSentence] = useState<ChengyuSentence | null>(null);
   const [sentenceLoading, setSentenceLoading] = useState(false);
@@ -66,16 +64,6 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
 
   useEffect(() => {
     if (finished) {
-      // Look up character meanings when the chengyu is revealed
-      const chars = charPinyins.map((c) => c.char);
-      lookupCharacterMeanings(chars, charSet).then((results) => {
-        const meanings = new Map<string, string>();
-        results.forEach((result) => {
-          meanings.set(result.char, result.meaning);
-        });
-        setCharMeanings(meanings);
-      });
-
       // Fetch example sentence
       setSentenceLoading(true);
       getChengyuExampleSentence(dailyChengyu.chengyu, charSet)
@@ -83,7 +71,7 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
         .catch(() => setExampleSentence(null))
         .finally(() => setSentenceLoading(false));
     }
-  }, [finished, charPinyins, charSet, dailyChengyu.chengyu]);
+  }, [finished, charSet, dailyChengyu.chengyu]);
 
   const optionClicked = (_event: React.MouseEvent, index: number): void => {
     if (dailyChengyu.options[index] !== dailyChengyu.correct) {
@@ -118,7 +106,6 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
     details = (
       <List sx={{ m: 0, p: 0 }} aria-label="Character breakdown">
         {charPinyins.map((c, index) => {
-          const meaning = charMeanings.get(c.char) || '';
           return (
             <React.Fragment key={index}>
               <Box
@@ -139,9 +126,9 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
                 <Typography lang="zh-Latn" sx={{ fontSize: '0.9em', mb: '5px' }}>
                   ({c.pinyin})
                 </Typography>
-                {meaning && (
+                {c.meaning && (
                   <Typography sx={{ fontSize: '0.85em', fontStyle: 'italic', opacity: 0.8 }}>
-                    {meaning}
+                    {c.meaning}
                   </Typography>
                 )}
               </Box>
