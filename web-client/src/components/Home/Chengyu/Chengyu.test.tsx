@@ -168,6 +168,21 @@ describe('Chengyu — answering correctly', () => {
     });
   });
 
+  it('applies white text color to the revealed correct answer', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Chengyu />, { store: makeStore() });
+
+    const correctBtn = screen.getByRole('button', { name: /^unique$/ });
+    await user.click(correctBtn);
+
+    await waitFor(() => {
+      const revealed = screen.getByRole('button', { name: /unique.*correct/i });
+      const style = window.getComputedStyle(revealed);
+      // MUI resolves 'common.white' to rgb(255, 255, 255)
+      expect(style.color).toBe('rgb(255, 255, 255)');
+    });
+  });
+
   it('shows the correct answer meaning in the aria-live region after finishing', async () => {
     const user = userEvent.setup();
     renderWithProviders(<Chengyu />, { store: makeStore() });
