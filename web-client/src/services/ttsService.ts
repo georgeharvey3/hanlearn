@@ -122,6 +122,7 @@ export function speak(text: string, options: SpeakOptions = {}): TtsHandle {
   // Check cache first
   const cached = cache.get(cacheKey);
   if (cached) {
+    options.onStart?.();
     const handle = playFromBlobUrl(cached, options);
     handle.play();
     return handle;
@@ -140,6 +141,7 @@ export function speak(text: string, options: SpeakOptions = {}): TtsHandle {
       evictIfNeeded();
       cache.set(cacheKey, blobUrl);
 
+      options.onStart?.();
       const handle = playFromBlobUrl(blobUrl, options);
       activeHandle = handle;
       handle.play();
