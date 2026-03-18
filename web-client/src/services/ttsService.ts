@@ -116,9 +116,8 @@ function playFromBlobUrl(blobUrl: string, options: SpeakOptions): TtsHandle {
 
 export function speak(text: string, options: SpeakOptions = {}): TtsHandle {
   // Include speed in cache key so different speeds are cached separately
-  const cacheKey = options.speed !== undefined && options.speed !== 1.0
-    ? `${text}::speed=${options.speed}`
-    : text;
+  const cacheKey =
+    options.speed !== undefined && options.speed !== 1.0 ? `${text}::speed=${options.speed}` : text;
 
   // Check cache first
   const cached = cache.get(cacheKey);
