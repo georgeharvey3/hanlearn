@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
   clearEmulatorData,
   seedTestUser,
+  seedChengyuSentence,
   loginViaUI,
   configureTestSettings,
 } from './fixtures/seed';
@@ -87,5 +88,31 @@ test.describe('Chengyu daily challenge', () => {
 
     // Button should change to "Saved!"
     await expect(page.getByRole('button', { name: /Saved!/i })).toBeVisible({ timeout: 5000 });
+  });
+
+  test('example sentence appears after solving when cached', async ({ page }) => {
+    const dashboard = new DashboardPage(page);
+    await dashboard.navigateTo();
+
+    await expect(page.getByText('Chengyu Of The Day')).toBeVisible({ timeout: 10000 });
+
+    // Read the displayed chengyu characters from the page
+    const chengyuChars = await dashboard.getChengyuCharacters();
+    expect(chengyuChars).toBeTruthy();
+
+    // Seed an example sentence for this chengyu in Firestore
+    await seedChengyuSentence(chengyuChars, {
+      chinese: `这是一个使用${chengyuChars}的例句。`,
+      pinyin: 'Zhè shì yí gè shǐyòng chéngyǔ de lì jù.',
+      english: 'This is an example sentence using the chengyu.',
+    });
+
+    // Solve the chengyu — this triggers the sentence fetch
+    await dashboard.solveChengyu();
+
+    // Example sentence should appear with the "Example" label
+    await expect(page.getByText('Example')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(`这是一个使用${chengyuChars}的例句。`)).toBeVisible();
+    await expect(page.getByText('This is an example sentence using the chengyu.')).toBeVisible();
   });
 });

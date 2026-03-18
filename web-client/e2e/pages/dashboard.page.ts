@@ -23,6 +23,15 @@ export class DashboardPage {
     return (await heading.textContent()) || '';
   }
 
+  /**
+   * Get the displayed chengyu characters (the large h4 text).
+   */
+  async getChengyuCharacters(): Promise<string> {
+    const heading = this.page.locator('h4[lang="zh"]');
+    await expect(heading).toBeVisible({ timeout: 10000 });
+    return ((await heading.textContent()) || '').trim();
+  }
+
   async getChengyuOptions(): Promise<string[]> {
     const options = this.page.locator('[aria-label="Answer options"] [role="button"]');
     await options.first().waitFor({ state: 'visible', timeout: 10000 });

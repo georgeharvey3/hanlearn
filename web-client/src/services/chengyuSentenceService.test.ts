@@ -1,9 +1,9 @@
 /**
  * Tests for chengyuSentenceService.ts
- * Covers: getChengyuExampleSentence — cache hit, cache miss + AI generation,
- * AI fallback, traditional conversion, and error handling.
+ * Covers: getChengyuExampleSentence — cache hit, cache miss + Cloud Function
+ * generation, traditional conversion, and error handling.
  *
- * Firebase Firestore and Firebase AI are mocked at the SDK level.
+ * Firebase Firestore and Cloud Functions are mocked at the SDK level.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -11,27 +11,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const {
   mockGetDoc,
-  mockSetDoc,
   mockDoc,
-  mockServerTimestamp,
-  mockGenerateContent,
-  mockGetGenerativeModel,
+  mockHttpsCallable,
+  mockCallable,
   mockConverter,
 } = vi.hoisted(() => {
-  const mockGenerateContent = vi.fn();
-  const mockGetGenerativeModel = vi.fn(() => ({
-    generateContent: mockGenerateContent,
-  }));
+  const mockCallable = vi.fn();
+  const mockHttpsCallable = vi.fn(() => mockCallable);
   // opencc-js Converter returns a function that performs simplified→traditional conversion
   const mockConverter = vi.fn((text: string) => `TRAD:${text}`);
 
   return {
     mockGetDoc: vi.fn(),
-    mockSetDoc: vi.fn(),
     mockDoc: vi.fn((_db: unknown, ...path: string[]) => ({ path: path.join('/') })),
-    mockServerTimestamp: vi.fn(() => 'SERVER_TIMESTAMP'),
-    mockGenerateContent,
-    mockGetGenerativeModel,
+    mockHttpsCallable,
+    mockCallable,
     mockConverter,
   };
 });
@@ -39,15 +33,13 @@ const {
 vi.mock('firebase/firestore', () => ({
   doc: mockDoc,
   getDoc: mockGetDoc,
-  setDoc: mockSetDoc,
-  serverTimestamp: mockServerTimestamp,
 }));
 
-vi.mock('../firebase/config', () => ({ db: {}, ai: {} }));
-
-vi.mock('firebase/ai', () => ({
-  getGenerativeModel: mockGetGenerativeModel,
+vi.mock('firebase/functions', () => ({
+  httpsCallable: mockHttpsCallable,
 }));
+
+vi.mock('../firebase/config', () => ({ db: {}, functions: {} }));
 
 vi.mock('opencc-js', () => ({
   Converter: vi.fn(() => mockConverter),
@@ -63,14 +55,6 @@ const SAMPLE_SENTENCE = {
   english: 'He gave up halfway and did not finish his studies.',
 };
 
-function makeAIResponse(obj: object) {
-  return {
-    response: {
-      text: () => JSON.stringify(obj),
-    },
-  };
-}
-
 // ─── Cache hit ────────────────────────────────────────────────────────────────
 
 describe('getChengyuExampleSentence — cache hit', () => {
@@ -79,7 +63,7 @@ describe('getChengyuExampleSentence — cache hit', () => {
     localStorage.clear();
   });
 
-  it('returns the cached sentence for simp charSet without calling AI', async () => {
+  it('returns the cached sentence for simp charSet without calling Cloud Function', async () => {
     mockGetDoc.mockResolvedValue({
       exists: () => true,
       data: () => ({ sentence: SAMPLE_SENTENCE }),
@@ -88,7 +72,7 @@ describe('getChengyuExampleSentence — cache hit', () => {
     const result = await getChengyuExampleSentence('半途而废', 'simp');
 
     expect(result).toEqual(SAMPLE_SENTENCE);
-    expect(mockGetGenerativeModel).not.toHaveBeenCalled();
+    expect(mockHttpsCallable).not.toHaveBeenCalled();
   });
 
   it('converts cached sentence to traditional when charSet=trad', async () => {
@@ -108,7 +92,7 @@ describe('getChengyuExampleSentence — cache hit', () => {
   });
 });
 
-// ─── Cache miss + AI generation ───────────────────────────────────────────────
+// ─── Cache miss + Cloud Function generation ──────────────────────────────────
 
 describe('getChengyuExampleSentence — cache miss', () => {
   beforeEach(() => {
@@ -116,81 +100,46 @@ describe('getChengyuExampleSentence — cache miss', () => {
     localStorage.clear();
   });
 
-  it('calls AI when cache is empty and returns the generated sentence', async () => {
+  it('calls Cloud Function when cache is empty and returns the generated sentence', async () => {
     mockGetDoc.mockResolvedValue({ exists: () => false });
-    mockGenerateContent.mockResolvedValue(
-      makeAIResponse({
-        chinese: '他半途而废，没有完成学业。',
-        pinyin: 'Tā bàntú ér fèi.',
-        english: 'He gave up halfway.',
-      }),
-    );
-    mockSetDoc.mockResolvedValue(undefined);
+    mockCallable.mockResolvedValue({
+      data: {
+        sentence: {
+          chinese: '他半途而废，没有完成学业。',
+          pinyin: 'Tā bàntú ér fèi.',
+          english: 'He gave up halfway.',
+        },
+      },
+    });
 
     const result = await getChengyuExampleSentence('半途而废', 'simp');
 
-    expect(mockGetGenerativeModel).toHaveBeenCalled();
-    expect(mockGenerateContent).toHaveBeenCalled();
+    expect(mockHttpsCallable).toHaveBeenCalled();
+    expect(mockCallable).toHaveBeenCalledWith({ chengyu: '半途而废' });
     expect(result).not.toBeNull();
     expect(result!.chinese).toBe('他半途而废，没有完成学业。');
   });
 
-  it('caches the generated sentence in Firestore', async () => {
+  it('converts Cloud Function sentence to traditional when charSet=trad', async () => {
     mockGetDoc.mockResolvedValue({ exists: () => false });
-    mockGenerateContent.mockResolvedValue(
-      makeAIResponse({
-        chinese: '他半途而废，没有完成学业。',
-        pinyin: 'Tā bàntú ér fèi.',
-        english: 'He gave up halfway.',
-      }),
-    );
-    mockSetDoc.mockResolvedValue(undefined);
-
-    await getChengyuExampleSentence('半途而废', 'simp');
-
-    expect(mockSetDoc).toHaveBeenCalledOnce();
-    const setDocData = mockSetDoc.mock.calls[0][1];
-    expect(setDocData.sentence).toBeDefined();
-    expect(setDocData.generatedAt).toBe('SERVER_TIMESTAMP');
-  });
-
-  it('converts AI-generated sentence to traditional when charSet=trad', async () => {
-    mockGetDoc.mockResolvedValue({ exists: () => false });
-    mockGenerateContent.mockResolvedValue(
-      makeAIResponse({
-        chinese: '他半途而废，没有完成学业。',
-        pinyin: 'Tā bàntú ér fèi.',
-        english: 'He gave up halfway.',
-      }),
-    );
-    mockSetDoc.mockResolvedValue(undefined);
+    mockCallable.mockResolvedValue({
+      data: {
+        sentence: {
+          chinese: '他半途而废，没有完成学业。',
+          pinyin: 'Tā bàntú ér fèi.',
+          english: 'He gave up halfway.',
+        },
+      },
+    });
 
     const result = await getChengyuExampleSentence('半途而废', 'trad');
 
     expect(result!.chinese).toMatch(/^TRAD:/);
   });
 
-  it('returns null when AI returns JSON that does not contain the chengyu', async () => {
+  it('returns null when Cloud Function returns null sentence', async () => {
     mockGetDoc.mockResolvedValue({ exists: () => false });
-    // AI response where chinese field does NOT include the chengyu
-    mockGenerateContent.mockResolvedValue(
-      makeAIResponse({
-        chinese: '这是一个不相关的句子。',
-        pinyin: 'Some pinyin.',
-        english: 'An unrelated sentence.',
-      }),
-    );
-
-    const result = await getChengyuExampleSentence('半途而废', 'simp');
-
-    expect(result).toBeNull();
-  });
-
-  it('returns null when AI returns malformed JSON (missing required fields)', async () => {
-    mockGetDoc.mockResolvedValue({ exists: () => false });
-    mockGenerateContent.mockResolvedValue(
-      makeAIResponse({ onlyChinese: '他半途而废' }), // missing pinyin and english
-    );
+    mockCallable.mockResolvedValue({ data: { sentence: null } });
 
     const result = await getChengyuExampleSentence('半途而废', 'simp');
 
@@ -206,28 +155,29 @@ describe('getChengyuExampleSentence — error handling', () => {
     localStorage.clear();
   });
 
-  it('falls through to AI when Firestore cache read throws', async () => {
+  it('falls through to Cloud Function when Firestore cache read throws', async () => {
     // Cache read failure
     mockGetDoc.mockRejectedValue(new Error('Firestore unavailable'));
-    mockGenerateContent.mockResolvedValue(
-      makeAIResponse({
-        chinese: '他半途而废，没有完成学业。',
-        pinyin: 'Tā bàntú ér fèi.',
-        english: 'He gave up halfway.',
-      }),
-    );
-    mockSetDoc.mockResolvedValue(undefined);
+    mockCallable.mockResolvedValue({
+      data: {
+        sentence: {
+          chinese: '他半途而废，没有完成学业。',
+          pinyin: 'Tā bàntú ér fèi.',
+          english: 'He gave up halfway.',
+        },
+      },
+    });
 
     const result = await getChengyuExampleSentence('半途而废', 'simp');
 
-    // Should still succeed via AI generation
+    // Should still succeed via Cloud Function
     expect(result).not.toBeNull();
     expect(result!.chinese).toBe('他半途而废，没有完成学业。');
   });
 
-  it('returns null when AI generation throws', async () => {
+  it('returns null when Cloud Function throws', async () => {
     mockGetDoc.mockResolvedValue({ exists: () => false });
-    mockGenerateContent.mockRejectedValue(new Error('AI quota exceeded'));
+    mockCallable.mockRejectedValue(new Error('Function unavailable'));
 
     const result = await getChengyuExampleSentence('半途而废', 'simp');
 
@@ -246,7 +196,7 @@ describe('getChengyuExampleSentence — error handling', () => {
     expect(result).toEqual(SAMPLE_SENTENCE);
     // Should not touch Firestore at all
     expect(mockGetDoc).not.toHaveBeenCalled();
-    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(mockHttpsCallable).not.toHaveBeenCalled();
   });
 
   it('localStorage cache is populated after Firestore cache hit', async () => {
@@ -262,21 +212,18 @@ describe('getChengyuExampleSentence — error handling', () => {
     expect(cached.sentence).toEqual(SAMPLE_SENTENCE);
   });
 
-  it('still returns the generated sentence when cache write (setDoc) fails', async () => {
+  it('localStorage cache is populated after Cloud Function returns a sentence', async () => {
     mockGetDoc.mockResolvedValue({ exists: () => false });
-    mockGenerateContent.mockResolvedValue(
-      makeAIResponse({
-        chinese: '他半途而废，没有完成学业。',
-        pinyin: 'Tā bàntú ér fèi.',
-        english: 'He gave up halfway.',
-      }),
-    );
-    // Cache write fails — this should not affect the result
-    mockSetDoc.mockRejectedValue(new Error('Firestore write quota exceeded'));
+    mockCallable.mockResolvedValue({
+      data: {
+        sentence: SAMPLE_SENTENCE,
+      },
+    });
 
-    const result = await getChengyuExampleSentence('半途而废', 'simp');
+    await getChengyuExampleSentence('半途而废', 'simp');
 
-    expect(result).not.toBeNull();
-    expect(result!.chinese).toBe('他半途而废，没有完成学业。');
+    const cached = JSON.parse(localStorage.getItem('chengyuSentenceCache')!);
+    expect(cached.chengyu).toBe('半途而废');
+    expect(cached.sentence).toEqual(SAMPLE_SENTENCE);
   });
 });

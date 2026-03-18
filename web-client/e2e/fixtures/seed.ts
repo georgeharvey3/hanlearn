@@ -161,6 +161,39 @@ export async function readWordFromFirestore(
 }
 
 /**
+ * Seed a chengyu example sentence into the Firestore emulator.
+ * Used to pre-populate the chengyuSentences cache so E2E tests
+ * don't depend on AI generation being available.
+ */
+export async function seedChengyuSentence(
+  chengyu: string,
+  sentence: { chinese: string; pinyin: string; english: string },
+): Promise<void> {
+  const url = emulatorFirestoreUrl(`chengyuSentences/${chengyu}`);
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer owner' },
+    body: JSON.stringify({
+      fields: {
+        sentence: {
+          mapValue: {
+            fields: {
+              chinese: { stringValue: sentence.chinese },
+              pinyin: { stringValue: sentence.pinyin },
+              english: { stringValue: sentence.english },
+            },
+          },
+        },
+        generatedAt: { timestampValue: new Date().toISOString() },
+      },
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to seed chengyu sentence for ${chengyu}: ${await res.text()}`);
+  }
+}
+
+/**
  * Log in via the UI. Opens the auth modal, fills credentials, and submits.
  */
 export async function loginViaUI(page: Page): Promise<void> {

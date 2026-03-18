@@ -28,6 +28,9 @@ export { textToSpeech } from './tts';
 // Re-export similarity scoring Cloud Function
 export { scoreSimilarity } from './similarity';
 
+// Re-export chengyu sentence generation Cloud Function
+export { generateChengyuSentence } from './chengyuSentence';
+
 const db = admin.firestore();
 
 /**

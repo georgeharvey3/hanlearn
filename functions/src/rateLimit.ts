@@ -15,6 +15,7 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
   textToSpeech: { maxRequests: 100, windowMs: 60_000 },
   decomposeCharacter: { maxRequests: 60, windowMs: 60_000 },
   scoreSimilarity: { maxRequests: 60, windowMs: 60_000 },
+  generateChengyuSentence: { maxRequests: 10, windowMs: 60_000 },
 };
 
 /**
