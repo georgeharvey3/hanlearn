@@ -35,16 +35,16 @@ vi.mock('../../../data/chengyus', () => ({
     options: ['unique', 'to be together forever', 'to live frugally', 'to be graceful'],
     correct: 'unique',
     charPinyins: [
-      { char: '独', pinyin: 'dú' },
-      { char: '一', pinyin: 'yī' },
-      { char: '无', pinyin: 'wú' },
-      { char: '二', pinyin: 'èr' },
+      { char: '独', pinyin: 'dú', meaning: 'alone; independent; single' },
+      { char: '一', pinyin: 'yī', meaning: 'one; single; a (article)' },
+      { char: '无', pinyin: 'wú', meaning: 'not to have; no; none' },
+      { char: '二', pinyin: 'èr', meaning: 'two; 2; (Beijing dialect) stupid' },
     ],
     tradCharPinyins: [
-      { char: '獨', pinyin: 'dú' },
-      { char: '一', pinyin: 'yī' },
-      { char: '無', pinyin: 'wú' },
-      { char: '二', pinyin: 'èr' },
+      { char: '獨', pinyin: 'dú', meaning: 'alone; independent; single' },
+      { char: '一', pinyin: 'yī', meaning: 'one; single; a (article)' },
+      { char: '無', pinyin: 'wú', meaning: 'not to have; no; none' },
+      { char: '二', pinyin: 'èr', meaning: 'two; 2; (Beijing dialect) stupid' },
     ],
   })),
   convertDailyChengyu: vi.fn((dailyChengyu, charSet) => {
@@ -53,15 +53,6 @@ vi.mock('../../../data/chengyus', () => ({
     }
     return { chengyu: dailyChengyu.chengyu, charPinyins: dailyChengyu.charPinyins };
   }),
-}));
-
-vi.mock('../../../services/chengyuService', () => ({
-  lookupCharacterMeanings: vi.fn().mockResolvedValue([
-    { char: '独', meaning: 'alone; independent' },
-    { char: '一', meaning: 'one; a' },
-    { char: '无', meaning: 'without; nothing' },
-    { char: '二', meaning: 'two; second' },
-  ]),
 }));
 
 import React from 'react';
@@ -244,7 +235,7 @@ describe('Chengyu — answering incorrectly', () => {
 });
 
 describe('Chengyu — character meanings after completion', () => {
-  it('shows character meanings from lookupCharacterMeanings after finishing', async () => {
+  it('shows pre-loaded character meanings instantly after finishing', async () => {
     const user = userEvent.setup();
     renderWithProviders(<Chengyu />, { store: makeStore() });
 
@@ -252,6 +243,8 @@ describe('Chengyu — character meanings after completion', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/alone; independent/i)).toBeInTheDocument();
+      expect(screen.getByText(/one; single/i)).toBeInTheDocument();
+      expect(screen.getByText(/not to have; no; none/i)).toBeInTheDocument();
     });
   });
 });
