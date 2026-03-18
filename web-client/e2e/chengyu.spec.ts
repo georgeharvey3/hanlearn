@@ -111,7 +111,7 @@ test.describe('Chengyu daily challenge', () => {
     await dashboard.solveChengyu();
 
     // Example sentence should appear with the "Example" label
-    await expect(page.getByText('Example')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Example', { exact: true })).toBeVisible({ timeout: 10000 });
     await expect(page.getByText(`这是一个使用${chengyuChars}的例句。`)).toBeVisible();
     await expect(page.getByText('This is an example sentence using the chengyu.')).toBeVisible();
   });
