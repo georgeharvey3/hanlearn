@@ -677,3 +677,76 @@ describe('TestWords — other lists with due words', () => {
     });
   });
 });
+
+describe('TestWords — loading state', () => {
+  it('shows spinner when words are loading and no words selected yet', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        listStats: {},
+        loading: true,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+
+    await waitFor(() => {
+      expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    });
+  });
+});
+
+describe('TestWords — Test All Lists chip interaction', () => {
+  it('calls switchActiveList with __all__ when Test All Lists chip is clicked', async () => {
+    const user = userEvent.setup();
+    const mockedSwitchList = vi.mocked(wordActions.switchActiveList);
+    mockedSwitchList.mockReturnValue({ type: 'SWITCH_LIST_NOOP' } as any);
+
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [
+          { id: 'default', name: 'General', createdAt: '', order: 0 },
+          { id: 'list-1', name: 'HSK 1', createdAt: '', order: 1 },
+        ],
+        activeListId: 'default',
+        words: [],
+        listStats: { default: { due: 0, total: 3 }, 'list-1': { due: 2, total: 5 } },
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+
+    const chip = await screen.findByText(/Test All Lists/);
+    await user.click(chip);
+
+    expect(mockedSwitchList).toHaveBeenCalledWith('__all__');
+  });
+});
+
+describe('TestWords — new words enabled stage', () => {
+  it('shows NewWords stage when bank-1 words are due and newWordsEnabled is true (default)', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord(1, '你好', 1), dueWord(2, '学生', 1)],
+        listStats: {},
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-new-words')).toBeInTheDocument();
+    });
+    // Learn step should be in stepper
+    expect(screen.getByText('Learn')).toBeInTheDocument();
+  });
+});
