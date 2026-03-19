@@ -109,4 +109,31 @@ test.describe('Chengyu daily challenge', () => {
     // Button should change to "Saved!"
     await expect(page.getByRole('button', { name: /Saved!/i })).toBeVisible({ timeout: 5000 });
   });
+
+  test('save button uses primary theme styling (dark green background, white text)', async ({
+    page,
+  }) => {
+    const dashboard = new DashboardPage(page);
+    await dashboard.navigateTo();
+
+    await expect(page.getByText('Chengyu Of The Day')).toBeVisible({ timeout: 10000 });
+
+    // Solve the chengyu
+    await dashboard.solveChengyu();
+
+    // Should see "Save to my words" button after solving
+    const saveButton = page.getByRole('button', { name: /Save to my words/i });
+    await expect(saveButton).toBeVisible({ timeout: 5000 });
+
+    // Verify the button has dark green background (#1a5c40) and white text
+    const bgColor = await saveButton.evaluate(
+      (el) => getComputedStyle(el).backgroundColor,
+    );
+    const textColor = await saveButton.evaluate((el) => getComputedStyle(el).color);
+
+    // #1a5c40 = rgb(26, 92, 64)
+    expect(bgColor).toBe('rgb(26, 92, 64)');
+    // White text
+    expect(textColor).toBe('rgb(255, 255, 255)');
+  });
 });
