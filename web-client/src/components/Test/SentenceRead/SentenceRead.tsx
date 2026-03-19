@@ -630,7 +630,9 @@ const SentenceRead: React.FC<Props> = ({
               <Typography variant="subtitle2" sx={{ m: 0, fontWeight: 'bold' }}>
                 Pinyin:
               </Typography>
-              <Typography variant="body2">{w.pinyin || '—'}</Typography>
+              <Typography lang="zh-Latn" variant="body2">
+                {w.pinyin || '—'}
+              </Typography>
               <Typography variant="subtitle2" sx={{ m: 0, fontWeight: 'bold' }}>
                 Meaning:
               </Typography>
@@ -666,7 +668,9 @@ const SentenceRead: React.FC<Props> = ({
       });
 
       sentenceCardContent = (
-        <Box sx={{ lineHeight: 1.8, fontSize: '1.5em', letterSpacing: 2 }}>{renderedWords}</Box>
+        <Box lang="zh" sx={{ lineHeight: 1.8, fontSize: '1.5em', letterSpacing: 2 }}>
+          {renderedWords}
+        </Box>
       );
     }
   }
