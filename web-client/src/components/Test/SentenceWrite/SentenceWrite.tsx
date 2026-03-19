@@ -464,7 +464,10 @@ const SentenceWrite: React.FC<Props> = ({
                 minHeight: 48,
               }}
             >
-              <Typography sx={{ color: 'text.primary', fontSize: '1.1rem', letterSpacing: 1 }}>
+              <Typography
+                lang="zh"
+                sx={{ color: 'text.primary', fontSize: '1.1rem', letterSpacing: 1 }}
+              >
                 {state.entered || (
                   <Box component="span" sx={{ color: 'text.disabled' }}>
                     —
@@ -488,7 +491,10 @@ const SentenceWrite: React.FC<Props> = ({
                 minHeight: 48,
               }}
             >
-              <Typography sx={{ color: 'text.primary', fontSize: '1.1rem', letterSpacing: 1 }}>
+              <Typography
+                lang="zh"
+                sx={{ color: 'text.primary', fontSize: '1.1rem', letterSpacing: 1 }}
+              >
                 {state.originalChinese}
               </Typography>
             </Paper>
@@ -621,10 +627,13 @@ const SentenceWrite: React.FC<Props> = ({
                       textAlign: 'left',
                     }}
                   >
-                    <Typography sx={{ fontSize: '1.2rem', fontWeight: 500, letterSpacing: 1 }}>
+                    <Typography
+                      lang="zh"
+                      sx={{ fontSize: '1.2rem', fontWeight: 500, letterSpacing: 1 }}
+                    >
                       {tw[state.charSet]}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    <Typography lang="zh-Latn" variant="body2" sx={{ color: 'text.secondary' }}>
                       {tw.pinyin}
                     </Typography>
                     <Typography variant="body2">{parseMeanings(tw.meaning).join(' / ')}</Typography>
@@ -656,6 +665,7 @@ const SentenceWrite: React.FC<Props> = ({
             must use:
           </Typography>
           <Typography
+            lang="zh"
             sx={{
               fontWeight: 400,
               fontSize: '1.1rem',
