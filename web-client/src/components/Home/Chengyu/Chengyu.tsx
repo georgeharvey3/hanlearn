@@ -3,13 +3,13 @@ import { connect, ConnectedProps } from 'react-redux';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 
 import { getDailyChengyu, convertDailyChengyu } from '../../../data/chengyus';
+import Button from '../../UI/Buttons/Button/Button';
 import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
 import { postWord } from '../../../store/actions/word';
@@ -184,11 +184,10 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
   const saveButton =
     finished && userId ? (
       <Button
-        variant="contained"
-        color="primary"
-        onClick={handleSave}
+        type="primary"
+        clicked={handleSave}
         disabled={alreadySaved || saved}
-        sx={{ mt: 2 }}
+        style={{ marginTop: 16 }}
       >
         {saved ? 'Saved!' : alreadySaved ? 'Already saved' : 'Save to my words'}
       </Button>
