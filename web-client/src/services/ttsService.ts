@@ -57,6 +57,9 @@ function speakWithNativeFallback(text: string, options: SpeakOptions): TtsHandle
   const synth = window.speechSynthesis;
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = options.fallbackLang || 'zh-CN';
+  if (options.speed !== undefined) {
+    utterance.rate = options.speed;
+  }
   if (options.fallbackVoice) {
     utterance.voice = options.fallbackVoice;
   }
@@ -112,9 +115,14 @@ function playFromBlobUrl(blobUrl: string, options: SpeakOptions): TtsHandle {
 }
 
 export function speak(text: string, options: SpeakOptions = {}): TtsHandle {
+  // Include speed in cache key so different speeds are cached separately
+  const cacheKey =
+    options.speed !== undefined && options.speed !== 1.0 ? `${text}::speed=${options.speed}` : text;
+
   // Check cache first
-  const cached = cache.get(text);
+  const cached = cache.get(cacheKey);
   if (cached) {
+    options.onStart?.();
     const handle = playFromBlobUrl(cached, options);
     handle.play();
     return handle;
@@ -131,8 +139,9 @@ export function speak(text: string, options: SpeakOptions = {}): TtsHandle {
       _googleTtsAvailable = true;
       const blobUrl = base64ToBlobUrl(result.data.audioContent);
       evictIfNeeded();
-      cache.set(text, blobUrl);
+      cache.set(cacheKey, blobUrl);
 
+      options.onStart?.();
       const handle = playFromBlobUrl(blobUrl, options);
       activeHandle = handle;
       handle.play();
