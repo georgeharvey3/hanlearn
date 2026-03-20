@@ -169,32 +169,20 @@ describe('recordTestCompletion', () => {
     vi.useRealTimers();
   });
 
-  it('creates a new document with testsCount=1 when no prior completion exists today', async () => {
-    mockGetDoc.mockResolvedValue({ exists: () => false });
-    mockSetDoc.mockResolvedValue(undefined);
-
-    await recordTestCompletion('user-1');
-
-    expect(mockSetDoc).toHaveBeenCalledOnce();
-    const [, payload] = mockSetDoc.mock.calls[0];
-    expect(payload.testsCount).toBe(1);
-    expect(payload.completedAt).toBeDefined();
-    // No merge option on the initial creation
-    expect(mockSetDoc.mock.calls[0][2]).toBeUndefined();
-  });
-
-  it('increments testsCount when a completion already exists for today', async () => {
-    mockGetDoc.mockResolvedValue({ exists: () => true });
+  it('atomically increments testsCount using setDoc with merge (handles both new and existing docs)', async () => {
     mockSetDoc.mockResolvedValue(undefined);
 
     await recordTestCompletion('user-1');
 
     expect(mockSetDoc).toHaveBeenCalledOnce();
     const [, payload, options] = mockSetDoc.mock.calls[0];
-    // increment() was called with 1
+    // Always uses increment(1) for atomic operation — avoids TOCTOU race
     expect(mockIncrement).toHaveBeenCalledWith(1);
     expect(payload.testsCount).toEqual(mockIncrement.mock.results[0].value);
+    expect(payload.completedAt).toBeDefined();
     expect(options).toEqual({ merge: true });
+    // Should NOT read the doc first (no getDoc call)
+    expect(mockGetDoc).not.toHaveBeenCalled();
   });
 
   it('uses the correct Firestore path: users/{userId}/testCompletions/{date}', async () => {
