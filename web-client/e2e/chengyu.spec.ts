@@ -100,7 +100,7 @@ test.describe('Chengyu daily challenge', () => {
     await dashboard.solveChengyu();
 
     // The revealed correct answer should have white text
-    const correctOption = page.locator('[aria-label*="correct"][role="button"]');
+    const correctOption = page.locator('[role="button"][aria-label$="— correct"]');
     await expect(correctOption).toBeVisible();
     const color = await correctOption.evaluate(
       (el) => window.getComputedStyle(el).color,
