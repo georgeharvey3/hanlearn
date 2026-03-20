@@ -56,6 +56,7 @@ class ErrorBoundary extends Component<Props, State> {
 
     return (
       <Box
+        role="alert"
         sx={{
           display: 'flex',
           flexDirection: 'column',
