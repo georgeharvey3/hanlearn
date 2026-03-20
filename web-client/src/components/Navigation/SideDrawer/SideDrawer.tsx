@@ -31,7 +31,12 @@ const SideDrawer: React.FC<SideDrawerProps> = (props) => {
         <Logo />
       </Box>
       <nav>
-        <NavigationItems authenticated={props.isAuth} isSideDrawer drawerClosed={props.closed} onOpenShortcuts={props.onOpenShortcuts} />
+        <NavigationItems
+          authenticated={props.isAuth}
+          isSideDrawer
+          drawerClosed={props.closed}
+          onOpenShortcuts={props.onOpenShortcuts}
+        />
       </nav>
     </Drawer>
   );

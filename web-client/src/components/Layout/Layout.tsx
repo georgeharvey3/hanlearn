@@ -33,7 +33,11 @@ const Layout: React.FC<Props> = ({ isAuthenticated, children }) => {
   const [state, setState] = useState<LayoutState>({
     showSideDrawer: false,
   });
-  const { open: shortcutsOpen, handleOpen: openShortcuts, handleClose: closeShortcuts } = useKeyboardShortcutsDialog();
+  const {
+    open: shortcutsOpen,
+    handleOpen: openShortcuts,
+    handleClose: closeShortcuts,
+  } = useKeyboardShortcutsDialog();
 
   const sideDrawerClosedHandler = (): void => {
     setState({ showSideDrawer: false });

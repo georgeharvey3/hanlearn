@@ -49,7 +49,10 @@ const KeyboardShortcutsDialog: React.FC<Props> = ({ open, onClose }) => {
       <DialogContent dividers sx={{ pb: 3 }}>
         {keyboardShortcuts.map((group) => (
           <Box key={group.id} sx={{ mb: 2.5, '&:last-child': { mb: 0 } }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, color: 'text.secondary' }}>
+            <Typography
+              variant="subtitle2"
+              sx={{ fontWeight: 700, mb: 1, color: 'text.secondary' }}
+            >
               {group.label}
             </Typography>
             {group.shortcuts.map((shortcut) => (
@@ -67,7 +70,11 @@ const KeyboardShortcutsDialog: React.FC<Props> = ({ open, onClose }) => {
                 <Typography variant="body2" sx={{ flex: 1 }}>
                   {shortcut.description}
                   {shortcut.context && (
-                    <Typography component="span" variant="caption" sx={{ ml: 0.5, color: 'text.disabled' }}>
+                    <Typography
+                      component="span"
+                      variant="caption"
+                      sx={{ ml: 0.5, color: 'text.disabled' }}
+                    >
                       ({shortcut.context})
                     </Typography>
                   )}
@@ -83,8 +90,15 @@ const KeyboardShortcutsDialog: React.FC<Props> = ({ open, onClose }) => {
             ))}
           </Box>
         ))}
-        <Typography variant="caption" sx={{ display: 'block', mt: 2, color: 'text.disabled', textAlign: 'center' }}>
-          Press <Box component="kbd" sx={{ ...kbdSx, fontSize: '0.7rem' }}>?</Box> to toggle this dialog from anywhere
+        <Typography
+          variant="caption"
+          sx={{ display: 'block', mt: 2, color: 'text.disabled', textAlign: 'center' }}
+        >
+          Press{' '}
+          <Box component="kbd" sx={{ ...kbdSx, fontSize: '0.7rem' }}>
+            ?
+          </Box>{' '}
+          to toggle this dialog from anywhere
         </Typography>
       </DialogContent>
     </Dialog>

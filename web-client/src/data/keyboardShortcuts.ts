@@ -14,9 +14,7 @@ export const keyboardShortcuts: ShortcutGroup[] = [
   {
     id: 'global',
     label: 'Global',
-    shortcuts: [
-      { keys: '?', description: 'Open keyboard shortcuts' },
-    ],
+    shortcuts: [{ keys: '?', description: 'Open keyboard shortcuts' }],
   },
   {
     id: 'test',
