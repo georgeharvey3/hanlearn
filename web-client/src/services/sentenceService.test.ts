@@ -284,6 +284,17 @@ describe('sentenceService', () => {
       expect(result.totalCount).toBe(1);
     });
 
+    it('returns empty result when AI returns invalid JSON instead of crashing', async () => {
+      mockGetDoc.mockResolvedValue({ exists: () => false });
+      mockGenerateContent.mockResolvedValue({
+        response: { text: () => 'This is not valid JSON {{{' },
+      });
+
+      const result = await getSegmentedSentence('坏数据', 'simp', 0);
+      expect(result.sentence).toBeNull();
+      expect(result.totalCount).toBe(0);
+    });
+
     it('does not cache empty AI results', async () => {
       mockGetDoc.mockResolvedValue({ exists: () => false });
       mockGenerateContent.mockResolvedValue({
