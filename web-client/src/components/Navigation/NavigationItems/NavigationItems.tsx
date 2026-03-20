@@ -25,6 +25,7 @@ interface NavigationItemsProps {
   isSideDrawer?: boolean;
   textColor?: string;
   drawerClosed?: () => void;
+  onOpenShortcuts?: () => void;
 }
 
 type Props = NavigationItemsProps & PropsFromRedux;
@@ -71,6 +72,24 @@ const NavigationItems: React.FC<Props> = (props) => {
               </ListItemButton>
             </ListItem>
           ))}
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton
+              onClick={() => {
+                props.onOpenShortcuts?.();
+                props.drawerClosed?.();
+              }}
+              sx={{
+                color: 'text.primary',
+                borderRadius: 2,
+                py: 1.2,
+                '&:hover': {
+                  backgroundColor: 'rgba(0,0,0,0.06)',
+                },
+              }}
+            >
+              <ListItemText primary="Shortcuts" />
+            </ListItemButton>
+          </ListItem>
           <ListItem disablePadding sx={{ mb: 0.5 }}>
             <ListItemButton
               onClick={() => {

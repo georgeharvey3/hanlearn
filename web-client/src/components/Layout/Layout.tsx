@@ -6,6 +6,8 @@ import Toolbar from '../Navigation/Toolbar/Toolbar';
 import SideDrawer from '../Navigation/SideDrawer/SideDrawer';
 import Sidebar, { SIDEBAR_WIDTH } from '../Navigation/Sidebar/Sidebar';
 import SkipLink from './SkipLink';
+import KeyboardShortcutsDialog from '../KeyboardShortcutsDialog/KeyboardShortcutsDialog';
+import { useKeyboardShortcutsDialog } from '../KeyboardShortcutsDialog/useKeyboardShortcutsDialog';
 import { RootState } from '../../types/store';
 
 interface LayoutState {
@@ -31,6 +33,7 @@ const Layout: React.FC<Props> = ({ isAuthenticated, children }) => {
   const [state, setState] = useState<LayoutState>({
     showSideDrawer: false,
   });
+  const { open: shortcutsOpen, handleOpen: openShortcuts, handleClose: closeShortcuts } = useKeyboardShortcutsDialog();
 
   const sideDrawerClosedHandler = (): void => {
     setState({ showSideDrawer: false });
@@ -48,8 +51,10 @@ const Layout: React.FC<Props> = ({ isAuthenticated, children }) => {
         open={state.showSideDrawer}
         closed={sideDrawerClosedHandler}
         isAuth={isAuthenticated}
+        onOpenShortcuts={openShortcuts}
       />
-      {isAuthenticated && <Sidebar />}
+      {isAuthenticated && <Sidebar onOpenShortcuts={openShortcuts} />}
+      <KeyboardShortcutsDialog open={shortcutsOpen} onClose={closeShortcuts} />
       <Container
         id="main-content"
         component="main"
