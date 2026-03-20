@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { RouteComponentProps, withRouter, Redirect } from 'react-router-dom';
 
+import Typography from '@mui/material/Typography';
+
 import * as wordActions from '../../store/actions/index';
 
 import Modal from '../../components/UI/Modal/Modal';
@@ -104,7 +106,12 @@ const TestChengyus: React.FC<Props> = ({
   } else {
     content = (
       <Modal show>
-        <p>You have no words to test!</p>
+        <Typography variant="body1" sx={{ mb: 1 }}>
+          No chengyu to test yet.
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+          Add some four-character words to your bank to start practising chengyu.
+        </Typography>
         <Button clicked={onClickAddWords}>Add Words</Button>
       </Modal>
     );
