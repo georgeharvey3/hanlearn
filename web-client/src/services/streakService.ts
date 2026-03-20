@@ -1,6 +1,5 @@
 import {
   doc,
-  getDoc,
   setDoc,
   getDocs,
   collection,
@@ -22,17 +21,11 @@ function todayString(): string {
 export const recordTestCompletion = async (userId: string): Promise<void> => {
   const dateStr = todayString();
   const docRef = doc(db, 'users', userId, 'testCompletions', dateStr);
-  const existing = await getDoc(docRef);
-
-  if (existing.exists()) {
-    await setDoc(
-      docRef,
-      { testsCount: increment(1), completedAt: Timestamp.now() },
-      { merge: true },
-    );
-  } else {
-    await setDoc(docRef, { completedAt: Timestamp.now(), testsCount: 1 });
-  }
+  await setDoc(
+    docRef,
+    { testsCount: increment(1), completedAt: Timestamp.now() },
+    { merge: true },
+  );
 };
 
 /**

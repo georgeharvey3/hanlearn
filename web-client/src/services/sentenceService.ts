@@ -96,7 +96,13 @@ Requirements:
   });
 
   const text = result.response.text();
-  const parsed: unknown = JSON.parse(text);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    console.error('AI returned invalid JSON for sentence generation:', text.slice(0, 200));
+    return [];
+  }
 
   if (!Array.isArray(parsed)) return [];
 
