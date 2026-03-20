@@ -21,11 +21,7 @@ function todayString(): string {
 export const recordTestCompletion = async (userId: string): Promise<void> => {
   const dateStr = todayString();
   const docRef = doc(db, 'users', userId, 'testCompletions', dateStr);
-  await setDoc(
-    docRef,
-    { testsCount: increment(1), completedAt: Timestamp.now() },
-    { merge: true },
-  );
+  await setDoc(docRef, { testsCount: increment(1), completedAt: Timestamp.now() }, { merge: true });
 };
 
 /**
