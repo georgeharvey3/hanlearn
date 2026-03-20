@@ -60,6 +60,9 @@ const NewWords: React.FC<NewWordsProps> = ({ words, isDemo, startTest }) => {
       <Typography variant="h5" component="h2" sx={{ fontWeight: 600, mb: 0.5 }}>
         New Words
       </Typography>
+      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
+        Word {wordIndex + 1} of {words.length}
+      </Typography>
       <Typography variant="subtitle1" component="h4" sx={{ color: 'text.secondary', mb: 2 }}>
         Tap a character to see information
       </Typography>
