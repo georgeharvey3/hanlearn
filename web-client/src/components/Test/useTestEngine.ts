@@ -132,7 +132,9 @@ export const useTestEngine = (props: Props) => {
             !(
               latest.answerCategory === 'character' ||
               (latest.answerCategory === 'meaning' && latest.useFlashcards)
-            )
+            ) &&
+            ((latest.answerCategory === 'pinyin' && latest.useChineseSpeechRecognition) ||
+              (latest.answerCategory === 'meaning' && latest.useEnglishSpeechRecognition))
           ) {
             onListen();
           }
@@ -818,6 +820,7 @@ export const useTestEngine = (props: Props) => {
     const useFlashcards =
       (props.speechAvailable && !(localStorage.getItem('useFlashcards') === 'false')) ||
       Boolean(props.isDemo);
+    const useAutoRecord = localStorage.getItem('useAutoRecord') === 'true' && !props.isDemo;
 
     setStateMerged({
       useSound,
@@ -826,6 +829,7 @@ export const useTestEngine = (props: Props) => {
       useChineseSpeechRecognition,
       useEnglishSpeechRecognition,
       useFlashcards,
+      useAutoRecord,
     });
 
     onInitialiseTestSet(useHandwriting);
@@ -1019,11 +1023,11 @@ export const useTestEngine = (props: Props) => {
       !current.useTypingInput &&
       !(current.questionCategory === 'pinyin' && current.useSound)
     ) {
-      if (current.answerCategory === 'pinyin') {
+      if (current.answerCategory === 'pinyin' && current.useChineseSpeechRecognition) {
         onListen();
       }
       if (current.answerCategory === 'meaning') {
-        if (!current.useFlashcards) {
+        if (!current.useFlashcards && current.useEnglishSpeechRecognition) {
           onListen();
         }
       }
