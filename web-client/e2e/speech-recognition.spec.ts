@@ -146,7 +146,8 @@ test.describe('Speech recognition respects disabled setting', () => {
       localStorage.setItem('useSound', 'false');
       localStorage.setItem('useHandwriting', 'false');
       localStorage.setItem('useSoundEffects', 'false');
-      localStorage.setItem('priority', 'PM');
+      // MP = Meaning question → Pinyin answer; pinyin answers use Chinese speech recognition
+      localStorage.setItem('priority', 'MP');
       localStorage.setItem('onlyPriority', 'true');
       localStorage.setItem('sentenceRead', 'false');
       localStorage.setItem('sentenceWrite', 'false');
