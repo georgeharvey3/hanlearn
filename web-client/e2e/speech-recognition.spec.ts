@@ -105,7 +105,9 @@ test.describe('Speech recognition respects disabled setting', () => {
     expect(started).toBe(false);
   });
 
-  test('shows text input instead of mic button when speech recognition is disabled', async ({ page }) => {
+  test('shows text input instead of mic button when speech recognition is disabled', async ({
+    page,
+  }) => {
     // Inject mock speech recognition API + configure settings
     await page.addInitScript(SPEECH_RECOGNITION_MOCK);
     await page.addInitScript(() => {
@@ -146,8 +148,8 @@ test.describe('Speech recognition respects disabled setting', () => {
       localStorage.setItem('useSound', 'false');
       localStorage.setItem('useHandwriting', 'false');
       localStorage.setItem('useSoundEffects', 'false');
-      // MP = Meaning question → Pinyin answer; pinyin answers use Chinese speech recognition
-      localStorage.setItem('priority', 'MP');
+      // PM = Pinyin answer, Meaning question; pinyin answers use Chinese speech recognition
+      localStorage.setItem('priority', 'PM');
       localStorage.setItem('onlyPriority', 'true');
       localStorage.setItem('sentenceRead', 'false');
       localStorage.setItem('sentenceWrite', 'false');
