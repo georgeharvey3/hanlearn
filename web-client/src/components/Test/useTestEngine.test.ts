@@ -585,7 +585,7 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
     return mockRecognition;
   }
 
-  it('calls onListen when answerCategory=pinyin and useAutoRecord=true on qNum change', () => {
+  it('calls onListen when answerCategory=pinyin, useAutoRecord=true, and useChineseSpeechRecognition=true on qNum change', () => {
     const mockRecognition = setupRecognitionMock();
 
     const perm = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
@@ -593,6 +593,7 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
       answerCategory: 'pinyin',
       questionCategory: 'meaning',
       useAutoRecord: true,
+      useChineseSpeechRecognition: true,
       useTypingInput: false,
       useSound: false,
       useHandwriting: false,
@@ -614,7 +615,35 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
     expect(mockRecognition.start).toHaveBeenCalled();
   });
 
-  it('calls onListen when answerCategory=meaning, useAutoRecord=true, and not flashcards', () => {
+  it('does NOT call onListen when answerCategory=pinyin, useAutoRecord=true, but useChineseSpeechRecognition=false', () => {
+    const mockRecognition = setupRecognitionMock();
+
+    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
+    const result = renderEngineWithState({
+      answerCategory: 'pinyin',
+      questionCategory: 'meaning',
+      useAutoRecord: true,
+      useChineseSpeechRecognition: false,
+      useTypingInput: false,
+      useSound: false,
+      useHandwriting: false,
+      writer: null,
+      perm,
+      testSet: [makeWord()],
+      permList: [perm],
+      charSet: 'simp',
+      chosenCharacter: '你好',
+      qNum: 1,
+    });
+
+    act(() => {
+      result.current.setStateMerged({ qNum: 2 } as any);
+    });
+
+    expect(mockRecognition.start).not.toHaveBeenCalled();
+  });
+
+  it('calls onListen when answerCategory=meaning, useAutoRecord=true, useEnglishSpeechRecognition=true, and not flashcards', () => {
     const mockRecognition = setupRecognitionMock();
 
     const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
@@ -622,6 +651,7 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
       answerCategory: 'meaning',
       questionCategory: 'pinyin',
       useAutoRecord: true,
+      useEnglishSpeechRecognition: true,
       useTypingInput: false,
       useSound: false,
       useFlashcards: false,
@@ -640,6 +670,35 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
     });
 
     expect(mockRecognition.start).toHaveBeenCalled();
+  });
+
+  it('does NOT call onListen when answerCategory=meaning, useAutoRecord=true, but useEnglishSpeechRecognition=false', () => {
+    const mockRecognition = setupRecognitionMock();
+
+    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const result = renderEngineWithState({
+      answerCategory: 'meaning',
+      questionCategory: 'pinyin',
+      useAutoRecord: true,
+      useEnglishSpeechRecognition: false,
+      useTypingInput: false,
+      useSound: false,
+      useFlashcards: false,
+      useHandwriting: false,
+      writer: null,
+      perm,
+      testSet: [makeWord()],
+      permList: [perm],
+      charSet: 'simp',
+      chosenCharacter: '你好',
+      qNum: 1,
+    });
+
+    act(() => {
+      result.current.setStateMerged({ qNum: 2 } as any);
+    });
+
+    expect(mockRecognition.start).not.toHaveBeenCalled();
   });
 
   it('does NOT call onListen when answerCategory=meaning + useFlashcards=true', () => {
