@@ -728,6 +728,67 @@ describe('TestWords — Test All Lists chip interaction', () => {
   });
 });
 
+describe('TestWords — chengyus in main test', () => {
+  it('includes chengyu words (4+ characters) in the test session', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord(1, '一举两得', 2)],
+        listStats: {},
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test')).toBeInTheDocument();
+      expect(screen.getByText(/一举两得/)).toBeInTheDocument();
+    });
+  });
+
+  it('mixes chengyus and regular words in the same test session', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord(1, '你好', 2), dueWord(2, '一举两得', 2)],
+        listStats: {},
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test')).toBeInTheDocument();
+    });
+    // The mocked Test component renders all word simps joined by commas
+    const testEl = screen.getByTestId('mock-test');
+    expect(testEl.textContent).toContain('你好');
+    expect(testEl.textContent).toContain('一举两得');
+  });
+
+  it('shows Practice button when only chengyu words are in bank', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [futureWord(1, '一举两得')],
+        listStats: {},
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /practice/i })).toBeInTheDocument();
+    });
+  });
+});
+
 describe('TestWords — new words enabled stage', () => {
   it('shows NewWords stage when bank-1 words are due and newWordsEnabled is true (default)', async () => {
     const store = createTestStore({
