@@ -583,6 +583,85 @@ describe('SentenceRead — slow mode toggle', () => {
   });
 });
 
+describe('SentenceRead — tap affordance', () => {
+  const wordMatch = { id: 5, simp: '我是', trad: '我是', pinyin: 'wo3 shi4', meaning: 'to be' };
+
+  beforeEach(() => {
+    localStorage.removeItem('tapHintDismissed');
+    mockedSearchWord.mockImplementation((seg: string) => {
+      if (seg === '我是') return Promise.resolve([wordMatch]);
+      return Promise.resolve([]);
+    });
+  });
+
+  it('shows first-use hint text when tapHintDismissed is not set', async () => {
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStore() },
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Tap any word for its definition')).toBeInTheDocument();
+  });
+
+  it('shows default hint text when tapHintDismissed is already set', async () => {
+    localStorage.setItem('tapHintDismissed', 'true');
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStore() },
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Tap a word to reveal its meaning')).toBeInTheDocument();
+  });
+
+  it('dismisses first-use hint and sets localStorage when a word is tapped', async () => {
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStore() },
+    );
+
+    const popupSpan = await screen.findByLabelText(
+      /我是.*tap to see meaning/i,
+      {},
+      { timeout: 5000 },
+    );
+
+    expect(screen.getByText('Tap any word for its definition')).toBeInTheDocument();
+
+    fireEvent.click(popupSpan);
+
+    await waitFor(() => {
+      expect(screen.getByText('Tap a word to reveal its meaning')).toBeInTheDocument();
+    });
+    expect(localStorage.getItem('tapHintDismissed')).toBe('true');
+  });
+
+  it('renders clickable word spans with dotted underline styling', async () => {
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStore() },
+    );
+
+    const popupSpan = await screen.findByLabelText(
+      /我是.*tap to see meaning/i,
+      {},
+      { timeout: 5000 },
+    );
+
+    // The span should have the data-popup attribute (confirms it's a clickable word)
+    expect(popupSpan).toHaveAttribute('data-popup');
+    // The span should have role="button" (confirms it communicates interactivity)
+    expect(popupSpan).toHaveAttribute('role', 'button');
+  });
+});
+
 describe('SentenceRead — decomposed array word rendering', () => {
   // When substringMatch returns 2+ items for a segment, it renders as an array of clickable spans
   const subWordA = { id: 6, simp: '学', trad: '學', pinyin: 'xue2', meaning: 'to study' };

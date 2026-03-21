@@ -80,6 +80,14 @@ interface OwnProps {
 
 type Props = PropsFromRedux & OwnProps & RouteComponentProps;
 
+// Keyframes for subtle underline fade-in
+const tapAffordanceFadeIn = {
+  '@keyframes tapAffordanceFadeIn': {
+    '0%': { borderBottomColor: 'transparent' },
+    '100%': { borderBottomColor: 'rgba(26, 92, 64, 0.35)' },
+  },
+};
+
 // Popup styles
 const popupBaseSx = {
   position: 'relative',
@@ -90,9 +98,13 @@ const popupBaseSx = {
   height: 36,
   boxSizing: 'border-box',
   border: 'none',
+  borderBottom: '2px dotted rgba(26, 92, 64, 0.35)',
   fontFamily: 'inherit',
   fontSize: '1.1em',
   width: 'auto',
+  color: 'primary.dark',
+  animation: 'tapAffordanceFadeIn 0.6s ease-in',
+  ...tapAffordanceFadeIn,
   '&:hover': {
     bgcolor: 'primary.dark',
     color: 'common.white',
@@ -132,6 +144,9 @@ const SentenceRead: React.FC<Props> = ({
 }) => {
   const [slowMode, setSlowMode] = useState<boolean>(
     () => localStorage.getItem('slowMode') === 'true',
+  );
+  const [showTapHint, setShowTapHint] = useState<boolean>(
+    () => localStorage.getItem('tapHintDismissed') !== 'true',
   );
   const [state, setState] = useState<SentenceReadState>({
     sentences: [],
@@ -466,6 +481,12 @@ const SentenceRead: React.FC<Props> = ({
       popup.style.visibility = popup.style.visibility === 'visible' ? 'hidden' : 'visible';
     }
     updateState({ openPopup: id });
+
+    // Dismiss first-use hint on first tap
+    if (showTapHint) {
+      setShowTapHint(false);
+      localStorage.setItem('tapHintDismissed', 'true');
+    }
   };
 
   const closePopup = (event: MouseEvent): void => {
@@ -863,9 +884,11 @@ const SentenceRead: React.FC<Props> = ({
         {/* Helper text – always occupies space to prevent layout shift */}
         <Typography
           variant="caption"
+          data-testid="tap-hint"
           sx={{
             textAlign: 'center',
-            color: 'text.secondary',
+            color: showTapHint ? 'primary.dark' : 'text.secondary',
+            fontWeight: showTapHint ? 600 : 400,
             display: 'block',
             mt: 1,
             visibility:
@@ -876,7 +899,7 @@ const SentenceRead: React.FC<Props> = ({
                 : 'hidden',
           }}
         >
-          Tap a word to reveal its meaning
+          {showTapHint ? 'Tap any word for its definition' : 'Tap a word to reveal its meaning'}
         </Typography>
         {state.useSound && (
           <Chip
