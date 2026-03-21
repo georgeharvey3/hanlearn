@@ -1,6 +1,21 @@
 import { test, expect } from '@playwright/test';
 import { clearEmulatorData, seedTestUser, loginViaUI, configureTestSettings } from './fixtures/seed';
 
+/**
+ * Helper: open the keyboard shortcuts dialog via the ? hotkey.
+ * Waits for React to mount (so the keydown listener is attached)
+ * then dispatches a synthetic KeyboardEvent to avoid keyboard-layout
+ * inconsistencies in headless Chromium on CI.
+ */
+async function pressQuestionMark(page: import('@playwright/test').Page) {
+  await expect(page.locator('#main-content')).toBeVisible();
+  await page.evaluate(() => {
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: '?', code: 'Slash', shiftKey: true, bubbles: true }),
+    );
+  });
+}
+
 test.describe('Keyboard shortcuts dialog', () => {
   test.beforeEach(async ({ page }) => {
     await clearEmulatorData();
@@ -11,11 +26,11 @@ test.describe('Keyboard shortcuts dialog', () => {
     await page.goto('/');
 
     // Press ? to open the dialog
-    await page.keyboard.press('Shift+/');
+    await pressQuestionMark(page);
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible({ timeout: 5000 });
-    await expect(dialog.getByText('Keyboard Shortcuts')).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: /Keyboard Shortcuts/ })).toBeVisible();
 
     // Verify at least some shortcut groups are shown
     await expect(dialog.getByText('Global')).toBeVisible();
@@ -37,7 +52,7 @@ test.describe('Keyboard shortcuts dialog', () => {
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible({ timeout: 5000 });
-    await expect(dialog.getByText('Keyboard Shortcuts')).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: /Keyboard Shortcuts/ })).toBeVisible();
   });
 
   test('? hotkey does not fire when typing in an input', async ({ page }) => {
@@ -46,7 +61,7 @@ test.describe('Keyboard shortcuts dialog', () => {
 
     // Navigate to add-words which has an input field
     await page.goto('/add-words');
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#main-content')).toBeVisible();
 
     // Focus the search input
     const input = page.locator('input').first();
@@ -61,7 +76,7 @@ test.describe('Keyboard shortcuts dialog', () => {
   test('dialog shows shortcut keys and descriptions', async ({ page }) => {
     await page.goto('/');
 
-    await page.keyboard.press('Shift+/');
+    await pressQuestionMark(page);
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible({ timeout: 5000 });
@@ -82,7 +97,7 @@ test.describe('Keyboard shortcuts dialog', () => {
   test('dialog closes when close button is clicked', async ({ page }) => {
     await page.goto('/');
 
-    await page.keyboard.press('Shift+/');
+    await pressQuestionMark(page);
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible({ timeout: 5000 });
