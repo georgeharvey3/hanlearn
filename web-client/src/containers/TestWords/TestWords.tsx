@@ -104,8 +104,7 @@ const TestWords: React.FC<Props> = ({
   const selectTestWords = useCallback(
     (ignoreDueDates = false): Word[] => {
       const allWords = words.slice();
-      const actualNumWords =
-        allWords.length >= state.numWords ? state.numWords : allWords.length;
+      const actualNumWords = allWords.length >= state.numWords ? state.numWords : allWords.length;
       if (ignoreDueDates) {
         return testLogic.chooseRandomTestSet(allWords, actualNumWords);
       }
