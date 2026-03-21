@@ -33,8 +33,8 @@ test.describe('Keyboard shortcuts dialog', () => {
     await expect(dialog.getByRole('heading', { name: /Keyboard Shortcuts/ })).toBeVisible();
 
     // Verify at least some shortcut groups are shown
-    await expect(dialog.getByText('Global')).toBeVisible();
-    await expect(dialog.getByText('Test')).toBeVisible();
+    await expect(dialog.getByText('Global', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Test', { exact: true })).toBeVisible();
 
     // Close with Escape
     await page.keyboard.press('Escape');
@@ -64,7 +64,7 @@ test.describe('Keyboard shortcuts dialog', () => {
     await expect(page.locator('#main-content')).toBeVisible();
 
     // Focus the search input
-    const input = page.locator('input').first();
+    const input = page.getByLabel('Search for a Chinese word');
     await input.click();
     await input.type('?');
 
