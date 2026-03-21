@@ -9,6 +9,7 @@ interface SideDrawerProps {
   open?: boolean;
   closed?: () => void;
   isAuth?: boolean;
+  onOpenShortcuts?: () => void;
 }
 
 const SideDrawer: React.FC<SideDrawerProps> = (props) => {
@@ -30,7 +31,12 @@ const SideDrawer: React.FC<SideDrawerProps> = (props) => {
         <Logo />
       </Box>
       <nav>
-        <NavigationItems authenticated={props.isAuth} isSideDrawer drawerClosed={props.closed} />
+        <NavigationItems
+          authenticated={props.isAuth}
+          isSideDrawer
+          drawerClosed={props.closed}
+          onOpenShortcuts={props.onOpenShortcuts}
+        />
       </nav>
     </Drawer>
   );
