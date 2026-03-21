@@ -14,6 +14,7 @@ import AddIcon from '@mui/icons-material/Add';
 import QuizIcon from '@mui/icons-material/Quiz';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
+import KeyboardIcon from '@mui/icons-material/Keyboard';
 
 import * as actions from '../../../store/actions/index';
 import { colors } from '../../../theme';
@@ -27,6 +28,10 @@ const mapDispatchToProps = {
 const connector = connect(null, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 
+interface OwnProps {
+  onOpenShortcuts?: () => void;
+}
+
 const links = [
   { to: '/', label: 'Dashboard', icon: <DashboardIcon /> },
   { to: '/add-words', label: 'Add Words', icon: <AddIcon /> },
@@ -34,7 +39,7 @@ const links = [
   { to: '/settings', label: 'Settings', icon: <SettingsIcon /> },
 ];
 
-const Sidebar: React.FC<PropsFromRedux> = ({ onLogout }) => {
+const Sidebar: React.FC<PropsFromRedux & OwnProps> = ({ onLogout, onOpenShortcuts }) => {
   return (
     <Drawer
       variant="permanent"
@@ -97,6 +102,24 @@ const Sidebar: React.FC<PropsFromRedux> = ({ onLogout }) => {
         </List>
         <Divider sx={{ borderColor: 'rgba(0,0,0,0.12)', mx: 1 }} />
         <List sx={{ px: 1, pb: 1 }}>
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton
+              onClick={onOpenShortcuts}
+              sx={{
+                color: colors.text,
+                borderRadius: 2,
+                py: 1.2,
+                '&:hover': {
+                  backgroundColor: 'rgba(0,0,0,0.06)',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>
+                <KeyboardIcon />
+              </ListItemIcon>
+              <ListItemText primary="Shortcuts" />
+            </ListItemButton>
+          </ListItem>
           <ListItem disablePadding>
             <ListItemButton
               onClick={onLogout}

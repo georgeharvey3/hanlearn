@@ -90,6 +90,25 @@ test.describe('Chengyu daily challenge', () => {
     }
   });
 
+  test('correct answer has white text on green background', async ({ page }) => {
+    const dashboard = new DashboardPage(page);
+    await dashboard.navigateTo();
+
+    await expect(page.getByText('Chengyu Of The Day')).toBeVisible({ timeout: 10000 });
+
+    // Solve the chengyu
+    await dashboard.solveChengyu();
+
+    // The revealed correct answer should have white text
+    const correctOption = page.locator('[role="button"][aria-label$="— correct"]');
+    await expect(correctOption).toBeVisible();
+    const color = await correctOption.evaluate(
+      (el) => window.getComputedStyle(el).color,
+    );
+    // White text = rgb(255, 255, 255)
+    expect(color).toBe('rgb(255, 255, 255)');
+  });
+
   test('save chengyu to word bank after solving', async ({ page }) => {
     const dashboard = new DashboardPage(page);
     await dashboard.navigateTo();

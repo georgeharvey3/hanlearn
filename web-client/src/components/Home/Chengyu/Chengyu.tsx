@@ -259,7 +259,7 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
               sx={{
                 listStyle: 'none',
                 borderRadius: '5px',
-                color: 'text.primary',
+                color: finished && isCorrect ? 'common.white' : 'text.primary',
                 opacity: isHidden ? 0 : 1,
                 maxHeight: isHidden ? 0 : '50px',
                 m: isHidden ? 0 : '5px',

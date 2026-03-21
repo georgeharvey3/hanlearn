@@ -1,0 +1,1 @@
+2026-03-20 15:04 | Reviewed: ErrorBoundary, NewWords, AddWords modals, TestChengyus empty state. Fixed: ErrorBoundary role="alert", NewWords word progress counter, AddWords modal headings to MUI Typography, TestChengyus descriptive empty state. Issues: None.

@@ -476,11 +476,15 @@ const AddWords: React.FC<Props> = ({
         </Modal>
       ) : null}
       <Modal show={state.showClashTable} modalClosed={dismissClashTable}>
-        <h2>Select entry for {state.clashChar}</h2>
+        <Typography variant="h6" component="h2" sx={{ fontWeight: 600, mb: 1 }}>
+          Select entry for {state.clashChar}
+        </Typography>
         <Table headings={['Pinyin', 'Meaning']}>{clashTableRows}</Table>
       </Modal>
       <Modal show={state.showMeaningInput} modalClosed={dismissMeaningInput}>
-        <h3>Word not found - Enter meaning...</h3>
+        <Typography variant="h6" component="h3" sx={{ fontWeight: 600, mb: 1 }}>
+          Word not found — Enter meaning
+        </Typography>
         <Input
           id="meaning"
           aria-label="Enter word meaning"
