@@ -54,15 +54,6 @@ export const keyboardShortcuts: ShortcutGroup[] = [
     ],
   },
   {
-    id: 'chengyu',
-    label: 'Daily Chengyu',
-    shortcuts: [
-      { keys: 'Left', description: 'Previous chengyu' },
-      { keys: 'Right', description: 'Next chengyu / start test' },
-      { keys: 'Space', description: 'Toggle answer visibility' },
-    ],
-  },
-  {
     id: 'sentence',
     label: 'Sentence Exercises',
     shortcuts: [

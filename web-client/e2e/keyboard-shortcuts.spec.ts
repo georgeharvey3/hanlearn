@@ -85,7 +85,6 @@ test.describe('Keyboard shortcuts dialog', () => {
     await expect(dialog.getByText('Show hint')).toBeVisible();
     await expect(dialog.getByText('Toggle pinyin visibility')).toBeVisible();
     await expect(dialog.getByText('Add Words')).toBeVisible();
-    await expect(dialog.getByText('Daily Chengyu')).toBeVisible();
     await expect(dialog.getByText('Sentence Exercises')).toBeVisible();
 
     // Verify kbd elements exist

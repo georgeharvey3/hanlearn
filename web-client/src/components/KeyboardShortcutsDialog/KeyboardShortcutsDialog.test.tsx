@@ -19,7 +19,6 @@ describe('KeyboardShortcutsDialog', () => {
     expect(screen.getByText('Global')).toBeInTheDocument();
     expect(screen.getByText('Test')).toBeInTheDocument();
     expect(screen.getByText('Add Words')).toBeInTheDocument();
-    expect(screen.getByText('Daily Chengyu')).toBeInTheDocument();
     expect(screen.getByText('Sentence Exercises')).toBeInTheDocument();
   });
 
