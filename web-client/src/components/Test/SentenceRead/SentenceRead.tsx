@@ -100,7 +100,7 @@ const popupBaseSx = {
   border: 'none',
   borderBottom: '2px dotted rgba(26, 92, 64, 0.35)',
   fontFamily: 'inherit',
-  fontSize: '1.1em',
+  fontSize: 'inherit',
   width: 'auto',
   color: 'primary.dark',
   animation: 'tapAffordanceFadeIn 0.6s ease-in',
