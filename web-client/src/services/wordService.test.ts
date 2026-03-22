@@ -392,13 +392,24 @@ describe('getDueUserWords', () => {
     expect(words[0].due_date).toBeUndefined();
   });
 
-  it('uses where query with dueDate <= now', async () => {
+  it('uses where query with dueDate <= end of today', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 2, 22, 10, 0, 0)); // 10am
+
     mockGetDocs.mockResolvedValue(makeFakeSnapshot([]));
 
     await getDueUserWords('user-1');
 
     expect(mockWhere).toHaveBeenCalledWith('dueDate', '<=', expect.anything());
     expect(mockQuery).toHaveBeenCalled();
+
+    // Verify the timestamp is set to end of day, not the current time
+    const timestampArg: Date = mockTimestampFromDate.mock.calls[0][0];
+    expect(timestampArg.getHours()).toBe(23);
+    expect(timestampArg.getMinutes()).toBe(59);
+    expect(timestampArg.getSeconds()).toBe(59);
+
+    vi.useRealTimers();
   });
 
   it('returns empty array when no words are due', async () => {
