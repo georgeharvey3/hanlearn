@@ -17,7 +17,11 @@ const WordsDueCard: React.FC<WordsDueCardProps> = ({
   estimatedStudyTime,
 }) => (
   <Paper elevation={2} sx={{ p: 2, textAlign: 'center', borderRadius: 2, height: '100%' }}>
-    <Typography variant="h3" data-testid="due-words-count" sx={{ fontWeight: 'bold', color: colors.primaryDark }}>
+    <Typography
+      variant="h3"
+      data-testid="due-words-count"
+      sx={{ fontWeight: 'bold', color: colors.primaryDark }}
+    >
       {dueWords}
     </Typography>
     <Typography variant="body1" color="text.secondary">
