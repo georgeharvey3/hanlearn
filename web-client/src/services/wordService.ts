@@ -209,7 +209,9 @@ export const getUserWords = async (userId: string, listId?: string): Promise<Wor
  */
 export const getDueUserWords = async (userId: string, listId?: string): Promise<Word[]> => {
   const userWordsRef = collection(db, 'users', userId, 'userWords');
-  const now = Timestamp.now();
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+  const now = Timestamp.fromDate(endOfToday);
   let q;
   if (listId) {
     q = query(userWordsRef, where('listId', '==', listId), where('dueDate', '<=', now));
