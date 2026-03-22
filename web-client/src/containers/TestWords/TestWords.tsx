@@ -104,13 +104,11 @@ const TestWords: React.FC<Props> = ({
   const selectTestWords = useCallback(
     (ignoreDueDates = false): Word[] => {
       const allWords = words.slice();
-      const nonChengyus = allWords.filter((word) => word.simp.length < 4);
-      const actualNumWords =
-        nonChengyus.length >= state.numWords ? state.numWords : nonChengyus.length;
+      const actualNumWords = allWords.length >= state.numWords ? state.numWords : allWords.length;
       if (ignoreDueDates) {
-        return testLogic.chooseRandomTestSet(nonChengyus, actualNumWords);
+        return testLogic.chooseRandomTestSet(allWords, actualNumWords);
       }
-      return testLogic.chooseTestSet(nonChengyus, actualNumWords);
+      return testLogic.chooseTestSet(allWords, actualNumWords);
     },
     [state.numWords, words],
   );
@@ -362,8 +360,7 @@ const TestWords: React.FC<Props> = ({
     content = <Spinner />;
   } else {
     // Check if user has words in bank (even if none due)
-    const nonChengyus = words.filter((word) => word.simp.length < 4);
-    const hasWordsInBank = nonChengyus.length > 0;
+    const hasWordsInBank = words.length > 0;
 
     const isAllLists = activeListId === '__all__';
     const activeListName = isAllLists
