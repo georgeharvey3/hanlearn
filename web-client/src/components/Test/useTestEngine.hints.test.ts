@@ -96,7 +96,7 @@ const makeWord = (overrides: Partial<Word> = {}): Word => ({
   trad: '你好',
   pinyin: 'nǐ hǎo',
   meaning: 'hello/hi',
-  bank: 1,
+  level: 1,
   ...overrides,
 });
 

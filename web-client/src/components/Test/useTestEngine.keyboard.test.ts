@@ -99,7 +99,7 @@ const makeWord = (overrides: Partial<Word> = {}): Word => ({
   trad: '你好',
   pinyin: 'nǐ hǎo',
   meaning: 'hello/hi',
-  bank: 1,
+  level: 1,
   ...overrides,
 });
 
@@ -588,7 +588,7 @@ describe('useTestEngine — qNum effect triggers onSpeak when useSound=true', ()
 });
 
 // ---------------------------------------------------------------------------
-// onFinishTest: sentence-check async path — sentences available for bank-1 words
+// onFinishTest: sentence-check async path — sentences available for level-1 words
 // ---------------------------------------------------------------------------
 describe('useTestEngine — onFinishTest sentence availability check', () => {
   beforeEach(() => {
@@ -599,11 +599,11 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
     vi.useRealTimers();
   });
 
-  it('calls startSentenceRead when bank-1 words have sentences available', async () => {
+  it('calls startSentenceRead when level-1 words have sentences available', async () => {
     vi.mocked(checkSentenceAvailability).mockResolvedValue(true);
 
     const startSentenceRead = vi.fn();
-    const bank1Word = makeWord({ id: 1, bank: 1 });
+    const level1Word = makeWord({ id: 1, level: 1 });
 
     const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState(
@@ -613,7 +613,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         answerInput: 'hello', // must match to trigger onCorrectAnswer
         chosenCharacter: '你好',
         perm,
-        testSet: [bank1Word],
+        testSet: [level1Word],
         permList: [perm],
         charSet: 'simp',
         idkList: [],
@@ -621,7 +621,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         recognition: null,
       },
       {
-        words: [bank1Word],
+        words: [level1Word],
         isDemo: false,
         practiceMode: false,
         finalStage: false,
@@ -659,7 +659,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
     vi.mocked(checkSentenceAvailability).mockResolvedValue(false);
 
     const onVocabComplete = vi.fn();
-    const bank1Word = makeWord({ id: 1, bank: 1 });
+    const level1Word = makeWord({ id: 1, level: 1 });
 
     const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState(
@@ -669,7 +669,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         answerInput: 'hello',
         chosenCharacter: '你好',
         perm,
-        testSet: [bank1Word],
+        testSet: [level1Word],
         permList: [perm],
         charSet: 'simp',
         idkList: [],
@@ -677,7 +677,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         recognition: null,
       },
       {
-        words: [bank1Word],
+        words: [level1Word],
         isDemo: false,
         practiceMode: false,
         finalStage: false,
@@ -707,7 +707,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
   it('sets sentenceCheckStatus to "available" when sentences are found', async () => {
     vi.mocked(checkSentenceAvailability).mockResolvedValue(true);
 
-    const bank1Word = makeWord({ id: 1, bank: 1 });
+    const level1Word = makeWord({ id: 1, level: 1 });
     const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
     const result = renderEngineWithState(
@@ -717,7 +717,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         answerInput: 'hello',
         chosenCharacter: '你好',
         perm,
-        testSet: [bank1Word],
+        testSet: [level1Word],
         permList: [perm],
         charSet: 'simp',
         idkList: [],
@@ -725,7 +725,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         recognition: null,
       },
       {
-        words: [bank1Word],
+        words: [level1Word],
         isDemo: false,
         practiceMode: false,
         finalStage: false,
@@ -755,7 +755,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
   it('sets sentenceCheckStatus to "unavailable" when no sentences found after check', async () => {
     vi.mocked(checkSentenceAvailability).mockResolvedValue(false);
 
-    const bank1Word = makeWord({ id: 1, bank: 1 });
+    const level1Word = makeWord({ id: 1, level: 1 });
     const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
     const result = renderEngineWithState(
@@ -765,7 +765,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         answerInput: 'hello',
         chosenCharacter: '你好',
         perm,
-        testSet: [bank1Word],
+        testSet: [level1Word],
         permList: [perm],
         charSet: 'simp',
         idkList: [],
@@ -773,7 +773,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         recognition: null,
       },
       {
-        words: [bank1Word],
+        words: [level1Word],
         isDemo: false,
         practiceMode: false,
         finalStage: false,

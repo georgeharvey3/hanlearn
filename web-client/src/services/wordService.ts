@@ -26,8 +26,8 @@ import {
   customWordMeaningSchema,
 } from '../validation/schemas';
 
-// Spaced repetition intervals in days for each bank level
-const BANK_INTERVALS: Record<number, number> = {
+// Spaced repetition intervals in days for each level
+const LEVEL_INTERVALS: Record<number, number> = {
   1: 1,
   2: 3,
   3: 7,
@@ -61,7 +61,7 @@ function mapDocumentToWord(
     trad: data.wordData.trad,
     pinyin: data.wordData.pinyin,
     meaning: data.amendedMeaning || data.wordData.meaning,
-    bank: data.bank,
+    level: data.bank,
     ammended_meaning: data.amendedMeaning || undefined,
     listId: data.listId || 'default',
   };
@@ -188,7 +188,7 @@ export const deleteWordList = async (userId: string, listId: string): Promise<vo
 // ─── Word Operations ─────────────────────────────────────────────────────────
 
 /**
- * Get all words in a user's word bank, sorted by due date.
+ * Get all words in a user's word list, sorted by due date.
  * Optionally filtered by listId.
  */
 export const getUserWords = async (userId: string, listId?: string): Promise<Word[]> => {
@@ -223,9 +223,9 @@ export const getDueUserWords = async (userId: string, listId?: string): Promise<
 };
 
 /**
- * Add a word from the dictionary to the user's word bank
+ * Add a word from the dictionary to the user's word list
  */
-export const addWordToBank = async (
+export const addWordToList = async (
   userId: string,
   word: Word,
   listId: string = 'default',
@@ -259,15 +259,15 @@ export const addWordToBank = async (
 };
 
 /**
- * Remove a word from the user's word bank
+ * Remove a word from the user's word list
  */
-export const removeWordFromBank = async (userId: string, wordId: number): Promise<void> => {
+export const removeWordFromList = async (userId: string, wordId: number): Promise<void> => {
   const wordRef = doc(db, 'users', userId, 'userWords', wordId.toString());
   await deleteDoc(wordRef);
 };
 
 /**
- * Update the meaning for a word in the user's bank
+ * Update the meaning for a word in the user's list
  */
 export const updateWordMeaning = async (
   userId: string,
@@ -280,7 +280,7 @@ export const updateWordMeaning = async (
 };
 
 /**
- * Submit test results and update bank levels and due dates
+ * Submit test results and update levels and due dates
  */
 export const finishTest = async (
   userId: string,
@@ -296,21 +296,21 @@ export const finishTest = async (
     if (!wordDoc.exists()) continue;
 
     const data = wordDoc.data() as UserWordDocument;
-    let bank = data.bank;
+    let level = data.bank;
 
-    // Update bank based on score
-    if (score === 4 && bank < 5) {
-      bank += 1;
+    // Update level based on score
+    if (score === 4 && level < 5) {
+      level += 1;
     } else if (score < 4) {
-      bank = 1;
+      level = 1;
     }
 
     // Calculate new due date
     const newDueDate = new Date();
-    newDueDate.setDate(newDueDate.getDate() + BANK_INTERVALS[bank]);
+    newDueDate.setDate(newDueDate.getDate() + LEVEL_INTERVALS[level]);
 
     batch.update(wordRef, {
-      bank,
+      bank: level,
       dueDate: Timestamp.fromDate(newDueDate),
     });
 
@@ -368,7 +368,7 @@ export const addCustomWord = async (
   // Generate a unique ID for the custom word (negative to avoid collision with dictionary IDs)
   const wordId = -Date.now();
 
-  // Add to user's word bank (custom words are stored directly in userWords, not in a global words collection)
+  // Add to user's word list (custom words are stored directly in userWords, not in a global words collection)
   const word: Word = {
     id: wordId,
     simp,
@@ -377,7 +377,7 @@ export const addCustomWord = async (
     meaning: validatedMeaning,
     listId,
   };
-  await addWordToBank(userId, word, listId);
+  await addWordToList(userId, word, listId);
 
   return word;
 };

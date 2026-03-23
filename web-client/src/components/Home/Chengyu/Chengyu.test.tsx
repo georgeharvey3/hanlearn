@@ -15,7 +15,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 vi.mock('../../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
 vi.mock('../../../services/wordService', () => ({
-  addWordToBank: vi.fn().mockResolvedValue(undefined),
+  addWordToList: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../../../services/chengyuSentenceService', () => ({
@@ -364,7 +364,7 @@ describe('Chengyu — persistence of revealed state', () => {
   });
 });
 
-describe('Chengyu — save to word bank', () => {
+describe('Chengyu — save to word list', () => {
   it('does not show save button when user is not authenticated', async () => {
     const user = userEvent.setup();
     renderWithProviders(<Chengyu />, { store: makeStore() });
@@ -404,7 +404,7 @@ describe('Chengyu — save to word bank', () => {
     expect(screen.getByRole('button', { name: /saved!/i })).toBeDisabled();
   });
 
-  it('shows "Already saved" when chengyu is already in word bank', async () => {
+  it('shows "Already saved" when chengyu is already in word list', async () => {
     const user = userEvent.setup();
     const store = makeStore({
       userId: 'test-user',

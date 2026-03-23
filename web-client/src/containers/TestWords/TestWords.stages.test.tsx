@@ -2,7 +2,7 @@
  * Additional TestWords tests — covering stage transitions and settings combinations
  * not exercised by the main test file:
  *   - newWordsEnabled=false skips straight to vocab
- *   - Practice mode with bank-1 words shows new words stage
+ *   - Practice mode with level-1 words shows new words stage
  *   - SentenceWrite → summary transition via onComplete callback
  *   - SentenceRead passes sentenceWriteEnabled prop correctly
  *   - finalStage=true when both sentence stages disabled
@@ -78,26 +78,26 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function dueWord(id: number, simp: string, bank = 1): Word {
+function dueWord(id: number, simp: string, level = 1): Word {
   return {
     id,
     simp,
     trad: simp,
     pinyin: 'test',
     meaning: 'test meaning',
-    bank,
+    level,
     due_date: new Date(Date.now() - 1000).toISOString(),
   };
 }
 
-function futureWord(id: number, simp: string, bank = 2): Word {
+function futureWord(id: number, simp: string, level = 2): Word {
   return {
     id,
     simp,
     trad: simp,
     pinyin: 'test',
     meaning: 'test meaning',
-    bank,
+    level,
     due_date: new Date(Date.now() + 86400000 * 30).toISOString(),
   };
 }
@@ -150,11 +150,11 @@ describe('TestWords — newWordsEnabled=false skips Learn stage', () => {
   });
 });
 
-describe('TestWords — practice mode with bank-1 words', () => {
-  it('shows NewWords stage in practice mode when bank-1 words exist and newWords enabled', async () => {
+describe('TestWords — practice mode with level-1 words', () => {
+  it('shows NewWords stage in practice mode when level-1 words exist and newWords enabled', async () => {
     const user = userEvent.setup();
     // All words are future (not due), so the "no words due" screen shows with Practice button.
-    // The future words have bank=1.
+    // The future words have level=1.
     const store = makeStore({ words: [futureWord(1, '你好', 1)] });
     renderWithProviders(<TestWords />, { store });
 
@@ -166,7 +166,7 @@ describe('TestWords — practice mode with bank-1 words', () => {
     });
   });
 
-  it('skips to vocab in practice mode when newWords disabled even with bank-1 words', async () => {
+  it('skips to vocab in practice mode when newWords disabled even with level-1 words', async () => {
     const user = userEvent.setup();
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
       if (key === 'newWords') return 'false';

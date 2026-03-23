@@ -110,7 +110,7 @@ const TestChengyus: React.FC<Props> = ({
           No chengyu to test yet.
         </Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-          Add some four-character words to your bank to start practising chengyu.
+          Add some four-character words to your list to start practising chengyu.
         </Typography>
         <Button clicked={onClickAddWords}>Add Words</Button>
       </Modal>

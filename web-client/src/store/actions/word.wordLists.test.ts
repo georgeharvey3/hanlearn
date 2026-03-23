@@ -42,7 +42,7 @@ const sampleWords = [
     trad: '你好',
     pinyin: 'nǐ hǎo',
     meaning: 'hello',
-    bank: 1,
+    level: 1,
     due_date: '2026/03/12',
   },
 ];

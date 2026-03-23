@@ -43,8 +43,8 @@ describe('word action thunks — error paths', () => {
   });
 
   describe('deleteWord', () => {
-    it('logs error and does not dispatch REMOVE_WORD when removeWordFromBank fails', async () => {
-      mockedWordService.removeWordFromBank.mockRejectedValue(new Error('Firestore unavailable'));
+    it('logs error and does not dispatch REMOVE_WORD when removeWordFromList fails', async () => {
+      mockedWordService.removeWordFromList.mockRejectedValue(new Error('Firestore unavailable'));
       const store = createTestStore({
         ...authenticatedState(),
         addWords: {
@@ -58,7 +58,7 @@ describe('word action thunks — error paths', () => {
 
       // Word should still be in the store since the service call failed
       expect(store.getState().addWords.words).toHaveLength(1);
-      expect(mockedWordService.removeWordFromBank).toHaveBeenCalledWith('test-user-123', 1);
+      expect(mockedWordService.removeWordFromList).toHaveBeenCalledWith('test-user-123', 1);
     });
   });
 
@@ -102,14 +102,14 @@ describe('word action thunks — error paths', () => {
   });
 
   describe('postWord', () => {
-    it('logs error and does not dispatch ADD_WORD when addWordToBank fails', async () => {
-      mockedWordService.addWordToBank.mockRejectedValue(new Error('Write failed'));
+    it('logs error and does not dispatch ADD_WORD when addWordToList fails', async () => {
+      mockedWordService.addWordToList.mockRejectedValue(new Error('Write failed'));
       const store = createTestStore(authenticatedState());
 
       await store.dispatch(wordActions.postWord(sampleWord) as any);
 
       expect(store.getState().addWords.words).toHaveLength(0);
-      expect(mockedWordService.addWordToBank).toHaveBeenCalledWith(
+      expect(mockedWordService.addWordToList).toHaveBeenCalledWith(
         'test-user-123',
         sampleWord,
         'default',

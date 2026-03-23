@@ -224,7 +224,7 @@ export const postDeleteWordList = (listId: string): AppThunk => {
 };
 
 /**
- * Add a word to the user's word bank in Firestore
+ * Add a word to the user's word list in Firestore
  */
 export const postWord = (word: Word): AppThunk => {
   return async (dispatch, getState) => {
@@ -234,7 +234,7 @@ export const postWord = (word: Word): AppThunk => {
     try {
       // '__all__' is a virtual list for cross-list mode; words must belong to a real list
       const targetListId = addWords.activeListId === '__all__' ? 'default' : addWords.activeListId;
-      await wordService.addWordToBank(auth.userId, word, targetListId);
+      await wordService.addWordToList(auth.userId, word, targetListId);
       dispatch(addWord({ ...word, listId: targetListId }));
       trackFeatureUsage('word_added');
     } catch (error) {
@@ -274,7 +274,7 @@ export const postCustomWord = (word: {
 };
 
 /**
- * Remove a word from the user's word bank in Firestore
+ * Remove a word from the user's word list in Firestore
  */
 export const deleteWord = (wordID: number): AppThunk => {
   return async (dispatch, getState) => {
@@ -282,7 +282,7 @@ export const deleteWord = (wordID: number): AppThunk => {
     if (!auth.userId) return;
 
     try {
-      await wordService.removeWordFromBank(auth.userId, wordID);
+      await wordService.removeWordFromList(auth.userId, wordID);
       dispatch(removeWord(wordID));
     } catch (error) {
       console.error('Failed to delete word:', error);
@@ -310,8 +310,8 @@ export const postUpdateMeaning = (wordID: number, newMeaning: string): AppThunk 
 };
 
 /**
- * Submit test results and update word banks in Firestore.
- * Re-fetches the full word list so Redux state reflects the new bank levels and due dates.
+ * Submit test results and update word levels in Firestore.
+ * Re-fetches the full word list so Redux state reflects the new levels and due dates.
  */
 export const finishTest = (scores: { word_id: number; score: number }[]): AppThunk => {
   return async (dispatch, getState) => {
@@ -322,7 +322,7 @@ export const finishTest = (scores: { word_id: number; score: number }[]): AppThu
       await traceAsync('finish_test', async () => {
         await wordService.finishTest(auth.userId!, scores);
 
-        // Re-fetch words and stats so the local store has updated bank levels and due dates
+        // Re-fetch words and stats so the local store has updated levels and due dates
         try {
           const [updatedWords, stats] = await Promise.all([
             wordService.getUserWords(
