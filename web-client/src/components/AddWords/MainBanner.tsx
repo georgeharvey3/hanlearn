@@ -44,7 +44,7 @@ const MainBanner: React.FC<MainBannerProps> = ({
     setText('Add words to your bank...');
   };
 
-  let button: React.ReactNode = <Button disabled={submitDisabled}>Submit</Button>;
+  let button: React.ReactNode = <Button htmlType="submit" disabled={submitDisabled}>Search</Button>;
 
   if (loading) {
     button = <Spinner />;
