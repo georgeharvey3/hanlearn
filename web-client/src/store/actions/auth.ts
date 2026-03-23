@@ -22,6 +22,7 @@ import {
   resetPassword,
 } from '../../firebase/auth';
 import { FirebaseError } from 'firebase/app';
+import { showNotification } from './notifications';
 
 export const authStart = (): AuthStartAction => {
   return {
@@ -79,6 +80,7 @@ export const sendPasswordReset = (email: string): AppThunk => {
     try {
       await resetPassword(email);
       dispatch({ type: actionTypes.PASSWORD_RESET_SENT } as PasswordResetSentAction);
+      dispatch(showNotification('Password reset email sent'));
     } catch (error) {
       if (error instanceof Error && 'code' in error) {
         const code = (error as FirebaseError).code;

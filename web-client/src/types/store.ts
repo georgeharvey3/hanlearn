@@ -33,9 +33,21 @@ export interface SettingsState {
   lang?: string;
 }
 
+export interface Notification {
+  id: string;
+  message: string;
+  severity: 'success' | 'error' | 'info' | 'warning';
+  duration?: number;
+}
+
+export interface NotificationsState {
+  queue: Notification[];
+}
+
 // Root state combining all slices
 export interface RootState {
   addWords: AddWordsState;
   auth: AuthState;
   settings: SettingsState;
+  notifications: NotificationsState;
 }

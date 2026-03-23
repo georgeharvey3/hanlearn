@@ -44,11 +44,13 @@ import App from './App';
 import wordsReducer from './store/reducers/addWords';
 import authReducer from './store/reducers/auth';
 import settingsReducer from './store/reducers/settings';
+import notificationsReducer from './store/reducers/notifications';
 
 const rootReducer = combineReducers({
   addWords: wordsReducer,
   auth: authReducer,
   settings: settingsReducer,
+  notifications: notificationsReducer,
 });
 
 const store = createStore(rootReducer, applyMiddleware(thunk));
