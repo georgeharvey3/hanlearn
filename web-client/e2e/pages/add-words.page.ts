@@ -8,7 +8,7 @@ export class AddWordsPage {
   constructor(page: Page) {
     this.page = page;
     this.searchInput = page.locator('#addInput');
-    this.submitButton = page.getByRole('button', { name: 'Submit' });
+    this.submitButton = page.getByRole('button', { name: 'Search' });
   }
 
   async navigateTo(): Promise<void> {
