@@ -59,9 +59,9 @@ test.describe('Notification toasts', () => {
     // Wait for word to appear
     await addWords.expectWordVisible(TEST_WORDS[0].simp);
 
-    // Click the delete button on the word card
-    const deleteButton = page.getByRole('button', { name: /delete/i });
-    await deleteButton.first().click();
+    // Click the remove button on the word card
+    const removeButton = page.getByRole('button', { name: /remove word/i });
+    await removeButton.first().click();
 
     // Assert toast notification appears
     const toast = page.getByRole('alert');
