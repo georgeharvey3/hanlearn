@@ -6,6 +6,7 @@ type ButtonType = 'primary' | 'secondary' | 'ghost';
 interface ButtonProps {
   id?: string;
   type?: ButtonType;
+  htmlType?: 'button' | 'submit' | 'reset';
   disabled?: boolean;
   clicked?: () => void;
   style?: CSSProperties;
@@ -38,6 +39,7 @@ const Button: React.FC<ButtonProps> = (props) => {
   return (
     <MuiButton
       id={props.id}
+      type={props.htmlType}
       variant={variant}
       disabled={props.disabled}
       onClick={props.clicked}
