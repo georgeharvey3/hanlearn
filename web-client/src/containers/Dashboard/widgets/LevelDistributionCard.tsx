@@ -26,7 +26,11 @@ const LevelDistributionCard: React.FC<LevelDistributionCardProps> = ({ distribut
       </Typography>
       {[1, 2, 3, 4, 5].map((level) => (
         <Box key={level} sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-          <Typography variant="caption" sx={{ width: 60, flexShrink: 0 }} id={`level-label-${level}`}>
+          <Typography
+            variant="caption"
+            sx={{ width: 60, flexShrink: 0 }}
+            id={`level-label-${level}`}
+          >
             {levelLabels[level]}
           </Typography>
           <Box sx={{ flexGrow: 1, mr: 1 }}>
