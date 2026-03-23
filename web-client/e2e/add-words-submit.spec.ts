@@ -54,7 +54,7 @@ test.describe('AddWords submit button', () => {
     // Should show some kind of result modal (add confirmation, clash table, not-found, or error)
     await expect(
       page
-        .getByText('Add to Word Bank?')
+        .getByText('Add to Word List?')
         .or(page.getByText('Select entry for'))
         .or(page.getByText('Word not found'))
         .or(page.getByText('Could not search for word')),

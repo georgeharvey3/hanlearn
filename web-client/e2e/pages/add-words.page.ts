@@ -25,8 +25,8 @@ export class AddWordsPage {
   }
 
   async confirmAddWord(): Promise<void> {
-    // Wait for the "Add to Word Bank?" modal
-    await expect(this.page.getByText('Add to Word Bank?')).toBeVisible({ timeout: 10000 });
+    // Wait for the "Add to Word List?" modal
+    await expect(this.page.getByText('Add to Word List?')).toBeVisible({ timeout: 10000 });
     // Two buttons named "Add" exist: the "+ Add" meaning chip and the confirm button.
     // The confirm button is the last one.
     await this.page.getByRole('button', { name: 'Add', exact: true }).last().click();
