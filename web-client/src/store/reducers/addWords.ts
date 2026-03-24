@@ -7,7 +7,7 @@ const DEFAULT_LIST = { id: 'default', name: 'General', createdAt: '', order: 0 }
 
 /**
  * Compute the initial due date string (YYYY/MM/DD) for a newly added word.
- * If the bank already has more than 9 words, the word is due tomorrow to avoid
+ * If the list already has more than 9 words, the word is due tomorrow to avoid
  * flooding a new study session.
  */
 function formatInitialDueDate(wordCount: number): string {
@@ -32,7 +32,7 @@ const initialState: AddWordsState = {
 const reducer = (state = initialState, action: WordAction): AddWordsState => {
   switch (action.type) {
     case actionTypes.ADD_WORD: {
-      const word = { ...action.word, due_date: formatInitialDueDate(state.words.length), bank: 1 };
+      const word = { ...action.word, due_date: formatInitialDueDate(state.words.length), level: 1 };
       return {
         ...state,
         words: [word].concat(state.words),
@@ -42,7 +42,7 @@ const reducer = (state = initialState, action: WordAction): AddWordsState => {
       const customWord = {
         ...action.word,
         due_date: formatInitialDueDate(state.words.length),
-        bank: 1,
+        level: 1,
       };
       return {
         ...state,

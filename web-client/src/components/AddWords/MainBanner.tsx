@@ -21,7 +21,7 @@ const MainBanner: React.FC<MainBannerProps> = ({
   newWord,
   inputChanged,
 }) => {
-  const [text, setText] = useState('Add words to your bank...');
+  const [text, setText] = useState('Add words to your list...');
 
   const onKeyUp = useCallback((event: KeyboardEvent): void => {
     if (event.ctrlKey && event.key === 'b') {
@@ -41,7 +41,7 @@ const MainBanner: React.FC<MainBannerProps> = ({
   };
 
   const onBlurInput = (): void => {
-    setText('Add words to your bank...');
+    setText('Add words to your list...');
   };
 
   let button: React.ReactNode = (

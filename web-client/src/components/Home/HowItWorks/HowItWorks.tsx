@@ -21,7 +21,7 @@ const steps: Step[] = [
     icon: SearchRounded,
     heading: 'Search & Add Words',
     description:
-      'Find any word in our 124,000-entry dictionary and add it to your personal word bank.',
+      'Find any word in our 124,000-entry dictionary and add it to your personal word list.',
   },
   {
     number: 2,

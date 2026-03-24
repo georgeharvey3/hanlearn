@@ -27,7 +27,7 @@ test.describe('Word management', () => {
     // Handle potential clash table (multiple entries), direct add modal,
     // or "Word not found" (if Cloud Functions cold-start is slow)
     const clashTable = page.getByText('Select entry for');
-    const addModal = page.getByText('Add to Word Bank?');
+    const addModal = page.getByText('Add to Word List?');
     const notFoundModal = page.getByText('Word not found');
 
     // Wait for any result modal to appear
@@ -51,7 +51,7 @@ test.describe('Word management', () => {
     }
   });
 
-  test('view word bank with pre-seeded words', async ({ page }) => {
+  test('view word list with pre-seeded words', async ({ page }) => {
     // Seed 3 words before navigating
     await seedWords(TEST_USER.uid, TEST_WORDS);
 
@@ -75,7 +75,7 @@ test.describe('Word management', () => {
     // Cloud Functions dictionary search may have cold-start delay
     await expect(
       page
-        .getByText('Add to Word Bank?')
+        .getByText('Add to Word List?')
         .or(page.getByText('Select entry for'))
         .or(page.getByText('Word not found'))
         .or(page.getByText('Could not search for word')),

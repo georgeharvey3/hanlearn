@@ -21,14 +21,14 @@ vi.mock('./performanceService', () => ({
 const mockedWordService = vi.mocked(wordService);
 const mockedStreakService = vi.mocked(streakService);
 
-function makeWord(id: number, bank: number): Word {
+function makeWord(id: number, level: number): Word {
   return {
     id,
     simp: `字${id}`,
     trad: `字${id}`,
     pinyin: 'pīn',
     meaning: 'meaning',
-    bank,
+    level,
     due_date: '2026/02/27',
   };
 }
@@ -68,7 +68,7 @@ describe('getDashboardStats', () => {
     expect(stats.dueWords).toBe(2);
   });
 
-  it('computes bankDistribution correctly', async () => {
+  it('computes levelDistribution correctly', async () => {
     const allWords = [
       makeWord(1, 1),
       makeWord(2, 1),
@@ -81,14 +81,14 @@ describe('getDashboardStats', () => {
 
     const stats = await getDashboardStats('user-1');
 
-    expect(stats.bankDistribution[1]).toBe(2);
-    expect(stats.bankDistribution[2]).toBe(0);
-    expect(stats.bankDistribution[3]).toBe(1);
-    expect(stats.bankDistribution[4]).toBe(0);
-    expect(stats.bankDistribution[5]).toBe(2);
+    expect(stats.levelDistribution[1]).toBe(2);
+    expect(stats.levelDistribution[2]).toBe(0);
+    expect(stats.levelDistribution[3]).toBe(1);
+    expect(stats.levelDistribution[4]).toBe(0);
+    expect(stats.levelDistribution[5]).toBe(2);
   });
 
-  it('counts masteredCount from bank 5 words', async () => {
+  it('counts masteredCount from level 5 words', async () => {
     const allWords = [makeWord(1, 5), makeWord(2, 5), makeWord(3, 3)];
     mockedWordService.getUserWords.mockResolvedValue(allWords);
     mockedWordService.getDueUserWords.mockResolvedValue([]);
@@ -98,21 +98,21 @@ describe('getDashboardStats', () => {
     expect(stats.masteredCount).toBe(2);
   });
 
-  it('treats missing bank as bank 1 in distribution', async () => {
-    const wordWithoutBank: Word = {
+  it('treats missing level as level 1 in distribution', async () => {
+    const wordWithoutLevel: Word = {
       id: 99,
       simp: '字',
       trad: '字',
       pinyin: 'zì',
       meaning: 'character',
-      // bank is undefined
+      // level is undefined
     };
-    mockedWordService.getUserWords.mockResolvedValue([wordWithoutBank]);
+    mockedWordService.getUserWords.mockResolvedValue([wordWithoutLevel]);
     mockedWordService.getDueUserWords.mockResolvedValue([]);
 
     const stats = await getDashboardStats('user-1');
 
-    expect(stats.bankDistribution[1]).toBe(1);
+    expect(stats.levelDistribution[1]).toBe(1);
   });
 
   it('returns streak from streakService', async () => {
@@ -125,7 +125,7 @@ describe('getDashboardStats', () => {
     expect(stats.streak).toBe(5);
   });
 
-  it('masteredCount is 0 when no words are at bank 5', async () => {
+  it('masteredCount is 0 when no words are at level 5', async () => {
     const allWords = [makeWord(1, 1), makeWord(2, 2), makeWord(3, 3)];
     mockedWordService.getUserWords.mockResolvedValue(allWords);
     mockedWordService.getDueUserWords.mockResolvedValue([]);
@@ -135,7 +135,7 @@ describe('getDashboardStats', () => {
     expect(stats.masteredCount).toBe(0);
   });
 
-  it('returns zero stats for empty word bank', async () => {
+  it('returns zero stats for empty word list', async () => {
     mockedWordService.getUserWords.mockResolvedValue([]);
     mockedWordService.getDueUserWords.mockResolvedValue([]);
     mockedStreakService.calculateStreak.mockReturnValue(0);
@@ -146,7 +146,7 @@ describe('getDashboardStats', () => {
     expect(stats.dueWords).toBe(0);
     expect(stats.masteredCount).toBe(0);
     expect(stats.streak).toBe(0);
-    expect(stats.bankDistribution).toEqual({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
+    expect(stats.levelDistribution).toEqual({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
   });
 
   it('calls all three services in parallel with the given userId', async () => {

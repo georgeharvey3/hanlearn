@@ -60,7 +60,7 @@ const testWord: Word = {
   trad: '你好',
   pinyin: 'ni3 hao3',
   meaning: 'hello',
-  bank: 2,
+  level: 2,
   due_date: new Date().toISOString(),
 };
 
@@ -438,7 +438,7 @@ describe('SentenceRead — word popup rendering', () => {
     });
   });
 
-  it('shows "Add to bank" button after opening popup for a word not yet in addedWords', async () => {
+  it('shows "Add to list" button after opening popup for a word not yet in addedWords', async () => {
     renderWithProviders(
       <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
       { store: makeStore() },
@@ -456,7 +456,7 @@ describe('SentenceRead — word popup rendering', () => {
 
     // Now the popup is open and the button should be accessible
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /add to bank/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /add to list/i })).toBeInTheDocument();
     });
     expect(screen.queryByRole('button', { name: /added!/i })).not.toBeInTheDocument();
   });

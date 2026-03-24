@@ -71,27 +71,27 @@ beforeEach(() => {
 });
 
 /** A word that is due today */
-function dueWord(id: number, simp: string, bank = 1): import('../../types/models').Word {
+function dueWord(id: number, simp: string, level = 1): import('../../types/models').Word {
   return {
     id,
     simp,
     trad: simp,
     pinyin: 'test',
     meaning: 'test meaning',
-    bank,
+    level,
     due_date: new Date(Date.now() - 1000).toISOString(),
   };
 }
 
 /** A word not yet due */
-function futureWord(id: number, simp: string, bank = 2): import('../../types/models').Word {
+function futureWord(id: number, simp: string, level = 2): import('../../types/models').Word {
   return {
     id,
     simp,
     trad: simp,
     pinyin: 'test',
     meaning: 'test meaning',
-    bank,
+    level,
     due_date: new Date(Date.now() + 86400000 * 30).toISOString(),
   };
 }
@@ -117,7 +117,7 @@ describe('TestWords — auth guard', () => {
   });
 });
 
-describe('TestWords — empty bank / no words due', () => {
+describe('TestWords — empty list / no words due', () => {
   it('shows "No words due in active list" when word list is empty', async () => {
     const store = createTestStore({
       ...authenticatedState(),
@@ -154,7 +154,7 @@ describe('TestWords — empty bank / no words due', () => {
     });
   });
 
-  it('does NOT show Practice button when bank is empty', async () => {
+  it('does NOT show Practice button when list is empty', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -173,7 +173,7 @@ describe('TestWords — empty bank / no words due', () => {
     expect(screen.queryByRole('button', { name: /practice/i })).not.toBeInTheDocument();
   });
 
-  it('shows Practice button when there are words in bank but none due', async () => {
+  it('shows Practice button when there are words in list but none due', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -243,8 +243,8 @@ describe('TestWords — demo mode', () => {
 });
 
 describe('TestWords — active session with due words', () => {
-  it('shows the Test component (vocab stage) when there are due words with bank > 1', async () => {
-    // Words with bank > 1 skip the 'new' stage and go directly to 'vocab'
+  it('shows the Test component (vocab stage) when there are due words with level > 1', async () => {
+    // Words with level > 1 skip the 'new' stage and go directly to 'vocab'
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -262,7 +262,7 @@ describe('TestWords — active session with due words', () => {
     });
   });
 
-  it('shows NewWords stage when there are bank-1 words due', async () => {
+  it('shows NewWords stage when there are level-1 words due', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -280,7 +280,7 @@ describe('TestWords — active session with due words', () => {
     });
   });
 
-  it('renders the stepper with Test and Done steps for bank>1 words', async () => {
+  it('renders the stepper with Test and Done steps for level>1 words', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -299,7 +299,7 @@ describe('TestWords — active session with due words', () => {
     });
   });
 
-  it('renders Learn step in stepper when bank-1 words are included', async () => {
+  it('renders Learn step in stepper when level-1 words are included', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -770,7 +770,7 @@ describe('TestWords — chengyus in main test', () => {
     expect(testEl.textContent).toContain('一举两得');
   });
 
-  it('shows Practice button when only chengyu words are in bank', async () => {
+  it('shows Practice button when only chengyu words are in list', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -790,7 +790,7 @@ describe('TestWords — chengyus in main test', () => {
 });
 
 describe('TestWords — new words enabled stage', () => {
-  it('shows NewWords stage when bank-1 words are due and newWordsEnabled is true (default)', async () => {
+  it('shows NewWords stage when level-1 words are due and newWordsEnabled is true (default)', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {

@@ -109,7 +109,7 @@ test.describe('Chengyu daily challenge', () => {
     expect(color).toBe('rgb(255, 255, 255)');
   });
 
-  test('save chengyu to word bank after solving', async ({ page }) => {
+  test('save chengyu to word list after solving', async ({ page }) => {
     const dashboard = new DashboardPage(page);
     await dashboard.navigateTo();
 

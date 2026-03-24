@@ -8,7 +8,7 @@
  *   - ?devStage=write    - Test SentenceWrite component
  *   - ?devStage=summary  - Test TestSummary component within Test
  *
- * All stages require authentication and use words from the user's word bank.
+ * All stages require authentication and use words from the user's word list.
  *
  * Examples:
  *   http://localhost:3000/test-words?devStage=read

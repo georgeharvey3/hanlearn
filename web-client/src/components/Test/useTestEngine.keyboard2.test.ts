@@ -98,7 +98,7 @@ const makeWord = (overrides: Partial<Word> = {}): Word => ({
   trad: '你好',
   pinyin: 'nǐ hǎo',
   meaning: 'hello/hi',
-  bank: 1,
+  level: 1,
   ...overrides,
 });
 
@@ -393,7 +393,7 @@ describe('useTestEngine — onFinishTest handles sentence check rejection', () =
     vi.mocked(checkSentenceAvailability).mockRejectedValue(new Error('Network error'));
 
     const onVocabComplete = vi.fn();
-    const bank1Word = makeWord({ id: 1, bank: 1 });
+    const level1Word = makeWord({ id: 1, level: 1 });
     const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
     const result = renderEngineWithState(
@@ -403,7 +403,7 @@ describe('useTestEngine — onFinishTest handles sentence check rejection', () =
         answerInput: 'hello',
         chosenCharacter: '你好',
         perm,
-        testSet: [bank1Word],
+        testSet: [level1Word],
         permList: [perm],
         charSet: 'simp',
         idkList: [],
@@ -411,7 +411,7 @@ describe('useTestEngine — onFinishTest handles sentence check rejection', () =
         recognition: null,
       },
       {
-        words: [bank1Word],
+        words: [level1Word],
         isDemo: false,
         practiceMode: false,
         finalStage: false,

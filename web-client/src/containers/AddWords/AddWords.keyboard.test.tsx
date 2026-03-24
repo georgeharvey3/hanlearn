@@ -34,7 +34,7 @@ const sampleWord: Word = {
   trad: '學習',
   pinyin: 'xué xí',
   meaning: 'to study',
-  bank: 1,
+  level: 1,
   due_date: '2026/03/10',
 };
 
@@ -44,7 +44,7 @@ const sampleWord2: Word = {
   trad: '學習',
   pinyin: 'xué',
   meaning: 'to learn',
-  bank: 1,
+  level: 1,
   due_date: '2026/03/10',
 };
 
@@ -60,7 +60,7 @@ describe('AddWords — clash table row keyboard navigation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedWordService.getUserWords.mockResolvedValue([]);
-    mockedWordService.addWordToBank.mockResolvedValue(undefined);
+    mockedWordService.addWordToList.mockResolvedValue(undefined);
   });
 
   it('selecting a clash row with Enter key opens the confirm modal', async () => {
@@ -85,7 +85,7 @@ describe('AddWords — clash table row keyboard navigation', () => {
 
     // The confirm modal should now be shown
     await waitFor(() => {
-      expect(screen.getByText(/add to word bank\?/i)).toBeInTheDocument();
+      expect(screen.getByText(/add to word list\?/i)).toBeInTheDocument();
     });
   });
 
@@ -107,7 +107,7 @@ describe('AddWords — clash table row keyboard navigation', () => {
     fireEvent.keyDown(row!, { key: ' ', code: 'Space' });
 
     await waitFor(() => {
-      expect(screen.getByText(/add to word bank\?/i)).toBeInTheDocument();
+      expect(screen.getByText(/add to word list\?/i)).toBeInTheDocument();
     });
   });
 });
@@ -125,7 +125,7 @@ describe('AddWords — custom word: Enter key submits meaning', () => {
       trad: 'testword',
       pinyin: '',
       meaning: 'a custom meaning',
-      bank: 1,
+      level: 1,
     });
   });
 
@@ -164,7 +164,7 @@ describe('AddWords — Escape key dismisses modals', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedWordService.getUserWords.mockResolvedValue([]);
-    mockedWordService.addWordToBank.mockResolvedValue(undefined);
+    mockedWordService.addWordToList.mockResolvedValue(undefined);
   });
 
   it('Escape key dismisses the error/duplicate modal', async () => {
@@ -182,14 +182,14 @@ describe('AddWords — Escape key dismisses modals', () => {
 
     // Should show duplicate error modal
     await waitFor(() => {
-      expect(screen.getByText(/already in your bank/i)).toBeInTheDocument();
+      expect(screen.getByText(/already in your list/i)).toBeInTheDocument();
     });
 
     // Press Escape to dismiss
     fireEvent.keyUp(document, { key: 'Escape', code: 'Escape' });
 
     await waitFor(() => {
-      expect(screen.queryByText(/already in your bank/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/already in your list/i)).not.toBeInTheDocument();
     });
   });
 
@@ -243,13 +243,13 @@ describe('AddWords — Escape key dismisses modals', () => {
     submitSearch(input);
 
     await waitFor(() => {
-      expect(screen.getByText(/add to word bank\?/i)).toBeInTheDocument();
+      expect(screen.getByText(/add to word list\?/i)).toBeInTheDocument();
     });
 
     fireEvent.keyUp(document, { key: 'Escape', code: 'Escape' });
 
     await waitFor(() => {
-      expect(screen.queryByText(/add to word bank\?/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/add to word list\?/i)).not.toBeInTheDocument();
     });
   });
 });
@@ -263,7 +263,7 @@ describe('AddWords — "Test" button navigates to test page', () => {
     mockedWordService.getUserWords.mockResolvedValue([sampleWord]);
   });
 
-  it('renders the "Test" button when words are in the bank', async () => {
+  it('renders the "Test" button when words are in the list', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: { words: [sampleWord], error: false, loading: false },

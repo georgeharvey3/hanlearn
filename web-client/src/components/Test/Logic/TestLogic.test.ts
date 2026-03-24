@@ -18,7 +18,7 @@ function makeWord(id: number, simp: string, due_date?: string): Word {
     pinyin: 'pīn yīn',
     meaning: 'test meaning/other meaning',
     due_date,
-    bank: 1,
+    level: 1,
   };
 }
 
@@ -186,7 +186,7 @@ describe('chooseRandomTestSet', () => {
     expect(result).toHaveLength(4);
   });
 
-  it('returns all words when numWords exceeds word bank size', () => {
+  it('returns all words when numWords exceeds word list size', () => {
     const words = [makeWord(1, '你'), makeWord(2, '好')];
     const result = chooseRandomTestSet(words, 20);
     expect(result).toHaveLength(2);

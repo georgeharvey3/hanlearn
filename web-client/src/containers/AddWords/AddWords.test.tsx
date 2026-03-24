@@ -1,5 +1,5 @@
 /**
- * Tests for AddWords container — the user-facing word search and add-to-bank flow.
+ * Tests for AddWords container — the user-facing word search and add-to-list flow.
  * Firebase service layer is mocked at the service level (not Firebase SDK).
  */
 import { vi, describe, it, expect, beforeEach } from 'vitest';
@@ -35,7 +35,7 @@ const sampleWord: Word = {
   trad: '學習',
   pinyin: 'xué xí',
   meaning: 'to study',
-  bank: 1,
+  level: 1,
   due_date: '2026/03/10',
 };
 
@@ -49,7 +49,7 @@ describe('AddWords — word search and add flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedWordService.getUserWords.mockResolvedValue([]);
-    mockedWordService.addWordToBank.mockResolvedValue(undefined);
+    mockedWordService.addWordToList.mockResolvedValue(undefined);
     mockedWordService.searchWord.mockResolvedValue([]);
   });
 
@@ -67,7 +67,7 @@ describe('AddWords — word search and add flow', () => {
     });
   });
 
-  it('shows word bank entries when words exist in the store', () => {
+  it('shows word list entries when words exist in the store', () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -94,11 +94,11 @@ describe('AddWords — word search and add flow', () => {
     submitSearch(input);
 
     await waitFor(() => {
-      expect(screen.getByText(/add to word bank/i)).toBeInTheDocument();
+      expect(screen.getByText(/add to word list/i)).toBeInTheDocument();
     });
   });
 
-  it('shows a duplicate error when the searched word is already in the bank', async () => {
+  it('shows a duplicate error when the searched word is already in the list', async () => {
     mockedWordService.searchWord.mockResolvedValue([sampleWord]);
     // getUserWords returns the word so initWords doesn't clear the store
     mockedWordService.getUserWords.mockResolvedValue([sampleWord]);
@@ -120,7 +120,7 @@ describe('AddWords — word search and add flow', () => {
     submitSearch(input);
 
     await waitFor(() => {
-      expect(screen.getByText(/already in your bank/i)).toBeInTheDocument();
+      expect(screen.getByText(/already in your list/i)).toBeInTheDocument();
     });
   });
 
@@ -166,19 +166,19 @@ describe('AddWords — word search and add flow', () => {
     await userEvent.click(screen.getByRole('button', { name: /cancel/i }));
 
     await waitFor(() => {
-      expect(screen.queryByText(/add to word bank/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/add to word list/i)).not.toBeInTheDocument();
     });
   });
 });
 
-describe('AddWords — remove words from bank', () => {
+describe('AddWords — remove words from list', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedWordService.getUserWords.mockResolvedValue([sampleWord]);
-    mockedWordService.removeWordFromBank.mockResolvedValue(undefined);
+    mockedWordService.removeWordFromList.mockResolvedValue(undefined);
   });
 
-  it('calls removeWordFromBank when the Remove icon button is clicked', async () => {
+  it('calls removeWordFromList when the Remove icon button is clicked', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -196,7 +196,7 @@ describe('AddWords — remove words from bank', () => {
     await userEvent.click(removeButton);
 
     await waitFor(() => {
-      expect(mockedWordService.removeWordFromBank).toHaveBeenCalledWith(
+      expect(mockedWordService.removeWordFromList).toHaveBeenCalledWith(
         'test-user-123',
         sampleWord.id,
       );
@@ -278,7 +278,7 @@ describe('AddWords — confirmAddWord with edited meaning', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedWordService.getUserWords.mockResolvedValue([]);
-    mockedWordService.addWordToBank.mockResolvedValue(undefined);
+    mockedWordService.addWordToList.mockResolvedValue(undefined);
     mockedWordService.searchWord.mockResolvedValue([sampleWord]);
   });
 
@@ -292,7 +292,7 @@ describe('AddWords — confirmAddWord with edited meaning', () => {
     if (form) fireEvent.submit(form);
 
     // Wait for confirm modal to appear
-    await waitFor(() => screen.getByText(/add to word bank/i));
+    await waitFor(() => screen.getByText(/add to word list/i));
 
     // Use the "Add" button specifically — the modal has a contained primary button
     // The MeaningEditor also renders an "Add" chip, so we find the specific modal footer button
@@ -302,7 +302,7 @@ describe('AddWords — confirmAddWord with edited meaning', () => {
     await userEvent.click(addButton);
 
     await waitFor(() => {
-      expect(mockedWordService.addWordToBank).toHaveBeenCalledWith(
+      expect(mockedWordService.addWordToList).toHaveBeenCalledWith(
         'test-user-123',
         expect.objectContaining({ id: 42, simp: '学习' }),
         'default',
@@ -320,7 +320,7 @@ describe('AddWords — confirmAddWord with edited meaning', () => {
     if (form) fireEvent.submit(form);
 
     // Wait for confirm modal to appear
-    await waitFor(() => screen.getByText(/add to word bank/i));
+    await waitFor(() => screen.getByText(/add to word list/i));
 
     // Click "Add" button in the modal footer (last of the Add buttons)
     const allAddButtons = screen.getAllByRole('button', { name: /^add$/i });
@@ -328,7 +328,7 @@ describe('AddWords — confirmAddWord with edited meaning', () => {
     await userEvent.click(addButton);
 
     await waitFor(() => {
-      expect(screen.queryByText(/add to word bank/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/add to word list/i)).not.toBeInTheDocument();
     });
   });
 });
@@ -337,7 +337,7 @@ describe('AddWords — clash table row interaction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedWordService.getUserWords.mockResolvedValue([]);
-    mockedWordService.addWordToBank.mockResolvedValue(undefined);
+    mockedWordService.addWordToList.mockResolvedValue(undefined);
   });
 
   it('clicking a clash table row opens the confirm modal for that word', async () => {
@@ -360,7 +360,7 @@ describe('AddWords — clash table row interaction', () => {
 
     // The confirm modal should now be shown
     await waitFor(() => {
-      expect(screen.getByText(/add to word bank/i)).toBeInTheDocument();
+      expect(screen.getByText(/add to word list/i)).toBeInTheDocument();
     });
   });
 });
@@ -369,7 +369,7 @@ describe('AddWords — toggle show/hide table', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedWordService.getUserWords.mockResolvedValue([sampleWord]);
-    mockedWordService.removeWordFromBank.mockResolvedValue(undefined);
+    mockedWordService.removeWordFromList.mockResolvedValue(undefined);
   });
 
   it('hides the word table when "Hide Table" is clicked and restores it when "Show Table" is clicked', async () => {
@@ -436,11 +436,11 @@ describe('AddWords — confirm modal: adding word with edited meaning', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedWordService.getUserWords.mockResolvedValue([]);
-    mockedWordService.addWordToBank.mockResolvedValue(undefined);
+    mockedWordService.addWordToList.mockResolvedValue(undefined);
     mockedWordService.searchWord.mockResolvedValue([sampleWord]);
   });
 
-  it('shows "Add to Word Bank?" heading in confirm modal', async () => {
+  it('shows "Add to Word List?" heading in confirm modal', async () => {
     const store = createTestStore({ ...authenticatedState() });
     renderWithProviders(<AddWords />, { store });
 
@@ -450,11 +450,11 @@ describe('AddWords — confirm modal: adding word with edited meaning', () => {
     if (form) fireEvent.submit(form);
 
     await waitFor(() => {
-      expect(screen.getByText(/add to word bank\?/i)).toBeInTheDocument();
+      expect(screen.getByText(/add to word list\?/i)).toBeInTheDocument();
     });
   });
 
-  it('calls addWordToBank when Add is confirmed', async () => {
+  it('calls addWordToList when Add is confirmed', async () => {
     const store = createTestStore({ ...authenticatedState() });
     renderWithProviders(<AddWords />, { store });
 
@@ -464,7 +464,7 @@ describe('AddWords — confirm modal: adding word with edited meaning', () => {
     if (form) fireEvent.submit(form);
 
     // Wait for confirm modal
-    await waitFor(() => screen.getByText(/add to word bank\?/i));
+    await waitFor(() => screen.getByText(/add to word list\?/i));
     // The "Add" button is the primary action in the modal footer
     // Use getAllByRole to find the correct one (not the MUI Chip "Add" icon)
     const addButtons = screen.getAllByRole('button', { name: /^add$/i });
@@ -475,7 +475,7 @@ describe('AddWords — confirm modal: adding word with edited meaning', () => {
     if (addBtn) await userEvent.click(addBtn);
 
     await waitFor(() => {
-      expect(mockedWordService.addWordToBank).toHaveBeenCalled();
+      expect(mockedWordService.addWordToList).toHaveBeenCalled();
     });
   });
 });
@@ -522,7 +522,7 @@ describe('AddWords — custom word (meaning input flow)', () => {
       trad: 'xyz',
       pinyin: '',
       meaning: 'a test meaning',
-      bank: 1,
+      level: 1,
       due_date: new Date().toISOString(),
     });
   });
