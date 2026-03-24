@@ -20,6 +20,21 @@ function formatInitialDueDate(wordCount: number): string {
   return `${date.getFullYear()}/${month}/${day}`;
 }
 
+/**
+ * Insert a word into the list maintaining ascending due_date sort order.
+ * Words without a due_date are placed at the end.
+ */
+function insertSorted(words: Word[], newWord: Word): Word[] {
+  const newDueDate = newWord.due_date ?? '';
+  const index = words.findIndex((w) => (w.due_date ?? '') > newDueDate);
+  if (index === -1) {
+    return [...words, newWord];
+  }
+  const result = [...words];
+  result.splice(index, 0, newWord);
+  return result;
+}
+
 const initialState: AddWordsState = {
   lists: [DEFAULT_LIST],
   activeListId: 'default',
@@ -35,7 +50,7 @@ const reducer = (state = initialState, action: WordAction): AddWordsState => {
       const word = { ...action.word, due_date: formatInitialDueDate(state.words.length), level: 1 };
       return {
         ...state,
-        words: [word].concat(state.words),
+        words: insertSorted(state.words, word),
       };
     }
     case actionTypes.ADD_CUSTOM_WORD: {
@@ -46,7 +61,7 @@ const reducer = (state = initialState, action: WordAction): AddWordsState => {
       };
       return {
         ...state,
-        words: [customWord].concat(state.words),
+        words: insertSorted(state.words, customWord),
       };
     }
 

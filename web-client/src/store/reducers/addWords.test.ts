@@ -66,27 +66,39 @@ describe('addWords reducer', () => {
 
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      expect(state.words[0].due_date).toBe(formatToday(tomorrow));
+      const addedWord = state.words.find((w) => w.simp === '你好');
+      expect(addedWord?.due_date).toBe(formatToday(tomorrow));
     });
 
-    it('prepends the new word to the beginning of the list', () => {
-      const existingWord: Word = {
+    it('inserts the new word in sorted due_date order', () => {
+      const pastWord: Word = {
         id: 2,
         simp: '谢谢',
         trad: '謝謝',
         pinyin: 'xiè xie',
         meaning: 'thank you',
+        due_date: '2020/01/01',
+      };
+      const futureWord: Word = {
+        id: 3,
+        simp: '再见',
+        trad: '再見',
+        pinyin: 'zài jiàn',
+        meaning: 'goodbye',
+        due_date: '2099/12/31',
       };
 
-      const stateWithWord = { ...initialState, words: [existingWord] };
-      const state = reducer(stateWithWord, {
+      const stateWithWords = { ...initialState, words: [pastWord, futureWord] };
+      const state = reducer(stateWithWords, {
         type: actionTypes.ADD_WORD,
         word: sampleWord,
       });
 
-      expect(state.words).toHaveLength(2);
-      expect(state.words[0].simp).toBe('你好');
-      expect(state.words[1].simp).toBe('谢谢');
+      expect(state.words).toHaveLength(3);
+      // New word (due today) should be between past and future
+      expect(state.words[0].simp).toBe('谢谢');
+      expect(state.words[1].simp).toBe('你好');
+      expect(state.words[2].simp).toBe('再见');
     });
   });
 
@@ -119,7 +131,8 @@ describe('addWords reducer', () => {
 
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      expect(state.words[0].due_date).toBe(formatToday(tomorrow));
+      const addedWord = state.words.find((w) => w.simp === '你好');
+      expect(addedWord?.due_date).toBe(formatToday(tomorrow));
     });
   });
 
