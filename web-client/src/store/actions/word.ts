@@ -21,6 +21,7 @@ import * as wordService from '../../services/wordService';
 import { recordTestCompletion } from '../../services/streakService';
 import { traceAsync } from '../../services/performanceService';
 import { trackFeatureUsage } from '../../services/analyticsService';
+import { showNotification } from './notifications';
 
 export const addWord = (word: Word): AddWordAction => {
   return {
@@ -180,9 +181,11 @@ export const postCreateWordList = (name: string): AppThunk => {
       const list = await wordService.createWordList(auth.userId, name);
       dispatch(addWordList(list));
       dispatch(switchActiveList(list.id));
+      dispatch(showNotification(`List "${name}" created`));
     } catch (error) {
       console.error('Failed to create word list:', error);
       Sentry.captureException(error);
+      dispatch(showNotification('Failed to create list', 'error'));
     }
   };
 };
@@ -198,9 +201,11 @@ export const postRenameWordList = (listId: string, newName: string): AppThunk =>
     try {
       await wordService.renameWordList(auth.userId, listId, newName);
       dispatch(renameWordListAction(listId, newName));
+      dispatch(showNotification(`List renamed to "${newName}"`));
     } catch (error) {
       console.error('Failed to rename word list:', error);
       Sentry.captureException(error);
+      dispatch(showNotification('Failed to rename list', 'error'));
     }
   };
 };
@@ -216,9 +221,11 @@ export const postDeleteWordList = (listId: string): AppThunk => {
     try {
       await wordService.deleteWordList(auth.userId, listId);
       dispatch(removeWordList(listId));
+      dispatch(showNotification('List deleted'));
     } catch (error) {
       console.error('Failed to delete word list:', error);
       Sentry.captureException(error);
+      dispatch(showNotification('Failed to delete list', 'error'));
     }
   };
 };
@@ -236,10 +243,12 @@ export const postWord = (word: Word): AppThunk => {
       const targetListId = addWords.activeListId === '__all__' ? 'default' : addWords.activeListId;
       await wordService.addWordToBank(auth.userId, word, targetListId);
       dispatch(addWord({ ...word, listId: targetListId }));
+      dispatch(showNotification(`"${word.simp}" added to your list`));
       trackFeatureUsage('word_added');
     } catch (error) {
       console.error('Failed to add word:', error);
       Sentry.captureException(error);
+      dispatch(showNotification('Failed to add word', 'error'));
     }
   };
 };
@@ -266,9 +275,11 @@ export const postCustomWord = (word: {
         targetListId,
       );
       dispatch(addCustomWord(newWord));
+      dispatch(showNotification(`"${word.text}" added to your list`));
     } catch (error) {
       console.error('Failed to add custom word:', error);
       Sentry.captureException(error);
+      dispatch(showNotification('Failed to add word', 'error'));
     }
   };
 };
@@ -284,9 +295,11 @@ export const deleteWord = (wordID: number): AppThunk => {
     try {
       await wordService.removeWordFromBank(auth.userId, wordID);
       dispatch(removeWord(wordID));
+      dispatch(showNotification('Word removed'));
     } catch (error) {
       console.error('Failed to delete word:', error);
       Sentry.captureException(error);
+      dispatch(showNotification('Failed to remove word', 'error'));
     }
   };
 };
@@ -302,9 +315,11 @@ export const postUpdateMeaning = (wordID: number, newMeaning: string): AppThunk 
     try {
       await wordService.updateWordMeaning(auth.userId, wordID, newMeaning);
       dispatch(updateMeaning(wordID, newMeaning));
+      dispatch(showNotification('Meaning updated'));
     } catch (error) {
       console.error('Failed to update meaning:', error);
       Sentry.captureException(error);
+      dispatch(showNotification('Failed to update meaning', 'error'));
     }
   };
 };
@@ -344,10 +359,12 @@ export const finishTest = (scores: { word_id: number; score: number }[]): AppThu
         }
       });
 
+      dispatch(showNotification('Test complete — results saved'));
       trackFeatureUsage('test_completed', { word_count: String(scores.length) });
     } catch (error) {
       console.error('Failed to finish test:', error);
       Sentry.captureException(error);
+      dispatch(showNotification('Failed to save test results', 'error'));
     }
   };
 };
