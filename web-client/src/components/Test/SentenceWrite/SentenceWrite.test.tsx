@@ -64,7 +64,7 @@ const testWord: Word = {
   trad: '你好',
   pinyin: 'ni3 hao3',
   meaning: 'hello',
-  bank: 2,
+  level: 2,
   due_date: new Date().toISOString(),
 };
 

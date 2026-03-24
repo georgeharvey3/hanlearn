@@ -23,7 +23,7 @@ const sampleStats = {
   totalWords: 50,
   dueWords: 12,
   streak: 5,
-  bankDistribution: { 1: 10, 2: 10, 3: 10, 4: 10, 5: 10 },
+  levelDistribution: { 1: 10, 2: 10, 3: 10, 4: 10, 5: 10 },
   masteredCount: 10,
   estimatedStudyTime: '~10 min',
   weeklyStats: { sessions: 4, wordsReviewed: 38 },

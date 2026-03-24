@@ -41,7 +41,7 @@ const sampleWords: Word[] = [
     trad: '謝謝',
     pinyin: 'xiè xie',
     meaning: 'thank you',
-    bank: 2,
+    level: 2,
     due_date: '2026/03/01',
   },
 ];
@@ -106,13 +106,13 @@ describe('word action thunks', () => {
   });
 
   describe('postWord', () => {
-    it('calls addWordToBank and dispatches ADD_WORD', async () => {
-      mockedWordService.addWordToBank.mockResolvedValue(undefined);
+    it('calls addWordToList and dispatches ADD_WORD', async () => {
+      mockedWordService.addWordToList.mockResolvedValue(undefined);
       const store = createTestStore(authenticatedState());
 
       await store.dispatch(wordActions.postWord(sampleWord) as any);
 
-      expect(mockedWordService.addWordToBank).toHaveBeenCalledWith(
+      expect(mockedWordService.addWordToList).toHaveBeenCalledWith(
         'test-user-123',
         sampleWord,
         'default',
@@ -145,12 +145,12 @@ describe('word action thunks', () => {
 
       await store.dispatch(wordActions.postWord(sampleWord) as any);
 
-      expect(mockedWordService.addWordToBank).not.toHaveBeenCalled();
+      expect(mockedWordService.addWordToList).not.toHaveBeenCalled();
       expect(store.getState().addWords.words).toHaveLength(0);
     });
 
     it('resolves __all__ to default listId when in cross-list mode', async () => {
-      mockedWordService.addWordToBank.mockResolvedValue(undefined);
+      mockedWordService.addWordToList.mockResolvedValue(undefined);
       const store = createTestStore({
         ...authenticatedState(),
         addWords: {
@@ -165,7 +165,7 @@ describe('word action thunks', () => {
 
       await store.dispatch(wordActions.postWord(sampleWord) as any);
 
-      expect(mockedWordService.addWordToBank).toHaveBeenCalledWith(
+      expect(mockedWordService.addWordToList).toHaveBeenCalledWith(
         'test-user-123',
         sampleWord,
         'default',
@@ -211,8 +211,8 @@ describe('word action thunks', () => {
   });
 
   describe('deleteWord', () => {
-    it('calls removeWordFromBank and dispatches REMOVE_WORD', async () => {
-      mockedWordService.removeWordFromBank.mockResolvedValue(undefined);
+    it('calls removeWordFromList and dispatches REMOVE_WORD', async () => {
+      mockedWordService.removeWordFromList.mockResolvedValue(undefined);
       const store = createTestStore({
         ...authenticatedState(),
         addWords: {
@@ -227,7 +227,7 @@ describe('word action thunks', () => {
 
       await store.dispatch(wordActions.deleteWord(1) as any);
 
-      expect(mockedWordService.removeWordFromBank).toHaveBeenCalledWith('test-user-123', 1);
+      expect(mockedWordService.removeWordFromList).toHaveBeenCalledWith('test-user-123', 1);
       expect(store.getState().addWords.words).toHaveLength(0);
     });
   });
@@ -265,7 +265,7 @@ describe('word action thunks', () => {
     ];
 
     it('calls wordService.finishTest, re-fetches words, and records streak', async () => {
-      const updatedWords = [{ ...sampleWord, bank: 2, due_date: '2026/03/05' }];
+      const updatedWords = [{ ...sampleWord, level: 2, due_date: '2026/03/05' }];
       mockedWordService.finishTest.mockResolvedValue({ 你好: '2026/03/05' });
       mockedWordService.getUserWords.mockResolvedValue(updatedWords);
       mockedStreakService.recordTestCompletion.mockResolvedValue(undefined);

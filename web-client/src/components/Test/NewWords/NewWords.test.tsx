@@ -44,7 +44,7 @@ const makeWord = (id: number, simp: string): Word => ({
   trad: simp,
   pinyin: 'ni3',
   meaning: `meaning ${id}`,
-  bank: 1,
+  level: 1,
   due_date: new Date().toISOString(),
 });
 

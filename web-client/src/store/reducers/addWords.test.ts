@@ -37,7 +37,7 @@ describe('addWords reducer', () => {
   });
 
   describe('ADD_WORD', () => {
-    it('adds a word with due_date set to today and bank 1', () => {
+    it('adds a word with due_date set to today and level 1', () => {
       const state = reducer(initialState, {
         type: actionTypes.ADD_WORD,
         word: sampleWord,
@@ -45,7 +45,7 @@ describe('addWords reducer', () => {
 
       expect(state.words).toHaveLength(1);
       expect(state.words[0].simp).toBe('你好');
-      expect(state.words[0].bank).toBe(1);
+      expect(state.words[0].level).toBe(1);
       expect(state.words[0].due_date).toBe(formatToday(new Date()));
     });
 
@@ -91,14 +91,14 @@ describe('addWords reducer', () => {
   });
 
   describe('ADD_CUSTOM_WORD', () => {
-    it('adds a custom word with due_date today and bank 1', () => {
+    it('adds a custom word with due_date today and level 1', () => {
       const state = reducer(initialState, {
         type: actionTypes.ADD_CUSTOM_WORD,
         word: sampleWord,
       });
 
       expect(state.words).toHaveLength(1);
-      expect(state.words[0].bank).toBe(1);
+      expect(state.words[0].level).toBe(1);
       expect(state.words[0].due_date).toBe(formatToday(new Date()));
     });
 

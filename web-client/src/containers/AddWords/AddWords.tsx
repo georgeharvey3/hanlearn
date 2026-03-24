@@ -250,7 +250,7 @@ const AddWords: React.FC<Props> = ({
         for (let i = 0; i < words.length; i++) {
           if (words[i].id === word.id) {
             updateState({
-              errorMessage: `The word ${searchedWord} is already in your bank`,
+              errorMessage: `The word ${searchedWord} is already in your list`,
               showErrorMessage: true,
             });
             return;
@@ -449,7 +449,7 @@ const AddWords: React.FC<Props> = ({
       {state.pendingWord !== null ? (
         <Modal show={state.showConfirmModal} modalClosed={dismissConfirmModal}>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, pr: 3 }}>
-            Add to Word Bank?
+            Add to Word List?
           </Typography>
           <NewWord
             word={state.pendingWord}

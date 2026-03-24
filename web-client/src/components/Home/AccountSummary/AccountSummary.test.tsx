@@ -46,7 +46,7 @@ describe('AccountSummary', () => {
     );
 
     expect(
-      screen.getByText('No words in your bank yet. Start by adding some words!'),
+      screen.getByText('No words in your list yet. Start by adding some words!'),
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Test' })).not.toBeInTheDocument();
 

@@ -147,7 +147,7 @@ test.describe('Study flow', () => {
     await testPage.waitForSummary();
   });
 
-  test('redirect to add words when word bank is empty', async ({ page }) => {
+  test('redirect to add words when word list is empty', async ({ page }) => {
     // Don't seed any words
     const testPage = new TestWordsPage(page);
     await testPage.navigateTo();

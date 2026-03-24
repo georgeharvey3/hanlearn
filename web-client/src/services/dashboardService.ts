@@ -7,7 +7,7 @@ export interface DashboardStats {
   totalWords: number;
   dueWords: number;
   streak: number;
-  bankDistribution: Record<number, number>;
+  levelDistribution: Record<number, number>;
   masteredCount: number;
   estimatedStudyTime: string | null;
   weeklyStats: WeeklyStats;
@@ -21,15 +21,15 @@ export const getDashboardStats = async (userId: string, listId?: string): Promis
       getStreakData(userId),
     ]);
 
-    const bankDistribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const levelDistribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     for (const word of allWords) {
-      const bank = word.bank ?? 1;
-      bankDistribution[bank] = (bankDistribution[bank] || 0) + 1;
+      const level = word.level ?? 1;
+      levelDistribution[level] = (levelDistribution[level] || 0) + 1;
     }
 
     const streak = calculateStreak(streakData.map((d) => d.date));
     const weeklyStats = computeWeeklyStats(streakData);
-    const masteredCount = bankDistribution[5] || 0;
+    const masteredCount = levelDistribution[5] || 0;
 
     const dueCount = dueWords.length;
     let estimatedStudyTime: string | null = null;
@@ -57,7 +57,7 @@ export const getDashboardStats = async (userId: string, listId?: string): Promis
       totalWords: allWords.length,
       dueWords: dueCount,
       streak,
-      bankDistribution,
+      levelDistribution,
       masteredCount,
       estimatedStudyTime,
       weeklyStats,

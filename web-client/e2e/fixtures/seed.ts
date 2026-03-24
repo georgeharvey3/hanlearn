@@ -149,13 +149,13 @@ export async function seedWords(
 export async function readWordFromFirestore(
   userId: string,
   wordId: number,
-): Promise<{ bank: number; dueDate: string } | null> {
+): Promise<{ level: number; dueDate: string } | null> {
   const url = emulatorFirestoreUrl(`users/${userId}/userWords/${wordId}`);
   const res = await fetch(url, { headers: { 'Authorization': 'Bearer owner' } });
   if (!res.ok) return null;
   const data = await res.json();
   return {
-    bank: parseInt(data.fields.bank.integerValue, 10),
+    level: parseInt(data.fields.bank.integerValue, 10),
     dueDate: data.fields.dueDate.timestampValue,
   };
 }

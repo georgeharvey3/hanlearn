@@ -76,15 +76,15 @@ import {
   finishTest,
   getUserWords,
   getDueUserWords,
-  addWordToBank,
-  removeWordFromBank,
+  addWordToList,
+  removeWordFromList,
   updateWordMeaning,
   addCustomWord,
 } from './wordService';
 import { lookupCharacter, lookupCharacterByTrad } from './dictionaryService';
 
-// Bank intervals defined in wordService (duplicated here for assertion purposes)
-const BANK_INTERVALS: Record<number, number> = { 1: 1, 2: 3, 3: 7, 4: 30, 5: 60 };
+// Level intervals defined in wordService (duplicated here for assertion purposes)
+const LEVEL_INTERVALS: Record<number, number> = { 1: 1, 2: 3, 3: 7, 4: 30, 5: 60 };
 
 function makeFakeDoc(bank: number, simp: string, exists = true) {
   return {
@@ -100,7 +100,7 @@ function makeFakeDoc(bank: number, simp: string, exists = true) {
   };
 }
 
-describe('finishTest — spaced repetition bank logic', () => {
+describe('finishTest — spaced repetition level logic', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockBatchCommit.mockResolvedValue(undefined);
@@ -110,7 +110,7 @@ describe('finishTest — spaced repetition bank logic', () => {
     });
   });
 
-  it('advances bank by 1 when score=4 and bank < 5', async () => {
+  it('advances level by 1 when score=4 and level < 5', async () => {
     mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好'));
 
     await finishTest('user-1', [{ word_id: 1, score: 4 }]);
@@ -120,7 +120,7 @@ describe('finishTest — spaced repetition bank logic', () => {
     expect(updateCall.bank).toBe(2);
   });
 
-  it('advances bank from 4 to 5 (max) when score=4', async () => {
+  it('advances level from 4 to 5 (max) when score=4', async () => {
     mockGetDoc.mockResolvedValue(makeFakeDoc(4, '你好'));
 
     await finishTest('user-1', [{ word_id: 1, score: 4 }]);
@@ -129,7 +129,7 @@ describe('finishTest — spaced repetition bank logic', () => {
     expect(updateCall.bank).toBe(5);
   });
 
-  it('does not advance bank beyond 5 when score=4 and already at max', async () => {
+  it('does not advance level beyond 5 when score=4 and already at max', async () => {
     mockGetDoc.mockResolvedValue(makeFakeDoc(5, '你好'));
 
     await finishTest('user-1', [{ word_id: 1, score: 4 }]);
@@ -138,7 +138,7 @@ describe('finishTest — spaced repetition bank logic', () => {
     expect(updateCall.bank).toBe(5); // stays at 5
   });
 
-  it('resets bank to 1 when score < 4 (score=3)', async () => {
+  it('resets level to 1 when score < 4 (score=3)', async () => {
     mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好'));
 
     await finishTest('user-1', [{ word_id: 1, score: 3 }]);
@@ -147,7 +147,7 @@ describe('finishTest — spaced repetition bank logic', () => {
     expect(updateCall.bank).toBe(1);
   });
 
-  it('resets bank to 1 from bank 5 when score < 4 (score=0)', async () => {
+  it('resets level to 1 from level 5 when score < 4 (score=0)', async () => {
     mockGetDoc.mockResolvedValue(makeFakeDoc(5, '你好'));
 
     await finishTest('user-1', [{ word_id: 1, score: 0 }]);
@@ -156,7 +156,7 @@ describe('finishTest — spaced repetition bank logic', () => {
     expect(updateCall.bank).toBe(1);
   });
 
-  it('advances bank from 2 to 3 when score=4 (middle bank)', async () => {
+  it('advances level from 2 to 3 when score=4 (middle level)', async () => {
     mockGetDoc.mockResolvedValue(makeFakeDoc(2, '学'));
 
     await finishTest('user-1', [{ word_id: 1, score: 4 }]);
@@ -165,7 +165,7 @@ describe('finishTest — spaced repetition bank logic', () => {
     expect(updateCall.bank).toBe(3);
   });
 
-  it('calculates due date using correct interval for new bank', async () => {
+  it('calculates due date using correct interval for new level', async () => {
     vi.useFakeTimers();
     const baseDate = new Date(2026, 1, 27, 12, 0, 0); // Feb 27, 2026
     vi.setSystemTime(baseDate);
@@ -174,9 +174,9 @@ describe('finishTest — spaced repetition bank logic', () => {
 
     await finishTest('user-1', [{ word_id: 1, score: 4 }]);
 
-    // bank advances 1→2, interval for bank 2 = 3 days
+    // level advances 1→2, interval for level 2 = 3 days
     const expectedDate = new Date(2026, 1, 27, 12, 0, 0);
-    expectedDate.setDate(expectedDate.getDate() + BANK_INTERVALS[2]);
+    expectedDate.setDate(expectedDate.getDate() + LEVEL_INTERVALS[2]);
 
     expect(mockTimestampFromDate).toHaveBeenCalledWith(
       expect.objectContaining({ getDate: expect.any(Function) }),
@@ -188,7 +188,7 @@ describe('finishTest — spaced repetition bank logic', () => {
     vi.useRealTimers();
   });
 
-  it('calculates due date of +1 day after reset to bank 1 (score<4)', async () => {
+  it('calculates due date of +1 day after reset to level 1 (score<4)', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 1, 27, 12, 0, 0));
 
@@ -196,7 +196,7 @@ describe('finishTest — spaced repetition bank logic', () => {
 
     await finishTest('user-1', [{ word_id: 1, score: 2 }]);
 
-    // bank resets to 1, interval = 1 day
+    // level resets to 1, interval = 1 day
     const passedDate: Date = mockTimestampFromDate.mock.calls[0][0];
     const expected = new Date(2026, 1, 27, 12, 0, 0);
     expected.setDate(expected.getDate() + 1);
@@ -246,8 +246,8 @@ describe('finishTest — spaced repetition bank logic', () => {
     const firstUpdate = mockBatchUpdate.mock.calls[0][1];
     const secondUpdate = mockBatchUpdate.mock.calls[1][1];
 
-    expect(firstUpdate.bank).toBe(2); // 1 → 2
-    expect(secondUpdate.bank).toBe(1); // 3 → 1 (score < 4)
+    expect(firstUpdate.bank).toBe(2); // 1 -> 2
+    expect(secondUpdate.bank).toBe(1); // 3 -> 1 (score < 4)
   });
 
   it('returns empty object when all word documents are missing', async () => {
@@ -334,9 +334,9 @@ describe('getUserWords', () => {
       simp: '你好',
       pinyin: 'nǐ hǎo',
       meaning: 'hello',
-      bank: 1,
+      level: 1,
     });
-    expect(words[1]).toMatchObject({ id: 2, simp: '谢谢', bank: 3 });
+    expect(words[1]).toMatchObject({ id: 2, simp: '谢谢', level: 3 });
   });
 
   it('uses amendedMeaning when present', async () => {
@@ -388,7 +388,7 @@ describe('getDueUserWords', () => {
     const words = await getDueUserWords('user-1');
 
     expect(words).toHaveLength(1);
-    expect(words[0]).toMatchObject({ id: 5, simp: '水', bank: 2 });
+    expect(words[0]).toMatchObject({ id: 5, simp: '水', level: 2 });
     expect(words[0].due_date).toBeUndefined();
   });
 
@@ -421,8 +421,8 @@ describe('getDueUserWords', () => {
   });
 });
 
-// ─── addWordToBank ────────────────────────────────────────────────────────────
-describe('addWordToBank', () => {
+// ─── addWordToList ────────────────────────────────────────────────────────────
+describe('addWordToList', () => {
   beforeEach(() => vi.clearAllMocks());
 
   const sampleWord = { id: 99, simp: '书', trad: '書', pinyin: 'shū', meaning: 'book' };
@@ -431,7 +431,7 @@ describe('addWordToBank', () => {
     mockGetDocs.mockResolvedValue(makeFakeSnapshot([])); // 0 existing words
     mockSetDoc.mockResolvedValue(undefined);
 
-    await addWordToBank('user-1', sampleWord);
+    await addWordToList('user-1', sampleWord);
 
     expect(mockSetDoc).toHaveBeenCalledOnce();
     const setDocArg = mockSetDoc.mock.calls[0][1];
@@ -448,7 +448,7 @@ describe('addWordToBank', () => {
     );
     mockSetDoc.mockResolvedValue(undefined);
 
-    await addWordToBank('user-1', sampleWord);
+    await addWordToList('user-1', sampleWord);
 
     const setDocArg = mockSetDoc.mock.calls[0][1];
     const dueDateArg: Date = mockTimestampFromDate.mock.calls[0][0];
@@ -465,7 +465,7 @@ describe('addWordToBank', () => {
     );
     mockSetDoc.mockResolvedValue(undefined);
 
-    await addWordToBank('user-1', sampleWord);
+    await addWordToList('user-1', sampleWord);
 
     const dueDateArg: Date = mockTimestampFromDate.mock.calls[0][0];
     const expectedTomorrow = new Date(2026, 1, 29);
@@ -475,14 +475,14 @@ describe('addWordToBank', () => {
   });
 });
 
-// ─── removeWordFromBank ───────────────────────────────────────────────────────
-describe('removeWordFromBank', () => {
+// ─── removeWordFromList ───────────────────────────────────────────────────────
+describe('removeWordFromList', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('calls deleteDoc with the correct document reference', async () => {
     mockDeleteDoc.mockResolvedValue(undefined);
 
-    await removeWordFromBank('user-1', 42);
+    await removeWordFromList('user-1', 42);
 
     expect(mockDeleteDoc).toHaveBeenCalledOnce();
     expect(mockDoc).toHaveBeenCalledWith(expect.anything(), 'users', 'user-1', 'userWords', '42');
@@ -515,7 +515,7 @@ describe('updateWordMeaning', () => {
 describe('addCustomWord', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // addWordToBank (called internally) needs getDocs + setDoc
+    // addWordToList (called internally) needs getDocs + setDoc
     mockGetDocs.mockResolvedValue(makeFakeSnapshot([]));
     mockSetDoc.mockResolvedValue(undefined);
   });
@@ -586,7 +586,7 @@ describe('addCustomWord', () => {
     expect(word.id).toBeLessThan(0);
   });
 
-  it('calls setDoc (via addWordToBank) with the constructed word data', async () => {
+  it('calls setDoc (via addWordToList) with the constructed word data', async () => {
     vi.mocked(lookupCharacter).mockResolvedValue({ pinyin: 'shū', trad: '書' });
 
     await addCustomWord('user-1', '书', 'book');

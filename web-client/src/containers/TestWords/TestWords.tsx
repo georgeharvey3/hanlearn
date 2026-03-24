@@ -123,7 +123,7 @@ const TestWords: React.FC<Props> = ({
           pinyin: 'ni3 hao3',
           meaning: 'hello/hi',
           due_date: new Date().toISOString(),
-          bank: 1,
+          level: 1,
         },
       ];
       setState((prev) => ({
@@ -135,7 +135,7 @@ const TestWords: React.FC<Props> = ({
     }
 
     const selectedWords = selectTestWords();
-    const newWords = selectedWords.filter((word) => word.bank === 1);
+    const newWords = selectedWords.filter((word) => word.level === 1);
 
     if (newWords.length === 0 || !state.newWordsEnabled) {
       setState((prev) => ({
@@ -182,9 +182,9 @@ const TestWords: React.FC<Props> = ({
       hasInitialized.current = true;
 
       if (devConfig) {
-        // For dev stages, use actual words from user's bank (ignore due dates)
+        // For dev stages, use actual words from user's list (ignore due dates)
         const selectedWords = selectTestWords(true);
-        const newWords = selectedWords.filter((word) => word.bank === 1);
+        const newWords = selectedWords.filter((word) => word.level === 1);
         setState((prev) => ({
           ...prev,
           selectedWords,
@@ -208,7 +208,7 @@ const TestWords: React.FC<Props> = ({
 
   const onStartPractice = (): void => {
     const selectedWords = selectTestWords(true); // Ignore due dates
-    const newWords = selectedWords.filter((word) => word.bank === 1);
+    const newWords = selectedWords.filter((word) => word.level === 1);
 
     if (newWords.length === 0 || !state.newWordsEnabled) {
       setState((prev) => ({
@@ -269,7 +269,7 @@ const TestWords: React.FC<Props> = ({
     setState((prev) => ({ ...prev, stage: 'summary' }));
   };
 
-  // All dev stages require auth since they use real words from user's bank
+  // All dev stages require auth since they use real words from user's list
   // Wait for auth to initialize before redirecting
   if (devConfig && !authInitialized) {
     return <Spinner />;
@@ -356,11 +356,11 @@ const TestWords: React.FC<Props> = ({
         );
     }
   } else if (wordsLoading) {
-    // Still loading words from user's bank
+    // Still loading words from user's list
     content = <Spinner />;
   } else {
-    // Check if user has words in bank (even if none due)
-    const hasWordsInBank = words.length > 0;
+    // Check if user has words in list (even if none due)
+    const hasWordsInList = words.length > 0;
 
     const isAllLists = activeListId === '__all__';
     const activeListName = isAllLists
@@ -442,7 +442,7 @@ const TestWords: React.FC<Props> = ({
 
         <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center' }}>
           <Button clicked={onClickAddWords}>Add Words</Button>
-          {hasWordsInBank && (
+          {hasWordsInList && (
             <Button type="ghost" clicked={onStartPractice}>
               Practice
             </Button>

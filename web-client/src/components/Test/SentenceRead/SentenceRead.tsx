@@ -664,7 +664,7 @@ const SentenceRead: React.FC<Props> = ({
                 (addedWords.find((aw) => aw.id === w.id) ? (
                   <Button disabled>Added!</Button>
                 ) : (
-                  <Button clicked={() => onPostWord(w as Word)}>Add to bank</Button>
+                  <Button clicked={() => onPostWord(w as Word)}>Add to list</Button>
                 ))}
             </Box>
           </Box>
