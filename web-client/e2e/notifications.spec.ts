@@ -26,7 +26,7 @@ test.describe('Notification toasts', () => {
 
     // Handle clash table or direct add modal
     const clashTable = page.getByText('Select entry for');
-    const addModal = page.getByText('Add to Word Bank?');
+    const addModal = page.getByText('Add to Word List?');
     const notFoundModal = page.getByText('Word not found');
 
     await expect(clashTable.or(addModal).or(notFoundModal)).toBeVisible({ timeout: 30000 });
@@ -76,7 +76,7 @@ test.describe('Notification toasts', () => {
     await addWords.searchWord('你好');
 
     const clashTable = page.getByText('Select entry for');
-    const addModal = page.getByText('Add to Word Bank?');
+    const addModal = page.getByText('Add to Word List?');
     const notFoundModal = page.getByText('Word not found');
 
     await expect(clashTable.or(addModal).or(notFoundModal)).toBeVisible({ timeout: 30000 });
