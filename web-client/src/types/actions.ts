@@ -1,6 +1,6 @@
 import { ThunkAction, ThunkDispatch } from 'redux-thunk';
 import { UnknownAction } from 'redux';
-import { RootState } from './store';
+import { RootState, Notification } from './store';
 import { Word, WordList } from './models';
 import { ListStats } from './store';
 
@@ -36,6 +36,8 @@ export const ActionTypes = {
   SET_SYNTH_AVAILABLE: 'SET_SYNTH_AVAILABLE',
   SET_VOICE: 'SET_VOICE',
   SET_LANG: 'SET_LANG',
+  SHOW_NOTIFICATION: 'SHOW_NOTIFICATION',
+  DISMISS_NOTIFICATION: 'DISMISS_NOTIFICATION',
 } as const;
 
 export type ActionType = (typeof ActionTypes)[keyof typeof ActionTypes];
@@ -211,8 +213,21 @@ export type SettingsAction =
   | SetVoiceAction
   | SetLangAction;
 
+// Notification actions
+export interface ShowNotificationAction {
+  type: typeof ActionTypes.SHOW_NOTIFICATION;
+  notification: Notification;
+}
+
+export interface DismissNotificationAction {
+  type: typeof ActionTypes.DISMISS_NOTIFICATION;
+  id: string;
+}
+
+export type NotificationAction = ShowNotificationAction | DismissNotificationAction;
+
 // Combined action type
-export type AppAction = WordAction | AuthAction | SettingsAction;
+export type AppAction = WordAction | AuthAction | SettingsAction | NotificationAction;
 
 // Thunk types
 export type AppThunk<ReturnType = void> = ThunkAction<

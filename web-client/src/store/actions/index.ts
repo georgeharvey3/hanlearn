@@ -22,3 +22,4 @@ export {
   sendPasswordReset,
 } from './auth';
 export { setSpeechAvailable, setSynthAvailable, setVoice, setLang } from './settings';
+export { showNotification, dismissNotification } from './notifications';

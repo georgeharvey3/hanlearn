@@ -50,7 +50,7 @@ export class AddWordsPage {
   }
 
   async expectWordVisible(character: string): Promise<void> {
-    await expect(this.page.getByText(character, { exact: false })).toBeVisible({ timeout: 10000 });
+    await expect(this.page.getByText(character, { exact: true }).first()).toBeVisible({ timeout: 10000 });
   }
 
   async expectWordNotVisible(character: string): Promise<void> {

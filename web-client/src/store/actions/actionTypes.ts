@@ -33,3 +33,6 @@ export const SET_SPEECH_AVAILABLE = 'SET_SPEECH_AVAILABLE' as const;
 export const SET_SYNTH_AVAILABLE = 'SET_SYNTH_AVAILABLE' as const;
 export const SET_VOICE = 'SET_VOICE' as const;
 export const SET_LANG = 'SET_LANG' as const;
+
+export const SHOW_NOTIFICATION = 'SHOW_NOTIFICATION' as const;
+export const DISMISS_NOTIFICATION = 'DISMISS_NOTIFICATION' as const;

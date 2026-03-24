@@ -11,6 +11,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import wordsReducer from './store/reducers/addWords';
 import authReducer from './store/reducers/auth';
 import settingsReducer from './store/reducers/settings';
+import notificationsReducer from './store/reducers/notifications';
 import theme from './theme';
 
 import './index.css';
@@ -31,6 +32,7 @@ const rootReducer = combineReducers({
   addWords: wordsReducer,
   auth: authReducer,
   settings: settingsReducer,
+  notifications: notificationsReducer,
 });
 
 const store: Store<RootState> = createStore(rootReducer, composeEnhancers(applyMiddleware(thunk)));
