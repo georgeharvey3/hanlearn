@@ -191,7 +191,7 @@ export const useTestEngine = (props: Props) => {
         count = 4;
       }
 
-      if (count === 0 && (word.bank === 1 || props.practiceMode)) {
+      if (count === 0 && (word.level === 1 || props.practiceMode)) {
         sentenceWords.push(word);
       }
 

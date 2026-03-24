@@ -44,7 +44,7 @@ const AccountSummary: React.FC<AccountSummaryProps> = (props) => (
     ) : props.numTot === 0 ? (
       <>
         <Typography variant="h5" sx={{ color: 'text.primary' }}>
-          No words in your bank yet. Start by adding some words!
+          No words in your list yet. Start by adding some words!
         </Typography>
         <Button type="primary" clicked={props.addWordsClicked}>
           Add Words

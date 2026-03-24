@@ -18,7 +18,7 @@ test.describe('Chengyus in main test', () => {
     await loginViaUI(page);
   });
 
-  test('chengyu-only word bank starts a test session', async ({ page }) => {
+  test('chengyu-only word list starts a test session', async ({ page }) => {
     const chengyuWords: TestWord[] = [
       {
         id: 6001,
@@ -85,7 +85,7 @@ test.describe('Chengyus in main test', () => {
     await expect(page.getByText(/2 word.*tested/i)).toBeVisible({ timeout: 5000 });
   });
 
-  test('chengyu-only bank shows Practice button when none due', async ({ page }) => {
+  test('chengyu-only list shows Practice button when none due', async ({ page }) => {
     const futureChengyus: TestWord[] = [
       {
         id: 8001,

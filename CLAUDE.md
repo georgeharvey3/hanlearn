@@ -54,7 +54,7 @@ The frontend uses **Vite**, **TypeScript**, and **Redux with thunks**:
 #### State Management
 
 Redux state structure in [web-client/src/types/store.ts](web-client/src/types/store.ts):
-- `addWords` - User's word bank and loading state
+- `addWords` - User's word list and loading state
 - `auth` - Firebase user ID, loading, initialization status
 - `settings` - Speech synthesis/recognition availability and voice selection
 
@@ -65,7 +65,7 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 - [web-client/src/services/wordService.ts](web-client/src/services/wordService.ts) - All Firestore operations for word management
 - [web-client/src/services/dictionaryService.ts](web-client/src/services/dictionaryService.ts) - Static dictionary loading and search (lazy-loaded, indexed in-memory)
 - [web-client/src/services/streakService.ts](web-client/src/services/streakService.ts) - Read/write `testCompletions` subcollection; calculates streak from completion dates
-- [web-client/src/services/dashboardService.ts](web-client/src/services/dashboardService.ts) - Aggregates stats (due count, streak, bank distribution) for the Dashboard
+- [web-client/src/services/dashboardService.ts](web-client/src/services/dashboardService.ts) - Aggregates stats (due count, streak, level distribution) for the Dashboard
 - [web-client/src/services/sentenceService.ts](web-client/src/services/sentenceService.ts) - Firebase AI Logic: generates and caches example sentences in `sentenceCache`
 - [web-client/src/services/chengyuSentenceService.ts](web-client/src/services/chengyuSentenceService.ts) - Generates example sentences for chengyu display
 - [web-client/src/services/decompositionService.ts](web-client/src/services/decompositionService.ts) - Calls cloud function to decompose characters into radicals/components
@@ -91,7 +91,7 @@ users/{userId}/
   ├── userWords/{wordId}
   │   ├── wordData: { simp, trad, pinyin, meaning }
   │   ├── amendedMeaning: string | null
-  │   ├── bank: 1-5              # Spaced repetition level
+  │   ├── level: 1-5             # Spaced repetition level (stored as `bank` in Firestore)
   │   ├── dueDate: Timestamp     # Next review date
   │   └── listId?: string        # Optional word list membership
   └── testCompletions/{dateId}   # Streak tracking (dateId = YYYY-MM-DD)
@@ -125,9 +125,9 @@ The CC-CEDICT dictionary (~124K entries) is served as static JSON at `/dictionar
 ### Spaced Repetition Algorithm
 
 In [web-client/src/services/wordService.ts](web-client/src/services/wordService.ts):
-- **5 bank levels** with intervals: 1, 3, 7, 30, 60 days
-- Score of 4 advances bank; score < 4 resets to bank 1
-- Due date calculated from bank level + current date
+- **5 levels** with intervals: 1, 3, 7, 30, 60 days
+- Score of 4 advances level; score < 4 resets to level 1
+- Due date calculated from level + current date
 
 ## Firebase Emulators
 
@@ -170,8 +170,8 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 - Autonomous development workflow: testing infrastructure, CI/CD, PR-based review
 
 ### Next
-- Improve spaced repetition: show due-date countdown, allow manual bank adjustment
-- Dashboard improvements: streak and bank distribution are implemented; progress charts still TODO
+- Improve spaced repetition: show due-date countdown, allow manual level adjustment
+- Dashboard improvements: streak and level distribution are implemented; progress charts still TODO
 - Better chengyu UX: example sentences added; stroke order hints still TODO
 
 ### Later

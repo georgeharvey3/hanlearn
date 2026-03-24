@@ -20,7 +20,7 @@ vi.mock('./services/dashboardService', () => ({
     totalWords: 0,
     dueWords: 0,
     streak: 0,
-    bankDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+    levelDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
     masteredCount: 0,
   }),
 }));

@@ -61,7 +61,7 @@ const wordDueToday: Word = {
   trad: '學習',
   pinyin: 'xué xí',
   meaning: 'to study',
-  bank: 1,
+  level: 1,
   due_date: dateStr(0),
 };
 
@@ -71,7 +71,7 @@ const wordDueFuture: Word = {
   trad: '讀書',
   pinyin: 'dú shū',
   meaning: 'to read',
-  bank: 2,
+  level: 2,
   due_date: dateStr(3),
 };
 
@@ -81,7 +81,7 @@ const wordNoDueDate: Word = {
   trad: '語言',
   pinyin: 'yǔ yán',
   meaning: 'language',
-  bank: 1,
+  level: 1,
 };
 
 describe('Home — unauthenticated state', () => {
@@ -272,7 +272,7 @@ describe('Home — numDue with slash-format dates (Safari regression)', () => {
       trad: '好',
       pinyin: 'hǎo',
       meaning: 'good',
-      bank: 1,
+      level: 1,
       due_date: slashToday,
     };
     const futureWord: Word = {
@@ -281,7 +281,7 @@ describe('Home — numDue with slash-format dates (Safari regression)', () => {
       trad: '壞',
       pinyin: 'huài',
       meaning: 'bad',
-      bank: 2,
+      level: 2,
       due_date: slashFuture,
     };
 
@@ -335,7 +335,7 @@ describe('Home — navigation handlers', () => {
     expect(testButton).toBeInTheDocument();
   });
 
-  it('navigates to /add-words when "Add Words" button is clicked (no words in bank)', async () => {
+  it('navigates to /add-words when "Add Words" button is clicked (no words in list)', async () => {
     const user = userEvent.setup();
     const store = createTestStore({
       ...authenticatedState(),

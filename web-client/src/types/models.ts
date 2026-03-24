@@ -7,7 +7,7 @@ export interface Word {
   pinyin: string;
   meaning: string;
   due_date?: string;
-  bank?: number;
+  level?: number;
   ammended_meaning?: string;
   listId?: string;
 }
