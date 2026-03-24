@@ -7,6 +7,7 @@ import { connect, ConnectedProps } from 'react-redux';
 import Layout from './components/Layout/Layout';
 import { RootState } from './types/store';
 import AuthModal from './components/Auth/AuthModal';
+import NotificationSnackbar from './components/NotificationSnackbar/NotificationSnackbar';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import * as actions from './store/actions/index';
 import { trackPageView } from './services/analyticsService';
@@ -189,6 +190,7 @@ const App: React.FC<Props> = ({
         </ErrorBoundary>
       </Layout>
       <AuthModal />
+      <NotificationSnackbar />
     </Box>
   );
 };

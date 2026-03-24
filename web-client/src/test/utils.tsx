@@ -8,12 +8,14 @@ import { thunk } from 'redux-thunk';
 import wordsReducer from '../store/reducers/addWords';
 import authReducer from '../store/reducers/auth';
 import settingsReducer from '../store/reducers/settings';
+import notificationsReducer from '../store/reducers/notifications';
 
 export function createTestStore(preloadedState?: Record<string, unknown>) {
   const rootReducer = combineReducers({
     addWords: wordsReducer,
     auth: authReducer,
     settings: settingsReducer,
+    notifications: notificationsReducer,
   });
   return createStore(rootReducer, preloadedState, applyMiddleware(thunk));
 }
