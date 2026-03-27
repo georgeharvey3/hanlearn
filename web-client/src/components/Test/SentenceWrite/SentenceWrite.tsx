@@ -113,7 +113,7 @@ const SentenceWrite: React.FC<Props> = ({
 }) => {
   const [state, setState] = useState<SentenceWriteState>(() => ({
     wordIndex: 0,
-    charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
+    charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad',
     useChineseSpeechRecognition:
       (localStorage.getItem('useChineseSpeechRecognition') !== 'false' || Boolean(isDemo)) &&
       speechAvailable,

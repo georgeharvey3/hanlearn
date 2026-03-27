@@ -151,7 +151,7 @@ const SentenceRead: React.FC<Props> = ({
   const [state, setState] = useState<SentenceReadState>({
     sentences: [],
     totalCount: 0,
-    charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
+    charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad',
     sentenceIndex: 0,
     wordIndex: 0,
     submitted: false,

@@ -265,9 +265,9 @@ describe('SentenceWrite — translation feature', () => {
     await user.click(screen.getByText('student.'));
     await user.click(screen.getByRole('button', { name: /translate/i }));
 
-    // Should show the Chinese translation
+    // Should show the Chinese translation (trad is default charSet)
     await waitFor(() => {
-      expect(screen.getByText('学生')).toBeInTheDocument();
+      expect(screen.getByText('學生')).toBeInTheDocument();
       expect(screen.getByText('xué shēng')).toBeInTheDocument();
     });
   });
