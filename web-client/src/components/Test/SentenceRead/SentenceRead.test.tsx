@@ -689,7 +689,7 @@ describe('SentenceRead — decomposed array word rendering', () => {
 
     await waitFor(() => {
       // Both sub-words should be rendered as popup spans
-      expect(screen.getByLabelText(/学.*tap to see meaning/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/學.*tap to see meaning/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/生.*tap to see meaning/i)).toBeInTheDocument();
     });
   });

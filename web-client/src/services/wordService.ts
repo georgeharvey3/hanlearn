@@ -338,7 +338,7 @@ export const addCustomWord = async (
   userId: string,
   text: string,
   meaning: string,
-  charSet: 'simp' | 'trad' = 'simp',
+  charSet: 'simp' | 'trad' = 'trad',
   listId: string = 'default',
 ): Promise<Word> => {
   const validatedText = customWordTextSchema.parse(text);

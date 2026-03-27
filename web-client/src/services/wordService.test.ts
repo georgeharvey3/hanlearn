@@ -525,7 +525,7 @@ describe('addCustomWord', () => {
       .mockResolvedValueOnce({ pinyin: 'nǐ', trad: '你' })
       .mockResolvedValueOnce({ pinyin: 'hǎo', trad: '好' });
 
-    const word = await addCustomWord('user-1', '你好', 'hello');
+    const word = await addCustomWord('user-1', '你好', 'hello', 'simp');
 
     expect(word.simp).toBe('你好');
     expect(word.trad).toBe('你好');
@@ -549,7 +549,7 @@ describe('addCustomWord', () => {
   it('falls back to the raw char for simp/trad when lookupCharacter returns null', async () => {
     vi.mocked(lookupCharacter).mockResolvedValue(null);
 
-    const word = await addCustomWord('user-1', '好', 'good');
+    const word = await addCustomWord('user-1', '好', 'good', 'simp');
 
     expect(word.simp).toBe('好');
     expect(word.trad).toBe('好');
@@ -571,7 +571,7 @@ describe('addCustomWord', () => {
       .mockResolvedValueOnce({ pinyin: 'nǐ', trad: '你' })
       .mockResolvedValueOnce(null); // second char not found
 
-    const word = await addCustomWord('user-1', '你X', 'hello X');
+    const word = await addCustomWord('user-1', '你X', 'hello X', 'simp');
 
     expect(word.simp).toBe('你X');
     expect(word.trad).toBe('你X');
@@ -581,7 +581,7 @@ describe('addCustomWord', () => {
   it('returns a word with a negative id (avoids collision with dictionary IDs)', async () => {
     vi.mocked(lookupCharacter).mockResolvedValue(null);
 
-    const word = await addCustomWord('user-1', '好', 'good');
+    const word = await addCustomWord('user-1', '好', 'good', 'simp');
 
     expect(word.id).toBeLessThan(0);
   });
@@ -589,7 +589,7 @@ describe('addCustomWord', () => {
   it('calls setDoc (via addWordToList) with the constructed word data', async () => {
     vi.mocked(lookupCharacter).mockResolvedValue({ pinyin: 'shū', trad: '書' });
 
-    await addCustomWord('user-1', '书', 'book');
+    await addCustomWord('user-1', '书', 'book', 'simp');
 
     expect(mockSetDoc).toHaveBeenCalledOnce();
     const setDocArg = mockSetDoc.mock.calls[0][1];
@@ -602,7 +602,7 @@ describe('addCustomWord', () => {
     // lookupCharacter returns trad: undefined-ish — simulate with empty string fallback
     vi.mocked(lookupCharacter).mockResolvedValue({ pinyin: 'hǎo', trad: '' });
 
-    const word = await addCustomWord('user-1', '好', 'good');
+    const word = await addCustomWord('user-1', '好', 'good', 'simp');
 
     // trad falls back to the original char when trad is falsy
     expect(word.trad).toBe('好');

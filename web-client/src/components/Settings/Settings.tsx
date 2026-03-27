@@ -95,7 +95,7 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
     const onlyPriority = localStorage.getItem('onlyPriority');
 
     return {
-      charSet: localCharSet || 'simp',
+      charSet: localCharSet || 'trad',
       numWords: localNumWords ? parseInt(localNumWords) : 5,
       useChineseSpeechRecognition: useChineseSpeechRecognition === 'false' ? false : true,
       useEnglishSpeechRecognition: useEnglishSpeechRecognition === 'false' ? false : true,

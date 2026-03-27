@@ -51,7 +51,7 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
   const [exampleSentence, setExampleSentence] = useState<ChengyuSentence | null>(null);
   const [sentenceLoading, setSentenceLoading] = useState(false);
   const [charSet] = useState<'simp' | 'trad'>(
-    (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
+    (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad',
   );
 
   const dailyChengyu = useMemo(() => getDailyChengyu(), []);

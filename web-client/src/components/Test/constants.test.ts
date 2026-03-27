@@ -39,7 +39,7 @@ describe('createInitialState', () => {
     const state = createInitialState(makeProps());
 
     expect(state.numWords).toBe(5);
-    expect(state.charSet).toBe('simp');
+    expect(state.charSet).toBe('trad');
     expect(state.priority).toBe('none');
     expect(state.onlyPriority).toBe(false);
     expect(state.testFinished).toBe(false);
@@ -88,20 +88,20 @@ describe('createInitialState', () => {
     expect(state.testFinished).toBe(true);
   });
 
-  it('uses simp characters by default for devTestFinished scoreList', () => {
-    const state = createInitialState(makeProps({ devTestFinished: true }));
-
-    expect(state.scoreList[0].char).toBe('你好');
-    expect(state.scoreList[1].char).toBe('谢谢');
-  });
-
-  it('uses trad characters when charSet is trad for devTestFinished scoreList', () => {
-    localStorage.setItem('charSet', 'trad');
-
+  it('uses trad characters by default for devTestFinished scoreList', () => {
     const state = createInitialState(makeProps({ devTestFinished: true }));
 
     expect(state.scoreList[0].char).toBe('你好');
     expect(state.scoreList[1].char).toBe('謝謝');
+  });
+
+  it('uses simp characters when charSet is simp for devTestFinished scoreList', () => {
+    localStorage.setItem('charSet', 'simp');
+
+    const state = createInitialState(makeProps({ devTestFinished: true }));
+
+    expect(state.scoreList[0].char).toBe('你好');
+    expect(state.scoreList[1].char).toBe('谢谢');
   });
 
   it('initializes all UI state fields to their defaults', () => {
