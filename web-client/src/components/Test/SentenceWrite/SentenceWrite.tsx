@@ -395,8 +395,8 @@ const SentenceWrite: React.FC<Props> = ({
     };
   }, [onKeyUp]);
 
-  const onInputKeyPress = (event: KeyboardEvent<HTMLInputElement>): void => {
-    if (event.key !== 'Enter' || stateRef.current.entered.trim() === '') return;
+  const onSubmitAnswer = (): void => {
+    if (stateRef.current.entered.trim() === '') return;
     document.getElementById('answerInput')?.blur();
     clearTranslation();
     updateState({ submitted: true, message: '', scoreLoading: true, score: null });
@@ -411,6 +411,11 @@ const SentenceWrite: React.FC<Props> = ({
           updateState({ score: null, scoreLoading: false });
         });
     }
+  };
+
+  const onInputKeyPress = (event: KeyboardEvent<HTMLInputElement>): void => {
+    if (event.key !== 'Enter') return;
+    onSubmitAnswer();
   };
 
   // Loading state
@@ -699,9 +704,16 @@ const SentenceWrite: React.FC<Props> = ({
           changed={(e) => updateState({ entered: e.target.value, message: '' })}
           keyPressed={onInputKeyPress}
           value={state.entered}
-          placeholder="Type Chinese and press Enter…"
+          placeholder="Type your answer in Chinese…"
           style={{ width: '100%' }}
         />
+        <Button
+          clicked={onSubmitAnswer}
+          disabled={state.entered.trim() === ''}
+          aria-label="Submit answer"
+        >
+          Submit
+        </Button>
         {state.useChineseSpeechRecognition && (
           <Stack direction="row" alignItems="center" spacing={1} justifyContent="center">
             {state.message && (
