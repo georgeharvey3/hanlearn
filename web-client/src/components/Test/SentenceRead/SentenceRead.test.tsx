@@ -140,7 +140,7 @@ describe('SentenceRead — sentence display', () => {
       { store: makeStore() },
     );
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/type here and press enter/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/type your translation/i)).toBeInTheDocument();
     });
   });
 
@@ -175,7 +175,7 @@ describe('SentenceRead — submitting a translation', () => {
       { store: makeStore() },
     );
 
-    const input = await screen.findByPlaceholderText(/type here and press enter/i);
+    const input = await screen.findByPlaceholderText(/type your translation/i);
     await user.type(input, 'Hello{Enter}');
 
     await waitFor(() => {
@@ -191,7 +191,7 @@ describe('SentenceRead — submitting a translation', () => {
       { store: makeStore() },
     );
 
-    const input = await screen.findByPlaceholderText(/type here and press enter/i);
+    const input = await screen.findByPlaceholderText(/type your translation/i);
     await user.type(input, 'Hello{Enter}');
 
     await waitFor(() => {
@@ -213,7 +213,7 @@ describe('SentenceRead — submitting a translation', () => {
       { store: makeStore() },
     );
 
-    const input = await screen.findByPlaceholderText(/type here and press enter/i);
+    const input = await screen.findByPlaceholderText(/type your translation/i);
     await user.type(input, 'Hello{Enter}');
 
     await waitFor(() => {
@@ -224,7 +224,38 @@ describe('SentenceRead — submitting a translation', () => {
     await user.click(tryAgainBtn);
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/type here and press enter/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/type your translation/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows comparison view after clicking the Submit button', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStore() },
+    );
+
+    const input = await screen.findByPlaceholderText(/type your translation/i);
+    await user.type(input, 'Hello');
+
+    const submitBtn = screen.getByRole('button', { name: /submit translation/i });
+    await user.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/your translation/i)).toBeInTheDocument();
+      expect(screen.getByText(/correct translation/i)).toBeInTheDocument();
+    });
+  });
+
+  it('disables Submit button when input is empty', async () => {
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStore() },
+    );
+
+    await waitFor(() => {
+      const submitBtn = screen.getByRole('button', { name: /submit translation/i });
+      expect(submitBtn).toBeDisabled();
     });
   });
 });
@@ -337,7 +368,7 @@ describe('SentenceRead — stage completion', () => {
       { store: makeStore() },
     );
 
-    const input = await screen.findByPlaceholderText(/type here and press enter/i);
+    const input = await screen.findByPlaceholderText(/type your translation/i);
     await user.type(input, 'Hello{Enter}');
 
     const nextBtn = await screen.findByRole('button', { name: /next word/i });
@@ -369,7 +400,7 @@ describe('SentenceRead — stage completion', () => {
     await waitFor(
       () => {
         expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
-        expect(screen.getByPlaceholderText(/type here and press enter/i)).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/type your translation/i)).toBeInTheDocument();
       },
       { timeout: 3000 },
     );

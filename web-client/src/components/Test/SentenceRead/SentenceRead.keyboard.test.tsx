@@ -139,7 +139,7 @@ describe('SentenceRead — fetchSentence error handling', () => {
     // Should recover and show input for the second word
     await waitFor(
       () => {
-        expect(screen.getByPlaceholderText(/type here and press enter/i)).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/type your translation/i)).toBeInTheDocument();
       },
       { timeout: 3000 },
     );
@@ -177,7 +177,7 @@ describe('SentenceRead — score unavailable on similarity error', () => {
       { store: makeStore() },
     );
 
-    const input = await screen.findByPlaceholderText(/type here and press enter/i);
+    const input = await screen.findByPlaceholderText(/type your translation/i);
     await user.type(input, 'Hello{Enter}');
 
     await waitFor(() => {
@@ -284,7 +284,7 @@ describe('SentenceRead — keyboard shortcuts ArrowUp/ArrowDown', () => {
       { store: makeStore() },
     );
 
-    const input = await screen.findByPlaceholderText(/type here and press enter/i);
+    const input = await screen.findByPlaceholderText(/type your translation/i);
     await user.type(input, 'Hello{Enter}');
 
     await waitFor(() => {
@@ -307,7 +307,7 @@ describe('SentenceRead — keyboard shortcuts ArrowUp/ArrowDown', () => {
       { store: makeStore() },
     );
 
-    const input = await screen.findByPlaceholderText(/type here and press enter/i);
+    const input = await screen.findByPlaceholderText(/type your translation/i);
     await user.type(input, 'Hello{Enter}');
 
     await waitFor(() => {
@@ -318,7 +318,7 @@ describe('SentenceRead — keyboard shortcuts ArrowUp/ArrowDown', () => {
     fireEvent.keyUp(document.body, { key: 'ArrowDown' });
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/type here and press enter/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/type your translation/i)).toBeInTheDocument();
     });
   });
 });
@@ -335,7 +335,7 @@ describe('SentenceRead — english highlight in submitted view', () => {
       { store: makeStore() },
     );
 
-    const input = await screen.findByPlaceholderText(/type here and press enter/i);
+    const input = await screen.findByPlaceholderText(/type your translation/i);
     await user.type(input, 'Hi{Enter}');
 
     await waitFor(() => {
@@ -366,7 +366,7 @@ describe('SentenceRead — multi-word navigation', () => {
       expect(screen.getByText(/word 1 of 2/i)).toBeInTheDocument();
     });
 
-    const input = await screen.findByPlaceholderText(/type here and press enter/i);
+    const input = await screen.findByPlaceholderText(/type your translation/i);
     await user.type(input, 'Hello{Enter}');
 
     const nextBtn = await screen.findByRole('button', { name: /next word/i });
