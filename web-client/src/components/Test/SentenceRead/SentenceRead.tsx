@@ -151,7 +151,7 @@ const SentenceRead: React.FC<Props> = ({
   const [state, setState] = useState<SentenceReadState>({
     sentences: [],
     totalCount: 0,
-    charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
+    charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad',
     sentenceIndex: 0,
     wordIndex: 0,
     submitted: false,
@@ -404,8 +404,8 @@ const SentenceRead: React.FC<Props> = ({
     updateState({ entered: event.target.value });
   };
 
-  const onKeyPressed = (event: KeyboardEvent<HTMLInputElement>): void => {
-    if (event.key !== 'Enter' || stateRef.current.entered === '') return;
+  const onSubmit = (): void => {
+    if (stateRef.current.entered === '') return;
     updateState({ submitted: true, scoreLoading: true, score: null });
 
     const currentSentence = stateRef.current.sentences[stateRef.current.sentenceIndex];
@@ -418,6 +418,11 @@ const SentenceRead: React.FC<Props> = ({
           updateState({ score: null, scoreLoading: false });
         });
     }
+  };
+
+  const onKeyPressed = (event: KeyboardEvent<HTMLInputElement>): void => {
+    if (event.key !== 'Enter') return;
+    onSubmit();
   };
 
   const onKeyUp = useCallback(
@@ -797,9 +802,16 @@ const SentenceRead: React.FC<Props> = ({
             keyPressed={onKeyPressed}
             autoComplete="off"
             value={state.entered}
-            placeholder="Type here and press Enter…"
+            placeholder="Type your translation…"
             style={{ width: '100%' }}
           />
+          <Button
+            clicked={onSubmit}
+            disabled={state.entered === ''}
+            aria-label="Submit translation"
+          >
+            Submit
+          </Button>
         </Box>
 
         {micButton}

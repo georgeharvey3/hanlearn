@@ -105,7 +105,7 @@ const AddWords: React.FC<Props> = ({
   isDemo,
 }) => {
   const [state, setState] = useState<AddWordsState>(() => {
-    const charSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp';
+    const charSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad';
     return {
       newWord: '',
       errorMessage: '',

@@ -80,7 +80,7 @@ describe('AddWords — word search and add flow', () => {
       },
     });
     renderWithProviders(<AddWords />, { store });
-    expect(screen.getByText('学习')).toBeInTheDocument();
+    expect(screen.getByText('學習')).toBeInTheDocument();
     expect(screen.getByText('xué xí')).toBeInTheDocument();
   });
 
@@ -387,7 +387,7 @@ describe('AddWords — toggle show/hide table', () => {
     renderWithProviders(<AddWords />, { store });
 
     // Initially the table should be visible
-    expect(screen.getByText('学习')).toBeInTheDocument();
+    expect(screen.getByText('學習')).toBeInTheDocument();
 
     // Click "Hide Table"
     const hideBtn = screen.getByRole('button', { name: /hide table/i });
@@ -505,7 +505,7 @@ describe('AddWords — pronunciation playback', () => {
     await userEvent.click(playButtons[0]);
 
     expect(ttsService.speak).toHaveBeenCalledWith(
-      '学习',
+      '學習',
       expect.objectContaining({ onEnd: expect.any(Function), onError: expect.any(Function) }),
     );
   });

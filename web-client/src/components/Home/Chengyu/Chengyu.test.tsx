@@ -105,7 +105,7 @@ describe('Chengyu — initial render', () => {
 
   it('displays the chengyu characters', () => {
     renderWithProviders(<Chengyu />, { store: makeStore() });
-    expect(screen.getByText('独一无二')).toBeInTheDocument();
+    expect(screen.getByText('獨一無二')).toBeInTheDocument();
   });
 
   it('renders all four answer options', () => {
@@ -163,7 +163,7 @@ describe('Chengyu — answering correctly', () => {
     await user.click(screen.getByRole('button', { name: /^unique$/ }));
 
     await waitFor(() => {
-      expect(screen.getByText('独')).toBeInTheDocument();
+      expect(screen.getByText('獨')).toBeInTheDocument();
       expect(screen.getByText('一')).toBeInTheDocument();
     });
   });
@@ -316,7 +316,7 @@ describe('Chengyu — example sentence after completion', () => {
     await user.click(screen.getByRole('button', { name: /^unique$/ }));
 
     await waitFor(() => {
-      expect(getChengyuExampleSentence).toHaveBeenCalledWith('独一无二', 'simp');
+      expect(getChengyuExampleSentence).toHaveBeenCalledWith('独一无二', 'trad');
     });
   });
 });

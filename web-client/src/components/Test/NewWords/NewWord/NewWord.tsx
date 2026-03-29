@@ -60,7 +60,7 @@ const NewWord: React.FC<Props> = ({
   const charCache = useRef<Map<string, CharData>>(new Map());
   const [editedMeaning, setEditedMeaning] = useState(word.meaning);
   const [charSet] = useState<'simp' | 'trad'>(
-    (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
+    (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad',
   );
   const [useSound] = useState(
     localStorage.getItem('useSound') === 'false' || !synthAvailable ? false : true,
@@ -93,7 +93,7 @@ const NewWord: React.FC<Props> = ({
 
   const onDisplayMeaning = useCallback(async (char: string): Promise<void> => {
     try {
-      const charSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp';
+      const charSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad';
       const results = await searchWord(char, charSet);
       let data: CharData;
       if (results.length > 0) {

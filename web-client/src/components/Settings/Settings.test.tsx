@@ -52,10 +52,10 @@ describe('Settings — accessibility', () => {
 });
 
 describe('Settings — initial render from localStorage', () => {
-  it('defaults charSet to Simplified when localStorage is empty', () => {
+  it('defaults charSet to Traditional when localStorage is empty', () => {
     renderWithProviders(<Settings />, { store: makeStore() });
-    const simpRadio = screen.getByRole('radio', { name: /simplified/i });
-    expect(simpRadio).toBeChecked();
+    const tradRadio = screen.getByRole('radio', { name: /traditional/i });
+    expect(tradRadio).toBeChecked();
   });
 
   it('reads charSet = trad from localStorage', () => {
@@ -79,20 +79,8 @@ describe('Settings — initial render from localStorage', () => {
 });
 
 describe('Settings — character set radio buttons', () => {
-  it('switches to Traditional when Traditional radio is clicked', async () => {
+  it('switches to Simplified when Simplified radio is clicked', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<Settings />, { store: makeStore() });
-
-    const tradRadio = screen.getByRole('radio', { name: /traditional/i });
-    await user.click(tradRadio);
-
-    expect(tradRadio).toBeChecked();
-    expect(localStorage.getItem('charSet')).toBe('trad');
-  });
-
-  it('switches back to Simplified when Simplified radio is clicked', async () => {
-    const user = userEvent.setup();
-    localStorage.setItem('charSet', 'trad');
     renderWithProviders(<Settings />, { store: makeStore() });
 
     const simpRadio = screen.getByRole('radio', { name: /simplified/i });
@@ -100,6 +88,18 @@ describe('Settings — character set radio buttons', () => {
 
     expect(simpRadio).toBeChecked();
     expect(localStorage.getItem('charSet')).toBe('simp');
+  });
+
+  it('switches back to Traditional when Traditional radio is clicked', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('charSet', 'simp');
+    renderWithProviders(<Settings />, { store: makeStore() });
+
+    const tradRadio = screen.getByRole('radio', { name: /traditional/i });
+    await user.click(tradRadio);
+
+    expect(tradRadio).toBeChecked();
+    expect(localStorage.getItem('charSet')).toBe('trad');
   });
 });
 

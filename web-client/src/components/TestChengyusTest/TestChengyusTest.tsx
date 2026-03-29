@@ -54,7 +54,7 @@ const TestChengyusTest: React.FC<Props> = ({
 }) => {
   const [state, setState] = useState<TestChengyusTestState>(() => ({
     wordIndex: 0,
-    charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'simp',
+    charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad',
     charData: null,
     errorMessage: '',
     showChengyuMeaning: false,
