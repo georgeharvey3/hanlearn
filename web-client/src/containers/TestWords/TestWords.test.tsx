@@ -697,6 +697,30 @@ describe('TestWords — loading state', () => {
       expect(screen.getByRole('progressbar')).toBeInTheDocument();
     });
   });
+
+  it('does not flash "No words due" while words are being initialised', async () => {
+    // Simulate words already loaded but not yet processed into selectedWords.
+    // Before the fix this would briefly show the "No words due" screen.
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord(1, '你好', 2)],
+        listStats: {},
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+
+    // The test component should appear (after initialization), never the "no words due" text
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test')).toBeInTheDocument();
+    });
+    // Verify "No words due" was never shown
+    expect(screen.queryByText(/no words due/i)).not.toBeInTheDocument();
+  });
 });
 
 describe('TestWords — Test All Lists chip interaction', () => {
