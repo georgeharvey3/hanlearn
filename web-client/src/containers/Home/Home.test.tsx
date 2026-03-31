@@ -204,6 +204,8 @@ describe('Home — authenticated state', () => {
   it('displays correct numDue count — counts words due today but not future words', async () => {
     // wordDueToday due date = today → should count as due
     // wordDueFuture due date = 3 days from now → should NOT count
+    mockedWordService.getUserWords.mockResolvedValue([wordDueToday, wordDueFuture]);
+    mockedWordService.getListStats.mockResolvedValue({ default: { due: 1, total: 2 } });
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -226,6 +228,8 @@ describe('Home — authenticated state', () => {
   it('counts words with no due_date as due (new words always count)', async () => {
     // wordNoDueDate has no due_date — treated as immediately due
     // wordDueFuture is 3 days away — should NOT count
+    mockedWordService.getUserWords.mockResolvedValue([wordNoDueDate, wordDueFuture]);
+    mockedWordService.getListStats.mockResolvedValue({ default: { due: 1, total: 2 } });
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -285,6 +289,8 @@ describe('Home — numDue with slash-format dates (Safari regression)', () => {
       due_date: slashFuture,
     };
 
+    mockedWordService.getUserWords.mockResolvedValue([dueWord, futureWord]);
+    mockedWordService.getListStats.mockResolvedValue({ default: { due: 1, total: 2 } });
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -313,6 +319,8 @@ describe('Home — navigation handlers', () => {
 
   it('navigates to /test-words when test button is clicked (words due)', async () => {
     const user = userEvent.setup();
+    mockedWordService.getUserWords.mockResolvedValue([wordDueToday]);
+    mockedWordService.getListStats.mockResolvedValue({ default: { due: 1, total: 1 } });
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
