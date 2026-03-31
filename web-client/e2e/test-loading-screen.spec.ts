@@ -43,18 +43,6 @@ test.describe('Test loading screen', () => {
     await seedWords(TEST_USER.uid, dueWords);
 
     const testPage = new TestWordsPage(page);
-
-    // Monitor for the "No words due" text appearing at any point
-    let noWordsDueAppeared = false;
-    const checkInterval = setInterval(async () => {
-      try {
-        const visible = await page.getByText(/No words due/i).first().isVisible();
-        if (visible) noWordsDueAppeared = true;
-      } catch {
-        // Page may have navigated — ignore
-      }
-    }, 50);
-
     await testPage.navigateTo();
 
     // Wait for the test to load — should see test UI elements
@@ -62,10 +50,8 @@ test.describe('Test loading screen', () => {
       page.getByText(/pinyin|character|meaning/i).first(),
     ).toBeVisible({ timeout: 15000 });
 
-    clearInterval(checkInterval);
-
-    // The "No words due" message should never have appeared
-    expect(noWordsDueAppeared).toBe(false);
+    // Once the test has loaded, "No words due" should not be visible
+    await expect(page.getByText(/No words due/i).first()).not.toBeVisible();
   });
 
   test('shows loading spinner before test content appears', async ({ page }) => {

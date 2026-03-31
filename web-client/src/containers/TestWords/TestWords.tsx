@@ -172,13 +172,10 @@ const TestWords: React.FC<Props> = ({
     }
   }, [activeListId]);
 
-  const [initCalled, setInitCalled] = useState(isDemo);
-
   useEffect(() => {
     if (!isDemo && userId !== null) {
       onInitWords();
     }
-    setInitCalled(true);
 
     window.speechSynthesis.getVoices();
   }, [isDemo, onInitWords, userId]);
@@ -363,8 +360,8 @@ const TestWords: React.FC<Props> = ({
           />
         );
     }
-  } else if (wordsLoading || !initCalled || (!state.wordsInitialized && words.length > 0)) {
-    // Still loading, init not dispatched yet, or words arrived but haven't been selected yet
+  } else if (wordsLoading || (!state.wordsInitialized && words.length > 0)) {
+    // Still loading words, or words arrived but haven't been selected yet
     content = <Spinner />;
   } else {
     // Check if user has words in list (even if none due)
