@@ -36,6 +36,7 @@ interface TestWordsState {
   sentenceWriteEnabled: boolean;
   devTestFinished: boolean; // For testing TestSummary directly
   practiceMode: boolean; // Practice mode ignores due dates and doesn't update them
+  wordsInitialized: boolean; // True once word selection has run (prevents flash of "No words due")
   seenOffsets: Record<string, { offset: number; text: string; english: string }>;
   wordScores: WordScore[];
 }
@@ -95,6 +96,7 @@ const TestWords: React.FC<Props> = ({
     sentenceWriteEnabled: isDemo ? true : localStorage.getItem('sentenceWrite') !== 'false',
     devTestFinished: devConfig?.testFinished ?? false,
     practiceMode: false,
+    wordsInitialized: false,
     seenOffsets: {},
     wordScores: [],
   });
@@ -143,6 +145,7 @@ const TestWords: React.FC<Props> = ({
         stage: 'vocab',
         newWords: newWords,
         selectedWords: selectedWords,
+        wordsInitialized: true,
       }));
     } else {
       setState((prev) => ({
@@ -150,6 +153,7 @@ const TestWords: React.FC<Props> = ({
         stage: 'new',
         newWords: newWords,
         selectedWords: selectedWords,
+        wordsInitialized: true,
       }));
     }
   }, [isDemo, selectTestWords, state.newWordsEnabled]);
@@ -157,6 +161,10 @@ const TestWords: React.FC<Props> = ({
   // Track whether we've already initialized to prevent re-running setSelectedWords
   const hasInitialized = useRef(false);
   const prevActiveListId = useRef(activeListId);
+  // Track whether wordsLoading has been true at least once (prevents the "no words"
+  // fallback from firing before the fetch even starts, since both effects run in the
+  // same render cycle with stale captured props).
+  const hasSeenLoading = useRef(false);
 
   // Reset initialization when active list changes (e.g. "Test All Lists" clicked)
   // so that test words get re-selected from the new word set.
@@ -164,7 +172,8 @@ const TestWords: React.FC<Props> = ({
     if (prevActiveListId.current !== activeListId) {
       prevActiveListId.current = activeListId;
       hasInitialized.current = false;
-      setState((prev) => ({ ...prev, selectedWords: [], newWords: [] }));
+      hasSeenLoading.current = false;
+      setState((prev) => ({ ...prev, selectedWords: [], newWords: [], wordsInitialized: false }));
     }
   }, [activeListId]);
 
@@ -178,6 +187,10 @@ const TestWords: React.FC<Props> = ({
 
   // Separate effect for initial word selection - only runs once when words are first available
   useEffect(() => {
+    if (wordsLoading) {
+      hasSeenLoading.current = true;
+    }
+
     if (!hasInitialized.current && (words.length > 0 || isDemo)) {
       hasInitialized.current = true;
 
@@ -190,12 +203,27 @@ const TestWords: React.FC<Props> = ({
           selectedWords,
           newWords,
           sentenceWords: selectedWords,
+          wordsInitialized: true,
         }));
       } else {
         setSelectedWords();
       }
     }
-  }, [isDemo, selectTestWords, setSelectedWords, words.length]);
+    // Loading finished with no words — mark as initialized so spinner stops.
+    // Only trigger after loading has been true at least once (hasSeenLoading)
+    // to avoid a race where this fires before the fetch even starts.
+    if (
+      !hasInitialized.current &&
+      !wordsLoading &&
+      hasSeenLoading.current &&
+      !isDemo &&
+      words.length === 0 &&
+      userId !== null
+    ) {
+      hasInitialized.current = true;
+      setState((prev) => ({ ...prev, wordsInitialized: true }));
+    }
+  }, [isDemo, selectTestWords, setSelectedWords, words.length, wordsLoading, userId]);
 
   // This effect is now handled by the initialization effect above
   useEffect(() => {
@@ -355,8 +383,8 @@ const TestWords: React.FC<Props> = ({
           />
         );
     }
-  } else if (wordsLoading) {
-    // Still loading words from user's list
+  } else if (wordsLoading || !state.wordsInitialized) {
+    // Still loading words, or words arrived but haven't been selected yet
     content = <Spinner />;
   } else {
     // Check if user has words in list (even if none due)

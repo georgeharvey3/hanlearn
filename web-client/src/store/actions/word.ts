@@ -119,6 +119,8 @@ export const initWords = (): AppThunk => {
       return;
     }
 
+    dispatch({ type: actionTypes.FETCH_WORDS });
+
     try {
       // Backfill listId on legacy words before querying by list
       await wordService.migrateWordsWithoutListId(auth.userId);
@@ -154,6 +156,8 @@ export const switchActiveList = (listId: string): AppThunk => {
     dispatch(setActiveList(listId));
 
     if (!auth.userId) return;
+
+    dispatch({ type: actionTypes.FETCH_WORDS });
 
     try {
       const words = await wordService.getUserWords(
