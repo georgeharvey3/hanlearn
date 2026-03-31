@@ -200,7 +200,18 @@ const TestWords: React.FC<Props> = ({
         setSelectedWords();
       }
     }
-  }, [isDemo, selectTestWords, setSelectedWords, words.length]);
+    // Loading finished with no words — mark as initialized so spinner stops
+    if (
+      !hasInitialized.current &&
+      !wordsLoading &&
+      !isDemo &&
+      words.length === 0 &&
+      userId !== null
+    ) {
+      hasInitialized.current = true;
+      setState((prev) => ({ ...prev, wordsInitialized: true }));
+    }
+  }, [isDemo, selectTestWords, setSelectedWords, words.length, wordsLoading, userId]);
 
   // This effect is now handled by the initialization effect above
   useEffect(() => {
@@ -360,7 +371,7 @@ const TestWords: React.FC<Props> = ({
           />
         );
     }
-  } else if (wordsLoading || (!state.wordsInitialized && words.length > 0)) {
+  } else if (wordsLoading || !state.wordsInitialized) {
     // Still loading words, or words arrived but haven't been selected yet
     content = <Spinner />;
   } else {
