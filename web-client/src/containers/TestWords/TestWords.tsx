@@ -181,13 +181,7 @@ const TestWords: React.FC<Props> = ({
   }, [isDemo, onInitWords, userId]);
 
   // Separate effect for initial word selection - only runs once when words are first available
-  // Also marks initialized when loading finishes with an empty word list.
   useEffect(() => {
-    if (!hasInitialized.current && !wordsLoading && words.length === 0 && !isDemo) {
-      hasInitialized.current = true;
-      setState((prev) => ({ ...prev, wordsInitialized: true }));
-      return;
-    }
     if (!hasInitialized.current && (words.length > 0 || isDemo)) {
       hasInitialized.current = true;
 
@@ -366,8 +360,8 @@ const TestWords: React.FC<Props> = ({
           />
         );
     }
-  } else if (wordsLoading || !state.wordsInitialized) {
-    // Still loading words or haven't processed word selection yet
+  } else if (wordsLoading || (!state.wordsInitialized && words.length > 0)) {
+    // Still loading words, or words arrived but haven't been selected yet
     content = <Spinner />;
   } else {
     // Check if user has words in list (even if none due)
