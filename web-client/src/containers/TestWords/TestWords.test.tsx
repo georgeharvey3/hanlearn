@@ -52,7 +52,7 @@ vi.mock('../../components/Test/TestSummary/TestSummary', () => ({
 }));
 
 import React from 'react';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import TestWords from './TestWords';
@@ -126,11 +126,14 @@ describe('TestWords — empty list / no words due', () => {
         activeListId: 'default',
         words: [],
         listStats: {},
-        loading: false,
+        loading: true,
         error: false,
       },
     });
     renderWithProviders(<TestWords />, { store });
+    await act(async () => {
+      store.dispatch({ type: 'SET_WORDS', words: [] });
+    });
     await waitFor(() => {
       expect(screen.getByText(/no words due in \u201c/i)).toBeInTheDocument();
     });
@@ -144,11 +147,14 @@ describe('TestWords — empty list / no words due', () => {
         activeListId: 'default',
         words: [],
         listStats: {},
-        loading: false,
+        loading: true,
         error: false,
       },
     });
     renderWithProviders(<TestWords />, { store });
+    await act(async () => {
+      store.dispatch({ type: 'SET_WORDS', words: [] });
+    });
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /add words/i })).toBeInTheDocument();
     });
@@ -162,11 +168,14 @@ describe('TestWords — empty list / no words due', () => {
         activeListId: 'default',
         words: [],
         listStats: {},
-        loading: false,
+        loading: true,
         error: false,
       },
     });
     renderWithProviders(<TestWords />, { store });
+    await act(async () => {
+      store.dispatch({ type: 'SET_WORDS', words: [] });
+    });
     await waitFor(() => {
       expect(screen.getByText(/no words due in \u201c/i)).toBeInTheDocument();
     });
@@ -376,11 +385,14 @@ describe('TestWords — cross-list (Test All) mode', () => {
         activeListId: '__all__',
         words: [],
         listStats: {},
-        loading: false,
+        loading: true,
         error: false,
       },
     });
     renderWithProviders(<TestWords />, { store });
+    await act(async () => {
+      store.dispatch({ type: 'SET_WORDS', words: [] });
+    });
     await waitFor(() => {
       expect(screen.getByText(/no words due in \u201cAll Lists\u201d/i)).toBeInTheDocument();
     });
@@ -397,11 +409,14 @@ describe('TestWords — cross-list (Test All) mode', () => {
         activeListId: 'default',
         words: [],
         listStats: { default: { due: 0, total: 3 }, 'list-1': { due: 2, total: 5 } },
-        loading: false,
+        loading: true,
         error: false,
       },
     });
     renderWithProviders(<TestWords />, { store });
+    await act(async () => {
+      store.dispatch({ type: 'SET_WORDS', words: [] });
+    });
     await waitFor(() => {
       expect(screen.getByText(/Test All Lists/)).toBeInTheDocument();
     });
@@ -588,11 +603,14 @@ describe('TestWords — other lists with due words', () => {
           hsk1: { due: 3, total: 10 },
           hsk2: { due: 0, total: 5 },
         },
-        loading: false,
+        loading: true,
         error: false,
       },
     });
     renderWithProviders(<TestWords />, { store });
+    await act(async () => {
+      store.dispatch({ type: 'SET_WORDS', words: [] });
+    });
 
     await waitFor(() => {
       expect(screen.getByText(/no words due in \u201c/i)).toBeInTheDocument();
@@ -618,11 +636,14 @@ describe('TestWords — other lists with due words', () => {
         listStats: {
           hsk1: { due: 0, total: 5 },
         },
-        loading: false,
+        loading: true,
         error: false,
       },
     });
     renderWithProviders(<TestWords />, { store });
+    await act(async () => {
+      store.dispatch({ type: 'SET_WORDS', words: [] });
+    });
 
     await waitFor(() => {
       expect(screen.getByText(/no words due in any list/i)).toBeInTheDocument();
@@ -646,11 +667,14 @@ describe('TestWords — other lists with due words', () => {
         listStats: {
           hsk1: { due: 5, total: 10 },
         },
-        loading: false,
+        loading: true,
         error: false,
       },
     });
     renderWithProviders(<TestWords />, { store });
+    await act(async () => {
+      store.dispatch({ type: 'SET_WORDS', words: [] });
+    });
 
     const chip = await screen.findByText('HSK 1 (5 due)');
     await user.click(chip);
@@ -739,11 +763,14 @@ describe('TestWords — Test All Lists chip interaction', () => {
         activeListId: 'default',
         words: [],
         listStats: { default: { due: 0, total: 3 }, 'list-1': { due: 2, total: 5 } },
-        loading: false,
+        loading: true,
         error: false,
       },
     });
     renderWithProviders(<TestWords />, { store });
+    await act(async () => {
+      store.dispatch({ type: 'SET_WORDS', words: [] });
+    });
 
     const chip = await screen.findByText(/Test All Lists/);
     await user.click(chip);

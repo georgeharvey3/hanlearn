@@ -161,6 +161,10 @@ const TestWords: React.FC<Props> = ({
   // Track whether we've already initialized to prevent re-running setSelectedWords
   const hasInitialized = useRef(false);
   const prevActiveListId = useRef(activeListId);
+  // Track whether wordsLoading has been true at least once (prevents the "no words"
+  // fallback from firing before the fetch even starts, since both effects run in the
+  // same render cycle with stale captured props).
+  const hasSeenLoading = useRef(false);
 
   // Reset initialization when active list changes (e.g. "Test All Lists" clicked)
   // so that test words get re-selected from the new word set.
@@ -168,6 +172,7 @@ const TestWords: React.FC<Props> = ({
     if (prevActiveListId.current !== activeListId) {
       prevActiveListId.current = activeListId;
       hasInitialized.current = false;
+      hasSeenLoading.current = false;
       setState((prev) => ({ ...prev, selectedWords: [], newWords: [], wordsInitialized: false }));
     }
   }, [activeListId]);
@@ -182,6 +187,10 @@ const TestWords: React.FC<Props> = ({
 
   // Separate effect for initial word selection - only runs once when words are first available
   useEffect(() => {
+    if (wordsLoading) {
+      hasSeenLoading.current = true;
+    }
+
     if (!hasInitialized.current && (words.length > 0 || isDemo)) {
       hasInitialized.current = true;
 
@@ -200,10 +209,13 @@ const TestWords: React.FC<Props> = ({
         setSelectedWords();
       }
     }
-    // Loading finished with no words — mark as initialized so spinner stops
+    // Loading finished with no words — mark as initialized so spinner stops.
+    // Only trigger after loading has been true at least once (hasSeenLoading)
+    // to avoid a race where this fires before the fetch even starts.
     if (
       !hasInitialized.current &&
       !wordsLoading &&
+      hasSeenLoading.current &&
       !isDemo &&
       words.length === 0 &&
       userId !== null
