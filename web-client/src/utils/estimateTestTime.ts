@@ -6,6 +6,7 @@ export interface TestTimeEstimateParams {
   newWordsEnabled: boolean;
   sentenceReadEnabled: boolean;
   sentenceWriteEnabled: boolean;
+  sentenceStagesForAllWords: boolean;
 }
 
 const PERM_SECONDS: Record<string, number> = {
@@ -29,6 +30,7 @@ export function estimateTestTime(params: TestTimeEstimateParams): number {
     newWordsEnabled,
     sentenceReadEnabled,
     sentenceWriteEnabled,
+    sentenceStagesForAllWords,
   } = params;
 
   let activePerms: string[];
@@ -48,11 +50,20 @@ export function estimateTestTime(params: TestTimeEstimateParams): number {
   if (newWordsEnabled) {
     totalSeconds += numWords * NEW_WORDS_SECONDS_PER_WORD;
   }
+
+  // When sentenceStagesForAllWords is enabled, sentence stages run for every
+  // correctly-answered word, so estimate time for all numWords.
+  // When disabled (default), they only run for new/level-1 words, so use a
+  // reduced estimate (roughly 1 in 5 words are new).
+  const sentenceWordCount = sentenceStagesForAllWords
+    ? numWords
+    : Math.max(1, Math.round(numWords * 0.2));
+
   if (sentenceReadEnabled) {
-    totalSeconds += numWords * SENTENCE_SECONDS_PER_WORD;
+    totalSeconds += sentenceWordCount * SENTENCE_SECONDS_PER_WORD;
   }
   if (sentenceWriteEnabled) {
-    totalSeconds += numWords * SENTENCE_SECONDS_PER_WORD;
+    totalSeconds += sentenceWordCount * SENTENCE_SECONDS_PER_WORD;
   }
 
   return totalSeconds;

@@ -27,6 +27,7 @@ interface SettingsState {
   newWords: boolean;
   sentenceRead: boolean;
   sentenceWrite: boolean;
+  sentenceStagesForAllWords: boolean;
   priority: string;
   onlyPriority: boolean;
   [key: string]: string | number | boolean;
@@ -91,6 +92,7 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
     const newWords = localStorage.getItem('newWords');
     const sentenceRead = localStorage.getItem('sentenceRead');
     const sentenceWrite = localStorage.getItem('sentenceWrite');
+    const sentenceStagesForAllWords = localStorage.getItem('sentenceStagesForAllWords');
     const priority = localStorage.getItem('priority');
     const onlyPriority = localStorage.getItem('onlyPriority');
 
@@ -107,6 +109,7 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
       newWords: newWords === 'false' ? false : true,
       sentenceRead: sentenceRead === 'false' ? false : true,
       sentenceWrite: sentenceWrite === 'false' ? false : true,
+      sentenceStagesForAllWords: sentenceStagesForAllWords === 'true' ? true : false,
       priority: priority || 'none',
       onlyPriority: onlyPriority === 'true' ? true : false,
     };
@@ -266,6 +269,13 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
       disabled: false,
       disabledTooltip: '',
     },
+    {
+      value: 'sentenceStagesForAllWords',
+      label: 'Sentence stages for all words',
+      checked: state.sentenceStagesForAllWords && (state.sentenceRead || state.sentenceWrite),
+      disabled: !state.sentenceRead && !state.sentenceWrite,
+      disabledTooltip: 'Enable at least one sentence stage first',
+    },
   ];
 
   const timeEstimate = useMemo(
@@ -279,6 +289,7 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
           newWordsEnabled: state.newWords,
           sentenceReadEnabled: state.sentenceRead,
           sentenceWriteEnabled: state.sentenceWrite,
+          sentenceStagesForAllWords: state.sentenceStagesForAllWords,
         }),
       ),
     [
@@ -289,6 +300,7 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
       state.newWords,
       state.sentenceRead,
       state.sentenceWrite,
+      state.sentenceStagesForAllWords,
     ],
   );
 
