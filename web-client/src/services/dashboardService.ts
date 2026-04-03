@@ -44,6 +44,7 @@ export const getDashboardStats = async (userId: string, listId?: string): Promis
         newWordsEnabled: localStorage.getItem('newWords') !== 'false',
         sentenceReadEnabled: localStorage.getItem('sentenceRead') !== 'false',
         sentenceWriteEnabled: localStorage.getItem('sentenceWrite') !== 'false',
+        sentenceStagesForAllWords: localStorage.getItem('sentenceStagesForAllWords') === 'true',
       });
 
       if (totalSeconds >= 3600) {
