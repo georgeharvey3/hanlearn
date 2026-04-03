@@ -75,6 +75,7 @@ export interface OwnProps {
   onVocabComplete?: (scores: WordScore[]) => void;
   devTestFinished?: boolean;
   practiceMode?: boolean;
+  sentenceStagesForAllWords?: boolean;
 }
 
 export type Props = ReduxProps & OwnProps & RouteComponentProps;

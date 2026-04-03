@@ -279,6 +279,8 @@ describe('Settings — time estimate display', () => {
 
   it('updates estimate when stage checkbox is toggled off', async () => {
     const user = userEvent.setup();
+    // Use a larger numWords so the sentence stage time difference is noticeable
+    localStorage.setItem('numWords', '15');
     renderWithProviders(<Settings />, { store: makeStore() });
 
     const estimateEl = screen.getByText(/estimated test time:/i);
@@ -329,5 +331,69 @@ describe('Settings — Only Priority checkbox', () => {
     const onlyPriorityCheckbox = screen.getByRole('checkbox', { name: /only priority/i });
     await user.click(onlyPriorityCheckbox);
     expect(localStorage.getItem('onlyPriority')).toBe('true');
+  });
+});
+
+describe('Settings — sentence stages for all words', () => {
+  it('renders the "Sentence stages for all words" checkbox unchecked by default', () => {
+    renderWithProviders(<Settings />, { store: makeStore() });
+    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    expect(checkbox).toBeInTheDocument();
+    expect(checkbox).not.toBeChecked();
+  });
+
+  it('reads sentenceStagesForAllWords=true from localStorage', () => {
+    localStorage.setItem('sentenceStagesForAllWords', 'true');
+    renderWithProviders(<Settings />, { store: makeStore() });
+    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    expect(checkbox).toBeChecked();
+  });
+
+  it('toggling the checkbox persists to localStorage', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Settings />, { store: makeStore() });
+
+    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    await user.click(checkbox);
+    expect(localStorage.getItem('sentenceStagesForAllWords')).toBe('true');
+  });
+
+  it('is disabled when both sentence stages are off', () => {
+    localStorage.setItem('sentenceRead', 'false');
+    localStorage.setItem('sentenceWrite', 'false');
+    renderWithProviders(<Settings />, { store: makeStore() });
+    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    expect(checkbox).toBeDisabled();
+  });
+
+  it('is enabled when sentenceRead is on', () => {
+    localStorage.setItem('sentenceRead', 'true');
+    localStorage.setItem('sentenceWrite', 'false');
+    renderWithProviders(<Settings />, { store: makeStore(true, false) });
+    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    expect(checkbox).not.toBeDisabled();
+  });
+
+  it('is enabled when sentenceWrite is on', () => {
+    localStorage.setItem('sentenceRead', 'false');
+    localStorage.setItem('sentenceWrite', 'true');
+    renderWithProviders(<Settings />, { store: makeStore() });
+    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    expect(checkbox).not.toBeDisabled();
+  });
+
+  it('updates the estimated test time when toggled on', async () => {
+    const user = userEvent.setup();
+    // Ensure sentence stages are enabled so the checkbox is active
+    localStorage.setItem('numWords', '10');
+    renderWithProviders(<Settings />, { store: makeStore() });
+
+    const estimateEl = screen.getByText(/estimated test time:/i);
+    const initialText = estimateEl.textContent;
+
+    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    await user.click(checkbox);
+
+    expect(estimateEl.textContent).not.toBe(initialText);
   });
 });

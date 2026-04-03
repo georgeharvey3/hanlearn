@@ -187,9 +187,11 @@ describe('getDashboardStats', () => {
 
     const stats = await getDashboardStats('user-1');
 
-    // With 2 words and default settings (all stages enabled):
-    // 2 × (8+8+10+10+15 + 5+30+30) = 2 × 116 = 232s → ~4 min
-    expect(stats.estimatedStudyTime).toBe('~4 min');
+    // With 2 words and default settings (all stages enabled, sentenceStagesForAllWords=false):
+    // Vocab: 2 × (8+8+10+10+15) = 102, New words: 2×5 = 10
+    // Sentence word count: max(1, round(2×0.2)) = 1, Sentence: 1×30 + 1×30 = 60
+    // Total: 172s → ~3 min
+    expect(stats.estimatedStudyTime).toBe('~3 min');
   });
 
   it('respects user settings from localStorage for time estimate', async () => {
@@ -204,7 +206,10 @@ describe('getDashboardStats', () => {
 
     const stats = await getDashboardStats('user-1');
 
-    // 20 words × (8+8+10+10+15 + 5+30+30) s/word = 2320s → ~39 min
-    expect(stats.estimatedStudyTime).toBe('~39 min');
+    // 20 words, sentenceStagesForAllWords=false:
+    // Vocab: 20×51=1020, New words: 20×5=100
+    // Sentence word count: max(1, round(20×0.2))=4, Sentence: 4×30+4×30=240
+    // Total: 1360s → ~23 min
+    expect(stats.estimatedStudyTime).toBe('~23 min');
   });
 });
