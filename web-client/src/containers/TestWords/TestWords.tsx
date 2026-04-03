@@ -34,6 +34,7 @@ interface TestWordsState {
   newWordsEnabled: boolean;
   sentenceReadEnabled: boolean;
   sentenceWriteEnabled: boolean;
+  sentenceStagesForAllWords: boolean;
   devTestFinished: boolean; // For testing TestSummary directly
   practiceMode: boolean; // Practice mode ignores due dates and doesn't update them
   wordsInitialized: boolean; // True once word selection has run (prevents flash of "No words due")
@@ -94,6 +95,9 @@ const TestWords: React.FC<Props> = ({
     newWordsEnabled: isDemo ? true : localStorage.getItem('newWords') !== 'false',
     sentenceReadEnabled: isDemo ? true : localStorage.getItem('sentenceRead') !== 'false',
     sentenceWriteEnabled: isDemo ? true : localStorage.getItem('sentenceWrite') !== 'false',
+    sentenceStagesForAllWords: isDemo
+      ? false
+      : localStorage.getItem('sentenceStagesForAllWords') === 'true',
     devTestFinished: devConfig?.testFinished ?? false,
     practiceMode: false,
     wordsInitialized: false,
@@ -334,6 +338,7 @@ const TestWords: React.FC<Props> = ({
               finalStage={!state.sentenceReadEnabled && !state.sentenceWriteEnabled}
               devTestFinished={state.devTestFinished}
               practiceMode={state.practiceMode}
+              sentenceStagesForAllWords={state.sentenceStagesForAllWords}
             />
           </ErrorBoundary>
         );
@@ -380,6 +385,7 @@ const TestWords: React.FC<Props> = ({
             onVocabComplete={onVocabComplete}
             finalStage={!state.sentenceReadEnabled && !state.sentenceWriteEnabled}
             practiceMode={state.practiceMode}
+            sentenceStagesForAllWords={state.sentenceStagesForAllWords}
           />
         );
     }

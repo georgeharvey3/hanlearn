@@ -331,3 +331,30 @@ describe('TestWords — practiceMode prop', () => {
     });
   });
 });
+
+describe('TestWords — sentenceStagesForAllWords prop', () => {
+  it('passes sentenceStagesForAllWords=false by default', async () => {
+    const store = makeStore({ words: [dueWord(1, '你好', 2)] });
+    renderWithProviders(<TestWords />, { store });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test')).toBeInTheDocument();
+      expect(capturedTestProps.sentenceStagesForAllWords).toBe(false);
+    });
+  });
+
+  it('passes sentenceStagesForAllWords=true when localStorage setting is enabled', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
+      if (key === 'sentenceStagesForAllWords') return 'true';
+      return null;
+    });
+
+    const store = makeStore({ words: [dueWord(1, '你好', 2)] });
+    renderWithProviders(<TestWords />, { store });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test')).toBeInTheDocument();
+      expect(capturedTestProps.sentenceStagesForAllWords).toBe(true);
+    });
+  });
+});
