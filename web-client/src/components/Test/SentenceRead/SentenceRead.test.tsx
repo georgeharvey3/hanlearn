@@ -717,11 +717,7 @@ describe('SentenceRead — primary button text', () => {
   it('shows "Next Stage" on last word when sentenceWriteEnabled=true', async () => {
     const user = userEvent.setup();
     renderWithProviders(
-      <SentenceRead
-        words={[testWord]}
-        sentenceWriteEnabled
-        startSentenceWrite={vi.fn()}
-      />,
+      <SentenceRead words={[testWord]} sentenceWriteEnabled startSentenceWrite={vi.fn()} />,
       { store: makeStore() },
     );
 
@@ -736,11 +732,7 @@ describe('SentenceRead — primary button text', () => {
   it('shows "Finish" on last word when sentenceWriteEnabled=false', async () => {
     const user = userEvent.setup();
     renderWithProviders(
-      <SentenceRead
-        words={[testWord]}
-        sentenceWriteEnabled={false}
-        startSentenceWrite={vi.fn()}
-      />,
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
       { store: makeStore() },
     );
 
