@@ -272,10 +272,26 @@ describe('postDeleteWordList', () => {
 
   it('refreshes word list after deleting a list so stale words are cleared', async () => {
     const deletedListWords = [
-      { id: 10, simp: '再见', trad: '再見', pinyin: 'zàijiàn', meaning: 'goodbye', level: 2, listId: 'list-1' },
+      {
+        id: 10,
+        simp: '再见',
+        trad: '再見',
+        pinyin: 'zàijiàn',
+        meaning: 'goodbye',
+        level: 2,
+        listId: 'list-1',
+      },
     ];
     const defaultListWords = [
-      { id: 1, simp: '你好', trad: '你好', pinyin: 'nǐ hǎo', meaning: 'hello', level: 1, listId: 'default' },
+      {
+        id: 1,
+        simp: '你好',
+        trad: '你好',
+        pinyin: 'nǐ hǎo',
+        meaning: 'hello',
+        level: 1,
+        listId: 'default',
+      },
     ];
     mockedWordService.deleteWordList.mockResolvedValue(undefined);
     mockedWordService.getUserWords.mockResolvedValue(defaultListWords);
