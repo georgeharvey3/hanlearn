@@ -225,6 +225,9 @@ export const postDeleteWordList = (listId: string): AppThunk => {
     try {
       await wordService.deleteWordList(auth.userId, listId);
       dispatch(removeWordList(listId));
+      // Refresh words for the default list so stale words from the deleted list
+      // are replaced. The reducer already switches activeListId to 'default'.
+      dispatch(switchActiveList('default'));
       dispatch(showNotification('List deleted'));
     } catch (error) {
       console.error('Failed to delete word list:', error);
