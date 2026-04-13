@@ -760,8 +760,21 @@ const SentenceRead: React.FC<Props> = ({
         )}
 
         <Stack direction="row" spacing={2} justifyContent="center">
-          <Button clicked={onYesClicked} aria-label="Next word">
-            Next Word
+          <Button
+            clicked={onYesClicked}
+            aria-label={
+              state.wordIndex >= words.length - 1
+                ? sentenceWriteEnabled
+                  ? 'Next stage'
+                  : 'Finish'
+                : 'Next word'
+            }
+          >
+            {state.wordIndex >= words.length - 1
+              ? sentenceWriteEnabled
+                ? 'Next Stage'
+                : 'Finish'
+              : 'Next Word'}
           </Button>
           <Button clicked={onNoClicked} type="secondary" aria-label="Try again">
             Try Again
