@@ -288,7 +288,7 @@ describe('SentenceRead — keyboard shortcuts ArrowUp/ArrowDown', () => {
     await user.type(input, 'Hello{Enter}');
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /next word/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /next stage/i })).toBeInTheDocument();
     });
 
     // ArrowUp from a non-input element triggers onYesClicked

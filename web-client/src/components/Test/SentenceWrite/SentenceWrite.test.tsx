@@ -308,7 +308,7 @@ describe('SentenceWrite — submitting an answer', () => {
     });
   });
 
-  it('shows Next Word/Try Again buttons and similarity score after submission', async () => {
+  it('shows Finish/Try Again buttons and similarity score after submission on last word', async () => {
     const user = userEvent.setup();
     renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
       store: makeStore(),
@@ -318,7 +318,7 @@ describe('SentenceWrite — submitting an answer', () => {
     await user.type(input, '你好{Enter}');
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /next word/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /finish/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
     });
 
@@ -392,7 +392,7 @@ describe('SentenceWrite — submitting an answer', () => {
 });
 
 describe('SentenceWrite — stage completion', () => {
-  it('calls onComplete after Next Word click on the last word', async () => {
+  it('calls onComplete after Finish click on the last word', async () => {
     const user = userEvent.setup();
     const onComplete = vi.fn();
     renderWithProviders(<SentenceWrite words={[testWord]} onComplete={onComplete} />, {
@@ -402,7 +402,7 @@ describe('SentenceWrite — stage completion', () => {
     const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
     await user.type(input, '你好{Enter}');
 
-    const nextBtn = await screen.findByRole('button', { name: /next word/i });
+    const nextBtn = await screen.findByRole('button', { name: /finish/i });
     await user.click(nextBtn);
 
     expect(onComplete).toHaveBeenCalledTimes(1);
@@ -474,6 +474,37 @@ describe('SentenceWrite — stage completion', () => {
     await waitFor(() => {
       // The first call should use offset 1, not 0, since seenOffset is 0
       expect(mockedGetSegmentedSentence).toHaveBeenCalledWith('你好', expect.any(String), 1);
+    });
+  });
+});
+
+describe('SentenceWrite — primary button text', () => {
+  it('shows "Next Word" on non-last word', async () => {
+    const user = userEvent.setup();
+    const secondWord: Word = { ...testWord, id: 2, simp: '学习', trad: '學習' };
+    renderWithProviders(<SentenceWrite words={[testWord, secondWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+
+    const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
+    await user.type(input, '你好{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /next word/i })).toBeInTheDocument();
+    });
+  });
+
+  it('shows "Finish" on last word', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+
+    const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
+    await user.type(input, '你好{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /finish/i })).toBeInTheDocument();
     });
   });
 });
@@ -688,8 +719,8 @@ describe('SentenceWrite — keyboard shortcuts', () => {
     const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
     await user.type(input, '你好{Enter}');
 
-    // Click "Next Word" to advance past the last word
-    const nextBtn = await screen.findByRole('button', { name: /next word/i });
+    // Click "Finish" to advance past the last word
+    const nextBtn = await screen.findByRole('button', { name: /finish/i });
     await user.click(nextBtn);
 
     expect(onComplete).toHaveBeenCalledTimes(1);

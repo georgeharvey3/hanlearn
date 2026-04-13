@@ -184,7 +184,7 @@ describe('SentenceRead — submitting a translation', () => {
     });
   });
 
-  it('shows similarity score and Next Word/Try Again buttons after submission', async () => {
+  it('shows similarity score and Finish/Try Again buttons after submission on last word', async () => {
     const user = userEvent.setup();
     renderWithProviders(
       <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
@@ -195,7 +195,7 @@ describe('SentenceRead — submitting a translation', () => {
     await user.type(input, 'Hello{Enter}');
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /next word/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /finish/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
     });
 
@@ -356,7 +356,7 @@ describe('SentenceRead — text mode (useSound=false)', () => {
 });
 
 describe('SentenceRead — stage completion', () => {
-  it('calls startSentenceWrite after Next Word on the last word (sentenceWriteEnabled=true)', async () => {
+  it('calls startSentenceWrite after Next Stage on the last word (sentenceWriteEnabled=true)', async () => {
     const user = userEvent.setup();
     const startSentenceWrite = vi.fn();
     renderWithProviders(
@@ -371,7 +371,7 @@ describe('SentenceRead — stage completion', () => {
     const input = await screen.findByPlaceholderText(/type your translation/i);
     await user.type(input, 'Hello{Enter}');
 
-    const nextBtn = await screen.findByRole('button', { name: /next word/i });
+    const nextBtn = await screen.findByRole('button', { name: /next stage/i });
     await user.click(nextBtn);
 
     await waitFor(() => {
@@ -690,6 +690,58 @@ describe('SentenceRead — tap affordance', () => {
     expect(popupSpan).toHaveAttribute('data-popup');
     // The span should have role="button" (confirms it communicates interactivity)
     expect(popupSpan).toHaveAttribute('role', 'button');
+  });
+});
+
+describe('SentenceRead — primary button text', () => {
+  it('shows "Next Word" on non-last word', async () => {
+    const user = userEvent.setup();
+    const secondWord: Word = { ...testWord, id: 2, simp: '学生', trad: '學生' };
+    renderWithProviders(
+      <SentenceRead
+        words={[testWord, secondWord]}
+        sentenceWriteEnabled={false}
+        startSentenceWrite={vi.fn()}
+      />,
+      { store: makeStore() },
+    );
+
+    const input = await screen.findByPlaceholderText(/type your translation/i);
+    await user.type(input, 'Hello{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /next word/i })).toBeInTheDocument();
+    });
+  });
+
+  it('shows "Next Stage" on last word when sentenceWriteEnabled=true', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled startSentenceWrite={vi.fn()} />,
+      { store: makeStore() },
+    );
+
+    const input = await screen.findByPlaceholderText(/type your translation/i);
+    await user.type(input, 'Hello{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /next stage/i })).toBeInTheDocument();
+    });
+  });
+
+  it('shows "Finish" on last word when sentenceWriteEnabled=false', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStore() },
+    );
+
+    const input = await screen.findByPlaceholderText(/type your translation/i);
+    await user.type(input, 'Hello{Enter}');
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /finish/i })).toBeInTheDocument();
+    });
   });
 });
 
