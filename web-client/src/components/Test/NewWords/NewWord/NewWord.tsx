@@ -15,12 +15,16 @@ import { searchWord } from '../../../../services/dictionaryService';
 import * as ttsService from '../../../../services/ttsService';
 
 import { RootState } from '../../../../types/store';
-import { Word } from '../../../../types/models';
+import { CharData, Word } from '../../../../types/models';
 
-interface CharData {
-  simp: string;
-  pinyins: string[];
-  meanings: string[];
+async function lookupCharData(char: string, charSet: 'simp' | 'trad'): Promise<CharData> {
+  const results = await searchWord(char, charSet);
+  if (results.length > 0) {
+    const pinyins = Array.from(new Set(results.map((r) => r.pinyin)));
+    const meanings = Array.from(new Set(results.map((r) => r.meaning)));
+    return { simp: char, pinyins, meanings };
+  }
+  return { simp: char, pinyins: [], meanings: ['(not found in dictionary)'] };
 }
 
 const mapStateToProps = (state: RootState) => {
@@ -93,16 +97,8 @@ const NewWord: React.FC<Props> = ({
 
   const onDisplayMeaning = useCallback(async (char: string): Promise<void> => {
     try {
-      const charSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad';
-      const results = await searchWord(char, charSet);
-      let data: CharData;
-      if (results.length > 0) {
-        const pinyins = Array.from(new Set(results.map((r) => r.pinyin)));
-        const meanings = Array.from(new Set(results.map((r) => r.meaning)));
-        data = { simp: char, pinyins, meanings };
-      } else {
-        data = { simp: char, pinyins: [], meanings: ['(not found in dictionary)'] };
-      }
+      const currentCharSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad';
+      const data = await lookupCharData(char, currentCharSet);
       charCache.current.set(char, data);
       setCharData(data);
     } catch {
@@ -163,18 +159,8 @@ const NewWord: React.FC<Props> = ({
     uniqueChars.forEach(async (char) => {
       if (charCache.current.has(char)) return;
       try {
-        const results = await searchWord(char, charSet);
-        if (results.length > 0) {
-          const pinyins = Array.from(new Set(results.map((r) => r.pinyin)));
-          const meanings = Array.from(new Set(results.map((r) => r.meaning)));
-          charCache.current.set(char, { simp: char, pinyins, meanings });
-        } else {
-          charCache.current.set(char, {
-            simp: char,
-            pinyins: [],
-            meanings: ['(not found in dictionary)'],
-          });
-        }
+        const data = await lookupCharData(char, charSet);
+        charCache.current.set(char, data);
       } catch {
         // Pre-fetch failures are non-critical; will fall back to on-click fetch
       }

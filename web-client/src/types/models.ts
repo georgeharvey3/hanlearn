@@ -52,6 +52,12 @@ export interface Chengyu {
   story?: string;
 }
 
+export interface CharData {
+  simp: string;
+  pinyins: string[];
+  meanings: string[];
+}
+
 export interface Sentence {
   text: string;
   translation: string;

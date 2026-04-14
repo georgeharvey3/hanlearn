@@ -6,15 +6,9 @@ import { Box, ButtonBase, Link, Paper, Typography } from '@mui/material';
 import Button from '../UI/Buttons/Button/Button';
 
 import { RootState } from '../../types/store';
-import { Word } from '../../types/models';
+import { CharData, Word } from '../../types/models';
 import { parseMeanings } from '../../utils/meaningUtils';
 import * as ttsService from '../../services/ttsService';
-
-interface CharData {
-  simp: string;
-  pinyins: string[];
-  meanings: string[];
-}
 
 interface TestChengyusTestState {
   wordIndex: number;

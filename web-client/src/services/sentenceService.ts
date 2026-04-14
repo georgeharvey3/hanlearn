@@ -4,8 +4,21 @@ import { Converter } from 'opencc-js';
 
 import { ai, db } from '../firebase/config';
 
-const model = getGenerativeModel(ai, { model: 'gemini-2.5-flash-lite' });
-const toTraditional = Converter({ from: 'cn', to: 'tw' });
+let _model: ReturnType<typeof getGenerativeModel> | null = null;
+function getModel() {
+  if (!_model) {
+    _model = getGenerativeModel(ai, { model: 'gemini-2.5-flash-lite' });
+  }
+  return _model;
+}
+
+let _toTraditional: ((text: string) => string) | null = null;
+function getToTraditional(): (text: string) => string {
+  if (!_toTraditional) {
+    _toTraditional = Converter({ from: 'cn', to: 'tw' });
+  }
+  return _toTraditional;
+}
 
 interface SentenceExample {
   chinese: string;
@@ -90,7 +103,7 @@ Requirements:
 - Vary the contexts and sentence structures
 - Provide accurate English translations`;
 
-  const result = await model.generateContent({
+  const result = await getModel().generateContent({
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
     generationConfig: { responseMimeType: 'application/json' },
   });
@@ -172,10 +185,10 @@ export async function getSegmentedSentence(
   }
 
   const example = examples[offset];
-  const convertedWord = charSet === 'trad' ? toTraditional(word) : word;
-  const convertedChinese = charSet === 'trad' ? toTraditional(example.chinese) : example.chinese;
+  const convertedWord = charSet === 'trad' ? getToTraditional()(word) : word;
+  const convertedChinese = charSet === 'trad' ? getToTraditional()(example.chinese) : example.chinese;
   const convertedSegments = example.segments.map((seg) =>
-    charSet === 'trad' ? toTraditional(seg) : seg,
+    charSet === 'trad' ? getToTraditional()(seg) : seg,
   );
   const highlight = calculateHighlightIndices(convertedChinese, convertedWord);
 
