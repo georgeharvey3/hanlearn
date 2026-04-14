@@ -186,7 +186,8 @@ export async function getSegmentedSentence(
 
   const example = examples[offset];
   const convertedWord = charSet === 'trad' ? getToTraditional()(word) : word;
-  const convertedChinese = charSet === 'trad' ? getToTraditional()(example.chinese) : example.chinese;
+  const convertedChinese =
+    charSet === 'trad' ? getToTraditional()(example.chinese) : example.chinese;
   const convertedSegments = example.segments.map((seg) =>
     charSet === 'trad' ? getToTraditional()(seg) : seg,
   );
