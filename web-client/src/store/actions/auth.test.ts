@@ -2,12 +2,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createTestStore } from '../../test/utils';
 import * as authActions from './auth';
 import * as firebaseAuth from '../../firebase/auth';
+import * as Sentry from '@sentry/react';
 import { FirebaseError } from 'firebase/app';
 
 vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
 vi.mock('../../firebase/auth');
+vi.mock('@sentry/react', () => ({
+  captureException: vi.fn(),
+  setUser: vi.fn(),
+}));
 
 const mockedAuth = vi.mocked(firebaseAuth);
+const mockedSentry = vi.mocked(Sentry);
 
 function makeUser(uid: string) {
   return { uid } as firebaseAuth.User;
@@ -445,6 +451,97 @@ describe('auth action thunks', () => {
       store.dispatch(authActions.authCheckState() as any);
 
       expect(mockedAuth.subscribeToAuthChanges).toHaveBeenCalled();
+    });
+  });
+
+  describe('Sentry reporting', () => {
+    it('does NOT report known Firebase error codes (user-input errors)', async () => {
+      const knownCodes = [
+        'auth/wrong-password',
+        'auth/invalid-credential',
+        'auth/user-not-found',
+        'auth/email-already-in-use',
+        'auth/popup-closed-by-user',
+        'auth/cancelled-popup-request',
+        'auth/weak-password',
+        'auth/too-many-requests',
+      ];
+
+      for (const code of knownCodes) {
+        mockedSentry.captureException.mockClear();
+        mockedAuth.loginUser.mockRejectedValue(new FirebaseError(code, 'msg'));
+        const store = createTestStore(defaultStoreState);
+
+        await store.dispatch(authActions.auth('e@e.com', 'pw') as any);
+
+        expect(
+          mockedSentry.captureException,
+          `expected no Sentry report for ${code}`,
+        ).not.toHaveBeenCalled();
+      }
+    });
+
+    it('reports unknown Firebase error codes to Sentry', async () => {
+      const unknownError = new FirebaseError('auth/something-new', 'msg');
+      mockedAuth.loginUser.mockRejectedValue(unknownError);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.auth('e@e.com', 'pw') as any);
+
+      expect(mockedSentry.captureException).toHaveBeenCalledWith(unknownError);
+    });
+
+    it('reports non-Firebase errors to Sentry from login', async () => {
+      const networkErr = new Error('Network failed');
+      mockedAuth.loginUser.mockRejectedValue(networkErr);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.auth('e@e.com', 'pw') as any);
+
+      expect(mockedSentry.captureException).toHaveBeenCalledWith(networkErr);
+    });
+
+    it('reports non-Firebase errors to Sentry from register', async () => {
+      const err = new Error('boom');
+      mockedAuth.registerUser.mockRejectedValue(err);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.register('e@e.com', 'pw') as any);
+
+      expect(mockedSentry.captureException).toHaveBeenCalledWith(err);
+    });
+
+    it('reports non-Firebase errors to Sentry from googleSignIn', async () => {
+      const err = new Error('boom');
+      mockedAuth.signInWithGoogle.mockRejectedValue(err);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.googleSignIn() as any);
+
+      expect(mockedSentry.captureException).toHaveBeenCalledWith(err);
+    });
+
+    it('reports non-Firebase errors to Sentry from sendPasswordReset', async () => {
+      const err = new Error('boom');
+      mockedAuth.resetPassword.mockRejectedValue(err);
+      const store = createTestStore(defaultStoreState);
+
+      await store.dispatch(authActions.sendPasswordReset('e@e.com') as any);
+
+      expect(mockedSentry.captureException).toHaveBeenCalledWith(err);
+    });
+
+    it('reports logout failures to Sentry (should never happen in practice)', async () => {
+      const err = new Error('Firebase offline');
+      mockedAuth.logoutUser.mockRejectedValue(err);
+      const store = createTestStore({
+        ...defaultStoreState,
+        auth: { ...defaultStoreState.auth, userId: 'u1', initialized: true },
+      });
+
+      await store.dispatch(authActions.logout() as any);
+
+      expect(mockedSentry.captureException).toHaveBeenCalledWith(err);
     });
   });
 });

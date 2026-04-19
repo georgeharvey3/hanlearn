@@ -3,6 +3,7 @@ import { createTestStore, authenticatedState } from '../../test/utils';
 import * as wordActions from './word';
 import * as wordService from '../../services/wordService';
 import * as streakService from '../../services/streakService';
+import * as Sentry from '@sentry/react';
 import { Word } from '../../types/models';
 
 vi.mock('../../firebase/config', () => ({
@@ -21,9 +22,14 @@ vi.mock('../../services/performanceService', () => ({
 vi.mock('../../services/analyticsService', () => ({
   trackFeatureUsage: vi.fn(),
 }));
+vi.mock('@sentry/react', () => ({
+  captureException: vi.fn(),
+  setUser: vi.fn(),
+}));
 
 const mockedWordService = vi.mocked(wordService);
 const mockedStreakService = vi.mocked(streakService);
+const mockedSentry = vi.mocked(Sentry);
 
 const sampleWord: Word = {
   id: 1,
@@ -280,10 +286,11 @@ describe('word action thunks', () => {
       expect(mockedStreakService.recordTestCompletion).toHaveBeenCalledWith('test-user-123');
     });
 
-    it('still succeeds if streak recording fails', async () => {
+    it('still succeeds if streak recording fails, and reports to Sentry', async () => {
+      const streakError = new Error('streak error');
       mockedWordService.finishTest.mockResolvedValue({ 你好: '2026/03/05' });
       mockedWordService.getUserWords.mockResolvedValue(sampleWords);
-      mockedStreakService.recordTestCompletion.mockRejectedValue(new Error('streak error'));
+      mockedStreakService.recordTestCompletion.mockRejectedValue(streakError);
       const store = createTestStore(authenticatedState());
 
       // Should not throw
@@ -291,11 +298,13 @@ describe('word action thunks', () => {
 
       expect(mockedWordService.finishTest).toHaveBeenCalled();
       expect(mockedStreakService.recordTestCompletion).toHaveBeenCalled();
+      expect(mockedSentry.captureException).toHaveBeenCalledWith(streakError);
     });
 
-    it('still records streak if word refresh fails', async () => {
+    it('still records streak if word refresh fails, and reports to Sentry', async () => {
+      const fetchError = new Error('fetch failed');
       mockedWordService.finishTest.mockResolvedValue({ 你好: '2026/03/05' });
-      mockedWordService.getUserWords.mockRejectedValue(new Error('fetch failed'));
+      mockedWordService.getUserWords.mockRejectedValue(fetchError);
       mockedStreakService.recordTestCompletion.mockResolvedValue(undefined);
       const store = createTestStore(authenticatedState());
 
@@ -304,6 +313,7 @@ describe('word action thunks', () => {
       expect(mockedWordService.finishTest).toHaveBeenCalled();
       expect(mockedWordService.getUserWords).toHaveBeenCalled();
       expect(mockedStreakService.recordTestCompletion).toHaveBeenCalled();
+      expect(mockedSentry.captureException).toHaveBeenCalledWith(fetchError);
     });
 
     it('does nothing when no userId', async () => {
