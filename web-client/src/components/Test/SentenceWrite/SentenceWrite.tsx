@@ -11,7 +11,7 @@ import SimilarityScore from '../../UI/SimilarityScore/SimilarityScore';
 
 import micPic from '../../../assets/images/microphone.png';
 
-import { beep, fail } from '../constants';
+import { beep } from '../constants';
 
 import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
@@ -307,21 +307,6 @@ const SentenceWrite: React.FC<Props> = ({
     }
   }, [fetchSentence, onComplete, seenOffsets, words]);
 
-  const onNoClicked = useCallback((): void => {
-    if (stateRef.current.useSound) fail.play();
-    setState((prev) => ({
-      ...prev,
-      entered: '',
-      submitted: false,
-      message: 'Try again',
-      selectedWordIndices: new Set<number>(),
-      translationResults: [],
-      showTranslation: false,
-      score: null,
-      scoreLoading: false,
-    }));
-  }, []);
-
   const onToggleWord = useCallback((index: number): void => {
     setState((prev) => {
       const next = new Set(prev.selectedWordIndices);
@@ -380,12 +365,8 @@ const SentenceWrite: React.FC<Props> = ({
       if (event.key === 'ArrowUp' && stateRef.current.submitted) {
         onYesClicked();
       }
-
-      if (event.key === 'ArrowDown' && stateRef.current.submitted) {
-        onNoClicked();
-      }
     },
-    [onHomeClicked, onListenPinyin, onNoClicked, onYesClicked, words.length],
+    [onHomeClicked, onListenPinyin, onYesClicked, words.length],
   );
 
   useEffect(() => {
@@ -515,17 +496,12 @@ const SentenceWrite: React.FC<Props> = ({
             </Typography>
           )}
 
-          <Stack direction="row" spacing={2} justifyContent="center">
-            <Button
-              clicked={onYesClicked}
-              aria-label={state.wordIndex >= words.length - 1 ? 'Finish' : 'Next word'}
-            >
-              {state.wordIndex >= words.length - 1 ? 'Finish' : 'Next Word'}
-            </Button>
-            <Button clicked={onNoClicked} type="secondary" aria-label="Try again">
-              Try Again
-            </Button>
-          </Stack>
+          <Button
+            clicked={onYesClicked}
+            aria-label={state.wordIndex >= words.length - 1 ? 'Finish' : 'Next word'}
+          >
+            {state.wordIndex >= words.length - 1 ? 'Finish' : 'Next Word'}
+          </Button>
         </Stack>
       </Box>
     );

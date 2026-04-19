@@ -308,7 +308,7 @@ describe('SentenceWrite — submitting an answer', () => {
     });
   });
 
-  it('shows Finish/Try Again buttons and similarity score after submission on last word', async () => {
+  it('shows Finish button and similarity score after submission on last word', async () => {
     const user = userEvent.setup();
     renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
       store: makeStore(),
@@ -319,30 +319,12 @@ describe('SentenceWrite — submitting an answer', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /finish/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
     });
 
     // Similarity score should appear
     await waitFor(() => {
       expect(screen.getByText('72%')).toBeInTheDocument();
       expect(screen.getByText('Good')).toBeInTheDocument();
-    });
-  });
-
-  it('resets to input view when Try Again clicked', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
-      store: makeStore(),
-    });
-
-    const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
-    await user.type(input, '你好{Enter}');
-
-    const tryAgainBtn = await screen.findByRole('button', { name: /try again/i });
-    await user.click(tryAgainBtn);
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText(/type your answer in chinese/i)).toBeInTheDocument();
     });
   });
 
@@ -752,28 +734,6 @@ describe('SentenceWrite — keyboard shortcuts', () => {
         expect.any(String),
         expect.any(Number),
       );
-    });
-  });
-
-  it('resets to input view on ArrowDown when submitted', async () => {
-    const user = userEvent.setup();
-
-    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
-      store: makeStore(),
-    });
-
-    const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
-    await user.type(input, '你好{Enter}');
-
-    await waitFor(() => {
-      expect(screen.getByText(/your answer/i)).toBeInTheDocument();
-    });
-
-    // Press ArrowDown to trigger onNoClicked (Try Again)
-    await user.keyboard('{ArrowDown}');
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText(/type your answer in chinese/i)).toBeInTheDocument();
     });
   });
 

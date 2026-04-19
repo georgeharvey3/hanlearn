@@ -22,7 +22,7 @@ import SimilarityScore from '../../UI/SimilarityScore/SimilarityScore';
 import speakerPic from '../../../assets/images/speaker.png';
 import micPic from '../../../assets/images/microphone.png';
 
-import { beep, fail } from '../constants';
+import { beep } from '../constants';
 
 import * as wordActions from '../../../store/actions/index';
 import { RootState } from '../../../types/store';
@@ -35,15 +35,12 @@ import * as ttsService from '../../../services/ttsService';
 import { getSimilarityScore } from '../../../services/similarityService';
 
 interface SentenceReadState {
-  sentences: ResolvedSentence[];
-  totalCount: number;
+  sentence: ResolvedSentence | null;
   charSet: 'simp' | 'trad';
-  sentenceIndex: number;
   wordIndex: number;
   submitted: boolean;
   entered: string;
   loading: boolean;
-  sentenceLoading: boolean;
   synthLoading: boolean;
   useSound: boolean;
   useEnglishSpeechRecognition: boolean;
@@ -149,15 +146,12 @@ const SentenceRead: React.FC<Props> = ({
     () => localStorage.getItem('tapHintDismissed') !== 'true',
   );
   const [state, setState] = useState<SentenceReadState>({
-    sentences: [],
-    totalCount: 0,
+    sentence: null,
     charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad',
-    sentenceIndex: 0,
     wordIndex: 0,
     submitted: false,
     entered: '',
     loading: false,
-    sentenceLoading: false,
     synthLoading: false,
     useSound: true,
     useEnglishSpeechRecognition: false,
@@ -263,31 +257,24 @@ const SentenceRead: React.FC<Props> = ({
   }, [history, sentenceWriteEnabled, startSentenceWrite]);
 
   const fetchSentence = useCallback(
-    async (offset: number, isNewWord: boolean): Promise<void> => {
-      if (isNewWord) {
-        updateState({ loading: true });
-      } else {
-        updateState({ sentenceLoading: true });
-      }
+    async (offset: number): Promise<void> => {
+      updateState({ loading: true });
 
       const currentWord = words[stateRef.current.wordIndex].simp;
 
       try {
-        const { sentence: cloudSentence, totalCount } = await getSegmentedSentence(
+        const { sentence: cloudSentence } = await getSegmentedSentence(
           currentWord,
           stateRef.current.charSet,
           offset,
         );
 
         if (!cloudSentence) {
-          if (isNewWord) {
-            // No sentences found for this word, try next word
-            console.warn(`No sentences found for word: ${currentWord}`);
-            if (stateRef.current.wordIndex >= words.length - 1) {
-              onEndStage();
-            } else {
-              setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
-            }
+          console.warn(`No sentences found for word: ${currentWord}`);
+          if (stateRef.current.wordIndex >= words.length - 1) {
+            onEndStage();
+          } else {
+            setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
           }
           return;
         }
@@ -296,19 +283,13 @@ const SentenceRead: React.FC<Props> = ({
 
         const willSpeak = stateRef.current.useSound;
 
-        setState((prevState) => {
-          const newSentences = isNewWord ? [resolved] : [...prevState.sentences, resolved];
-          return {
-            ...prevState,
-            sentences: newSentences,
-            totalCount,
-            sentenceIndex: offset,
-            loading: false,
-            sentenceLoading: false,
-            showText: false,
-            synthLoading: willSpeak,
-          };
-        });
+        setState((prevState) => ({
+          ...prevState,
+          sentence: resolved,
+          loading: false,
+          showText: false,
+          synthLoading: willSpeak,
+        }));
 
         if (willSpeak) {
           stateRef.current.recognition?.abort();
@@ -330,51 +311,25 @@ const SentenceRead: React.FC<Props> = ({
         }
       } catch (error) {
         console.error('Error fetching sentence:', error);
-        if (isNewWord) {
-          // On error, try next word instead of getting stuck
-          if (stateRef.current.wordIndex >= words.length - 1) {
-            onEndStage();
-          } else {
-            setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
-          }
+        if (stateRef.current.wordIndex >= words.length - 1) {
+          onEndStage();
         } else {
-          updateState({ sentenceLoading: false });
+          setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
         }
       }
     },
     [onEndStage, updateState, words, voice, lang],
   );
 
-  const onChangeSentence = useCallback(
-    (direction: number): void => {
-      const newIndex = stateRef.current.sentenceIndex + direction;
-
-      if (newIndex < 0 || newIndex >= stateRef.current.totalCount) return;
-
-      // If we already have this sentence cached, just navigate
-      if (stateRef.current.sentences[newIndex]) {
-        setState((prevState) => ({
-          ...prevState,
-          sentenceIndex: newIndex,
-          showText: false,
-        }));
-      } else {
-        // Fetch the next sentence from the cloud
-        fetchSentence(newIndex, false);
-      }
-    },
-    [fetchSentence],
-  );
-
   const onYesClicked = (): void => {
     if (stateRef.current.useSound) beep.play();
 
     const currentWord = words[stateRef.current.wordIndex];
-    const seenSentence = stateRef.current.sentences[stateRef.current.sentenceIndex];
+    const currentSentence = stateRef.current.sentence;
     seenOffsets.current[currentWord.simp] = {
-      offset: stateRef.current.sentenceIndex,
-      text: seenSentence?.chinese.sentence ?? '',
-      english: seenSentence?.english.sentence ?? '',
+      offset: 0,
+      text: currentSentence?.chinese.sentence ?? '',
+      english: currentSentence?.english.sentence ?? '',
     };
 
     if (stateRef.current.wordIndex >= words.length - 1) {
@@ -383,9 +338,7 @@ const SentenceRead: React.FC<Props> = ({
       setState((prevState) => ({
         ...prevState,
         wordIndex: prevState.wordIndex + 1,
-        sentenceIndex: 0,
-        sentences: [],
-        totalCount: 0,
+        sentence: null,
         submitted: false,
         entered: '',
         showText: false,
@@ -393,11 +346,6 @@ const SentenceRead: React.FC<Props> = ({
         scoreLoading: false,
       }));
     }
-  };
-
-  const onNoClicked = (): void => {
-    if (stateRef.current.useSound) fail.play();
-    updateState({ entered: '', submitted: false, score: null, scoreLoading: false });
   };
 
   const onInputChanged = (event: ChangeEvent<HTMLInputElement>): void => {
@@ -408,7 +356,7 @@ const SentenceRead: React.FC<Props> = ({
     if (stateRef.current.entered === '') return;
     updateState({ submitted: true, scoreLoading: true, score: null });
 
-    const currentSentence = stateRef.current.sentences[stateRef.current.sentenceIndex];
+    const currentSentence = stateRef.current.sentence;
     if (currentSentence) {
       getSimilarityScore(stateRef.current.entered, currentSentence.english.sentence, 'en')
         .then((result) => {
@@ -443,28 +391,8 @@ const SentenceRead: React.FC<Props> = ({
       if (event.key === 'ArrowUp' && stateRef.current.submitted) {
         onYesClicked();
       }
-
-      if (event.key === 'ArrowDown' && stateRef.current.submitted) {
-        onNoClicked();
-      }
-
-      if (
-        event.key === 'ArrowLeft' &&
-        !stateRef.current.submitted &&
-        stateRef.current.sentenceIndex > 0
-      ) {
-        onChangeSentence(-1);
-      }
-
-      if (
-        event.key === 'ArrowRight' &&
-        !stateRef.current.submitted &&
-        stateRef.current.sentenceIndex < stateRef.current.totalCount - 1
-      ) {
-        onChangeSentence(1);
-      }
     },
-    [onChangeSentence, onNoClicked, onYesClicked, updateState],
+    [onYesClicked, updateState],
   );
 
   const onToggleText = (): void => {
@@ -513,7 +441,7 @@ const SentenceRead: React.FC<Props> = ({
   useEffect(() => {
     if (!hasInitialized.current) {
       hasInitialized.current = true;
-      fetchSentence(0, true);
+      fetchSentence(0);
       initialiseSettings();
     }
     document.addEventListener('keyup', onKeyUp);
@@ -527,27 +455,16 @@ const SentenceRead: React.FC<Props> = ({
   const prevWordIndex = useRef(state.wordIndex);
   useEffect(() => {
     if (prevWordIndex.current !== state.wordIndex) {
-      fetchSentence(0, true);
+      fetchSentence(0);
     }
     prevWordIndex.current = state.wordIndex;
   }, [fetchSentence, state.wordIndex]);
 
-  // Speak sentence when navigating to a cached sentence
-  const prevSentenceIndex = useRef(state.sentenceIndex);
-  useEffect(() => {
-    if (prevSentenceIndex.current !== state.sentenceIndex) {
-      if (state.useSound && state.sentences[state.sentenceIndex]) {
-        onSpeakPinyin(state.sentences[state.sentenceIndex].chinese.sentence);
-      }
-    }
-    prevSentenceIndex.current = state.sentenceIndex;
-  }, [onSpeakPinyin, state.sentenceIndex, state.sentences, state.useSound]);
-
   // ── Sentence display content ──────────────────────────────────────────────
   let sentenceCardContent: React.ReactNode = <Spinner />;
 
-  if (state.sentences[state.sentenceIndex] && !state.loading) {
-    const currentSentence = state.sentences[state.sentenceIndex];
+  if (state.sentence && !state.loading) {
+    const currentSentence = state.sentence;
     const targetIndex = currentSentence.chinese.targetIndex;
     const currentTargetWord = words[state.wordIndex]?.[state.charSet] || '';
 
@@ -705,7 +622,7 @@ const SentenceRead: React.FC<Props> = ({
   let mainContent: React.ReactNode;
 
   if (state.submitted) {
-    const currentSentence = state.sentences[state.sentenceIndex];
+    const currentSentence = state.sentence!;
     let translation: React.ReactNode = currentSentence.english.sentence;
 
     if (currentSentence.english.highlight.length > 0) {
@@ -759,27 +676,22 @@ const SentenceRead: React.FC<Props> = ({
           </Typography>
         )}
 
-        <Stack direction="row" spacing={2} justifyContent="center">
-          <Button
-            clicked={onYesClicked}
-            aria-label={
-              state.wordIndex >= words.length - 1
-                ? sentenceWriteEnabled
-                  ? 'Next stage'
-                  : 'Finish'
-                : 'Next word'
-            }
-          >
-            {state.wordIndex >= words.length - 1
+        <Button
+          clicked={onYesClicked}
+          aria-label={
+            state.wordIndex >= words.length - 1
               ? sentenceWriteEnabled
-                ? 'Next Stage'
+                ? 'Next stage'
                 : 'Finish'
-              : 'Next Word'}
-          </Button>
-          <Button clicked={onNoClicked} type="secondary" aria-label="Try again">
-            Try Again
-          </Button>
-        </Stack>
+              : 'Next word'
+          }
+        >
+          {state.wordIndex >= words.length - 1
+            ? sentenceWriteEnabled
+              ? 'Next Stage'
+              : 'Finish'
+            : 'Next Word'}
+        </Button>
       </Stack>
     );
   } else {
@@ -828,30 +740,6 @@ const SentenceRead: React.FC<Props> = ({
         </Box>
 
         {micButton}
-
-        {/* Navigation row */}
-        <Stack
-          direction="row"
-          spacing={1}
-          justifyContent="center"
-          alignItems="center"
-          flexWrap="wrap"
-        >
-          <Button
-            clicked={() => onChangeSentence(-1)}
-            disabled={state.sentenceIndex < 1}
-            type="ghost"
-          >
-            ← Prev
-          </Button>
-          <Button
-            clicked={() => onChangeSentence(1)}
-            disabled={state.sentenceLoading || state.sentenceIndex >= state.totalCount - 1}
-            type="ghost"
-          >
-            {state.sentenceLoading ? 'Loading…' : 'Next →'}
-          </Button>
-        </Stack>
       </Stack>
     );
   }
@@ -917,9 +805,7 @@ const SentenceRead: React.FC<Props> = ({
             display: 'block',
             mt: 1,
             visibility:
-              (!state.useSound || state.showText) &&
-              !!state.sentences[state.sentenceIndex] &&
-              !state.loading
+              (!state.useSound || state.showText) && !!state.sentence && !state.loading
                 ? 'visible'
                 : 'hidden',
           }}
