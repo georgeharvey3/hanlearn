@@ -93,6 +93,7 @@ export const sendPasswordReset = (email: string): AppThunk => {
       } else {
         dispatch(authFail('Failed to send reset email'));
       }
+      reportUnexpectedAuthError(error);
     }
   };
 };
@@ -106,12 +107,43 @@ export const logout = (): AppThunk => {
       } as AuthLogoutAction);
     } catch (error) {
       console.error('Logout error:', error);
+      Sentry.captureException(error);
       // Still dispatch logout even if Firebase call fails
       dispatch({
         type: actionTypes.AUTH_LOGOUT,
       } as AuthLogoutAction);
     }
   };
+};
+
+const KNOWN_AUTH_ERROR_CODES = new Set<string>([
+  'auth/email-already-in-use',
+  'auth/invalid-email',
+  'auth/operation-not-allowed',
+  'auth/weak-password',
+  'auth/user-disabled',
+  'auth/user-not-found',
+  'auth/wrong-password',
+  'auth/invalid-credential',
+  'auth/too-many-requests',
+  'auth/popup-blocked',
+  'auth/account-exists-with-different-credential',
+  'auth/popup-closed-by-user',
+  'auth/cancelled-popup-request',
+]);
+
+// Only unanticipated failures (unknown Firebase codes, or non-Firebase errors
+// like network / SDK bugs) are sent to Sentry. Expected user-input errors
+// (wrong-password, email-in-use, popup-closed, etc.) are user flow noise.
+const reportUnexpectedAuthError = (error: unknown): void => {
+  if (error instanceof Error && 'code' in error) {
+    const code = (error as FirebaseError).code;
+    if (!KNOWN_AUTH_ERROR_CODES.has(code)) {
+      Sentry.captureException(error);
+    }
+    return;
+  }
+  Sentry.captureException(error);
 };
 
 /**
@@ -161,6 +193,7 @@ export const auth = (email: string, password: string): AppThunk => {
       } else {
         dispatch(authFail('Login failed'));
       }
+      reportUnexpectedAuthError(error);
     }
   };
 };
@@ -178,6 +211,7 @@ export const register = (email: string, password: string): AppThunk => {
       } else {
         dispatch(authFail('Registration failed'));
       }
+      reportUnexpectedAuthError(error);
     }
   };
 };
@@ -199,6 +233,7 @@ export const googleSignIn = (): AppThunk => {
       } else {
         dispatch(authFail('Google sign-in failed'));
       }
+      reportUnexpectedAuthError(error);
     }
   };
 };
