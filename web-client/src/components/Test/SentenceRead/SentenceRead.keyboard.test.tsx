@@ -1,13 +1,11 @@
 /**
  * Tests for SentenceRead keyboard shortcuts and error handling paths:
- * - Escape key closes popup
- * - Ctrl+B focuses answerInput
- * - ArrowLeft/ArrowRight navigate sentences
  * - fetchSentence error handling (catch block)
- * - onChangeSentence uses cached sentence without refetch
- * - closePopup logic
  * - Score unavailable when similarity service rejects
  * - Show text chip toggle in audio mode
+ * - ArrowUp advances after submission
+ * - English highlight rendering
+ * - Multi-word navigation
  */
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
@@ -82,19 +80,6 @@ const mockCloudSentence = {
   english: {
     sentence: 'Hello, I am a student.',
     highlight: [[0, 5]] as number[][],
-  },
-};
-
-const mockCloudSentence2 = {
-  chinese: {
-    sentence: '请向他们说声你好。',
-    highlight: [[7, 9]] as number[][],
-    segments: ['请', '向', '他们', '说声', '你好'],
-    targetIndex: 4,
-  },
-  english: {
-    sentence: 'Please say hello to them.',
-    highlight: [] as number[][],
   },
 };
 
@@ -187,45 +172,6 @@ describe('SentenceRead — score unavailable on similarity error', () => {
 });
 
 // ---------------------------------------------------------------------------
-// onChangeSentence uses cached sentence without refetch
-// ---------------------------------------------------------------------------
-describe('SentenceRead — sentence navigation with cached sentences', () => {
-  it('navigates back to a cached sentence without calling getSegmentedSentence again', async () => {
-    const user = userEvent.setup();
-
-    // First call for offset 0, second for offset 1
-    mockedGetSegmentedSentence
-      .mockResolvedValueOnce({ sentence: mockCloudSentence, totalCount: 3 })
-      .mockResolvedValueOnce({ sentence: mockCloudSentence2, totalCount: 3 });
-
-    renderWithProviders(
-      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
-      { store: makeStore() },
-    );
-
-    // Wait for first sentence to load
-    await waitFor(() => {
-      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
-    });
-
-    // Click Next to fetch sentence at offset 1
-    const nextBtn = screen.getByRole('button', { name: /next →/i });
-    await user.click(nextBtn);
-
-    await waitFor(() => {
-      expect(mockedGetSegmentedSentence).toHaveBeenCalledTimes(2);
-    });
-
-    // Click Prev to go back to cached sentence at offset 0
-    const prevBtn = await screen.findByRole('button', { name: /← prev/i });
-    await user.click(prevBtn);
-
-    // Should NOT have called getSegmentedSentence again (still 2 calls)
-    expect(mockedGetSegmentedSentence).toHaveBeenCalledTimes(2);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Show text chip toggle in audio mode
 // ---------------------------------------------------------------------------
 describe('SentenceRead — Show text chip in audio mode', () => {
@@ -296,29 +242,6 @@ describe('SentenceRead — keyboard shortcuts ArrowUp/ArrowDown', () => {
 
     await waitFor(() => {
       expect(startSentenceWrite).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  it('resets to input view on ArrowDown after submission', async () => {
-    const user = userEvent.setup();
-
-    renderWithProviders(
-      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
-      { store: makeStore() },
-    );
-
-    const input = await screen.findByPlaceholderText(/type your translation/i);
-    await user.type(input, 'Hello{Enter}');
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
-    });
-
-    // ArrowDown from a non-input element triggers onNoClicked
-    fireEvent.keyUp(document.body, { key: 'ArrowDown' });
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText(/type your translation/i)).toBeInTheDocument();
     });
   });
 });

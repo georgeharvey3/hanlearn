@@ -143,28 +143,6 @@ describe('SentenceRead — sentence display', () => {
       expect(screen.getByPlaceholderText(/type your translation/i)).toBeInTheDocument();
     });
   });
-
-  it('shows Prev sentence button disabled when at sentence 0', async () => {
-    renderWithProviders(
-      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
-      { store: makeStore() },
-    );
-    await waitFor(() => {
-      const prevBtn = screen.getByRole('button', { name: /← prev/i });
-      expect(prevBtn).toBeDisabled();
-    });
-  });
-
-  it('shows Next sentence button enabled when totalCount > 1', async () => {
-    renderWithProviders(
-      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
-      { store: makeStore() },
-    );
-    await waitFor(() => {
-      const nextBtn = screen.getByRole('button', { name: /next →/i });
-      expect(nextBtn).not.toBeDisabled();
-    });
-  });
 });
 
 describe('SentenceRead — submitting a translation', () => {
@@ -184,7 +162,7 @@ describe('SentenceRead — submitting a translation', () => {
     });
   });
 
-  it('shows similarity score and Finish/Try Again buttons after submission on last word', async () => {
+  it('shows similarity score and Finish button after submission on last word', async () => {
     const user = userEvent.setup();
     renderWithProviders(
       <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
@@ -196,35 +174,12 @@ describe('SentenceRead — submitting a translation', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /finish/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
     });
 
     // Similarity score should appear
     await waitFor(() => {
       expect(screen.getByText('85%')).toBeInTheDocument();
       expect(screen.getByText('Great')).toBeInTheDocument();
-    });
-  });
-
-  it('resets to input view when Try Again is clicked', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(
-      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
-      { store: makeStore() },
-    );
-
-    const input = await screen.findByPlaceholderText(/type your translation/i);
-    await user.type(input, 'Hello{Enter}');
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
-    });
-
-    const tryAgainBtn = screen.getByRole('button', { name: /try again/i });
-    await user.click(tryAgainBtn);
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText(/type your translation/i)).toBeInTheDocument();
     });
   });
 

@@ -354,12 +354,14 @@ export const finishTest = (scores: { word_id: number; score: number }[]): AppThu
           dispatch(setListStats(stats));
         } catch (fetchError) {
           console.error('Failed to refresh words after test:', fetchError);
+          Sentry.captureException(fetchError);
         }
 
         try {
           await recordTestCompletion(auth.userId!);
         } catch (streakError) {
           console.error('Failed to record streak:', streakError);
+          Sentry.captureException(streakError);
         }
       });
 
