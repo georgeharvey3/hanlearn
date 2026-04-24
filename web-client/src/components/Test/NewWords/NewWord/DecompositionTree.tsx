@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 
+import * as Sentry from '@sentry/react';
 import { Box, Button, CircularProgress, Typography } from '@mui/material';
 
 import { decomposeCharacter } from '../../../../services/decompositionService';
@@ -38,7 +39,8 @@ const ComponentRow: React.FC<ComponentRowProps> = ({ component, depth }) => {
       const result = await decomposeCharacter(component.char);
       setChildren(result);
       setExpanded(true);
-    } catch {
+    } catch (err) {
+      Sentry.captureException(err, { tags: { feature: 'decomposition' } });
       setFetchError(true);
       setExpanded(true);
     } finally {
@@ -209,7 +211,8 @@ const DecompositionTree: React.FC<DecompositionTreeProps> = ({ char }) => {
         setComponents(result);
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        Sentry.captureException(err, { tags: { feature: 'decomposition' } });
         setError('Decomposition failed');
         setLoading(false);
       });

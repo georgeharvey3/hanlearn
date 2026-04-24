@@ -5,13 +5,12 @@ import { checkRateLimit, RATE_LIMITS } from './rateLimit';
 
 admin.initializeApp();
 
-let hanziReady = false;
-function ensureHanzi(): void {
-  if (!hanziReady) {
-    hanzi.start();
-    hanziReady = true;
-  }
-}
+// Load hanzi dictionary data at module initialisation time (i.e. during
+// cold-start) rather than lazily on the first request.  The synchronous
+// file-read inside hanzi.start() used to block the event loop for the first
+// caller after a cold start, making that request slow and prone to failure on
+// unreliable mobile connections.
+hanzi.start();
 
 // Re-export dictionary Cloud Functions
 export {
@@ -246,7 +245,6 @@ export const decomposeCharacter = functions.https.onCall(
     try {
       const uid = verifyAuth(context);
       await checkRateLimit(uid, 'decomposeCharacter', RATE_LIMITS.decomposeCharacter);
-      ensureHanzi();
 
       const { char } = data;
 

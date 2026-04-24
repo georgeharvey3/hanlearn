@@ -92,6 +92,31 @@ describe('decompositionService', () => {
     expect(result).toEqual([]);
   });
 
+  it('caches results so the cloud function is only called once per character', async () => {
+    const components = [{ char: '十', meaning: 'ten', pinyin: 'shí' }];
+    const mockFn = vi.fn().mockResolvedValue({ data: { components } });
+
+    vi.resetModules();
+    vi.doMock('firebase/functions', () => ({
+      httpsCallable: () => mockFn,
+    }));
+    vi.doMock('../firebase/config', () => ({
+      auth: {},
+      db: {},
+      functions: {},
+      ai: {},
+    }));
+
+    const { decomposeCharacter: freshDecompose } = await import('./decompositionService');
+
+    const result1 = await freshDecompose('木');
+    const result2 = await freshDecompose('木');
+
+    expect(mockFn).toHaveBeenCalledTimes(1);
+    expect(result1).toEqual(components);
+    expect(result2).toBe(result1);
+  });
+
   it('handles components with null meaning and pinyin', async () => {
     const components = [{ char: '丶', meaning: null, pinyin: null }];
     const mockFn = vi.fn().mockResolvedValue({ data: { components } });
