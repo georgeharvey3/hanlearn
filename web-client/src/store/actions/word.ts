@@ -8,6 +8,7 @@ import {
   SetWordsAction,
   FetchWordsFailedAction,
   UpdateMeaningAction,
+  MoveWordAction,
   SetWordListsAction,
   AddWordListAction,
   RemoveWordListAction,
@@ -62,6 +63,14 @@ export const updateMeaning = (wordID: number, newMeaning: string): UpdateMeaning
     type: actionTypes.UPDATE_MEANING,
     wordID: wordID,
     newMeaning: newMeaning,
+  };
+};
+
+export const moveWordAction = (wordID: number, newListId: string): MoveWordAction => {
+  return {
+    type: actionTypes.MOVE_WORD,
+    wordID,
+    newListId,
   };
 };
 
@@ -324,6 +333,40 @@ export const postUpdateMeaning = (wordID: number, newMeaning: string): AppThunk 
       console.error('Failed to update meaning:', error);
       Sentry.captureException(error);
       dispatch(showNotification('Failed to update meaning', 'error'));
+    }
+  };
+};
+
+/**
+ * Move a word to a different list. Refreshes list stats so due-count
+ * badges reflect the new distribution.
+ */
+export const postMoveWord = (wordID: number, newListId: string, wordLabel?: string): AppThunk => {
+  return async (dispatch, getState) => {
+    const { auth, addWords } = getState();
+    if (!auth.userId) return;
+
+    const targetList = addWords.lists.find((l) => l.id === newListId);
+
+    try {
+      await wordService.moveWordToList(auth.userId, wordID, newListId);
+      dispatch(moveWordAction(wordID, newListId));
+
+      try {
+        const stats = await wordService.getListStats(auth.userId);
+        dispatch(setListStats(stats));
+      } catch (statsError) {
+        console.error('Failed to refresh list stats after move:', statsError);
+        Sentry.captureException(statsError);
+      }
+
+      const destination = targetList?.name ?? 'list';
+      const subject = wordLabel ? `"${wordLabel}"` : 'Word';
+      dispatch(showNotification(`${subject} moved to ${destination}`));
+    } catch (error) {
+      console.error('Failed to move word:', error);
+      Sentry.captureException(error);
+      dispatch(showNotification('Failed to move word', 'error'));
     }
   };
 };

@@ -16,6 +16,7 @@ export const ActionTypes = {
   POST_WORD: 'POST_WORD',
   DELETE_WORD: 'DELETE_WORD',
   UPDATE_MEANING: 'UPDATE_MEANING',
+  MOVE_WORD: 'MOVE_WORD',
   SET_WORD_LISTS: 'SET_WORD_LISTS',
   ADD_WORD_LIST: 'ADD_WORD_LIST',
   REMOVE_WORD_LIST: 'REMOVE_WORD_LIST',
@@ -79,6 +80,12 @@ export interface UpdateMeaningAction {
   type: typeof ActionTypes.UPDATE_MEANING;
   wordID: number;
   newMeaning: string;
+}
+
+export interface MoveWordAction {
+  type: typeof ActionTypes.MOVE_WORD;
+  wordID: number;
+  newListId: string;
 }
 
 export interface SetWordListsAction {
@@ -188,6 +195,7 @@ export type WordAction =
   | FetchWordsAction
   | FetchWordsFailedAction
   | UpdateMeaningAction
+  | MoveWordAction
   | SetWordListsAction
   | AddWordListAction
   | RemoveWordListAction

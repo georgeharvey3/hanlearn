@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import WordCard from './WordCard';
 import * as ttsService from '../../services/ttsService';
-import { Word } from '../../types/models';
+import { Word, WordList } from '../../types/models';
 
 vi.mock('../../services/ttsService', () => ({
   speak: vi.fn(),
@@ -21,11 +21,18 @@ function makeWord(overrides: Partial<Word> = {}): Word {
   };
 }
 
+const defaultLists: WordList[] = [
+  { id: 'default', name: 'General', createdAt: '', order: 0 },
+  { id: 'list-b', name: 'Travel', createdAt: '', order: 1 },
+];
+
 describe('WordCard', () => {
   const defaultProps = {
     charSet: 'simp' as const,
+    lists: defaultLists,
     onDeleteWord: vi.fn(),
     onPostMeaningUpdate: vi.fn(),
+    onMoveWord: vi.fn(),
   };
 
   beforeEach(() => {
@@ -122,5 +129,33 @@ describe('WordCard', () => {
     fireEvent.click(removeButton);
 
     expect(onDeleteWord).toHaveBeenCalledWith(42);
+  });
+
+  it('hides the move button when there is no other list to move to', () => {
+    render(
+      <WordCard
+        word={makeWord({ listId: 'default' })}
+        {...defaultProps}
+        lists={[{ id: 'default', name: 'General', createdAt: '', order: 0 }]}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: /move word to list/i })).not.toBeInTheDocument();
+  });
+
+  it('opens the move dialog and calls onMoveWord with the chosen list', () => {
+    const onMoveWord = vi.fn();
+    render(
+      <WordCard
+        word={makeWord({ id: 7, listId: 'default', simp: '朋友' })}
+        {...defaultProps}
+        onMoveWord={onMoveWord}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /move word to list/i }));
+    fireEvent.click(screen.getByRole('button', { name: /move to travel/i }));
+
+    expect(onMoveWord).toHaveBeenCalledWith(7, 'list-b', '朋友');
   });
 });

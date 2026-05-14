@@ -8,6 +8,7 @@ export const FETCH_WORDS_FAILED = 'FETCH_WORDS_FAILED' as const;
 export const POST_WORD = 'POST_WORD' as const;
 export const DELETE_WORD = 'DELETE_WORD' as const;
 export const UPDATE_MEANING = 'UPDATE_MEANING' as const;
+export const MOVE_WORD = 'MOVE_WORD' as const;
 
 export const SET_WORD_LISTS = 'SET_WORD_LISTS' as const;
 export const ADD_WORD_LIST = 'ADD_WORD_LIST' as const;

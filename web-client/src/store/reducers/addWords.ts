@@ -81,6 +81,20 @@ const reducer = (state = initialState, action: WordAction): AddWordsState => {
         words: newWordsMeaning,
       };
     }
+    case actionTypes.MOVE_WORD: {
+      // In cross-list view, keep the word but update its listId.
+      // In a specific list view, remove the word once it leaves the active list.
+      const newWords =
+        state.activeListId === '__all__'
+          ? state.words.map((word) =>
+              word.id === action.wordID ? { ...word, listId: action.newListId } : word,
+            )
+          : state.words.filter((word) => word.id !== action.wordID);
+      return {
+        ...state,
+        words: newWords,
+      };
+    }
     case actionTypes.CLEAR_WORDS:
       return {
         ...state,
