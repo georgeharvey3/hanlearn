@@ -264,6 +264,86 @@ describe('word action thunks', () => {
     });
   });
 
+  describe('postMoveWord', () => {
+    it('moves word, refreshes list stats, and removes word from a single-list view', async () => {
+      mockedWordService.moveWordToList.mockResolvedValue(undefined);
+      mockedWordService.getListStats.mockResolvedValue({
+        default: { due: 0, total: 0 },
+        'list-b': { due: 0, total: 1 },
+      });
+      const store = createTestStore({
+        ...authenticatedState(),
+        addWords: {
+          lists: [
+            { id: 'default', name: 'General', createdAt: '', order: 0 },
+            { id: 'list-b', name: 'Travel', createdAt: '', order: 1 },
+          ],
+          activeListId: 'default',
+          words: [sampleWord],
+          listStats: {},
+          error: false,
+          loading: false,
+        },
+      });
+
+      await store.dispatch(wordActions.postMoveWord(1, 'list-b', '你好') as any);
+
+      expect(mockedWordService.moveWordToList).toHaveBeenCalledWith('test-user-123', 1, 'list-b');
+      expect(store.getState().addWords.words).toEqual([]);
+      expect(store.getState().addWords.listStats).toEqual({
+        default: { due: 0, total: 0 },
+        'list-b': { due: 0, total: 1 },
+      });
+    });
+
+    it('keeps word but updates listId when active list is __all__', async () => {
+      mockedWordService.moveWordToList.mockResolvedValue(undefined);
+      mockedWordService.getListStats.mockResolvedValue({});
+      const store = createTestStore({
+        ...authenticatedState(),
+        addWords: {
+          lists: [
+            { id: 'default', name: 'General', createdAt: '', order: 0 },
+            { id: 'list-b', name: 'Travel', createdAt: '', order: 1 },
+          ],
+          activeListId: '__all__',
+          words: [{ ...sampleWord, listId: 'default' }],
+          listStats: {},
+          error: false,
+          loading: false,
+        },
+      });
+
+      await store.dispatch(wordActions.postMoveWord(1, 'list-b') as any);
+
+      expect(store.getState().addWords.words[0].listId).toBe('list-b');
+    });
+
+    it('reports to Sentry and does not dispatch MOVE_WORD on failure', async () => {
+      const error = new Error('move failed');
+      mockedWordService.moveWordToList.mockRejectedValue(error);
+      const store = createTestStore({
+        ...authenticatedState(),
+        addWords: {
+          lists: [
+            { id: 'default', name: 'General', createdAt: '', order: 0 },
+            { id: 'list-b', name: 'Travel', createdAt: '', order: 1 },
+          ],
+          activeListId: 'default',
+          words: [sampleWord],
+          listStats: {},
+          error: false,
+          loading: false,
+        },
+      });
+
+      await store.dispatch(wordActions.postMoveWord(1, 'list-b') as any);
+
+      expect(mockedSentry.captureException).toHaveBeenCalledWith(error);
+      expect(store.getState().addWords.words).toEqual([sampleWord]);
+    });
+  });
+
   describe('finishTest', () => {
     const scores = [
       { word_id: 1, score: 4 },
