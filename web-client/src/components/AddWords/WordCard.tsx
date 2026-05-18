@@ -23,7 +23,7 @@ interface WordCardProps {
 const WordCard: React.FC<WordCardProps> = ({
   word,
   charSet,
-  lists,
+  lists = [],
   onDeleteWord,
   onPostMeaningUpdate,
   onMoveWord,
