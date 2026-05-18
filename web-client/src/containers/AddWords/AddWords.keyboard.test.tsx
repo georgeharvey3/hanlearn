@@ -172,7 +172,12 @@ describe('AddWords — Escape key dismisses modals', () => {
     mockedWordService.getUserWords.mockResolvedValue([sampleWord]);
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { words: [sampleWord], error: false, loading: false },
+      addWords: {
+        ...authenticatedState().addWords,
+        words: [sampleWord],
+        error: false,
+        loading: false,
+      },
     });
     renderWithProviders(<AddWords />, { store });
 
@@ -266,7 +271,12 @@ describe('AddWords — "Test" button navigates to test page', () => {
   it('renders the "Test" button when words are in the list', async () => {
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { words: [sampleWord], error: false, loading: false },
+      addWords: {
+        ...authenticatedState().addWords,
+        words: [sampleWord],
+        error: false,
+        loading: false,
+      },
     });
 
     renderWithProviders(<AddWords />, { store });
@@ -278,7 +288,12 @@ describe('AddWords — "Test" button navigates to test page', () => {
   it('clicking the "Test" button does not throw and changes location', async () => {
     const store = createTestStore({
       ...authenticatedState(),
-      addWords: { words: [sampleWord], error: false, loading: false },
+      addWords: {
+        ...authenticatedState().addWords,
+        words: [sampleWord],
+        error: false,
+        loading: false,
+      },
     });
 
     renderWithProviders(<AddWords />, { store });

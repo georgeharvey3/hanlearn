@@ -3,26 +3,33 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
+import DriveFileMoveOutlinedIcon from '@mui/icons-material/DriveFileMoveOutlined';
 import MeaningEditor from '../UI/MeaningEditor/MeaningEditor';
 import Remove from '../UI/Table/TableRow/Remove/Remove';
-import { Word } from '../../types/models';
+import MoveToListDialog from './MoveToListDialog';
+import { Word, WordList } from '../../types/models';
 import { formatRelativeDueDate } from '../../utils/formatRelativeDueDate';
 import * as ttsService from '../../services/ttsService';
 
 interface WordCardProps {
   word: Word;
   charSet: 'simp' | 'trad';
+  lists: WordList[];
   onDeleteWord: (id: number) => void;
   onPostMeaningUpdate: (id: number, meaning: string) => void;
+  onMoveWord: (id: number, newListId: string, label: string) => void;
 }
 
 const WordCard: React.FC<WordCardProps> = ({
   word,
   charSet,
+  lists = [],
   onDeleteWord,
   onPostMeaningUpdate,
+  onMoveWord,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
 
   const handleSpeak = useCallback(() => {
     setIsPlaying(true);
@@ -31,6 +38,20 @@ const WordCard: React.FC<WordCardProps> = ({
       onError: () => setIsPlaying(false),
     });
   }, [word, charSet]);
+
+  const openMoveDialog = useCallback(() => setMoveDialogOpen(true), []);
+  const closeMoveDialog = useCallback(() => setMoveDialogOpen(false), []);
+
+  const handleSelectList = useCallback(
+    (newListId: string) => {
+      onMoveWord(word.id, newListId, word[charSet]);
+      setMoveDialogOpen(false);
+    },
+    [onMoveWord, word, charSet],
+  );
+
+  // Only show the move button if there is somewhere to move the word to.
+  const canMove = lists.filter((l) => l.id !== word.listId).length > 0;
 
   return (
     <Box
@@ -61,7 +82,19 @@ const WordCard: React.FC<WordCardProps> = ({
             </IconButton>
           </Box>
         </Box>
-        <Remove clicked={() => onDeleteWord(word.id)} />
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          {canMove && (
+            <IconButton
+              onClick={openMoveDialog}
+              aria-label="Move word to list"
+              size="small"
+              sx={{ color: 'text.secondary' }}
+            >
+              <DriveFileMoveOutlinedIcon fontSize="small" />
+            </IconButton>
+          )}
+          <Remove clicked={() => onDeleteWord(word.id)} />
+        </Box>
       </Box>
       <Box sx={{ mt: 1 }}>
         <MeaningEditor
@@ -75,6 +108,14 @@ const WordCard: React.FC<WordCardProps> = ({
           {formatRelativeDueDate(word.due_date)}
         </Typography>
       )}
+      <MoveToListDialog
+        open={moveDialogOpen}
+        lists={lists}
+        currentListId={word.listId}
+        wordLabel={word[charSet]}
+        onClose={closeMoveDialog}
+        onSelect={handleSelectList}
+      />
     </Box>
   );
 };

@@ -4,6 +4,7 @@ export {
   postCustomWord,
   deleteWord,
   postUpdateMeaning,
+  postMoveWord,
   finishTest,
   switchActiveList,
   postCreateWordList,

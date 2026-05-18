@@ -73,6 +73,7 @@ const mapDispatchToProps = {
   onDeleteWord: wordActions.deleteWord,
   onInitWords: wordActions.initWords,
   onPostMeaningUpdate: wordActions.postUpdateMeaning,
+  onMoveWord: wordActions.postMoveWord,
   onSwitchList: wordActions.switchActiveList,
   onCreateList: wordActions.postCreateWordList,
   onRenameList: wordActions.postRenameWordList,
@@ -94,6 +95,7 @@ const AddWords: React.FC<Props> = ({
   onPostCustomWord,
   onDeleteWord,
   onPostMeaningUpdate,
+  onMoveWord,
   onSwitchList,
   onCreateList,
   onRenameList,
@@ -366,11 +368,13 @@ const AddWords: React.FC<Props> = ({
           key={row.id}
           word={row}
           charSet={state.charSet}
+          lists={lists}
           onDeleteWord={onDeleteWord}
           onPostMeaningUpdate={onPostMeaningUpdate}
+          onMoveWord={onMoveWord}
         />
       )),
-    [words, state.charSet, onDeleteWord, onPostMeaningUpdate],
+    [words, state.charSet, lists, onDeleteWord, onPostMeaningUpdate, onMoveWord],
   );
 
   const clashTableRows = useMemo(
