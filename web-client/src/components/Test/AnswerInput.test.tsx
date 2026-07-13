@@ -619,17 +619,31 @@ describe('AnswerInput — meaning with flashcards (show-answer flow)', () => {
     expect(props.onIDontKnow).toHaveBeenCalledTimes(1);
   });
 
-  it('plays fail sound when dislike is clicked and useSound=true', () => {
+  it('plays fail sound when dislike is clicked and useSoundEffects=true', () => {
     const mockedFail = vi.mocked(fail);
     const props = makeProps({
       answerCategory: 'meaning',
       meaningQuizType: 'flashcard',
       showAnswer: true,
-      useSound: true,
+      useSoundEffects: true,
     });
     render(<AnswerInput {...props} />);
     fireEvent.click(screen.getByLabelText(/i didn't know this/i));
     expect(mockedFail.play).toHaveBeenCalled();
+  });
+
+  it('does not play fail sound on dislike when useSoundEffects=false', () => {
+    const mockedFail = vi.mocked(fail);
+    const props = makeProps({
+      answerCategory: 'meaning',
+      meaningQuizType: 'flashcard',
+      showAnswer: true,
+      useSoundEffects: false,
+      useSound: true,
+    });
+    render(<AnswerInput {...props} />);
+    fireEvent.click(screen.getByLabelText(/i didn't know this/i));
+    expect(mockedFail.play).not.toHaveBeenCalled();
   });
 });
 

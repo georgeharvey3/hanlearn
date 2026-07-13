@@ -73,7 +73,7 @@ export const getAudioSettingItems = (
   },
   {
     key: 'useAutoRecord',
-    label: 'Automatic recording',
+    label: 'Auto-start microphone',
     disabled: false,
   },
 ];

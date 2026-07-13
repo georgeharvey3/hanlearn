@@ -21,7 +21,7 @@ describe('AudioSettingsDrawer', () => {
     render(<AudioSettingsDrawer {...defaultProps} />);
     expect(screen.getByText('Text-to-speech')).toBeInTheDocument();
     expect(screen.getByText('Sound effects')).toBeInTheDocument();
-    expect(screen.getByText('Automatic recording')).toBeInTheDocument();
+    expect(screen.getByText('Auto-start microphone')).toBeInTheDocument();
   });
 
   it('renders a quiz type radio group per answer type', () => {

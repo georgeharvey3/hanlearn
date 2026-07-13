@@ -54,6 +54,7 @@ interface SentenceReadState {
 
 const mapStateToProps = (state: RootState) => ({
   synthAvailable: state.settings.synthAvailable,
+  speechAvailable: state.settings.speechAvailable,
   voice: state.settings.voice,
   lang: state.settings.lang,
   addedWords: state.addWords.words,
@@ -129,6 +130,7 @@ const popupTextStyle: React.CSSProperties = {
 
 const SentenceRead: React.FC<Props> = ({
   synthAvailable,
+  speechAvailable,
   voice,
   lang,
   addedWords,
@@ -192,11 +194,11 @@ const SentenceRead: React.FC<Props> = ({
     const useSound =
       synthAvailable && (localStorage.getItem('useSound') !== 'false' || Boolean(isDemo));
     const useEnglishSpeechRecognition =
-      synthAvailable &&
+      speechAvailable &&
       (localStorage.getItem('useEnglishSpeechRecognition') !== 'false' || Boolean(isDemo));
 
     updateState({ useSound, useEnglishSpeechRecognition });
-  }, [isDemo, synthAvailable, updateState]);
+  }, [isDemo, speechAvailable, synthAvailable, updateState]);
 
   const onSpeakPinyin = useCallback(
     (sentence: string): void => {

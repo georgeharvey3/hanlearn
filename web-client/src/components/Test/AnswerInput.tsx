@@ -67,7 +67,7 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
       <PictureButton
         style={state.noClicked ? activeButtonStyle : buttonStyle}
         clicked={() => {
-          if (state.useSound) fail.play();
+          if (state.useSoundEffects) fail.play();
           onIDontKnow();
         }}
         src={dislikePic}
