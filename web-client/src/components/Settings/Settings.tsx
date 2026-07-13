@@ -13,6 +13,7 @@ import Tooltip from '@mui/material/Tooltip';
 import { RootState } from '../../types/store';
 import { colors } from '../../theme';
 import { estimateTestTime, formatTestTime } from '../../utils/estimateTestTime';
+import { QuizCategory, QuizType, getQuizType, setQuizType } from '../../utils/audioSettings';
 
 interface SettingsState {
   charSet: string;
@@ -23,7 +24,8 @@ interface SettingsState {
   useSound: boolean;
   useSoundEffects: boolean;
   useAutoRecord: boolean;
-  useFlashcards: boolean;
+  meaningQuizType: QuizType;
+  pinyinQuizType: QuizType;
   newWords: boolean;
   sentenceRead: boolean;
   sentenceWrite: boolean;
@@ -88,7 +90,6 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
     const useSound = localStorage.getItem('useSound');
     const useSoundEffects = localStorage.getItem('useSoundEffects');
     const useAutoRecord = localStorage.getItem('useAutoRecord');
-    const useFlashcards = localStorage.getItem('useFlashcards');
     const newWords = localStorage.getItem('newWords');
     const sentenceRead = localStorage.getItem('sentenceRead');
     const sentenceWrite = localStorage.getItem('sentenceWrite');
@@ -105,7 +106,8 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
       useSound: useSound === 'false' ? false : true,
       useSoundEffects: useSoundEffects === 'false' ? false : true,
       useAutoRecord: useAutoRecord === 'false' ? false : true,
-      useFlashcards: useFlashcards === 'false' ? false : true,
+      meaningQuizType: getQuizType('meaning'),
+      pinyinQuizType: getQuizType('pinyin'),
       newWords: newWords === 'false' ? false : true,
       sentenceRead: sentenceRead === 'false' ? false : true,
       sentenceWrite: sentenceWrite === 'false' ? false : true,
@@ -136,14 +138,18 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
     }
   }, []);
 
-  const onQuizTypeChange = useCallback((e: ChangeEvent<HTMLInputElement>): void => {
-    const useFlashcards = e.target.value === 'flashcard';
-    setState((prev) => ({
-      ...prev,
-      useFlashcards,
-    }));
-    localStorage.setItem('useFlashcards', String(useFlashcards));
-  }, []);
+  const onQuizTypeChange = useCallback(
+    (category: QuizCategory) =>
+      (e: ChangeEvent<HTMLInputElement>): void => {
+        const value = e.target.value as QuizType;
+        setState((prev) => ({
+          ...prev,
+          [category === 'meaning' ? 'meaningQuizType' : 'pinyinQuizType']: value,
+        }));
+        setQuizType(category, value);
+      },
+    [],
+  );
 
   const onSliderChange = useCallback((_e: Event, value: number | number[]): void => {
     const numValue = value as number;
@@ -354,22 +360,52 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
       </SectionGroup>
 
       <SectionGroup label="Quiz Type">
-        <Box sx={{ px: 2, py: 0.5 }}>
-          <RadioGroup
-            name="quizType"
-            value={state.useFlashcards ? 'flashcard' : 'input'}
-            onChange={onQuizTypeChange}
-            row
-            sx={{ gap: 1 }}
-          >
-            <FormControlLabel value="input" control={<Radio size="small" />} label="Input" />
-            <FormControlLabel
-              value="flashcard"
-              control={<Radio size="small" />}
-              label="Flashcard"
-            />
-          </RadioGroup>
-        </Box>
+        {(
+          [
+            { category: 'meaning' as QuizCategory, label: 'Meaning', value: state.meaningQuizType },
+            { category: 'pinyin' as QuizCategory, label: 'Pinyin', value: state.pinyinQuizType },
+          ] as const
+        ).map(({ category, label, value }) => (
+          <Box key={category} sx={{ ...rowSx, py: 0.5, display: 'flex', alignItems: 'center' }}>
+            <Typography
+              variant="body2"
+              id={`quiz-type-${category}-label`}
+              sx={{ width: 72, color: 'text.secondary' }}
+            >
+              {label}
+            </Typography>
+            <RadioGroup
+              aria-labelledby={`quiz-type-${category}-label`}
+              value={value}
+              onChange={onQuizTypeChange(category)}
+              row
+            >
+              <FormControlLabel value="text" control={<Radio size="small" />} label="Text" />
+              <Tooltip
+                title={
+                  speechAvailable ? '' : 'Speech recognition is not available in this browser'
+                }
+                placement="right"
+                disableHoverListener={speechAvailable}
+                disableFocusListener={speechAvailable}
+              >
+                <span>
+                  <FormControlLabel
+                    value="speech"
+                    control={<Radio size="small" />}
+                    label="Speech"
+                    disabled={!speechAvailable}
+                  />
+                </span>
+              </Tooltip>
+              <FormControlLabel
+                value="flashcard"
+                control={<Radio size="small" />}
+                label="Flashcard"
+              />
+            </RadioGroup>
+          </Box>
+        ))}
       </SectionGroup>
 
       <SectionGroup label="Test Settings">

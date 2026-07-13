@@ -35,10 +35,9 @@ vi.mock('./constants', () => ({
     numSpeakTries: 0,
     useSound: false,
     useHandwriting: false,
-    useChineseSpeechRecognition: false,
-    useEnglishSpeechRecognition: false,
+    pinyinQuizType: 'text',
+    meaningQuizType: 'text',
     useAutoRecord: false,
-    useFlashcards: false,
     showErrorMessage: false,
     redoChar: false,
     sentenceWords: [],
@@ -585,7 +584,7 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
     return mockRecognition;
   }
 
-  it('calls onListen when answerCategory=pinyin, useAutoRecord=true, and useChineseSpeechRecognition=true on qNum change', () => {
+  it('calls onListen when answerCategory=pinyin, useAutoRecord=true, and pinyinQuizType=speech on qNum change', () => {
     const mockRecognition = setupRecognitionMock();
 
     const perm = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
@@ -593,8 +592,7 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
       answerCategory: 'pinyin',
       questionCategory: 'meaning',
       useAutoRecord: true,
-      useChineseSpeechRecognition: true,
-      useFlashcards: false,
+      pinyinQuizType: 'speech',
       useTypingInput: false,
       useSound: false,
       useHandwriting: false,
@@ -616,7 +614,7 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
     expect(mockRecognition.start).toHaveBeenCalled();
   });
 
-  it('does NOT call onListen when answerCategory=pinyin, useAutoRecord=true, but useChineseSpeechRecognition=false', () => {
+  it('does NOT call onListen when answerCategory=pinyin, useAutoRecord=true, but pinyinQuizType=text', () => {
     const mockRecognition = setupRecognitionMock();
 
     const perm = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
@@ -624,7 +622,7 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
       answerCategory: 'pinyin',
       questionCategory: 'meaning',
       useAutoRecord: true,
-      useChineseSpeechRecognition: false,
+      pinyinQuizType: 'text',
       useTypingInput: false,
       useSound: false,
       useHandwriting: false,
@@ -644,7 +642,7 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
     expect(mockRecognition.start).not.toHaveBeenCalled();
   });
 
-  it('calls onListen when answerCategory=meaning, useAutoRecord=true, useEnglishSpeechRecognition=true, and not flashcards', () => {
+  it('calls onListen when answerCategory=meaning, useAutoRecord=true, meaningQuizType=speech, and not flashcards', () => {
     const mockRecognition = setupRecognitionMock();
 
     const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
@@ -652,10 +650,9 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
       answerCategory: 'meaning',
       questionCategory: 'pinyin',
       useAutoRecord: true,
-      useEnglishSpeechRecognition: true,
+      meaningQuizType: 'speech',
       useTypingInput: false,
       useSound: false,
-      useFlashcards: false,
       useHandwriting: false,
       writer: null,
       perm,
@@ -673,7 +670,7 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
     expect(mockRecognition.start).toHaveBeenCalled();
   });
 
-  it('does NOT call onListen when answerCategory=meaning, useAutoRecord=true, but useEnglishSpeechRecognition=false', () => {
+  it('does NOT call onListen when answerCategory=meaning, useAutoRecord=true, but meaningQuizType=text', () => {
     const mockRecognition = setupRecognitionMock();
 
     const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
@@ -681,10 +678,9 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
       answerCategory: 'meaning',
       questionCategory: 'pinyin',
       useAutoRecord: true,
-      useEnglishSpeechRecognition: false,
+      meaningQuizType: 'text',
       useTypingInput: false,
       useSound: false,
-      useFlashcards: false,
       useHandwriting: false,
       writer: null,
       perm,
@@ -702,7 +698,7 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
     expect(mockRecognition.start).not.toHaveBeenCalled();
   });
 
-  it('does NOT call onListen when answerCategory=meaning + useFlashcards=true', () => {
+  it('does NOT call onListen when answerCategory=meaning + quiz type flashcard', () => {
     const mockRecognition = setupRecognitionMock();
 
     const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
@@ -712,7 +708,7 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
       useAutoRecord: true,
       useTypingInput: false,
       useSound: false,
-      useFlashcards: true,
+      meaningQuizType: 'flashcard',
       useHandwriting: false,
       writer: null,
       perm,

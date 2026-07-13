@@ -18,9 +18,8 @@ const baseState: Partial<TestState> = {
   yesClicked: false,
   noClicked: false,
   useSound: false,
-  useFlashcards: false,
-  useChineseSpeechRecognition: false,
-  useEnglishSpeechRecognition: false,
+  pinyinQuizType: 'text',
+  meaningQuizType: 'text',
   useAutoRecord: false,
   useTypingInput: true,
   showInput: false,
@@ -48,25 +47,25 @@ function renderAnswerInput(stateOverrides: Partial<TestState>) {
 // pinyin mode — text input (default, no speech recognition)
 // ---------------------------------------------------------------------------
 describe('AnswerInput — pinyin mode', () => {
-  it('renders a text input when useChineseSpeechRecognition is false', () => {
-    renderAnswerInput({ answerCategory: 'pinyin', useChineseSpeechRecognition: false });
+  it('renders a text input when pinyin quiz type is text', () => {
+    renderAnswerInput({ answerCategory: 'pinyin', pinyinQuizType: 'text' });
     expect(screen.getByRole('textbox', { name: /enter your answer/i })).toBeInTheDocument();
   });
 
-  it('renders micInput when useChineseSpeechRecognition is true and useTypingInput is false', () => {
+  it('renders micInput when pinyin quiz type is speech and useTypingInput is false', () => {
     renderAnswerInput({
       answerCategory: 'pinyin',
-      useChineseSpeechRecognition: true,
+      pinyinQuizType: 'speech',
       useTypingInput: false,
     });
     expect(screen.getByRole('button', { name: /record speech/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/auto record/i)).toBeInTheDocument();
   });
 
-  it('renders typingInputWithMicToggle when useChineseSpeechRecognition is true and useTypingInput is true', () => {
+  it('renders typingInputWithMicToggle when pinyin quiz type is speech and useTypingInput is true', () => {
     renderAnswerInput({
       answerCategory: 'pinyin',
-      useChineseSpeechRecognition: true,
+      pinyinQuizType: 'speech',
       useTypingInput: true,
     });
     expect(screen.getByRole('textbox', { name: /enter your answer/i })).toBeInTheDocument();
@@ -82,7 +81,7 @@ describe('AnswerInput — meaning mode with flashcards', () => {
   it('renders "Show Answer" button when showAnswer is false', () => {
     renderAnswerInput({
       answerCategory: 'meaning',
-      useFlashcards: true,
+      meaningQuizType: 'flashcard',
       showAnswer: false,
     });
     expect(screen.getByRole('button', { name: /show answer/i })).toBeInTheDocument();
@@ -91,7 +90,7 @@ describe('AnswerInput — meaning mode with flashcards', () => {
   it('renders like/dislike picture buttons when showAnswer is true', () => {
     renderAnswerInput({
       answerCategory: 'meaning',
-      useFlashcards: true,
+      meaningQuizType: 'flashcard',
       showAnswer: true,
     });
     expect(screen.getByRole('button', { name: /i knew this/i })).toBeInTheDocument();
@@ -101,7 +100,7 @@ describe('AnswerInput — meaning mode with flashcards', () => {
   it('applies activeButtonStyle to the like button when yesClicked is true', () => {
     renderAnswerInput({
       answerCategory: 'meaning',
-      useFlashcards: true,
+      meaningQuizType: 'flashcard',
       showAnswer: true,
       yesClicked: true,
     });
@@ -112,7 +111,7 @@ describe('AnswerInput — meaning mode with flashcards', () => {
   it('applies activeButtonStyle to the dislike button when noClicked is true', () => {
     renderAnswerInput({
       answerCategory: 'meaning',
-      useFlashcards: true,
+      meaningQuizType: 'flashcard',
       showAnswer: true,
       noClicked: true,
     });
@@ -124,11 +123,10 @@ describe('AnswerInput — meaning mode with flashcards', () => {
 // meaning mode — speech recognition variant
 // ---------------------------------------------------------------------------
 describe('AnswerInput — meaning mode with English speech recognition', () => {
-  it('renders micInput when useEnglishSpeechRecognition is true and useTypingInput is false', () => {
+  it('renders micInput when meaning quiz type is speech and useTypingInput is false', () => {
     renderAnswerInput({
       answerCategory: 'meaning',
-      useFlashcards: false,
-      useEnglishSpeechRecognition: true,
+      meaningQuizType: 'speech',
       useTypingInput: false,
     });
     expect(screen.getByRole('button', { name: /record speech/i })).toBeInTheDocument();
@@ -137,19 +135,17 @@ describe('AnswerInput — meaning mode with English speech recognition', () => {
   it('renders typingInputWithMicToggle when useEnglishSpeechRecognition true and useTypingInput true', () => {
     renderAnswerInput({
       answerCategory: 'meaning',
-      useFlashcards: false,
-      useEnglishSpeechRecognition: true,
+      meaningQuizType: 'speech',
       useTypingInput: true,
     });
     expect(screen.getByRole('textbox', { name: /enter your answer/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /switch to speaking/i })).toBeInTheDocument();
   });
 
-  it('renders plain text input when useEnglishSpeechRecognition is false and no flashcards', () => {
+  it('renders plain text input when meaning quiz type is text and no flashcards', () => {
     renderAnswerInput({
       answerCategory: 'meaning',
-      useFlashcards: false,
-      useEnglishSpeechRecognition: false,
+      meaningQuizType: 'text',
     });
     expect(screen.getByRole('textbox', { name: /enter your answer/i })).toBeInTheDocument();
   });
@@ -162,7 +158,7 @@ describe('AnswerInput — micInput interactions', () => {
   it('renders secondary text input when showInput is true in mic mode', () => {
     renderAnswerInput({
       answerCategory: 'pinyin',
-      useChineseSpeechRecognition: true,
+      pinyinQuizType: 'speech',
       useTypingInput: false,
       showInput: true,
     });
@@ -174,7 +170,7 @@ describe('AnswerInput — micInput interactions', () => {
     const state = {
       ...baseState,
       answerCategory: 'pinyin',
-      useChineseSpeechRecognition: true,
+      pinyinQuizType: 'speech',
       useTypingInput: false,
       recognition: { abort: vi.fn() },
     } as unknown as TestState;
@@ -200,7 +196,7 @@ describe('AnswerInput — micInput interactions', () => {
     const state = {
       ...baseState,
       answerCategory: 'pinyin',
-      useChineseSpeechRecognition: true,
+      pinyinQuizType: 'speech',
       useTypingInput: true,
     } as unknown as TestState;
     render(
@@ -238,7 +234,7 @@ describe('getVerb', () => {
   it('returns "Enter the " for pinyin without speech', () => {
     const state = {
       answerCategory: 'pinyin',
-      useChineseSpeechRecognition: false,
+      pinyinQuizType: 'text',
       useTypingInput: true,
     } as unknown as TestState;
     expect(getVerb(state)).toBe('Enter the ');
@@ -247,7 +243,7 @@ describe('getVerb', () => {
   it('returns "Speak the " for pinyin with speech recognition and not typing', () => {
     const state = {
       answerCategory: 'pinyin',
-      useChineseSpeechRecognition: true,
+      pinyinQuizType: 'speech',
       useTypingInput: false,
     } as unknown as TestState;
     expect(getVerb(state)).toBe('Speak the ');
@@ -256,7 +252,7 @@ describe('getVerb', () => {
   it('returns "Enter the " for pinyin with speech recognition but useTypingInput=true', () => {
     const state = {
       answerCategory: 'pinyin',
-      useChineseSpeechRecognition: true,
+      pinyinQuizType: 'speech',
       useTypingInput: true,
     } as unknown as TestState;
     expect(getVerb(state)).toBe('Enter the ');
@@ -270,7 +266,7 @@ describe('getVerb', () => {
   it('returns "What is the " for meaning with flashcards', () => {
     const state = {
       answerCategory: 'meaning',
-      useFlashcards: true,
+      meaningQuizType: 'flashcard',
     } as unknown as TestState;
     expect(getVerb(state)).toBe('What is the ');
   });
@@ -278,8 +274,7 @@ describe('getVerb', () => {
   it('returns "Speak the " for meaning with English speech recognition and not typing', () => {
     const state = {
       answerCategory: 'meaning',
-      useFlashcards: false,
-      useEnglishSpeechRecognition: true,
+      meaningQuizType: 'speech',
       useTypingInput: false,
     } as unknown as TestState;
     expect(getVerb(state)).toBe('Speak the ');
@@ -288,8 +283,7 @@ describe('getVerb', () => {
   it('returns "Enter the " for meaning with English speech recognition but useTypingInput=true', () => {
     const state = {
       answerCategory: 'meaning',
-      useFlashcards: false,
-      useEnglishSpeechRecognition: true,
+      meaningQuizType: 'speech',
       useTypingInput: true,
     } as unknown as TestState;
     expect(getVerb(state)).toBe('Enter the ');
@@ -298,8 +292,7 @@ describe('getVerb', () => {
   it('returns "Enter the " for meaning without flashcards or speech', () => {
     const state = {
       answerCategory: 'meaning',
-      useFlashcards: false,
-      useEnglishSpeechRecognition: false,
+      meaningQuizType: 'text',
     } as unknown as TestState;
     expect(getVerb(state)).toBe('Enter the ');
   });

@@ -7,13 +7,18 @@ import {
   FormGroup,
   Radio,
   RadioGroup,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import {
   AudioSettings,
+  AudioSettingKey,
+  QuizCategory,
+  QuizType,
   getAudioSettings,
   getAudioSettingItems,
   setAudioSetting,
+  setQuizType,
 } from '../../../utils/audioSettings';
 
 interface AudioSettingsDrawerProps {
@@ -32,7 +37,7 @@ const AudioSettingsDrawer: React.FC<AudioSettingsDrawerProps> = ({
   const [settings, setSettings] = useState<AudioSettings>(getAudioSettings);
 
   const handleChange = useCallback(
-    (key: keyof AudioSettings) => (_e: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
+    (key: AudioSettingKey) => (_e: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
       const updated = setAudioSetting(key, checked);
       setSettings(updated);
     },
@@ -44,9 +49,9 @@ const AudioSettingsDrawer: React.FC<AudioSettingsDrawerProps> = ({
   }, [onClose, settings]);
 
   const handleQuizTypeChange = useCallback(
-    (_e: React.ChangeEvent<HTMLInputElement>, value: string) => {
-      const updated = setAudioSetting('useFlashcards', value === 'flashcard');
-      setSettings(updated);
+    (category: QuizCategory) => (_e: React.ChangeEvent<HTMLInputElement>, value: string) => {
+      setQuizType(category, value as QuizType);
+      setSettings(getAudioSettings());
     },
     [],
   );
@@ -54,6 +59,33 @@ const AudioSettingsDrawer: React.FC<AudioSettingsDrawerProps> = ({
   const items = useMemo(
     () => getAudioSettingItems(speechAvailable, synthAvailable),
     [speechAvailable, synthAvailable],
+  );
+
+  const quizTypeRow = (label: string, category: QuizCategory, value: QuizType) => (
+    <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+      <Typography variant="body2" id={`quiz-type-${category}-label`} sx={{ width: 72 }}>
+        {label}
+      </Typography>
+      <RadioGroup
+        row
+        aria-labelledby={`quiz-type-${category}-label`}
+        value={value}
+        onChange={handleQuizTypeChange(category)}
+      >
+        <FormControlLabel value="text" control={<Radio size="small" />} label="Text" />
+        <Tooltip title={speechAvailable ? '' : 'Speech recognition is not available in this browser'}>
+          <span>
+            <FormControlLabel
+              value="speech"
+              control={<Radio size="small" />}
+              label="Speech"
+              disabled={!speechAvailable}
+            />
+          </span>
+        </Tooltip>
+        <FormControlLabel value="flashcard" control={<Radio size="small" />} label="Flashcard" />
+      </RadioGroup>
+    </Box>
   );
 
   return (
@@ -76,19 +108,8 @@ const AudioSettingsDrawer: React.FC<AudioSettingsDrawerProps> = ({
         Test Settings
       </Typography>
       <Box sx={{ mb: 1 }}>
-        <Typography variant="body2" component="span" sx={{ mr: 2 }} id="quiz-type-label">
-          Quiz type
-        </Typography>
-        <RadioGroup
-          row
-          aria-labelledby="quiz-type-label"
-          value={settings.useFlashcards ? 'flashcard' : 'input'}
-          onChange={handleQuizTypeChange}
-          sx={{ display: 'inline-flex' }}
-        >
-          <FormControlLabel value="input" control={<Radio size="small" />} label="Input" />
-          <FormControlLabel value="flashcard" control={<Radio size="small" />} label="Flashcard" />
-        </RadioGroup>
+        {quizTypeRow('Meaning', 'meaning', settings.meaningQuizType)}
+        {quizTypeRow('Pinyin', 'pinyin', settings.pinyinQuizType)}
       </Box>
       <FormGroup>
         {items.map(({ key, label, disabled }) => (

@@ -5,7 +5,7 @@
  * - Reads initial state from localStorage
  * - Radio buttons update charSet and persist to localStorage
  * - Checkboxes toggle boolean settings and persist to localStorage
- * - Quiz type radio (Input/Flashcard) persists to localStorage
+ * - Per-answer-type quiz type radios (Text/Speech/Flashcard) persist to localStorage
  * - Disabling handwriting resets priority to none
  * - Disabling handwriting disables the Writing priority option
  * - Slider updates numWords and persists to localStorage
@@ -16,7 +16,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
 
 import React from 'react';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'vitest-axe';
 
@@ -115,26 +115,41 @@ describe('Settings — checkbox toggles', () => {
     expect(localStorage.getItem('useSound')).toBe('false');
   });
 
-  it('switching quiz type to Input persists to localStorage', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<Settings />, { store: makeStore() });
+  it('defaults to meaning=Flashcard and pinyin=Speech', () => {
+    renderWithProviders(<Settings />, { store: makeStore(true, false) });
 
-    // Default is Flashcard
-    expect(screen.getByRole('radio', { name: /flashcard/i })).toBeChecked();
-
-    await user.click(screen.getByRole('radio', { name: /input/i }));
-    expect(localStorage.getItem('useFlashcards')).toBe('false');
+    const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
+    const pinyin = screen.getByRole('radiogroup', { name: 'Pinyin' });
+    expect(within(meaning).getByRole('radio', { name: 'Flashcard' })).toBeChecked();
+    expect(within(pinyin).getByRole('radio', { name: 'Speech' })).toBeChecked();
   });
 
-  it('switching quiz type back to Flashcard persists to localStorage', async () => {
+  it('switching the pinyin quiz type persists to localStorage without touching meaning', async () => {
     const user = userEvent.setup();
-    localStorage.setItem('useFlashcards', 'false');
-    renderWithProviders(<Settings />, { store: makeStore() });
+    renderWithProviders(<Settings />, { store: makeStore(true, false) });
 
-    expect(screen.getByRole('radio', { name: /input/i })).toBeChecked();
+    const pinyin = screen.getByRole('radiogroup', { name: 'Pinyin' });
+    await user.click(within(pinyin).getByRole('radio', { name: 'Flashcard' }));
 
-    await user.click(screen.getByRole('radio', { name: /flashcard/i }));
-    expect(localStorage.getItem('useFlashcards')).toBe('true');
+    expect(localStorage.getItem('pinyinQuizType')).toBe('flashcard');
+    expect(localStorage.getItem('meaningQuizType')).toBeNull();
+  });
+
+  it('reads a stored quiz type from localStorage', () => {
+    localStorage.setItem('meaningQuizType', 'text');
+    renderWithProviders(<Settings />, { store: makeStore(true, false) });
+
+    const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
+    expect(within(meaning).getByRole('radio', { name: 'Text' })).toBeChecked();
+  });
+
+  it('disables the Speech quiz type options when speechAvailable is false', () => {
+    renderWithProviders(<Settings />, { store: makeStore(false, false) });
+
+    const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
+    const pinyin = screen.getByRole('radiogroup', { name: 'Pinyin' });
+    expect(within(meaning).getByRole('radio', { name: 'Speech' })).toBeDisabled();
+    expect(within(pinyin).getByRole('radio', { name: 'Speech' })).toBeDisabled();
   });
 
   it('toggling Handwriting input persists to localStorage', async () => {
@@ -157,11 +172,9 @@ describe('Settings — checkbox toggles', () => {
 });
 
 describe('Settings — quiz type independence', () => {
-  it('enabling English speech recognition leaves quiz type unchanged', async () => {
+  it('toggling English speech recognition leaves quiz types unchanged', async () => {
     const user = userEvent.setup();
-    // Start with speechAvailable=true, English speech off, flashcard mode on
-    localStorage.setItem('useEnglishSpeechRecognition', 'false');
-    localStorage.setItem('useFlashcards', 'true');
+    localStorage.setItem('meaningQuizType', 'flashcard');
     renderWithProviders(<Settings />, { store: makeStore(true, false) });
 
     const englishSpeechCheckbox = screen.getByRole('checkbox', {
@@ -169,19 +182,34 @@ describe('Settings — quiz type independence', () => {
     });
     await user.click(englishSpeechCheckbox);
 
-    expect(localStorage.getItem('useFlashcards')).toBe('true');
-    expect(screen.getByRole('radio', { name: /flashcard/i })).toBeChecked();
+    expect(localStorage.getItem('meaningQuizType')).toBe('flashcard');
   });
 
-  it('switching to Flashcard quiz type leaves speech recognition unchanged', async () => {
+  it('switching a quiz type leaves the speech recognition checkboxes unchanged', async () => {
     const user = userEvent.setup();
-    localStorage.setItem('useFlashcards', 'false');
     localStorage.setItem('useEnglishSpeechRecognition', 'true');
     renderWithProviders(<Settings />, { store: makeStore(true, false) });
 
-    await user.click(screen.getByRole('radio', { name: /flashcard/i }));
+    const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
+    await user.click(within(meaning).getByRole('radio', { name: 'Text' }));
 
     expect(localStorage.getItem('useEnglishSpeechRecognition')).toBe('true');
+  });
+
+  it('supports speech for pinyin and flashcard for meaning at the same time', async () => {
+    const user = userEvent.setup();
+    // Start away from the defaults so both clicks fire change events
+    localStorage.setItem('meaningQuizType', 'text');
+    localStorage.setItem('pinyinQuizType', 'text');
+    renderWithProviders(<Settings />, { store: makeStore(true, false) });
+
+    const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
+    const pinyin = screen.getByRole('radiogroup', { name: 'Pinyin' });
+    await user.click(within(meaning).getByRole('radio', { name: 'Flashcard' }));
+    await user.click(within(pinyin).getByRole('radio', { name: 'Speech' }));
+
+    expect(localStorage.getItem('meaningQuizType')).toBe('flashcard');
+    expect(localStorage.getItem('pinyinQuizType')).toBe('speech');
   });
 });
 

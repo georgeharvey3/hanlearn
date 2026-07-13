@@ -169,46 +169,42 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
     </div>
   );
 
-  switch (state.answerCategory) {
-    case 'pinyin':
-      if (state.useFlashcards) {
-        return showAnswerContent;
-      }
-      if (state.useChineseSpeechRecognition) {
-        return state.useTypingInput ? typingInputWithMicToggle : micInput;
-      }
-      return textInput;
-    case 'character':
-      return characterInput;
-    case 'meaning':
-      if (state.useFlashcards) {
-        return showAnswerContent;
-      }
-      if (state.useEnglishSpeechRecognition) {
-        return state.useTypingInput ? typingInputWithMicToggle : micInput;
-      }
-      return textInput;
+  if (state.answerCategory === 'character') {
+    return characterInput;
+  }
+
+  const quizType =
+    state.answerCategory === 'pinyin'
+      ? state.pinyinQuizType
+      : state.answerCategory === 'meaning'
+        ? state.meaningQuizType
+        : 'text';
+
+  switch (quizType) {
+    case 'flashcard':
+      return showAnswerContent;
+    case 'speech':
+      return state.useTypingInput ? typingInputWithMicToggle : micInput;
     default:
       return textInput;
   }
 };
 
 export function getVerb(state: TestState): string {
-  switch (state.answerCategory) {
-    case 'pinyin':
-      if (state.useFlashcards) return 'What is the ';
-      return state.useChineseSpeechRecognition && !state.useTypingInput
-        ? 'Speak the '
-        : 'Enter the ';
-    case 'character':
-      return 'Draw the ';
-    case 'meaning':
-      if (state.useFlashcards) return 'What is the ';
-      if (state.useEnglishSpeechRecognition && !state.useTypingInput) return 'Speak the ';
-      return 'Enter the ';
-    default:
-      return 'Enter the ';
+  if (state.answerCategory === 'character') {
+    return 'Draw the ';
   }
+
+  const quizType =
+    state.answerCategory === 'pinyin'
+      ? state.pinyinQuizType
+      : state.answerCategory === 'meaning'
+        ? state.meaningQuizType
+        : 'text';
+
+  if (quizType === 'flashcard') return 'What is the ';
+  if (quizType === 'speech' && !state.useTypingInput) return 'Speak the ';
+  return 'Enter the ';
 }
 
 export default React.memo(AnswerInput);

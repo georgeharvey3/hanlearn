@@ -38,10 +38,9 @@ vi.mock('./constants', () => ({
     numSpeakTries: 0,
     useSound: false,
     useHandwriting: false,
-    useChineseSpeechRecognition: false,
-    useEnglishSpeechRecognition: false,
+    meaningQuizType: 'text',
+    pinyinQuizType: 'text',
     useAutoRecord: false,
-    useFlashcards: false,
     showErrorMessage: false,
     redoChar: false,
     sentenceWords: [],
@@ -192,10 +191,10 @@ describe('useTestEngine — refreshSettings', () => {
     act(() => {
       result.current.refreshSettings({
         useSound: true,
-        useChineseSpeechRecognition: false,
-        useEnglishSpeechRecognition: false,
+        useSoundEffects: true,
         useAutoRecord: false,
-        useFlashcards: false,
+        meaningQuizType: 'text',
+        pinyinQuizType: 'text',
       });
     });
 
@@ -208,10 +207,10 @@ describe('useTestEngine — refreshSettings', () => {
     act(() => {
       result.current.refreshSettings({
         useSound: true,
-        useChineseSpeechRecognition: false,
-        useEnglishSpeechRecognition: false,
+        useSoundEffects: true,
         useAutoRecord: false,
-        useFlashcards: false,
+        meaningQuizType: 'text',
+        pinyinQuizType: 'text',
       });
     });
 
@@ -224,64 +223,65 @@ describe('useTestEngine — refreshSettings', () => {
     act(() => {
       result.current.refreshSettings({
         useSound: false,
-        useChineseSpeechRecognition: false,
-        useEnglishSpeechRecognition: false,
+        useSoundEffects: true,
         useAutoRecord: true,
-        useFlashcards: false,
+        meaningQuizType: 'text',
+        pinyinQuizType: 'text',
       });
     });
 
     expect(result.current.state.useAutoRecord).toBe(true);
   });
 
-  it('enables useFlashcards via refreshSettings', () => {
+  it('updates quiz types via refreshSettings', () => {
     const result = renderEngineWithState({});
 
     act(() => {
       result.current.refreshSettings({
         useSound: false,
-        useChineseSpeechRecognition: false,
-        useEnglishSpeechRecognition: false,
+        useSoundEffects: true,
         useAutoRecord: false,
-        useFlashcards: true,
+        meaningQuizType: 'flashcard',
+        pinyinQuizType: 'flashcard',
       });
     });
 
-    expect(result.current.state.useFlashcards).toBe(true);
+    expect(result.current.state.meaningQuizType).toBe('flashcard');
+    expect(result.current.state.pinyinQuizType).toBe('flashcard');
   });
 
-  it('disables speech recognition when speechAvailable is false', () => {
+  it('degrades speech quiz types to text when speechAvailable is false', () => {
     const result = renderEngineWithState({}, { speechAvailable: false });
 
     act(() => {
       result.current.refreshSettings({
         useSound: false,
-        useChineseSpeechRecognition: true,
-        useEnglishSpeechRecognition: true,
+        useSoundEffects: true,
         useAutoRecord: false,
-        useFlashcards: false,
+        meaningQuizType: 'speech',
+        pinyinQuizType: 'speech',
       });
     });
 
-    expect(result.current.state.useChineseSpeechRecognition).toBe(false);
-    expect(result.current.state.useEnglishSpeechRecognition).toBe(false);
+    expect(result.current.state.meaningQuizType).toBe('text');
+    expect(result.current.state.pinyinQuizType).toBe('text');
   });
 
-  it('enables speech recognition when speechAvailable is true', () => {
+  it('keeps speech quiz types when speechAvailable is true', () => {
     const result = renderEngineWithState({}, { speechAvailable: true });
 
     act(() => {
       result.current.refreshSettings({
         useSound: false,
-        useChineseSpeechRecognition: true,
-        useEnglishSpeechRecognition: true,
+        useSoundEffects: true,
         useAutoRecord: false,
-        useFlashcards: false,
+        meaningQuizType: 'speech',
+        pinyinQuizType: 'speech',
       });
     });
 
-    expect(result.current.state.useChineseSpeechRecognition).toBe(true);
-    expect(result.current.state.useEnglishSpeechRecognition).toBe(true);
+    expect(result.current.state.meaningQuizType).toBe('speech');
+    expect(result.current.state.pinyinQuizType).toBe('speech');
   });
 });
 

@@ -1,4 +1,4 @@
-import { AudioSettings } from '../../utils/audioSettings';
+import { AudioSettings, QuizType, getQuizType } from '../../utils/audioSettings';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { pinyin } from 'pinyin-pro';
 
@@ -8,6 +8,13 @@ import { Props, TestState, TestStateUpdate } from './types';
 import { WordScore } from '../../types/models';
 import { checkSentenceAvailability, getHintSentence } from '../../services/sentenceService';
 import * as ttsService from '../../services/ttsService';
+
+// Quiz type governing the current answer; character answers are always handwriting
+const answerQuizType = (state: TestState): QuizType | null => {
+  if (state.answerCategory === 'pinyin') return state.pinyinQuizType;
+  if (state.answerCategory === 'meaning') return state.meaningQuizType;
+  return null;
+};
 
 export const useTestEngine = (props: Props) => {
   const [state, setState] = useState<TestState>(() => createInitialState(props));
@@ -127,12 +134,7 @@ export const useTestEngine = (props: Props) => {
         },
         onEnd: () => {
           const latest = getState();
-          if (
-            auto &&
-            !(latest.answerCategory === 'character' || latest.useFlashcards) &&
-            ((latest.answerCategory === 'pinyin' && latest.useChineseSpeechRecognition) ||
-              (latest.answerCategory === 'meaning' && latest.useEnglishSpeechRecognition))
-          ) {
+          if (auto && answerQuizType(latest) === 'speech') {
             onListen();
           }
         },
@@ -366,7 +368,12 @@ export const useTestEngine = (props: Props) => {
       }
 
       setStateMerged({ result: resultString, showHint: false });
-      if (current.useAutoRecord && !current.pauseAutoRecord && !current.useTypingInput) {
+      if (
+        current.useAutoRecord &&
+        !current.pauseAutoRecord &&
+        !current.useTypingInput &&
+        answerQuizType(current) === 'speech'
+      ) {
         onListen();
       }
     }
@@ -811,23 +818,29 @@ export const useTestEngine = (props: Props) => {
       !(localStorage.getItem('useSoundEffects') === 'false') || Boolean(props.isDemo);
     const useHandwriting =
       !(localStorage.getItem('useHandwriting') === 'false') || Boolean(props.isDemo);
-    const useChineseSpeechRecognition =
-      props.speechAvailable &&
-      (!(localStorage.getItem('useChineseSpeechRecognition') === 'false') || Boolean(props.isDemo));
-    const useEnglishSpeechRecognition =
-      props.speechAvailable &&
-      (!(localStorage.getItem('useEnglishSpeechRecognition') === 'false') || Boolean(props.isDemo));
-    const useFlashcards =
-      !(localStorage.getItem('useFlashcards') === 'false') || Boolean(props.isDemo);
+
+    // Speech quiz types degrade to text when the browser lacks speech recognition
+    const resolveQuizType = (category: 'meaning' | 'pinyin'): QuizType => {
+      let quizType = props.isDemo
+        ? category === 'meaning'
+          ? 'flashcard'
+          : 'speech'
+        : getQuizType(category);
+      if (quizType === 'speech' && !props.speechAvailable) {
+        quizType = 'text';
+      }
+      return quizType;
+    };
+    const meaningQuizType = resolveQuizType('meaning');
+    const pinyinQuizType = resolveQuizType('pinyin');
     const useAutoRecord = localStorage.getItem('useAutoRecord') === 'true' && !props.isDemo;
 
     setStateMerged({
       useSound,
       useSoundEffects,
       useHandwriting,
-      useChineseSpeechRecognition,
-      useEnglishSpeechRecognition,
-      useFlashcards,
+      meaningQuizType,
+      pinyinQuizType,
       useAutoRecord,
     });
 
@@ -846,12 +859,9 @@ export const useTestEngine = (props: Props) => {
     (event: KeyboardEvent): void => {
       const current = getState();
       const sourceElement = (event.target as HTMLElement).tagName.toLowerCase();
+      const currentQuizType = answerQuizType(current);
       const micAvailable =
-        ((current.useChineseSpeechRecognition && current.answerCategory === 'pinyin') ||
-          (current.useEnglishSpeechRecognition && current.answerCategory === 'meaning')) &&
-        !current.useFlashcards &&
-        !current.listening &&
-        !current.testFinished;
+        currentQuizType === 'speech' && !current.listening && !current.testFinished;
 
       const speakerAvailable =
         current.useSound &&
@@ -871,7 +881,7 @@ export const useTestEngine = (props: Props) => {
         } else if (sourceElement !== 'input') {
           event.preventDefault();
           (event.target as HTMLElement).blur();
-          if (current.useFlashcards && current.answerCategory !== 'character') {
+          if (currentQuizType === 'flashcard') {
             onShowAnswer();
           } else if (micAvailable && current.answerCategory === 'pinyin') {
             onListen();
@@ -1021,15 +1031,10 @@ export const useTestEngine = (props: Props) => {
     if (
       current.useAutoRecord &&
       !current.useTypingInput &&
-      !current.useFlashcards &&
+      answerQuizType(current) === 'speech' &&
       !(current.questionCategory === 'pinyin' && current.useSound)
     ) {
-      if (current.answerCategory === 'pinyin' && current.useChineseSpeechRecognition) {
-        onListen();
-      }
-      if (current.answerCategory === 'meaning' && current.useEnglishSpeechRecognition) {
-        onListen();
-      }
+      onListen();
     }
     if (current.answerCategory === 'character' && typeof current.answer === 'string') {
       setHanziWriter(current.answer);
@@ -1038,15 +1043,14 @@ export const useTestEngine = (props: Props) => {
 
   const refreshSettings = useCallback(
     (updated: AudioSettings): void => {
+      const clampSpeech = (quizType: QuizType): QuizType =>
+        quizType === 'speech' && !props.speechAvailable ? 'text' : quizType;
       setStateMerged({
         useSound: updated.useSound && Boolean(props.synthAvailable),
         useSoundEffects: updated.useSoundEffects,
-        useChineseSpeechRecognition:
-          updated.useChineseSpeechRecognition && Boolean(props.speechAvailable),
-        useEnglishSpeechRecognition:
-          updated.useEnglishSpeechRecognition && Boolean(props.speechAvailable),
         useAutoRecord: updated.useAutoRecord,
-        useFlashcards: updated.useFlashcards,
+        meaningQuizType: clampSpeech(updated.meaningQuizType),
+        pinyinQuizType: clampSpeech(updated.pinyinQuizType),
       });
     },
     [props.speechAvailable, props.synthAvailable, setStateMerged],

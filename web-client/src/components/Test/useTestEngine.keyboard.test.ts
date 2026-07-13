@@ -39,10 +39,9 @@ vi.mock('./constants', () => ({
     numSpeakTries: 0,
     useSound: false,
     useHandwriting: false,
-    useChineseSpeechRecognition: false,
-    useEnglishSpeechRecognition: false,
+    pinyinQuizType: 'text',
+    meaningQuizType: 'text',
     useAutoRecord: false,
-    useFlashcards: false,
     showErrorMessage: false,
     redoChar: false,
     sentenceWords: [],
@@ -285,8 +284,7 @@ describe('useTestEngine — spacebar triggers onListen for pinyin answers', () =
     const result = renderEngineWithState({
       answerCategory: 'pinyin',
       questionCategory: 'meaning',
-      useChineseSpeechRecognition: true,
-      useFlashcards: false,
+      pinyinQuizType: 'speech',
       listening: false,
       testFinished: false,
       chosenCharacter: '你好',
@@ -440,8 +438,7 @@ describe('useTestEngine — keyboard Ctrl+m triggers onListen', () => {
     const result = renderEngineWithState({
       answerCategory: 'pinyin',
       questionCategory: 'meaning',
-      useChineseSpeechRecognition: true,
-      useFlashcards: false,
+      pinyinQuizType: 'speech',
       listening: false,
       testFinished: false,
       chosenCharacter: '你好',
@@ -498,7 +495,7 @@ describe('useTestEngine — keyboard "a" key toggles auto-record', () => {
 
     const result = renderEngineWithState({
       useAutoRecord: false,
-      useChineseSpeechRecognition: true,
+      pinyinQuizType: 'speech',
       answerCategory: 'pinyin',
       testFinished: false,
       listening: false,

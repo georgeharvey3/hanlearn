@@ -38,10 +38,9 @@ vi.mock('./constants', () => ({
     numSpeakTries: 0,
     useSound: false,
     useHandwriting: false,
-    useChineseSpeechRecognition: false,
-    useEnglishSpeechRecognition: false,
+    pinyinQuizType: 'text',
+    meaningQuizType: 'text',
     useAutoRecord: false,
-    useFlashcards: false,
     showErrorMessage: false,
     redoChar: false,
     sentenceWords: [],
@@ -219,7 +218,7 @@ describe('useTestEngine — keyboard Ctrl+B focuses input', () => {
 // Spacebar + flashcards + meaning triggers onShowAnswer
 // ---------------------------------------------------------------------------
 describe('useTestEngine — spacebar triggers onShowAnswer in flashcard mode', () => {
-  it('reveals the answer when spacebar pressed with useFlashcards=true and answerCategory=meaning', () => {
+  it('reveals the answer when spacebar pressed with meaningQuizType=flashcard', () => {
     const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
@@ -229,8 +228,8 @@ describe('useTestEngine — spacebar triggers onShowAnswer in flashcard mode', (
       testSet: [makeWord()],
       permList: [perm],
       charSet: 'simp',
-      useFlashcards: true,
-      useChineseSpeechRecognition: false,
+      meaningQuizType: 'flashcard',
+      pinyinQuizType: 'text',
       testFinished: false,
       listening: false,
     });
@@ -242,7 +241,7 @@ describe('useTestEngine — spacebar triggers onShowAnswer in flashcard mode', (
     expect(result.current.state.showAnswer).toBe(true);
   });
 
-  it('reveals the answer when spacebar pressed with useFlashcards=true and answerCategory=pinyin', () => {
+  it('reveals the answer when spacebar pressed with pinyinQuizType=flashcard', () => {
     const perm = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
     const result = renderEngineWithState({
       answerCategory: 'pinyin',
@@ -253,8 +252,7 @@ describe('useTestEngine — spacebar triggers onShowAnswer in flashcard mode', (
       testSet: [makeWord()],
       permList: [perm],
       charSet: 'simp',
-      useFlashcards: true,
-      useChineseSpeechRecognition: true,
+      pinyinQuizType: 'flashcard',
       testFinished: false,
       listening: false,
     });
@@ -285,9 +283,8 @@ describe('useTestEngine — spacebar triggers onSpeak when speaker available', (
       permList: [perm],
       charSet: 'simp',
       useSound: true,
-      useFlashcards: false,
-      useChineseSpeechRecognition: false,
-      useEnglishSpeechRecognition: false,
+      pinyinQuizType: 'text',
+      meaningQuizType: 'text',
       testFinished: false,
       listening: false,
     });
