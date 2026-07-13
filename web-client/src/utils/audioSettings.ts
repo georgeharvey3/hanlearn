@@ -19,13 +19,6 @@ export const getAudioSettings = (): AudioSettings => ({
 export const setAudioSetting = (key: keyof AudioSettings, value: boolean): AudioSettings => {
   localStorage.setItem(key, String(value));
 
-  if (key === 'useEnglishSpeechRecognition' && value) {
-    localStorage.setItem('useFlashcards', 'false');
-  }
-  if (key === 'useFlashcards' && value) {
-    localStorage.setItem('useEnglishSpeechRecognition', 'false');
-  }
-
   return getAudioSettings();
 };
 
@@ -62,11 +55,6 @@ export const getAudioSettingItems = (
   {
     key: 'useAutoRecord',
     label: 'Automatic recording',
-    disabled: false,
-  },
-  {
-    key: 'useFlashcards',
-    label: 'Meaning flashcards',
     disabled: false,
   },
 ];

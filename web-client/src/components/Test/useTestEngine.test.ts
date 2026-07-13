@@ -594,6 +594,7 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
       questionCategory: 'meaning',
       useAutoRecord: true,
       useChineseSpeechRecognition: true,
+      useFlashcards: false,
       useTypingInput: false,
       useSound: false,
       useHandwriting: false,

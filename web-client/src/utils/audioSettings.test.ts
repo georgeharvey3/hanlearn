@@ -42,35 +42,29 @@ describe('audioSettings', () => {
       expect(result.useSound).toBe(false);
     });
 
-    it('disables flashcards when enabling English speech recognition', () => {
+    it('leaves speech recognition settings untouched when changing flashcards', () => {
+      localStorage.setItem('useEnglishSpeechRecognition', 'true');
+      localStorage.setItem('useChineseSpeechRecognition', 'true');
+      const result = setAudioSetting('useFlashcards', true);
+      expect(result.useFlashcards).toBe(true);
+      expect(result.useEnglishSpeechRecognition).toBe(true);
+      expect(result.useChineseSpeechRecognition).toBe(true);
+    });
+
+    it('leaves flashcards untouched when changing English speech recognition', () => {
       localStorage.setItem('useFlashcards', 'true');
       const result = setAudioSetting('useEnglishSpeechRecognition', true);
       expect(result.useEnglishSpeechRecognition).toBe(true);
-      expect(result.useFlashcards).toBe(false);
-      expect(localStorage.getItem('useFlashcards')).toBe('false');
-    });
-
-    it('disables English speech recognition when enabling flashcards', () => {
-      localStorage.setItem('useEnglishSpeechRecognition', 'true');
-      const result = setAudioSetting('useFlashcards', true);
       expect(result.useFlashcards).toBe(true);
-      expect(result.useEnglishSpeechRecognition).toBe(false);
-      expect(localStorage.getItem('useEnglishSpeechRecognition')).toBe('false');
-    });
-
-    it('does not trigger mutual exclusivity when disabling', () => {
-      localStorage.setItem('useFlashcards', 'true');
-      localStorage.setItem('useEnglishSpeechRecognition', 'true');
-      const result = setAudioSetting('useEnglishSpeechRecognition', false);
-      expect(result.useEnglishSpeechRecognition).toBe(false);
-      expect(result.useFlashcards).toBe(true);
+      expect(localStorage.getItem('useFlashcards')).toBe('true');
     });
   });
 
   describe('getAudioSettingItems', () => {
-    it('returns 6 items', () => {
+    it('returns 5 items (quiz type is rendered separately)', () => {
       const items = getAudioSettingItems(true, true);
-      expect(items).toHaveLength(6);
+      expect(items).toHaveLength(5);
+      expect(items.find((i) => i.key === 'useFlashcards')).toBeUndefined();
     });
 
     it('disables sound when synthAvailable is false', () => {
@@ -87,12 +81,10 @@ describe('audioSettings', () => {
       expect(english?.disabled).toBe(true);
     });
 
-    it('does not disable autoRecord or flashcards based on availability', () => {
+    it('does not disable autoRecord based on availability', () => {
       const items = getAudioSettingItems(false, false);
       const auto = items.find((i) => i.key === 'useAutoRecord');
-      const flash = items.find((i) => i.key === 'useFlashcards');
       expect(auto?.disabled).toBe(false);
-      expect(flash?.disabled).toBe(false);
     });
   });
 });

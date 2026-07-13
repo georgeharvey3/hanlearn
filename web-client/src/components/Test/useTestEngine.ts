@@ -129,10 +129,7 @@ export const useTestEngine = (props: Props) => {
           const latest = getState();
           if (
             auto &&
-            !(
-              latest.answerCategory === 'character' ||
-              (latest.answerCategory === 'meaning' && latest.useFlashcards)
-            ) &&
+            !(latest.answerCategory === 'character' || latest.useFlashcards) &&
             ((latest.answerCategory === 'pinyin' && latest.useChineseSpeechRecognition) ||
               (latest.answerCategory === 'meaning' && latest.useEnglishSpeechRecognition))
           ) {
@@ -821,8 +818,7 @@ export const useTestEngine = (props: Props) => {
       props.speechAvailable &&
       (!(localStorage.getItem('useEnglishSpeechRecognition') === 'false') || Boolean(props.isDemo));
     const useFlashcards =
-      (props.speechAvailable && !(localStorage.getItem('useFlashcards') === 'false')) ||
-      Boolean(props.isDemo);
+      !(localStorage.getItem('useFlashcards') === 'false') || Boolean(props.isDemo);
     const useAutoRecord = localStorage.getItem('useAutoRecord') === 'true' && !props.isDemo;
 
     setStateMerged({
@@ -853,6 +849,7 @@ export const useTestEngine = (props: Props) => {
       const micAvailable =
         ((current.useChineseSpeechRecognition && current.answerCategory === 'pinyin') ||
           (current.useEnglishSpeechRecognition && current.answerCategory === 'meaning')) &&
+        !current.useFlashcards &&
         !current.listening &&
         !current.testFinished;
 
@@ -874,10 +871,10 @@ export const useTestEngine = (props: Props) => {
         } else if (sourceElement !== 'input') {
           event.preventDefault();
           (event.target as HTMLElement).blur();
-          if (micAvailable && current.answerCategory === 'pinyin') {
-            onListen();
-          } else if (current.useFlashcards && current.answerCategory === 'meaning') {
+          if (current.useFlashcards && current.answerCategory !== 'character') {
             onShowAnswer();
+          } else if (micAvailable && current.answerCategory === 'pinyin') {
+            onListen();
           } else if (speakerAvailable && current.chosenCharacter) {
             onSpeak(current.chosenCharacter);
           }
@@ -1024,15 +1021,14 @@ export const useTestEngine = (props: Props) => {
     if (
       current.useAutoRecord &&
       !current.useTypingInput &&
+      !current.useFlashcards &&
       !(current.questionCategory === 'pinyin' && current.useSound)
     ) {
       if (current.answerCategory === 'pinyin' && current.useChineseSpeechRecognition) {
         onListen();
       }
-      if (current.answerCategory === 'meaning') {
-        if (!current.useFlashcards && current.useEnglishSpeechRecognition) {
-          onListen();
-        }
+      if (current.answerCategory === 'meaning' && current.useEnglishSpeechRecognition) {
+        onListen();
       }
     }
     if (current.answerCategory === 'character' && typeof current.answer === 'string') {

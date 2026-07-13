@@ -241,6 +241,31 @@ describe('useTestEngine — spacebar triggers onShowAnswer in flashcard mode', (
 
     expect(result.current.state.showAnswer).toBe(true);
   });
+
+  it('reveals the answer when spacebar pressed with useFlashcards=true and answerCategory=pinyin', () => {
+    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
+    const result = renderEngineWithState({
+      answerCategory: 'pinyin',
+      questionCategory: 'meaning',
+      answer: 'ni3 hao3',
+      chosenCharacter: '你好',
+      perm,
+      testSet: [makeWord()],
+      permList: [perm],
+      charSet: 'simp',
+      useFlashcards: true,
+      useChineseSpeechRecognition: true,
+      testFinished: false,
+      listening: false,
+    });
+
+    act(() => {
+      fireKeyUp(' ');
+    });
+
+    expect(result.current.state.showAnswer).toBe(true);
+    expect(result.current.state.result).toBe("Answer was: 'ni3 hao3'");
+  });
 });
 
 // ---------------------------------------------------------------------------

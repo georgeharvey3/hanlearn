@@ -136,6 +136,15 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
     }
   }, []);
 
+  const onQuizTypeChange = useCallback((e: ChangeEvent<HTMLInputElement>): void => {
+    const useFlashcards = e.target.value === 'flashcard';
+    setState((prev) => ({
+      ...prev,
+      useFlashcards,
+    }));
+    localStorage.setItem('useFlashcards', String(useFlashcards));
+  }, []);
+
   const onSliderChange = useCallback((_e: Event, value: number | number[]): void => {
     const numValue = value as number;
     setState((prev) => ({
@@ -155,14 +164,6 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
         [key]: !prev[key],
       } as SettingsState;
 
-      if (key === 'useEnglishSpeechRecognition' && checked) {
-        nextState.useFlashcards = false;
-      }
-
-      if (key === 'useFlashcards' && checked) {
-        nextState.useEnglishSpeechRecognition = false;
-      }
-
       if (key === 'useHandwriting' && !checked) {
         nextState.priority = 'none';
         nextState.onlyPriority = false;
@@ -172,14 +173,6 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
     });
 
     localStorage.setItem(e.target.value, String(checked));
-
-    if (e.target.value === 'useEnglishSpeechRecognition' && checked) {
-      localStorage.setItem('useFlashcards', 'false');
-    }
-
-    if (e.target.value === 'useFlashcards' && checked) {
-      localStorage.setItem('useEnglishSpeechRecognition', 'false');
-    }
 
     if (e.target.value === 'useHandwriting' && !checked) {
       localStorage.setItem('priority', 'none');
@@ -220,13 +213,6 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
       value: 'useAutoRecord',
       label: 'Automatic recording',
       checked: state.useAutoRecord,
-      disabled: false,
-      disabledTooltip: '',
-    },
-    {
-      value: 'useFlashcards',
-      label: 'Meaning flashcards',
-      checked: state.useFlashcards,
       disabled: false,
       disabledTooltip: '',
     },
@@ -364,6 +350,25 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
           >
             Estimated test time: {timeEstimate}
           </Typography>
+        </Box>
+      </SectionGroup>
+
+      <SectionGroup label="Quiz Type">
+        <Box sx={{ px: 2, py: 0.5 }}>
+          <RadioGroup
+            name="quizType"
+            value={state.useFlashcards ? 'flashcard' : 'input'}
+            onChange={onQuizTypeChange}
+            row
+            sx={{ gap: 1 }}
+          >
+            <FormControlLabel value="input" control={<Radio size="small" />} label="Input" />
+            <FormControlLabel
+              value="flashcard"
+              control={<Radio size="small" />}
+              label="Flashcard"
+            />
+          </RadioGroup>
         </Box>
       </SectionGroup>
 

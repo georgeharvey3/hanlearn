@@ -171,6 +171,9 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
 
   switch (state.answerCategory) {
     case 'pinyin':
+      if (state.useFlashcards) {
+        return showAnswerContent;
+      }
       if (state.useChineseSpeechRecognition) {
         return state.useTypingInput ? typingInputWithMicToggle : micInput;
       }
@@ -193,6 +196,7 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
 export function getVerb(state: TestState): string {
   switch (state.answerCategory) {
     case 'pinyin':
+      if (state.useFlashcards) return 'What is the ';
       return state.useChineseSpeechRecognition && !state.useTypingInput
         ? 'Speak the '
         : 'Enter the ';

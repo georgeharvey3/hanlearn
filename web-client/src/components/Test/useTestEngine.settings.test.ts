@@ -173,16 +173,16 @@ describe('useTestEngine — initialiseSettings reads localStorage correctly', ()
     expect(result.current.state.useSoundEffects).toBe(false);
   });
 
-  it('disables flashcards when speechAvailable=false regardless of localStorage', () => {
+  it('enables flashcards by default even when speechAvailable=false', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => null);
 
     const props = makeProps({ speechAvailable: false });
     const { result } = renderHook(() => useTestEngine(props));
 
-    expect(result.current.state.useFlashcards).toBe(false);
+    expect(result.current.state.useFlashcards).toBe(true);
   });
 
-  it('enables flashcards when speechAvailable=true and localStorage is not "false"', () => {
+  it('enables flashcards when localStorage is not "false"', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => null);
 
     const props = makeProps({ speechAvailable: true });

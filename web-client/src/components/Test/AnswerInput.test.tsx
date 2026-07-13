@@ -286,6 +286,52 @@ describe('AnswerInput — meaning with flashcards', () => {
   });
 });
 
+describe('AnswerInput — pinyin with flashcards', () => {
+  it('renders "Show Answer" button when showAnswer is false', () => {
+    renderAnswerInput({
+      answerCategory: 'pinyin',
+      useFlashcards: true,
+      useChineseSpeechRecognition: true,
+      showAnswer: false,
+    });
+    expect(screen.getByRole('button', { name: /show answer/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/record speech/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/enter your answer/i)).not.toBeInTheDocument();
+  });
+
+  it('renders like/dislike buttons when showAnswer is true', () => {
+    renderAnswerInput({ answerCategory: 'pinyin', useFlashcards: true, showAnswer: true });
+    expect(screen.getByLabelText(/i knew this/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/i didn't know this/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /show answer/i })).not.toBeInTheDocument();
+  });
+
+  it('calls onShowAnswer when "Show Answer" button is clicked', () => {
+    const onShowAnswer = vi.fn();
+    const state = {
+      ...baseState,
+      answerCategory: 'pinyin',
+      useFlashcards: true,
+      showAnswer: false,
+    } as unknown as TestState;
+    render(
+      <AnswerInput
+        state={state}
+        onKeyPress={noop as any}
+        onInputChanged={noop as any}
+        onFocusEntry={noop as any}
+        onListen={noop}
+        onShowAnswer={onShowAnswer}
+        onCorrectAnswer={noop}
+        onIDontKnow={noop}
+        setStateMerged={noop as any}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /show answer/i }));
+    expect(onShowAnswer).toHaveBeenCalled();
+  });
+});
+
 describe('AnswerInput — meaning with English speech recognition', () => {
   it('renders mic input when useEnglishSpeechRecognition=true and useTypingInput=false', () => {
     renderAnswerInput({
@@ -348,6 +394,16 @@ describe('getVerb', () => {
       useTypingInput: true,
     } as unknown as TestState;
     expect(getVerb(state)).toBe('Enter the ');
+  });
+
+  it('returns "What is the " for pinyin with flashcards', () => {
+    const state = {
+      ...baseState,
+      answerCategory: 'pinyin',
+      useFlashcards: true,
+      useChineseSpeechRecognition: true,
+    } as unknown as TestState;
+    expect(getVerb(state)).toBe('What is the ');
   });
 
   it('returns "Draw the " for character', () => {

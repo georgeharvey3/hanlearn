@@ -5,7 +5,7 @@
  * - Reads initial state from localStorage
  * - Radio buttons update charSet and persist to localStorage
  * - Checkboxes toggle boolean settings and persist to localStorage
- * - Mutual exclusion: enabling English speech disables flashcards (and vice versa)
+ * - Quiz type radio (Input/Flashcard) persists to localStorage
  * - Disabling handwriting resets priority to none
  * - Disabling handwriting disables the Writing priority option
  * - Slider updates numWords and persists to localStorage
@@ -115,13 +115,26 @@ describe('Settings — checkbox toggles', () => {
     expect(localStorage.getItem('useSound')).toBe('false');
   });
 
-  it('toggling Meaning flashcards persists to localStorage', async () => {
+  it('switching quiz type to Input persists to localStorage', async () => {
     const user = userEvent.setup();
     renderWithProviders(<Settings />, { store: makeStore() });
 
-    const flashcardsCheckbox = screen.getByRole('checkbox', { name: /meaning flashcards/i });
-    await user.click(flashcardsCheckbox);
+    // Default is Flashcard
+    expect(screen.getByRole('radio', { name: /flashcard/i })).toBeChecked();
+
+    await user.click(screen.getByRole('radio', { name: /input/i }));
     expect(localStorage.getItem('useFlashcards')).toBe('false');
+  });
+
+  it('switching quiz type back to Flashcard persists to localStorage', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('useFlashcards', 'false');
+    renderWithProviders(<Settings />, { store: makeStore() });
+
+    expect(screen.getByRole('radio', { name: /input/i })).toBeChecked();
+
+    await user.click(screen.getByRole('radio', { name: /flashcard/i }));
+    expect(localStorage.getItem('useFlashcards')).toBe('true');
   });
 
   it('toggling Handwriting input persists to localStorage', async () => {
@@ -143,11 +156,12 @@ describe('Settings — checkbox toggles', () => {
   });
 });
 
-describe('Settings — mutual exclusion rules', () => {
-  it('enabling English speech recognition disables Meaning flashcards', async () => {
+describe('Settings — quiz type independence', () => {
+  it('enabling English speech recognition leaves quiz type unchanged', async () => {
     const user = userEvent.setup();
-    // Start with speechAvailable=true, English speech off
+    // Start with speechAvailable=true, English speech off, flashcard mode on
     localStorage.setItem('useEnglishSpeechRecognition', 'false');
+    localStorage.setItem('useFlashcards', 'true');
     renderWithProviders(<Settings />, { store: makeStore(true, false) });
 
     const englishSpeechCheckbox = screen.getByRole('checkbox', {
@@ -155,22 +169,23 @@ describe('Settings — mutual exclusion rules', () => {
     });
     await user.click(englishSpeechCheckbox);
 
-    expect(localStorage.getItem('useFlashcards')).toBe('false');
+    expect(localStorage.getItem('useFlashcards')).toBe('true');
+    expect(screen.getByRole('radio', { name: /flashcard/i })).toBeChecked();
   });
 
-  it('enabling Meaning flashcards disables English speech recognition', async () => {
+  it('switching to Flashcard quiz type leaves speech recognition unchanged', async () => {
     const user = userEvent.setup();
-    // Start with flashcards off, English speech on
     localStorage.setItem('useFlashcards', 'false');
     localStorage.setItem('useEnglishSpeechRecognition', 'true');
     renderWithProviders(<Settings />, { store: makeStore(true, false) });
 
-    const flashcardsCheckbox = screen.getByRole('checkbox', { name: /meaning flashcards/i });
-    await user.click(flashcardsCheckbox);
+    await user.click(screen.getByRole('radio', { name: /flashcard/i }));
 
-    expect(localStorage.getItem('useEnglishSpeechRecognition')).toBe('false');
+    expect(localStorage.getItem('useEnglishSpeechRecognition')).toBe('true');
   });
+});
 
+describe('Settings — mutual exclusion rules', () => {
   it('disabling Handwriting input resets priority to none', async () => {
     const user = userEvent.setup();
     // Set priority to Writing (CM) first

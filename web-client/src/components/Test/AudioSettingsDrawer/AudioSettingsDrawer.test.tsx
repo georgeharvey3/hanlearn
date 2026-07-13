@@ -24,12 +24,18 @@ describe('AudioSettingsDrawer', () => {
     expect(screen.getByText('Chinese speech recognition')).toBeInTheDocument();
     expect(screen.getByText('English speech recognition')).toBeInTheDocument();
     expect(screen.getByText('Automatic recording')).toBeInTheDocument();
-    expect(screen.getByText('Meaning flashcards')).toBeInTheDocument();
+  });
+
+  it('renders the quiz type radio group', () => {
+    render(<AudioSettingsDrawer {...defaultProps} />);
+    expect(screen.getByText('Quiz type')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Input' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Flashcard' })).toBeInTheDocument();
   });
 
   it('renders the title', () => {
     render(<AudioSettingsDrawer {...defaultProps} />);
-    expect(screen.getByText('Audio & Voice Settings')).toBeInTheDocument();
+    expect(screen.getByText('Test Settings')).toBeInTheDocument();
   });
 
   it('disables text-to-speech checkbox when synthAvailable is false', () => {
@@ -58,21 +64,31 @@ describe('AudioSettingsDrawer', () => {
     expect(localStorage.getItem('useSoundEffects')).toBe('false');
   });
 
-  it('enforces mutual exclusivity between English speech recognition and flashcards', async () => {
+  it('switching quiz type updates localStorage', async () => {
     const user = userEvent.setup();
-    localStorage.setItem('useEnglishSpeechRecognition', 'false');
     render(<AudioSettingsDrawer {...defaultProps} />);
 
-    const flashcards = screen.getByRole('checkbox', { name: 'Meaning flashcards' });
-    const english = screen.getByRole('checkbox', { name: 'English speech recognition' });
+    const inputRadio = screen.getByRole('radio', { name: 'Input' });
+    const flashcardRadio = screen.getByRole('radio', { name: 'Flashcard' });
 
-    // Flashcards is checked, English is unchecked
-    expect(flashcards).toBeChecked();
-    expect(english).not.toBeChecked();
+    // Default is flashcard mode (localStorage empty)
+    expect(flashcardRadio).toBeChecked();
 
-    // Enable English → flashcards should become unchecked
-    await user.click(english);
+    await user.click(inputRadio);
     expect(localStorage.getItem('useFlashcards')).toBe('false');
+    expect(inputRadio).toBeChecked();
+
+    await user.click(flashcardRadio);
+    expect(localStorage.getItem('useFlashcards')).toBe('true');
+  });
+
+  it('switching quiz type does not affect speech recognition settings', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('useEnglishSpeechRecognition', 'true');
+    render(<AudioSettingsDrawer {...defaultProps} />);
+
+    await user.click(screen.getByRole('radio', { name: 'Flashcard' }));
+    expect(localStorage.getItem('useEnglishSpeechRecognition')).toBe('true');
   });
 
   it('does not render checkboxes when closed', () => {
