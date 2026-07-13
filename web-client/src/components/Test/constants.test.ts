@@ -124,7 +124,7 @@ describe('createInitialState', () => {
     expect(state.useSound).toBe(true);
     expect(state.useSoundEffects).toBe(true);
     expect(state.useHandwriting).toBe(true);
-    expect(state.meaningQuizType).toBe('speech');
-    expect(state.pinyinQuizType).toBe('speech');
+    expect(state.meaningQuizType).toBe('input');
+    expect(state.pinyinQuizType).toBe('input');
   });
 });

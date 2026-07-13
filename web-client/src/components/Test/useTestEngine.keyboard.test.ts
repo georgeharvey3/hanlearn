@@ -33,14 +33,13 @@ vi.mock('./constants', () => ({
     idkList: [],
     scoreList: [],
     testFinished: false,
-    showInput: false,
     showInputChars: [],
     drawnCharacters: [],
     numSpeakTries: 0,
     useSound: false,
     useHandwriting: false,
-    pinyinQuizType: 'text',
-    meaningQuizType: 'text',
+    pinyinQuizType: 'input',
+    meaningQuizType: 'input',
     useAutoRecord: false,
     showErrorMessage: false,
     redoChar: false,
@@ -64,7 +63,6 @@ vi.mock('./constants', () => ({
     speechLoading: false,
     interaction: false,
     speechResult: false,
-    useTypingInput: false,
   })),
 }));
 
@@ -281,18 +279,21 @@ describe('useTestEngine — spacebar triggers onListen for pinyin answers', () =
     const mockRecognition = setupRecognitionMock();
 
     const perm = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
-    const result = renderEngineWithState({
-      answerCategory: 'pinyin',
-      questionCategory: 'meaning',
-      pinyinQuizType: 'speech',
-      listening: false,
-      testFinished: false,
-      chosenCharacter: '你好',
-      perm,
-      testSet: [makeWord()],
-      permList: [perm],
-      charSet: 'simp',
-    });
+    const result = renderEngineWithState(
+      {
+        answerCategory: 'pinyin',
+        questionCategory: 'meaning',
+        pinyinQuizType: 'input',
+        listening: false,
+        testFinished: false,
+        chosenCharacter: '你好',
+        perm,
+        testSet: [makeWord()],
+        permList: [perm],
+        charSet: 'simp',
+      },
+      { speechAvailable: true },
+    );
 
     act(() => {
       fireKeyUp(' ');
@@ -435,18 +436,21 @@ describe('useTestEngine — keyboard Ctrl+m triggers onListen', () => {
     const mockRecognition = setupRecognitionMock();
 
     const perm = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
-    const result = renderEngineWithState({
-      answerCategory: 'pinyin',
-      questionCategory: 'meaning',
-      pinyinQuizType: 'speech',
-      listening: false,
-      testFinished: false,
-      chosenCharacter: '你好',
-      perm,
-      testSet: [makeWord()],
-      permList: [perm],
-      charSet: 'simp',
-    });
+    const result = renderEngineWithState(
+      {
+        answerCategory: 'pinyin',
+        questionCategory: 'meaning',
+        pinyinQuizType: 'input',
+        listening: false,
+        testFinished: false,
+        chosenCharacter: '你好',
+        perm,
+        testSet: [makeWord()],
+        permList: [perm],
+        charSet: 'simp',
+      },
+      { speechAvailable: true },
+    );
 
     act(() => {
       fireKeyUp('m', { ctrlKey: true });
@@ -495,7 +499,7 @@ describe('useTestEngine — keyboard "a" key toggles auto-record', () => {
 
     const result = renderEngineWithState({
       useAutoRecord: false,
-      pinyinQuizType: 'speech',
+      pinyinQuizType: 'input',
       answerCategory: 'pinyin',
       testFinished: false,
       listening: false,

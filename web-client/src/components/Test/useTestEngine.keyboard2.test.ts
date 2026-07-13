@@ -1,6 +1,6 @@
 /**
  * Additional keyboard tests for useTestEngine — covers previously untested paths:
- * - Ctrl+B focuses answer-input or secondary-input
+ * - Ctrl+B focuses the answer input
  * - Spacebar + flashcards + meaning triggers onShowAnswer
  * - Spacebar + speaker available triggers onSpeak
  * - Spacebar when testFinished is ignored
@@ -32,14 +32,13 @@ vi.mock('./constants', () => ({
     idkList: [],
     scoreList: [],
     testFinished: false,
-    showInput: false,
     showInputChars: [],
     drawnCharacters: [],
     numSpeakTries: 0,
     useSound: false,
     useHandwriting: false,
-    pinyinQuizType: 'text',
-    meaningQuizType: 'text',
+    pinyinQuizType: 'input',
+    meaningQuizType: 'input',
     useAutoRecord: false,
     showErrorMessage: false,
     redoChar: false,
@@ -63,7 +62,6 @@ vi.mock('./constants', () => ({
     speechLoading: false,
     interaction: false,
     speechResult: false,
-    useTypingInput: false,
     useSoundEffects: false,
   })),
 }));
@@ -187,23 +185,7 @@ describe('useTestEngine — keyboard Ctrl+B focuses input', () => {
     document.body.removeChild(input);
   });
 
-  it('focuses the secondary-input element when answer-input does not exist', () => {
-    const secondaryInput = document.createElement('input');
-    secondaryInput.id = 'secondary-input';
-    document.body.appendChild(secondaryInput);
-    const focusSpy = vi.spyOn(secondaryInput, 'focus');
-
-    renderEngineWithState({});
-
-    act(() => {
-      fireKeyUp('b', { ctrlKey: true });
-    });
-
-    expect(focusSpy).toHaveBeenCalled();
-    document.body.removeChild(secondaryInput);
-  });
-
-  it('does nothing when neither input element exists', () => {
+  it('does nothing when the input element does not exist', () => {
     // Just verifying no error is thrown
     renderEngineWithState({});
 
@@ -229,7 +211,7 @@ describe('useTestEngine — spacebar triggers onShowAnswer in flashcard mode', (
       permList: [perm],
       charSet: 'simp',
       meaningQuizType: 'flashcard',
-      pinyinQuizType: 'text',
+      pinyinQuizType: 'input',
       testFinished: false,
       listening: false,
     });
@@ -283,8 +265,8 @@ describe('useTestEngine — spacebar triggers onSpeak when speaker available', (
       permList: [perm],
       charSet: 'simp',
       useSound: true,
-      pinyinQuizType: 'text',
-      meaningQuizType: 'text',
+      pinyinQuizType: 'input',
+      meaningQuizType: 'input',
       testFinished: false,
       listening: false,
     });

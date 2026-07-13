@@ -23,7 +23,6 @@ export interface TestState {
   idkList: string[];
   scoreList: WordScore[];
   testFinished: boolean;
-  showInput: boolean;
   showInputChars: string[];
   drawnCharacters: string[];
   numSpeakTries: number;
@@ -55,7 +54,6 @@ export interface TestState {
   speechLoading: boolean;
   interaction: boolean;
   speechResult: boolean;
-  useTypingInput: boolean;
 }
 
 export interface ReduxProps {

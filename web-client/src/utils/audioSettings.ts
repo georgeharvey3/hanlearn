@@ -1,26 +1,22 @@
-export type QuizType = 'text' | 'speech' | 'flashcard';
+export type QuizType = 'input' | 'flashcard';
 
 export type QuizCategory = 'meaning' | 'pinyin';
 
 const quizTypeKey = (category: QuizCategory): string =>
   category === 'meaning' ? 'meaningQuizType' : 'pinyinQuizType';
 
-const isQuizType = (value: string | null): value is QuizType =>
-  value === 'text' || value === 'speech' || value === 'flashcard';
-
 export const getQuizType = (category: QuizCategory): QuizType => {
   const stored = localStorage.getItem(quizTypeKey(category));
-  if (isQuizType(stored)) {
-    return stored;
-  }
+  if (stored === 'flashcard') return 'flashcard';
+  // 'text' and 'speech' are legacy values from when input mode was split in two
+  if (stored === 'input' || stored === 'text' || stored === 'speech') return 'input';
 
-  // Fall back to the legacy boolean settings so preferences saved before the
+  // Fall back to the legacy boolean setting so preferences saved before the
   // per-answer-type quiz setting existed (and e2e fixtures) carry over.
-  if (category === 'meaning') {
-    if (localStorage.getItem('useFlashcards') !== 'false') return 'flashcard';
-    return localStorage.getItem('useEnglishSpeechRecognition') !== 'false' ? 'speech' : 'text';
+  if (category === 'meaning' && localStorage.getItem('useFlashcards') !== 'false') {
+    return 'flashcard';
   }
-  return localStorage.getItem('useChineseSpeechRecognition') !== 'false' ? 'speech' : 'text';
+  return 'input';
 };
 
 export const setQuizType = (category: QuizCategory, value: QuizType): void => {

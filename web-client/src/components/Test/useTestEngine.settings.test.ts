@@ -27,15 +27,14 @@ vi.mock('./constants', () => ({
     idkList: [],
     scoreList: [],
     testFinished: false,
-    showInput: false,
     showInputChars: [],
     drawnCharacters: [],
     numSpeakTries: 0,
     useSound: false,
     useSoundEffects: false,
     useHandwriting: false,
-    pinyinQuizType: 'text',
-    meaningQuizType: 'text',
+    pinyinQuizType: 'input',
+    meaningQuizType: 'input',
     useAutoRecord: false,
     showErrorMessage: false,
     redoChar: false,
@@ -59,7 +58,6 @@ vi.mock('./constants', () => ({
     speechLoading: false,
     interaction: false,
     speechResult: false,
-    useTypingInput: false,
   })),
 }));
 
@@ -172,19 +170,19 @@ describe('useTestEngine — initialiseSettings reads localStorage correctly', ()
     expect(result.current.state.useSoundEffects).toBe(false);
   });
 
-  it('defaults to meaning=flashcard and pinyin=speech when localStorage is empty', () => {
+  it('defaults to meaning=flashcard and pinyin=input when localStorage is empty', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => null);
 
     const props = makeProps({ speechAvailable: true });
     const { result } = renderHook(() => useTestEngine(props));
 
     expect(result.current.state.meaningQuizType).toBe('flashcard');
-    expect(result.current.state.pinyinQuizType).toBe('speech');
+    expect(result.current.state.pinyinQuizType).toBe('input');
   });
 
   it('reads stored quiz types from localStorage', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
-      if (key === 'meaningQuizType') return 'text';
+      if (key === 'meaningQuizType') return 'input';
       if (key === 'pinyinQuizType') return 'flashcard';
       return null;
     });
@@ -192,11 +190,25 @@ describe('useTestEngine — initialiseSettings reads localStorage correctly', ()
     const props = makeProps({ speechAvailable: true });
     const { result } = renderHook(() => useTestEngine(props));
 
-    expect(result.current.state.meaningQuizType).toBe('text');
+    expect(result.current.state.meaningQuizType).toBe('input');
     expect(result.current.state.pinyinQuizType).toBe('flashcard');
   });
 
-  it('maps legacy useFlashcards="false" to a non-flashcard meaning quiz type', () => {
+  it('maps the legacy text and speech quiz type values to input', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
+      if (key === 'meaningQuizType') return 'text';
+      if (key === 'pinyinQuizType') return 'speech';
+      return null;
+    });
+
+    const props = makeProps({ speechAvailable: true });
+    const { result } = renderHook(() => useTestEngine(props));
+
+    expect(result.current.state.meaningQuizType).toBe('input');
+    expect(result.current.state.pinyinQuizType).toBe('input');
+  });
+
+  it('maps legacy useFlashcards="false" to meaning=input', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
       if (key === 'useFlashcards') return 'false';
       return null;
@@ -205,24 +217,10 @@ describe('useTestEngine — initialiseSettings reads localStorage correctly', ()
     const props = makeProps({ speechAvailable: true });
     const { result } = renderHook(() => useTestEngine(props));
 
-    expect(result.current.state.meaningQuizType).toBe('speech');
+    expect(result.current.state.meaningQuizType).toBe('input');
   });
 
-  it('degrades speech quiz types to text when speechAvailable=false', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
-      if (key === 'meaningQuizType') return 'speech';
-      if (key === 'pinyinQuizType') return 'speech';
-      return null;
-    });
-
-    const props = makeProps({ speechAvailable: false });
-    const { result } = renderHook(() => useTestEngine(props));
-
-    expect(result.current.state.meaningQuizType).toBe('text');
-    expect(result.current.state.pinyinQuizType).toBe('text');
-  });
-
-  it('forces demo mode to meaning=flashcard and pinyin=speech regardless of localStorage', () => {
+  it('forces demo mode to meaning=flashcard and pinyin=input regardless of localStorage', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => 'false');
 
     const props = makeProps({
@@ -236,17 +234,7 @@ describe('useTestEngine — initialiseSettings reads localStorage correctly', ()
     expect(result.current.state.useSoundEffects).toBe(true);
     expect(result.current.state.useHandwriting).toBe(true);
     expect(result.current.state.meaningQuizType).toBe('flashcard');
-    expect(result.current.state.pinyinQuizType).toBe('speech');
-  });
-
-  it('degrades the demo pinyin quiz type to text when speechAvailable=false', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => null);
-
-    const props = makeProps({ isDemo: true, speechAvailable: false });
-    const { result } = renderHook(() => useTestEngine(props));
-
-    expect(result.current.state.meaningQuizType).toBe('flashcard');
-    expect(result.current.state.pinyinQuizType).toBe('text');
+    expect(result.current.state.pinyinQuizType).toBe('input');
   });
 });
 

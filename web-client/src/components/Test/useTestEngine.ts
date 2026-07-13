@@ -97,7 +97,7 @@ export const useTestEngine = (props: Props) => {
       const latest = getState();
       setStateMerged({ listening: false, speechLoading: false, speechResult: false });
       if (!result && !latest.idkDisabled) {
-        setStateMerged({ result: "Couldn't hear anything...", showInput: true });
+        setStateMerged({ result: "Couldn't hear anything..." });
       }
     });
 
@@ -134,7 +134,7 @@ export const useTestEngine = (props: Props) => {
         },
         onEnd: () => {
           const latest = getState();
-          if (auto && answerQuizType(latest) === 'speech') {
+          if (auto && props.speechAvailable && answerQuizType(latest) === 'input') {
             onListen();
           }
         },
@@ -143,7 +143,7 @@ export const useTestEngine = (props: Props) => {
         },
       });
     },
-    [getState, onListen, props.lang, props.voice, setStateMerged],
+    [getState, onListen, props.lang, props.speechAvailable, props.voice, setStateMerged],
   );
 
   // --- Score sending ---
@@ -161,14 +161,9 @@ export const useTestEngine = (props: Props) => {
   const onFinishTest = useCallback((): void => {
     const current = getState();
     const answerInput = document.getElementById('answer-input');
-    const secondaryInput = document.getElementById('secondary-input');
 
     if (answerInput !== null) {
       (answerInput as HTMLInputElement).blur();
-    }
-
-    if (secondaryInput !== null) {
-      (secondaryInput as HTMLInputElement).blur();
     }
 
     const idkCounts = testLogic.Counter(current.idkList);
@@ -279,7 +274,6 @@ export const useTestEngine = (props: Props) => {
 
       setStateMerged({
         result: resultString,
-        showInput: false,
         idkDisabled: true,
         submitDisabled: true,
       });
@@ -309,7 +303,6 @@ export const useTestEngine = (props: Props) => {
             chosenCharacter: newQuestion.chosenCharacter,
             result: '',
             answerInput: '',
-            showInput: false,
             numSpeakTries: 0,
             qNum: prevState.qNum + 1,
             idkDisabled: false,
@@ -371,15 +364,15 @@ export const useTestEngine = (props: Props) => {
       if (
         current.useAutoRecord &&
         !current.pauseAutoRecord &&
-        !current.useTypingInput &&
-        answerQuizType(current) === 'speech'
+        props.speechAvailable &&
+        answerQuizType(current) === 'input'
       ) {
         onListen();
       }
     }
 
     current.recognition?.abort();
-  }, [checkAnswer, getState, onCorrectAnswer, onListen, setStateMerged]);
+  }, [checkAnswer, getState, onCorrectAnswer, onListen, props.speechAvailable, setStateMerged]);
 
   const submitSpeech = useCallback(
     (speech: string): void => {
@@ -438,7 +431,6 @@ export const useTestEngine = (props: Props) => {
         if (current.numSpeakTries > 0) {
           setStateMerged({
             result: `We heard: '${submission}', which is wrong. ${sentence}`,
-            showInput: true,
           });
         } else {
           setStateMerged((prevState) => ({
@@ -446,7 +438,7 @@ export const useTestEngine = (props: Props) => {
             numSpeakTries: prevState.numSpeakTries + 1,
           }));
         }
-        if (current.useAutoRecord && !current.pauseAutoRecord && !current.useTypingInput) {
+        if (current.useAutoRecord && !current.pauseAutoRecord) {
           setTimeout(() => onListenRef.current(), 1500);
         }
       } else {
@@ -456,7 +448,6 @@ export const useTestEngine = (props: Props) => {
         if (current.numSpeakTries > 0) {
           setStateMerged({
             result: `We heard: '${submission}', which is wrong. Try again...`,
-            showInput: true,
           });
         } else {
           setStateMerged((prevState) => ({
@@ -464,7 +455,7 @@ export const useTestEngine = (props: Props) => {
             numSpeakTries: prevState.numSpeakTries + 1,
           }));
         }
-        if (current.useAutoRecord && !current.pauseAutoRecord && !current.useTypingInput) {
+        if (current.useAutoRecord && !current.pauseAutoRecord) {
           setTimeout(() => onListenRef.current(), 1500);
         }
       }
@@ -677,7 +668,6 @@ export const useTestEngine = (props: Props) => {
         answerInput: '',
         numSpeakTries: 0,
         qNum: prevState.qNum + 1,
-        showInput: false,
         submitDisabled: false,
         showHint: false,
         showAnswer: false,
@@ -819,20 +809,8 @@ export const useTestEngine = (props: Props) => {
     const useHandwriting =
       !(localStorage.getItem('useHandwriting') === 'false') || Boolean(props.isDemo);
 
-    // Speech quiz types degrade to text when the browser lacks speech recognition
-    const resolveQuizType = (category: 'meaning' | 'pinyin'): QuizType => {
-      let quizType = props.isDemo
-        ? category === 'meaning'
-          ? 'flashcard'
-          : 'speech'
-        : getQuizType(category);
-      if (quizType === 'speech' && !props.speechAvailable) {
-        quizType = 'text';
-      }
-      return quizType;
-    };
-    const meaningQuizType = resolveQuizType('meaning');
-    const pinyinQuizType = resolveQuizType('pinyin');
+    const meaningQuizType: QuizType = props.isDemo ? 'flashcard' : getQuizType('meaning');
+    const pinyinQuizType: QuizType = props.isDemo ? 'input' : getQuizType('pinyin');
     const useAutoRecord = localStorage.getItem('useAutoRecord') === 'true' && !props.isDemo;
 
     setStateMerged({
@@ -861,7 +839,10 @@ export const useTestEngine = (props: Props) => {
       const sourceElement = (event.target as HTMLElement).tagName.toLowerCase();
       const currentQuizType = answerQuizType(current);
       const micAvailable =
-        currentQuizType === 'speech' && !current.listening && !current.testFinished;
+        props.speechAvailable &&
+        currentQuizType === 'input' &&
+        !current.listening &&
+        !current.testFinished;
 
       const speakerAvailable =
         current.useSound &&
@@ -905,11 +886,8 @@ export const useTestEngine = (props: Props) => {
 
       if (event.ctrlKey && event.key === 'b') {
         const answerInput = document.getElementById('answer-input');
-        const secondaryInput = document.getElementById('secondary-input');
         if (answerInput !== null) {
           answerInput.focus();
-        } else if (secondaryInput) {
-          secondaryInput.focus();
         }
       }
 
@@ -985,6 +963,7 @@ export const useTestEngine = (props: Props) => {
       onToggleShowPinyin,
       props.finalStage,
       props.isDemo,
+      props.speechAvailable,
       props.startSentenceRead,
       setStateMerged,
     ],
@@ -1030,8 +1009,8 @@ export const useTestEngine = (props: Props) => {
 
     if (
       current.useAutoRecord &&
-      !current.useTypingInput &&
-      answerQuizType(current) === 'speech' &&
+      props.speechAvailable &&
+      answerQuizType(current) === 'input' &&
       !(current.questionCategory === 'pinyin' && current.useSound)
     ) {
       onListen();
@@ -1039,21 +1018,27 @@ export const useTestEngine = (props: Props) => {
     if (current.answerCategory === 'character' && typeof current.answer === 'string') {
       setHanziWriter(current.answer);
     }
-  }, [state.qNum, getState, onListen, onSpeak, setHanziWriter, setStateMerged]);
+  }, [
+    state.qNum,
+    getState,
+    onListen,
+    onSpeak,
+    props.speechAvailable,
+    setHanziWriter,
+    setStateMerged,
+  ]);
 
   const refreshSettings = useCallback(
     (updated: AudioSettings): void => {
-      const clampSpeech = (quizType: QuizType): QuizType =>
-        quizType === 'speech' && !props.speechAvailable ? 'text' : quizType;
       setStateMerged({
         useSound: updated.useSound && Boolean(props.synthAvailable),
         useSoundEffects: updated.useSoundEffects,
         useAutoRecord: updated.useAutoRecord,
-        meaningQuizType: clampSpeech(updated.meaningQuizType),
-        pinyinQuizType: clampSpeech(updated.pinyinQuizType),
+        meaningQuizType: updated.meaningQuizType,
+        pinyinQuizType: updated.pinyinQuizType,
       });
     },
-    [props.speechAvailable, props.synthAvailable, setStateMerged],
+    [props.synthAvailable, setStateMerged],
   );
 
   return {

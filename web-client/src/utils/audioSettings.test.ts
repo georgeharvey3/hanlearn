@@ -20,7 +20,7 @@ describe('audioSettings', () => {
         useSoundEffects: true,
         useAutoRecord: true,
         meaningQuizType: 'flashcard',
-        pinyinQuizType: 'speech',
+        pinyinQuizType: 'input',
       });
     });
 
@@ -48,19 +48,19 @@ describe('audioSettings', () => {
     });
 
     it('leaves quiz types untouched when changing audio settings', () => {
-      setQuizType('meaning', 'text');
+      setQuizType('meaning', 'input');
       const result = setAudioSetting('useSound', false);
-      expect(result.meaningQuizType).toBe('text');
+      expect(result.meaningQuizType).toBe('input');
     });
   });
 
   describe('getQuizType / setQuizType', () => {
     it('round-trips a stored quiz type', () => {
-      setQuizType('meaning', 'speech');
+      setQuizType('meaning', 'input');
       setQuizType('pinyin', 'flashcard');
-      expect(getQuizType('meaning')).toBe('speech');
+      expect(getQuizType('meaning')).toBe('input');
       expect(getQuizType('pinyin')).toBe('flashcard');
-      expect(localStorage.getItem('meaningQuizType')).toBe('speech');
+      expect(localStorage.getItem('meaningQuizType')).toBe('input');
       expect(localStorage.getItem('pinyinQuizType')).toBe('flashcard');
     });
 
@@ -68,34 +68,30 @@ describe('audioSettings', () => {
       localStorage.setItem('meaningQuizType', 'bogus');
       localStorage.setItem('pinyinQuizType', 'bogus');
       expect(getQuizType('meaning')).toBe('flashcard');
-      expect(getQuizType('pinyin')).toBe('speech');
+      expect(getQuizType('pinyin')).toBe('input');
     });
 
-    it('defaults meaning to flashcard and pinyin to speech (legacy defaults)', () => {
+    it('defaults meaning to flashcard and pinyin to input', () => {
       expect(getQuizType('meaning')).toBe('flashcard');
-      expect(getQuizType('pinyin')).toBe('speech');
+      expect(getQuizType('pinyin')).toBe('input');
     });
 
-    it('maps legacy useFlashcards=false + English speech on to meaning=speech', () => {
+    it('maps the legacy text and speech values to input', () => {
+      localStorage.setItem('meaningQuizType', 'text');
+      localStorage.setItem('pinyinQuizType', 'speech');
+      expect(getQuizType('meaning')).toBe('input');
+      expect(getQuizType('pinyin')).toBe('input');
+    });
+
+    it('maps legacy useFlashcards=false to meaning=input', () => {
       localStorage.setItem('useFlashcards', 'false');
-      expect(getQuizType('meaning')).toBe('speech');
-    });
-
-    it('maps legacy useFlashcards=false + English speech off to meaning=text', () => {
-      localStorage.setItem('useFlashcards', 'false');
-      localStorage.setItem('useEnglishSpeechRecognition', 'false');
-      expect(getQuizType('meaning')).toBe('text');
-    });
-
-    it('maps legacy useChineseSpeechRecognition=false to pinyin=text', () => {
-      localStorage.setItem('useChineseSpeechRecognition', 'false');
-      expect(getQuizType('pinyin')).toBe('text');
+      expect(getQuizType('meaning')).toBe('input');
     });
 
     it('prefers the new key over legacy settings', () => {
-      localStorage.setItem('useChineseSpeechRecognition', 'false');
-      setQuizType('pinyin', 'flashcard');
-      expect(getQuizType('pinyin')).toBe('flashcard');
+      localStorage.setItem('useFlashcards', 'false');
+      setQuizType('meaning', 'flashcard');
+      expect(getQuizType('meaning')).toBe('flashcard');
     });
   });
 

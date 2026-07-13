@@ -115,13 +115,13 @@ describe('Settings — checkbox toggles', () => {
     expect(localStorage.getItem('useSound')).toBe('false');
   });
 
-  it('defaults to meaning=Flashcard and pinyin=Speech', () => {
+  it('defaults to meaning=Flashcard and pinyin=Input', () => {
     renderWithProviders(<Settings />, { store: makeStore(true, false) });
 
     const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
     const pinyin = screen.getByRole('radiogroup', { name: 'Pinyin' });
     expect(within(meaning).getByRole('radio', { name: 'Flashcard' })).toBeChecked();
-    expect(within(pinyin).getByRole('radio', { name: 'Speech' })).toBeChecked();
+    expect(within(pinyin).getByRole('radio', { name: 'Input' })).toBeChecked();
   });
 
   it('switching the pinyin quiz type persists to localStorage without touching meaning', async () => {
@@ -136,20 +136,11 @@ describe('Settings — checkbox toggles', () => {
   });
 
   it('reads a stored quiz type from localStorage', () => {
-    localStorage.setItem('meaningQuizType', 'text');
+    localStorage.setItem('meaningQuizType', 'input');
     renderWithProviders(<Settings />, { store: makeStore(true, false) });
 
     const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
-    expect(within(meaning).getByRole('radio', { name: 'Text' })).toBeChecked();
-  });
-
-  it('disables the Speech quiz type options when speechAvailable is false', () => {
-    renderWithProviders(<Settings />, { store: makeStore(false, false) });
-
-    const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
-    const pinyin = screen.getByRole('radiogroup', { name: 'Pinyin' });
-    expect(within(meaning).getByRole('radio', { name: 'Speech' })).toBeDisabled();
-    expect(within(pinyin).getByRole('radio', { name: 'Speech' })).toBeDisabled();
+    expect(within(meaning).getByRole('radio', { name: 'Input' })).toBeChecked();
   });
 
   it('toggling Handwriting questions persists to localStorage', async () => {
@@ -172,20 +163,20 @@ describe('Settings — checkbox toggles', () => {
 });
 
 describe('Settings — quiz type independence', () => {
-  it('supports speech for pinyin and flashcard for meaning at the same time', async () => {
+  it('supports input for pinyin and flashcard for meaning at the same time', async () => {
     const user = userEvent.setup();
     // Start away from the defaults so both clicks fire change events
-    localStorage.setItem('meaningQuizType', 'text');
-    localStorage.setItem('pinyinQuizType', 'text');
+    localStorage.setItem('meaningQuizType', 'input');
+    localStorage.setItem('pinyinQuizType', 'flashcard');
     renderWithProviders(<Settings />, { store: makeStore(true, false) });
 
     const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
     const pinyin = screen.getByRole('radiogroup', { name: 'Pinyin' });
     await user.click(within(meaning).getByRole('radio', { name: 'Flashcard' }));
-    await user.click(within(pinyin).getByRole('radio', { name: 'Speech' }));
+    await user.click(within(pinyin).getByRole('radio', { name: 'Input' }));
 
     expect(localStorage.getItem('meaningQuizType')).toBe('flashcard');
-    expect(localStorage.getItem('pinyinQuizType')).toBe('speech');
+    expect(localStorage.getItem('pinyinQuizType')).toBe('input');
   });
 });
 
@@ -259,16 +250,22 @@ describe('Settings — speech availability gating', () => {
     expect(soundCheckbox).not.toBeDisabled();
   });
 
-  it('disables Auto-start microphone when no quiz type is set to Speech', () => {
+  it('disables Auto-start microphone when both quiz types are Flashcard', () => {
     localStorage.setItem('meaningQuizType', 'flashcard');
-    localStorage.setItem('pinyinQuizType', 'text');
+    localStorage.setItem('pinyinQuizType', 'flashcard');
     renderWithProviders(<Settings />, { store: makeStore(true, false) });
     expect(screen.getByRole('checkbox', { name: /auto-start microphone/i })).toBeDisabled();
   });
 
-  it('enables Auto-start microphone when a quiz type is set to Speech', () => {
+  it('disables Auto-start microphone when speechAvailable is false', () => {
+    localStorage.setItem('pinyinQuizType', 'input');
+    renderWithProviders(<Settings />, { store: makeStore(false, false) });
+    expect(screen.getByRole('checkbox', { name: /auto-start microphone/i })).toBeDisabled();
+  });
+
+  it('enables Auto-start microphone when a quiz type is Input and speech is available', () => {
     localStorage.setItem('meaningQuizType', 'flashcard');
-    localStorage.setItem('pinyinQuizType', 'speech');
+    localStorage.setItem('pinyinQuizType', 'input');
     renderWithProviders(<Settings />, { store: makeStore(true, false) });
     expect(screen.getByRole('checkbox', { name: /auto-start microphone/i })).not.toBeDisabled();
   });

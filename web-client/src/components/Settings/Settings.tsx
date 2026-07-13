@@ -222,8 +222,7 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
     }
   }, []);
 
-  const speechQuizSelected =
-    state.meaningQuizType === 'speech' || state.pinyinQuizType === 'speech';
+  const inputQuizSelected = state.meaningQuizType === 'input' || state.pinyinQuizType === 'input';
 
   const quizCheckboxItems: CheckboxItem[] = [
     {
@@ -236,16 +235,11 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
     {
       value: 'useAutoRecord',
       label: 'Auto-start microphone',
-      checked: state.useAutoRecord && speechQuizSelected,
-      disabled: !speechQuizSelected,
-      disabledTooltip: 'Only used when Meaning or Pinyin is set to Speech',
-    },
-    {
-      value: 'useSoundEffects',
-      label: 'Sound effects',
-      checked: state.useSoundEffects,
-      disabled: false,
-      disabledTooltip: '',
+      checked: state.useAutoRecord && inputQuizSelected && speechAvailable,
+      disabled: !inputQuizSelected || !speechAvailable,
+      disabledTooltip: !speechAvailable
+        ? 'Speech recognition is not available in this browser'
+        : 'Only used when Meaning or Pinyin is set to Input',
     },
   ];
 
@@ -256,6 +250,13 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
       checked: state.useSound && synthAvailable,
       disabled: !synthAvailable,
       disabledTooltip: 'Speech synthesis is not available in this browser',
+    },
+    {
+      value: 'useSoundEffects',
+      label: 'Sound effects',
+      checked: state.useSoundEffects,
+      disabled: false,
+      disabledTooltip: '',
     },
   ];
 
@@ -408,22 +409,7 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
               onChange={onQuizTypeChange(category)}
               row
             >
-              <FormControlLabel value="text" control={<Radio size="small" />} label="Text" />
-              <Tooltip
-                title={speechAvailable ? '' : 'Speech recognition is not available in this browser'}
-                placement="right"
-                disableHoverListener={speechAvailable}
-                disableFocusListener={speechAvailable}
-              >
-                <span>
-                  <FormControlLabel
-                    value="speech"
-                    control={<Radio size="small" />}
-                    label="Speech"
-                    disabled={!speechAvailable}
-                  />
-                </span>
-              </Tooltip>
+              <FormControlLabel value="input" control={<Radio size="small" />} label="Input" />
               <FormControlLabel
                 value="flashcard"
                 control={<Radio size="small" />}

@@ -1,9 +1,5 @@
 import React from 'react';
 
-import { IconButton, Tooltip } from '@mui/material';
-import KeyboardIcon from '@mui/icons-material/Keyboard';
-import MicIcon from '@mui/icons-material/Mic';
-
 import { colors } from '../../theme';
 import Input from '../UI/Input/Input';
 import PictureButton from '../UI/Buttons/PictureButton/PictureButton';
@@ -16,9 +12,11 @@ import likePic from '../../assets/images/like.png';
 import dislikePic from '../../assets/images/dislike.png';
 
 import { TestState } from './types';
+import { QuizType } from '../../utils/audioSettings';
 
 interface AnswerInputProps {
   state: TestState;
+  speechAvailable: boolean;
   onKeyPress: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onInputChanged: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onFocusEntry: (e: React.FocusEvent<HTMLInputElement>) => void;
@@ -29,8 +27,16 @@ interface AnswerInputProps {
   setStateMerged: (update: Partial<TestState> | ((prev: TestState) => Partial<TestState>)) => void;
 }
 
+const answerQuizType = (state: TestState): QuizType =>
+  (state.answerCategory === 'pinyin'
+    ? state.pinyinQuizType
+    : state.answerCategory === 'meaning'
+      ? state.meaningQuizType
+      : 'input') || 'input';
+
 const AnswerInput: React.FC<AnswerInputProps> = ({
   state,
+  speechAvailable,
   onKeyPress,
   onInputChanged,
   onFocusEntry,
@@ -48,7 +54,7 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
       value={state.answerInput}
       changed={onInputChanged}
       focussed={onFocusEntry}
-      autoFocus={true}
+      autoFocus={!speechAvailable}
       autoComplete="off"
       autoCorrect="off"
       autoCapitalize="off"
@@ -104,68 +110,27 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
     </div>
   );
 
-  const micInput = (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        <PictureButton
-          type="secondary"
-          src={micPic}
-          aria-label="Record speech"
-          clicked={() => onListen()}
-        />
-        <Toggle
-          checked={state.useAutoRecord}
-          changed={(event) => {
-            state.recognition?.abort();
-            setStateMerged({ useAutoRecord: event.target.checked });
-            if (event.target.checked) onListen();
-          }}
-        />
-      </div>
-      {state.showInput ? (
-        <Input
-          id="secondary-input"
-          aria-label="Type your answer"
-          keyPressed={onKeyPress}
-          value={state.answerInput}
-          changed={onInputChanged}
-          placeholder="Type answer..."
-          autoFocus={true}
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          spellCheck={false}
-        />
-      ) : null}
-      <Tooltip title="Type instead">
-        <IconButton
-          size="small"
-          onClick={() => {
-            state.recognition?.abort();
-            setStateMerged({ useTypingInput: true });
-          }}
-          aria-label="Switch to typing"
-          sx={{ color: 'text.disabled' }}
-        >
-          <KeyboardIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
-    </div>
-  );
-
-  const typingInputWithMicToggle = (
+  const inputWithMic = (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
       {textInput}
-      <Tooltip title="Speak instead">
-        <IconButton
-          size="small"
-          onClick={() => setStateMerged({ useTypingInput: false })}
-          aria-label="Switch to speaking"
-          sx={{ color: 'text.disabled' }}
-        >
-          <MicIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
+      {speechAvailable ? (
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <PictureButton
+            type="secondary"
+            src={micPic}
+            aria-label="Record speech"
+            clicked={() => onListen()}
+          />
+          <Toggle
+            checked={state.useAutoRecord}
+            changed={(event) => {
+              state.recognition?.abort();
+              setStateMerged({ useAutoRecord: event.target.checked });
+              if (event.target.checked) onListen();
+            }}
+          />
+        </div>
+      ) : null}
     </div>
   );
 
@@ -173,38 +138,14 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
     return characterInput;
   }
 
-  const quizType =
-    state.answerCategory === 'pinyin'
-      ? state.pinyinQuizType
-      : state.answerCategory === 'meaning'
-        ? state.meaningQuizType
-        : 'text';
-
-  switch (quizType) {
-    case 'flashcard':
-      return showAnswerContent;
-    case 'speech':
-      return state.useTypingInput ? typingInputWithMicToggle : micInput;
-    default:
-      return textInput;
-  }
+  return answerQuizType(state) === 'flashcard' ? showAnswerContent : inputWithMic;
 };
 
 export function getVerb(state: TestState): string {
   if (state.answerCategory === 'character') {
     return 'Draw the ';
   }
-
-  const quizType =
-    state.answerCategory === 'pinyin'
-      ? state.pinyinQuizType
-      : state.answerCategory === 'meaning'
-        ? state.meaningQuizType
-        : 'text';
-
-  if (quizType === 'flashcard') return 'What is the ';
-  if (quizType === 'speech' && !state.useTypingInput) return 'Speak the ';
-  return 'Enter the ';
+  return answerQuizType(state) === 'flashcard' ? 'What is the ' : 'Enter the ';
 }
 
 export default React.memo(AnswerInput);

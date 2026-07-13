@@ -27,14 +27,13 @@ vi.mock('./constants', () => ({
     idkList: [],
     scoreList: [],
     testFinished: false,
-    showInput: false,
     showInputChars: [],
     drawnCharacters: [],
     numSpeakTries: 0,
     useSound: false,
     useHandwriting: false,
-    pinyinQuizType: 'text',
-    meaningQuizType: 'text',
+    pinyinQuizType: 'input',
+    meaningQuizType: 'input',
     useAutoRecord: false,
     showErrorMessage: false,
     redoChar: false,
@@ -58,7 +57,6 @@ vi.mock('./constants', () => ({
     speechLoading: false,
     interaction: false,
     speechResult: false,
-    useTypingInput: false,
   })),
 }));
 
@@ -340,7 +338,6 @@ describe('useTestEngine — qNum effect auto-record paths', () => {
         answerCategory: 'pinyin',
         answer: 'hǎo',
         useAutoRecord: false,
-        useTypingInput: false,
         questionCategory: 'meaning',
         useSound: false,
       } as any);

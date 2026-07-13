@@ -1,7 +1,15 @@
+/**
+ * Tests for AnswerInput — the answer area of the vocabulary quiz.
+ *
+ * Rendering is driven by the answer category and its quiz type:
+ * - character  → handwriting canvas
+ * - input      → text input, plus mic + auto-record toggle when the browser
+ *                supports speech recognition
+ * - flashcard  → Show Answer button, then like/dislike buttons
+ */
 import React from 'react';
-import { screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent, render } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
 
 vi.mock('./constants', () => ({
   beep: { play: vi.fn() },
@@ -20,45 +28,24 @@ const baseState = {
   yesClicked: false,
   noClicked: false,
   useSound: false,
-  pinyinQuizType: 'text',
-  meaningQuizType: 'text',
+  useSoundEffects: false,
+  pinyinQuizType: 'input',
+  meaningQuizType: 'input',
   useAutoRecord: false,
-  useTypingInput: true,
-  showInput: false,
   answerCategory: 'character',
   recognition: null,
 } as unknown as TestState;
 
 const noop = () => {};
 
-function renderAnswerInput(
-  stateOverrides: Partial<TestState>,
-  extraProps?: Record<string, unknown>,
-) {
-  const state = { ...baseState, ...stateOverrides } as unknown as TestState;
-  return render(
-    <AnswerInput
-      state={state}
-      onKeyPress={noop as any}
-      onInputChanged={noop as any}
-      onFocusEntry={noop as any}
-      onListen={noop}
-      onShowAnswer={noop}
-      onCorrectAnswer={noop}
-      onIDontKnow={noop}
-      setStateMerged={noop as any}
-      {...extraProps}
-    />,
-  );
-}
-
 function makeState(overrides: Partial<TestState> = {}): TestState {
   return { ...baseState, ...overrides } as TestState;
 }
 
-function makeProps(stateOverrides: Partial<TestState> = {}) {
+function makeProps(stateOverrides: Partial<TestState> = {}, speechAvailable = false) {
   return {
     state: makeState(stateOverrides),
+    speechAvailable,
     onKeyPress: vi.fn() as any,
     onInputChanged: vi.fn() as any,
     onFocusEntry: vi.fn() as any,
@@ -70,9 +57,17 @@ function makeProps(stateOverrides: Partial<TestState> = {}) {
   };
 }
 
+function renderAnswerInput(stateOverrides: Partial<TestState>, speechAvailable = false) {
+  const props = makeProps(stateOverrides, speechAvailable);
+  render(<AnswerInput {...props} />);
+  return props;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
+
+// ── character (handwriting) ─────────────────────────────────────────────────
 
 describe('AnswerInput — handwriting canvas', () => {
   it('renders the handwriting canvas with an accessible label', () => {
@@ -89,113 +84,80 @@ describe('AnswerInput — handwriting canvas', () => {
   });
 });
 
-describe('AnswerInput — pinyin text input', () => {
-  it('renders a text input when speech recognition is disabled', () => {
-    renderAnswerInput({ answerCategory: 'pinyin', pinyinQuizType: 'text' });
+// ── input mode without speech support ────────────────────────────────────────
+
+describe('AnswerInput — input mode without speech recognition', () => {
+  it('renders only a text input for pinyin answers', () => {
+    renderAnswerInput({ answerCategory: 'pinyin', pinyinQuizType: 'input' });
     expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/record speech/i)).not.toBeInTheDocument();
   });
-});
 
-describe('AnswerInput — pinyin with speech recognition', () => {
-  it('renders mic input when pinyinQuizType=speech and useTypingInput=false', () => {
-    renderAnswerInput({
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: false,
-    });
-    expect(screen.getByLabelText(/record speech/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/switch to typing/i)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/switch to speaking/i)).not.toBeInTheDocument();
-  });
-
-  it('does not show secondary text input when showInput is false', () => {
-    renderAnswerInput({
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: false,
-      showInput: false,
-    });
-    expect(screen.queryByLabelText(/type your answer/i)).not.toBeInTheDocument();
-  });
-
-  it('shows secondary text input when showInput is true', () => {
-    renderAnswerInput({
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: false,
-      showInput: true,
-    });
-    expect(screen.getByLabelText(/type your answer/i)).toBeInTheDocument();
-  });
-
-  it('renders typing input with mic-toggle when pinyinQuizType=speech and useTypingInput=true', () => {
-    renderAnswerInput({
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: true,
-    });
+  it('renders only a text input for meaning answers', () => {
+    renderAnswerInput({ answerCategory: 'meaning', meaningQuizType: 'input' });
     expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/switch to speaking/i)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/switch to typing/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/record speech/i)).not.toBeInTheDocument();
   });
 
-  it('calls setStateMerged with useTypingInput=false when "Switch to speaking" is clicked', () => {
-    const setStateMerged = vi.fn();
-    const state = {
-      ...baseState,
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: true,
-    } as unknown as TestState;
-    render(
-      <AnswerInput
-        state={state}
-        onKeyPress={noop as any}
-        onInputChanged={noop as any}
-        onFocusEntry={noop as any}
-        onListen={noop}
-        onShowAnswer={noop}
-        onCorrectAnswer={noop}
-        onIDontKnow={noop}
-        setStateMerged={setStateMerged}
-      />,
-    );
-    fireEvent.click(screen.getByLabelText(/switch to speaking/i));
-    expect(setStateMerged).toHaveBeenCalledWith({ useTypingInput: false });
+  it('renders a text input for an unknown answer category', () => {
+    renderAnswerInput({ answerCategory: 'unknown' as any });
+    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
   });
 
-  it('calls setStateMerged with useTypingInput=true when "Switch to typing" is clicked', () => {
-    const setStateMerged = vi.fn();
-    const recognition = { abort: vi.fn() };
-    const state = {
-      ...baseState,
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: false,
-      recognition,
-    } as unknown as TestState;
-    render(
-      <AnswerInput
-        state={state}
-        onKeyPress={noop as any}
-        onInputChanged={noop as any}
-        onFocusEntry={noop as any}
-        onListen={noop}
-        onShowAnswer={noop}
-        onCorrectAnswer={noop}
-        onIDontKnow={noop}
-        setStateMerged={setStateMerged}
-      />,
-    );
-    fireEvent.click(screen.getByLabelText(/switch to typing/i));
-    expect(recognition.abort).toHaveBeenCalled();
-    expect(setStateMerged).toHaveBeenCalledWith({ useTypingInput: true });
+  it('forwards typing to onInputChanged', () => {
+    const props = renderAnswerInput({ answerCategory: 'pinyin', pinyinQuizType: 'input' });
+    fireEvent.change(screen.getByLabelText(/enter your answer/i), { target: { value: 'ni3' } });
+    expect(props.onInputChanged).toHaveBeenCalled();
   });
 });
 
-describe('AnswerInput — meaning with flashcards', () => {
-  it('renders "Show Answer" button when showAnswer is false', () => {
+// ── input mode with speech support ───────────────────────────────────────────
+
+describe('AnswerInput — input mode with speech recognition', () => {
+  it('renders the text input and the mic side by side for pinyin answers', () => {
+    renderAnswerInput({ answerCategory: 'pinyin', pinyinQuizType: 'input' }, true);
+    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/record speech/i)).toBeInTheDocument();
+  });
+
+  it('renders the text input and the mic side by side for meaning answers', () => {
+    renderAnswerInput({ answerCategory: 'meaning', meaningQuizType: 'input' }, true);
+    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/record speech/i)).toBeInTheDocument();
+  });
+
+  it('calls onListen when the mic button is clicked', () => {
+    const props = renderAnswerInput({ answerCategory: 'pinyin', pinyinQuizType: 'input' }, true);
+    fireEvent.click(screen.getByLabelText(/record speech/i));
+    expect(props.onListen).toHaveBeenCalled();
+  });
+
+  it('enables auto-record and starts listening when the toggle is switched on', () => {
+    const recognition = { abort: vi.fn() };
+    const props = makeProps(
+      { answerCategory: 'pinyin', pinyinQuizType: 'input', recognition } as any,
+      true,
+    );
+    render(<AnswerInput {...props} />);
+
+    fireEvent.click(screen.getByRole('switch'));
+
+    expect(recognition.abort).toHaveBeenCalled();
+    expect(props.setStateMerged).toHaveBeenCalledWith({ useAutoRecord: true });
+    expect(props.onListen).toHaveBeenCalled();
+  });
+
+  it('does not show the mic in flashcard mode even when speech is available', () => {
+    renderAnswerInput({ answerCategory: 'meaning', meaningQuizType: 'flashcard' }, true);
+    expect(screen.queryByLabelText(/record speech/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /show answer/i })).toBeInTheDocument();
+  });
+});
+
+// ── flashcard mode ───────────────────────────────────────────────────────────
+
+describe('AnswerInput — flashcard mode (show-answer flow)', () => {
+  it('renders "Show Answer" button for meaning answers when showAnswer is false', () => {
     renderAnswerInput({
       answerCategory: 'meaning',
       meaningQuizType: 'flashcard',
@@ -205,35 +167,30 @@ describe('AnswerInput — meaning with flashcards', () => {
     expect(screen.queryByLabelText(/i knew this/i)).not.toBeInTheDocument();
   });
 
-  it('calls onShowAnswer when "Show Answer" button is clicked', () => {
-    const onShowAnswer = vi.fn();
-    const state = {
-      ...baseState,
+  it('renders "Show Answer" button for pinyin answers when showAnswer is false', () => {
+    renderAnswerInput({
+      answerCategory: 'pinyin',
+      pinyinQuizType: 'flashcard',
+      showAnswer: false,
+    });
+    expect(screen.getByRole('button', { name: /show answer/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/enter your answer/i)).not.toBeInTheDocument();
+  });
+
+  it('calls onShowAnswer when "Show Answer" is clicked', () => {
+    const props = renderAnswerInput({
       answerCategory: 'meaning',
       meaningQuizType: 'flashcard',
       showAnswer: false,
-    } as unknown as TestState;
-    render(
-      <AnswerInput
-        state={state}
-        onKeyPress={noop as any}
-        onInputChanged={noop as any}
-        onFocusEntry={noop as any}
-        onListen={noop}
-        onShowAnswer={onShowAnswer}
-        onCorrectAnswer={noop}
-        onIDontKnow={noop}
-        setStateMerged={noop as any}
-      />,
-    );
+    });
     fireEvent.click(screen.getByRole('button', { name: /show answer/i }));
-    expect(onShowAnswer).toHaveBeenCalled();
+    expect(props.onShowAnswer).toHaveBeenCalled();
   });
 
   it('renders like/dislike buttons when showAnswer is true', () => {
     renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
+      answerCategory: 'pinyin',
+      pinyinQuizType: 'flashcard',
       showAnswer: true,
     });
     expect(screen.getByLabelText(/i knew this/i)).toBeInTheDocument();
@@ -242,509 +199,83 @@ describe('AnswerInput — meaning with flashcards', () => {
   });
 
   it('calls onCorrectAnswer when the like button is clicked', () => {
-    const onCorrectAnswer = vi.fn();
-    const state = {
-      ...baseState,
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: true,
-    } as unknown as TestState;
-    render(
-      <AnswerInput
-        state={state}
-        onKeyPress={noop as any}
-        onInputChanged={noop as any}
-        onFocusEntry={noop as any}
-        onListen={noop}
-        onShowAnswer={noop}
-        onCorrectAnswer={onCorrectAnswer}
-        onIDontKnow={noop}
-        setStateMerged={noop as any}
-      />,
-    );
-    fireEvent.click(screen.getByLabelText(/i knew this/i));
-    expect(onCorrectAnswer).toHaveBeenCalled();
-  });
-
-  it('calls onIDontKnow when the dislike button is clicked', () => {
-    const onIDontKnow = vi.fn();
-    const state = {
-      ...baseState,
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: true,
-      useSound: false,
-    } as unknown as TestState;
-    render(
-      <AnswerInput
-        state={state}
-        onKeyPress={noop as any}
-        onInputChanged={noop as any}
-        onFocusEntry={noop as any}
-        onListen={noop}
-        onShowAnswer={noop}
-        onCorrectAnswer={noop}
-        onIDontKnow={onIDontKnow}
-        setStateMerged={noop as any}
-      />,
-    );
-    fireEvent.click(screen.getByLabelText(/i didn't know this/i));
-    expect(onIDontKnow).toHaveBeenCalled();
-  });
-});
-
-describe('AnswerInput — pinyin with flashcards', () => {
-  it('renders "Show Answer" button when showAnswer is false', () => {
-    renderAnswerInput({
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'flashcard',
-      showAnswer: false,
-    });
-    expect(screen.getByRole('button', { name: /show answer/i })).toBeInTheDocument();
-    expect(screen.queryByLabelText(/record speech/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/enter your answer/i)).not.toBeInTheDocument();
-  });
-
-  it('renders like/dislike buttons when showAnswer is true', () => {
-    renderAnswerInput({ answerCategory: 'pinyin', pinyinQuizType: 'flashcard', showAnswer: true });
-    expect(screen.getByLabelText(/i knew this/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/i didn't know this/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /show answer/i })).not.toBeInTheDocument();
-  });
-
-  it('calls onShowAnswer when "Show Answer" button is clicked', () => {
-    const onShowAnswer = vi.fn();
-    const state = {
-      ...baseState,
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'flashcard',
-      showAnswer: false,
-    } as unknown as TestState;
-    render(
-      <AnswerInput
-        state={state}
-        onKeyPress={noop as any}
-        onInputChanged={noop as any}
-        onFocusEntry={noop as any}
-        onListen={noop}
-        onShowAnswer={onShowAnswer}
-        onCorrectAnswer={noop}
-        onIDontKnow={noop}
-        setStateMerged={noop as any}
-      />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: /show answer/i }));
-    expect(onShowAnswer).toHaveBeenCalled();
-  });
-});
-
-describe('AnswerInput — meaning with English speech recognition', () => {
-  it('renders mic input when meaningQuizType=speech and useTypingInput=false', () => {
-    renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'speech',
-      useTypingInput: false,
-    });
-    expect(screen.getByLabelText(/record speech/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/switch to typing/i)).toBeInTheDocument();
-  });
-
-  it('renders typing+mic-toggle when meaningQuizType=speech and useTypingInput=true', () => {
-    renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'speech',
-      useTypingInput: true,
-    });
-    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/switch to speaking/i)).toBeInTheDocument();
-  });
-
-  it('renders plain text input when no flags set', () => {
-    renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'text',
-    });
-    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/record speech/i)).not.toBeInTheDocument();
-  });
-});
-
-describe('getVerb', () => {
-  it('returns "Enter the " for pinyin without speech recognition', () => {
-    const state = {
-      ...baseState,
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'text',
-    } as unknown as TestState;
-    expect(getVerb(state)).toBe('Enter the ');
-  });
-
-  it('returns "Speak the " for pinyin with speech recognition and useTypingInput=false', () => {
-    const state = {
-      ...baseState,
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: false,
-    } as unknown as TestState;
-    expect(getVerb(state)).toBe('Speak the ');
-  });
-
-  it('returns "Enter the " for pinyin with speech recognition but useTypingInput=true', () => {
-    const state = {
-      ...baseState,
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: true,
-    } as unknown as TestState;
-    expect(getVerb(state)).toBe('Enter the ');
-  });
-
-  it('returns "What is the " for pinyin with flashcards', () => {
-    const state = {
-      ...baseState,
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'flashcard',
-    } as unknown as TestState;
-    expect(getVerb(state)).toBe('What is the ');
-  });
-
-  it('returns "Draw the " for character', () => {
-    const state = { ...baseState, answerCategory: 'character' } as unknown as TestState;
-    expect(getVerb(state)).toBe('Draw the ');
-  });
-
-  it('returns "What is the " for meaning with flashcards', () => {
-    const state = {
-      ...baseState,
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-    } as unknown as TestState;
-    expect(getVerb(state)).toBe('What is the ');
-  });
-
-  it('returns "Speak the " for meaning with English speech recognition and useTypingInput=false', () => {
-    const state = {
-      ...baseState,
-      answerCategory: 'meaning',
-      meaningQuizType: 'speech',
-      useTypingInput: false,
-    } as unknown as TestState;
-    expect(getVerb(state)).toBe('Speak the ');
-  });
-
-  it('returns "Enter the " for meaning with English speech recognition but useTypingInput=true', () => {
-    const state = {
-      ...baseState,
-      answerCategory: 'meaning',
-      meaningQuizType: 'speech',
-      useTypingInput: true,
-    } as unknown as TestState;
-    expect(getVerb(state)).toBe('Enter the ');
-  });
-
-  it('returns "Enter the " for meaning without any flags', () => {
-    const state = {
-      ...baseState,
-      answerCategory: 'meaning',
-      meaningQuizType: 'text',
-    } as unknown as TestState;
-    expect(getVerb(state)).toBe('Enter the ');
-  });
-
-  it('returns "Enter the " for unknown answerCategory', () => {
-    const state = { ...baseState, answerCategory: 'unknown' } as unknown as TestState;
-    expect(getVerb(state)).toBe('Enter the ');
-  });
-});
-
-// ── pinyin without speech ────────────────────────────────────────────────────
-
-describe('AnswerInput — pinyin without speech recognition', () => {
-  it('renders a text input when answerCategory=pinyin and no speech recognition', () => {
-    const props = makeProps({
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'text',
-      useTypingInput: false,
-    });
-    render(<AnswerInput {...props} />);
-    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
-  });
-});
-
-// ── pinyin with speech recognition (mic mode) ────────────────────────────────
-
-describe('AnswerInput — pinyin with Chinese speech recognition (mic mode)', () => {
-  it('renders the mic button when pinyinQuizType=speech and useTypingInput=false', () => {
-    const props = makeProps({
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: false,
-    });
-    render(<AnswerInput {...props} />);
-    expect(screen.getByLabelText(/record speech/i)).toBeInTheDocument();
-  });
-
-  it('does NOT show secondary text input when showInput=false', () => {
-    const props = makeProps({
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: false,
-      showInput: false,
-    });
-    render(<AnswerInput {...props} />);
-    expect(screen.queryByLabelText(/type your answer/i)).not.toBeInTheDocument();
-  });
-
-  it('shows secondary text input when showInput=true', () => {
-    const props = makeProps({
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: false,
-      showInput: true,
-    });
-    render(<AnswerInput {...props} />);
-    expect(screen.getByLabelText(/type your answer/i)).toBeInTheDocument();
-  });
-
-  it('calls onListen when mic button is clicked', () => {
-    const props = makeProps({
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: false,
-    });
-    render(<AnswerInput {...props} />);
-    fireEvent.click(screen.getByLabelText(/record speech/i));
-    expect(props.onListen).toHaveBeenCalledTimes(1);
-  });
-
-  it('renders "Switch to typing" button in mic mode', () => {
-    const props = makeProps({
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: false,
-    });
-    render(<AnswerInput {...props} />);
-    expect(screen.getByLabelText(/switch to typing/i)).toBeInTheDocument();
-  });
-
-  it('calls setStateMerged with useTypingInput:true when "Switch to typing" is clicked', () => {
-    const props = makeProps({
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: false,
-    });
-    render(<AnswerInput {...props} />);
-    fireEvent.click(screen.getByLabelText(/switch to typing/i));
-    expect(props.setStateMerged).toHaveBeenCalledWith({ useTypingInput: true });
-  });
-
-  it('shows typing input and "Switch to speaking" when useTypingInput=true', () => {
-    const props = makeProps({
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: true,
-    });
-    render(<AnswerInput {...props} />);
-    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/switch to speaking/i)).toBeInTheDocument();
-  });
-
-  it('calls setStateMerged with useTypingInput:false when "Switch to speaking" is clicked', () => {
-    const props = makeProps({
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: true,
-    });
-    render(<AnswerInput {...props} />);
-    fireEvent.click(screen.getByLabelText(/switch to speaking/i));
-    expect(props.setStateMerged).toHaveBeenCalledWith({ useTypingInput: false });
-  });
-});
-
-// ── meaning + flashcards ─────────────────────────────────────────────────────
-
-describe('AnswerInput — meaning with flashcards (show-answer flow)', () => {
-  it('renders "Show Answer" button when showAnswer=false', () => {
-    const props = makeProps({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: false,
-    });
-    render(<AnswerInput {...props} />);
-    expect(screen.getByRole('button', { name: /show answer/i })).toBeInTheDocument();
-  });
-
-  it('calls onShowAnswer when "Show Answer" button is clicked', () => {
-    const props = makeProps({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: false,
-    });
-    render(<AnswerInput {...props} />);
-    fireEvent.click(screen.getByRole('button', { name: /show answer/i }));
-    expect(props.onShowAnswer).toHaveBeenCalledTimes(1);
-  });
-
-  it('renders like and dislike buttons when showAnswer=true', () => {
-    const props = makeProps({
+    const props = renderAnswerInput({
       answerCategory: 'meaning',
       meaningQuizType: 'flashcard',
       showAnswer: true,
     });
-    render(<AnswerInput {...props} />);
-    expect(screen.getByLabelText(/i knew this/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/i didn't know this/i)).toBeInTheDocument();
-  });
-
-  it('calls onCorrectAnswer when the like (I knew this) button is clicked', () => {
-    const props = makeProps({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: true,
-    });
-    render(<AnswerInput {...props} />);
     fireEvent.click(screen.getByLabelText(/i knew this/i));
     expect(props.onCorrectAnswer).toHaveBeenCalledTimes(1);
   });
 
-  it("calls onIDontKnow when the dislike (I didn't know this) button is clicked", () => {
-    const props = makeProps({
+  it('calls onIDontKnow when the dislike button is clicked', () => {
+    const props = renderAnswerInput({
       answerCategory: 'meaning',
       meaningQuizType: 'flashcard',
       showAnswer: true,
-      useSound: false,
     });
-    render(<AnswerInput {...props} />);
     fireEvent.click(screen.getByLabelText(/i didn't know this/i));
     expect(props.onIDontKnow).toHaveBeenCalledTimes(1);
   });
 
   it('plays fail sound when dislike is clicked and useSoundEffects=true', () => {
     const mockedFail = vi.mocked(fail);
-    const props = makeProps({
+    renderAnswerInput({
       answerCategory: 'meaning',
       meaningQuizType: 'flashcard',
       showAnswer: true,
       useSoundEffects: true,
     });
-    render(<AnswerInput {...props} />);
     fireEvent.click(screen.getByLabelText(/i didn't know this/i));
     expect(mockedFail.play).toHaveBeenCalled();
   });
 
   it('does not play fail sound on dislike when useSoundEffects=false', () => {
     const mockedFail = vi.mocked(fail);
-    const props = makeProps({
+    renderAnswerInput({
       answerCategory: 'meaning',
       meaningQuizType: 'flashcard',
       showAnswer: true,
       useSoundEffects: false,
       useSound: true,
     });
-    render(<AnswerInput {...props} />);
     fireEvent.click(screen.getByLabelText(/i didn't know this/i));
     expect(mockedFail.play).not.toHaveBeenCalled();
   });
 });
 
-// ── meaning + English speech recognition ────────────────────────────────────
+// ── getVerb ──────────────────────────────────────────────────────────────────
 
-describe('AnswerInput — meaning with English speech recognition', () => {
-  it('renders mic input when meaningQuizType=speech', () => {
-    const props = makeProps({
-      answerCategory: 'meaning',
-      meaningQuizType: 'speech',
-      useTypingInput: false,
-    });
-    render(<AnswerInput {...props} />);
-    expect(screen.getByLabelText(/record speech/i)).toBeInTheDocument();
+describe('getVerb', () => {
+  it('returns "Draw the " for character answers', () => {
+    expect(getVerb(makeState({ answerCategory: 'character' }))).toBe('Draw the ');
   });
 
-  it('renders text input when meaning+speech and useTypingInput=true', () => {
-    const props = makeProps({
-      answerCategory: 'meaning',
-      meaningQuizType: 'speech',
-      useTypingInput: true,
-    });
-    render(<AnswerInput {...props} />);
-    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
+  it('returns "Enter the " for input-mode pinyin answers', () => {
+    expect(getVerb(makeState({ answerCategory: 'pinyin', pinyinQuizType: 'input' }))).toBe(
+      'Enter the ',
+    );
   });
 
-  it('renders plain text input when meaning, no speech, no flashcards', () => {
-    const props = makeProps({
-      answerCategory: 'meaning',
-      meaningQuizType: 'text',
-      useTypingInput: false,
-    });
-    render(<AnswerInput {...props} />);
-    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
-  });
-});
-
-// ── getVerb() helper ─────────────────────────────────────────────────────────
-
-describe('getVerb() — prompt verb for each answer category', () => {
-  it('returns "Enter the " for pinyin without speech', () => {
-    const state = makeState({ answerCategory: 'pinyin', pinyinQuizType: 'text' });
-    expect(getVerb(state)).toBe('Enter the ');
+  it('returns "Enter the " for input-mode meaning answers', () => {
+    expect(getVerb(makeState({ answerCategory: 'meaning', meaningQuizType: 'input' }))).toBe(
+      'Enter the ',
+    );
   });
 
-  it('returns "Speak the " for pinyin with speech in mic mode', () => {
-    const state = makeState({
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: false,
-    });
-    expect(getVerb(state)).toBe('Speak the ');
+  it('returns "What is the " for flashcard pinyin answers', () => {
+    expect(getVerb(makeState({ answerCategory: 'pinyin', pinyinQuizType: 'flashcard' }))).toBe(
+      'What is the ',
+    );
   });
 
-  it('returns "Enter the " for pinyin with speech when useTypingInput=true', () => {
-    const state = makeState({
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'speech',
-      useTypingInput: true,
-    });
-    expect(getVerb(state)).toBe('Enter the ');
+  it('returns "What is the " for flashcard meaning answers', () => {
+    expect(getVerb(makeState({ answerCategory: 'meaning', meaningQuizType: 'flashcard' }))).toBe(
+      'What is the ',
+    );
   });
 
-  it('returns "Draw the " for character category', () => {
-    const state = makeState({ answerCategory: 'character' });
-    expect(getVerb(state)).toBe('Draw the ');
-  });
-
-  it('returns "What is the " for meaning with flashcards', () => {
-    const state = makeState({ answerCategory: 'meaning', meaningQuizType: 'flashcard' });
-    expect(getVerb(state)).toBe('What is the ');
-  });
-
-  it('returns "Speak the " for meaning with English speech in mic mode', () => {
-    const state = makeState({
-      answerCategory: 'meaning',
-      meaningQuizType: 'speech',
-      useTypingInput: false,
-    });
-    expect(getVerb(state)).toBe('Speak the ');
-  });
-
-  it('returns "Enter the " for meaning with English speech in typing mode', () => {
-    const state = makeState({
-      answerCategory: 'meaning',
-      meaningQuizType: 'speech',
-      useTypingInput: true,
-    });
-    expect(getVerb(state)).toBe('Enter the ');
-  });
-
-  it('returns "Enter the " for meaning without speech and without flashcards', () => {
-    const state = makeState({
-      answerCategory: 'meaning',
-      meaningQuizType: 'text',
-    });
-    expect(getVerb(state)).toBe('Enter the ');
-  });
-
-  it('returns "Enter the " for unknown answerCategory (default case)', () => {
-    const state = makeState({ answerCategory: 'unknown' });
-    expect(getVerb(state)).toBe('Enter the ');
+  it('returns "Enter the " for an unknown answer category', () => {
+    expect(getVerb(makeState({ answerCategory: 'unknown' as any }))).toBe('Enter the ');
   });
 });

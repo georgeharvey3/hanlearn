@@ -32,14 +32,13 @@ vi.mock('./constants', () => ({
     idkList: [],
     scoreList: [],
     testFinished: false,
-    showInput: false,
     showInputChars: [],
     drawnCharacters: [],
     numSpeakTries: 0,
     useSound: false,
     useHandwriting: false,
-    meaningQuizType: 'text',
-    pinyinQuizType: 'text',
+    meaningQuizType: 'input',
+    pinyinQuizType: 'input',
     useAutoRecord: false,
     showErrorMessage: false,
     redoChar: false,
@@ -63,7 +62,6 @@ vi.mock('./constants', () => ({
     speechLoading: false,
     interaction: false,
     speechResult: false,
-    useTypingInput: false,
   })),
 }));
 
@@ -193,8 +191,8 @@ describe('useTestEngine — refreshSettings', () => {
         useSound: true,
         useSoundEffects: true,
         useAutoRecord: false,
-        meaningQuizType: 'text',
-        pinyinQuizType: 'text',
+        meaningQuizType: 'input',
+        pinyinQuizType: 'input',
       });
     });
 
@@ -209,8 +207,8 @@ describe('useTestEngine — refreshSettings', () => {
         useSound: true,
         useSoundEffects: true,
         useAutoRecord: false,
-        meaningQuizType: 'text',
-        pinyinQuizType: 'text',
+        meaningQuizType: 'input',
+        pinyinQuizType: 'input',
       });
     });
 
@@ -225,8 +223,8 @@ describe('useTestEngine — refreshSettings', () => {
         useSound: false,
         useSoundEffects: true,
         useAutoRecord: true,
-        meaningQuizType: 'text',
-        pinyinQuizType: 'text',
+        meaningQuizType: 'input',
+        pinyinQuizType: 'input',
       });
     });
 
@@ -250,38 +248,24 @@ describe('useTestEngine — refreshSettings', () => {
     expect(result.current.state.pinyinQuizType).toBe('flashcard');
   });
 
-  it('degrades speech quiz types to text when speechAvailable is false', () => {
-    const result = renderEngineWithState({}, { speechAvailable: false });
+  it('applies input quiz types regardless of speech availability', () => {
+    const result = renderEngineWithState(
+      { meaningQuizType: 'flashcard', pinyinQuizType: 'flashcard' },
+      { speechAvailable: false },
+    );
 
     act(() => {
       result.current.refreshSettings({
         useSound: false,
         useSoundEffects: true,
         useAutoRecord: false,
-        meaningQuizType: 'speech',
-        pinyinQuizType: 'speech',
+        meaningQuizType: 'input',
+        pinyinQuizType: 'input',
       });
     });
 
-    expect(result.current.state.meaningQuizType).toBe('text');
-    expect(result.current.state.pinyinQuizType).toBe('text');
-  });
-
-  it('keeps speech quiz types when speechAvailable is true', () => {
-    const result = renderEngineWithState({}, { speechAvailable: true });
-
-    act(() => {
-      result.current.refreshSettings({
-        useSound: false,
-        useSoundEffects: true,
-        useAutoRecord: false,
-        meaningQuizType: 'speech',
-        pinyinQuizType: 'speech',
-      });
-    });
-
-    expect(result.current.state.meaningQuizType).toBe('speech');
-    expect(result.current.state.pinyinQuizType).toBe('speech');
+    expect(result.current.state.meaningQuizType).toBe('input');
+    expect(result.current.state.pinyinQuizType).toBe('input');
   });
 });
 
@@ -469,7 +453,6 @@ describe('useTestEngine — onKeyPress', () => {
       answerInput: 'hello',
       submitDisabled: false,
       useAutoRecord: false,
-      useTypingInput: false,
       recognition: null,
     });
 
@@ -488,7 +471,6 @@ describe('useTestEngine — onKeyPress', () => {
       answerInput: 'hello',
       submitDisabled: false,
       useAutoRecord: false,
-      useTypingInput: false,
       recognition: null,
     });
 

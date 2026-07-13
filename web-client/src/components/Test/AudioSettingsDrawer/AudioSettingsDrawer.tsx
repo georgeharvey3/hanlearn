@@ -7,7 +7,6 @@ import {
   FormGroup,
   Radio,
   RadioGroup,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import {
@@ -72,19 +71,7 @@ const AudioSettingsDrawer: React.FC<AudioSettingsDrawerProps> = ({
         value={value}
         onChange={handleQuizTypeChange(category)}
       >
-        <FormControlLabel value="text" control={<Radio size="small" />} label="Text" />
-        <Tooltip
-          title={speechAvailable ? '' : 'Speech recognition is not available in this browser'}
-        >
-          <span>
-            <FormControlLabel
-              value="speech"
-              control={<Radio size="small" />}
-              label="Speech"
-              disabled={!speechAvailable}
-            />
-          </span>
-        </Tooltip>
+        <FormControlLabel value="input" control={<Radio size="small" />} label="Input" />
         <FormControlLabel value="flashcard" control={<Radio size="small" />} label="Flashcard" />
       </RadioGroup>
     </Box>
