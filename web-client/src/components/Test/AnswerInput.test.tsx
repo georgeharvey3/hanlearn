@@ -196,7 +196,11 @@ describe('AnswerInput — pinyin with speech recognition', () => {
 
 describe('AnswerInput — meaning with flashcards', () => {
   it('renders "Show Answer" button when showAnswer is false', () => {
-    renderAnswerInput({ answerCategory: 'meaning', meaningQuizType: 'flashcard', showAnswer: false });
+    renderAnswerInput({
+      answerCategory: 'meaning',
+      meaningQuizType: 'flashcard',
+      showAnswer: false,
+    });
     expect(screen.getByRole('button', { name: /show answer/i })).toBeInTheDocument();
     expect(screen.queryByLabelText(/i knew this/i)).not.toBeInTheDocument();
   });
@@ -227,7 +231,11 @@ describe('AnswerInput — meaning with flashcards', () => {
   });
 
   it('renders like/dislike buttons when showAnswer is true', () => {
-    renderAnswerInput({ answerCategory: 'meaning', meaningQuizType: 'flashcard', showAnswer: true });
+    renderAnswerInput({
+      answerCategory: 'meaning',
+      meaningQuizType: 'flashcard',
+      showAnswer: true,
+    });
     expect(screen.getByLabelText(/i knew this/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/i didn't know this/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /show answer/i })).not.toBeInTheDocument();
@@ -557,27 +565,43 @@ describe('AnswerInput — pinyin with Chinese speech recognition (mic mode)', ()
 
 describe('AnswerInput — meaning with flashcards (show-answer flow)', () => {
   it('renders "Show Answer" button when showAnswer=false', () => {
-    const props = makeProps({ answerCategory: 'meaning', meaningQuizType: 'flashcard', showAnswer: false });
+    const props = makeProps({
+      answerCategory: 'meaning',
+      meaningQuizType: 'flashcard',
+      showAnswer: false,
+    });
     render(<AnswerInput {...props} />);
     expect(screen.getByRole('button', { name: /show answer/i })).toBeInTheDocument();
   });
 
   it('calls onShowAnswer when "Show Answer" button is clicked', () => {
-    const props = makeProps({ answerCategory: 'meaning', meaningQuizType: 'flashcard', showAnswer: false });
+    const props = makeProps({
+      answerCategory: 'meaning',
+      meaningQuizType: 'flashcard',
+      showAnswer: false,
+    });
     render(<AnswerInput {...props} />);
     fireEvent.click(screen.getByRole('button', { name: /show answer/i }));
     expect(props.onShowAnswer).toHaveBeenCalledTimes(1);
   });
 
   it('renders like and dislike buttons when showAnswer=true', () => {
-    const props = makeProps({ answerCategory: 'meaning', meaningQuizType: 'flashcard', showAnswer: true });
+    const props = makeProps({
+      answerCategory: 'meaning',
+      meaningQuizType: 'flashcard',
+      showAnswer: true,
+    });
     render(<AnswerInput {...props} />);
     expect(screen.getByLabelText(/i knew this/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/i didn't know this/i)).toBeInTheDocument();
   });
 
   it('calls onCorrectAnswer when the like (I knew this) button is clicked', () => {
-    const props = makeProps({ answerCategory: 'meaning', meaningQuizType: 'flashcard', showAnswer: true });
+    const props = makeProps({
+      answerCategory: 'meaning',
+      meaningQuizType: 'flashcard',
+      showAnswer: true,
+    });
     render(<AnswerInput {...props} />);
     fireEvent.click(screen.getByLabelText(/i knew this/i));
     expect(props.onCorrectAnswer).toHaveBeenCalledTimes(1);

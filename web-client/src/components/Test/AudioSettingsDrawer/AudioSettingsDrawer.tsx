@@ -73,7 +73,9 @@ const AudioSettingsDrawer: React.FC<AudioSettingsDrawerProps> = ({
         onChange={handleQuizTypeChange(category)}
       >
         <FormControlLabel value="text" control={<Radio size="small" />} label="Text" />
-        <Tooltip title={speechAvailable ? '' : 'Speech recognition is not available in this browser'}>
+        <Tooltip
+          title={speechAvailable ? '' : 'Speech recognition is not available in this browser'}
+        >
           <span>
             <FormControlLabel
               value="speech"

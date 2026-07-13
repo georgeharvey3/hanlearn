@@ -382,9 +382,7 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
             >
               <FormControlLabel value="text" control={<Radio size="small" />} label="Text" />
               <Tooltip
-                title={
-                  speechAvailable ? '' : 'Speech recognition is not available in this browser'
-                }
+                title={speechAvailable ? '' : 'Speech recognition is not available in this browser'}
                 placement="right"
                 disableHoverListener={speechAvailable}
                 disableFocusListener={speechAvailable}
