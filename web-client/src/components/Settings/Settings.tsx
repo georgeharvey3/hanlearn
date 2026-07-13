@@ -18,8 +18,6 @@ import { QuizCategory, QuizType, getQuizType, setQuizType } from '../../utils/au
 interface SettingsState {
   charSet: string;
   numWords: number;
-  useChineseSpeechRecognition: boolean;
-  useEnglishSpeechRecognition: boolean;
   useHandwriting: boolean;
   useSound: boolean;
   useSoundEffects: boolean;
@@ -86,7 +84,6 @@ interface CheckboxItem {
   checked: boolean;
   disabled: boolean;
   disabledTooltip: string;
-  indent?: boolean;
 }
 
 const CheckboxRows: React.FC<{
@@ -94,8 +91,8 @@ const CheckboxRows: React.FC<{
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
 }> = ({ items, onChange }) => (
   <FormGroup>
-    {items.map(({ value, label, checked, disabled, disabledTooltip, indent }) => (
-      <Box key={value} sx={{ ...rowSx, ...(indent ? { pl: 5, bgcolor: '#faf7f4' } : {}) }}>
+    {items.map(({ value, label, checked, disabled, disabledTooltip }) => (
+      <Box key={value} sx={rowSx}>
         <Tooltip
           title={disabled ? disabledTooltip : ''}
           placement="right"
@@ -127,8 +124,6 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
   const [state, setState] = useState<SettingsState>(() => {
     const localCharSet = localStorage.getItem('charSet');
     const localNumWords = localStorage.getItem('numWords');
-    const useChineseSpeechRecognition = localStorage.getItem('useChineseSpeechRecognition');
-    const useEnglishSpeechRecognition = localStorage.getItem('useEnglishSpeechRecognition');
     const useHandwriting = localStorage.getItem('useHandwriting');
     const useSound = localStorage.getItem('useSound');
     const useSoundEffects = localStorage.getItem('useSoundEffects');
@@ -143,8 +138,6 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
     return {
       charSet: localCharSet || 'trad',
       numWords: localNumWords ? parseInt(localNumWords) : 5,
-      useChineseSpeechRecognition: useChineseSpeechRecognition === 'false' ? false : true,
-      useEnglishSpeechRecognition: useEnglishSpeechRecognition === 'false' ? false : true,
       useHandwriting: useHandwriting === 'false' ? false : true,
       useSound: useSound === 'false' ? false : true,
       useSoundEffects: useSoundEffects === 'false' ? false : true,
@@ -290,31 +283,11 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
       disabledTooltip: 'Requires speech recognition support in this browser',
     },
     {
-      value: 'useEnglishSpeechRecognition',
-      label: 'Answer by speaking',
-      indent: true,
-      checked: state.useEnglishSpeechRecognition && speechAvailable && state.sentenceRead,
-      disabled: !speechAvailable || !state.sentenceRead,
-      disabledTooltip: !speechAvailable
-        ? 'Speech recognition is not available in this browser'
-        : 'Enable the Translate Sentences stage first',
-    },
-    {
       value: 'sentenceWrite',
       label: 'Make Sentences',
       checked: state.sentenceWrite,
       disabled: false,
       disabledTooltip: '',
-    },
-    {
-      value: 'useChineseSpeechRecognition',
-      label: 'Speak your sentences',
-      indent: true,
-      checked: state.useChineseSpeechRecognition && speechAvailable && state.sentenceWrite,
-      disabled: !speechAvailable || !state.sentenceWrite,
-      disabledTooltip: !speechAvailable
-        ? 'Speech recognition is not available in this browser'
-        : 'Enable the Make Sentences stage first',
     },
     {
       value: 'sentenceStagesForAllWords',

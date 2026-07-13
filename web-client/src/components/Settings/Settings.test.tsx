@@ -172,29 +172,6 @@ describe('Settings — checkbox toggles', () => {
 });
 
 describe('Settings — quiz type independence', () => {
-  it('toggling the Translate Sentences speaking option leaves quiz types unchanged', async () => {
-    const user = userEvent.setup();
-    localStorage.setItem('meaningQuizType', 'flashcard');
-    renderWithProviders(<Settings />, { store: makeStore(true, false) });
-
-    const answerBySpeaking = screen.getByRole('checkbox', { name: /answer by speaking/i });
-    await user.click(answerBySpeaking);
-
-    expect(localStorage.getItem('useEnglishSpeechRecognition')).toBe('false');
-    expect(localStorage.getItem('meaningQuizType')).toBe('flashcard');
-  });
-
-  it('switching a quiz type leaves the stage speaking options unchanged', async () => {
-    const user = userEvent.setup();
-    localStorage.setItem('useEnglishSpeechRecognition', 'true');
-    renderWithProviders(<Settings />, { store: makeStore(true, false) });
-
-    const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
-    await user.click(within(meaning).getByRole('radio', { name: 'Text' }));
-
-    expect(localStorage.getItem('useEnglishSpeechRecognition')).toBe('true');
-  });
-
   it('supports speech for pinyin and flashcard for meaning at the same time', async () => {
     const user = userEvent.setup();
     // Start away from the defaults so both clicks fire change events
@@ -280,25 +257,6 @@ describe('Settings — speech availability gating', () => {
     renderWithProviders(<Settings />, { store: makeStore(false, true) });
     const soundCheckbox = screen.getByRole('checkbox', { name: /text-to-speech/i });
     expect(soundCheckbox).not.toBeDisabled();
-  });
-
-  it('disables the stage speaking options when speechAvailable is false', () => {
-    renderWithProviders(<Settings />, { store: makeStore(false, false) });
-    expect(screen.getByRole('checkbox', { name: /answer by speaking/i })).toBeDisabled();
-    expect(screen.getByRole('checkbox', { name: /speak your sentences/i })).toBeDisabled();
-  });
-
-  it('enables the stage speaking options when speechAvailable is true and the stage is on', () => {
-    renderWithProviders(<Settings />, { store: makeStore(true, false) });
-    expect(screen.getByRole('checkbox', { name: /answer by speaking/i })).not.toBeDisabled();
-    expect(screen.getByRole('checkbox', { name: /speak your sentences/i })).not.toBeDisabled();
-  });
-
-  it('disables a stage speaking option when its stage is turned off', () => {
-    localStorage.setItem('sentenceWrite', 'false');
-    renderWithProviders(<Settings />, { store: makeStore(true, false) });
-    expect(screen.getByRole('checkbox', { name: /speak your sentences/i })).toBeDisabled();
-    expect(screen.getByRole('checkbox', { name: /answer by speaking/i })).not.toBeDisabled();
   });
 
   it('disables Auto-start microphone when no quiz type is set to Speech', () => {
