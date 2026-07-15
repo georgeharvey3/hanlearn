@@ -20,7 +20,6 @@ export const useTestEngine = (props: Props) => {
   const [state, setState] = useState<TestState>(() => createInitialState(props));
   const stateRef = useRef(state);
   const submitSpeechRef = useRef<(speech: string) => void>(() => {});
-  const onListenRef = useRef<() => void>(() => {});
   const initializedRef = useRef(false);
 
   useEffect(() => {
@@ -303,7 +302,6 @@ export const useTestEngine = (props: Props) => {
             chosenCharacter: newQuestion.chosenCharacter,
             result: '',
             answerInput: '',
-            numSpeakTries: 0,
             qNum: prevState.qNum + 1,
             idkDisabled: false,
             submitDisabled: false,
@@ -341,38 +339,47 @@ export const useTestEngine = (props: Props) => {
     [getState],
   );
 
-  const onSubmitAnswer = useCallback((): void => {
-    const current = getState();
-    if (checkAnswer(current.answerInput)) {
-      onCorrectAnswer();
-    } else {
-      if (current.useSoundEffects) {
-        fail.play();
-      }
-      let resultString = 'Try again';
+  // Shared submission path for typed and spoken answers. On a wrong answer the
+  // input is left untouched so the user can edit and resubmit it.
+  const submitAnswer = useCallback(
+    (input: string, usedSpeech = false): void => {
+      const current = getState();
+      if (checkAnswer(input)) {
+        onCorrectAnswer(usedSpeech);
+      } else {
+        if (current.useSoundEffects) {
+          fail.play();
+        }
+        let resultString = 'Try again';
 
-      if (current.answerCategory === 'pinyin' && typeof current.answer === 'string') {
-        const cleanAnswer = current.answer.replace(/ /g, '').toLowerCase();
-        const cleanInput = current.answerInput.trim().replace(/ /g, '').toLowerCase();
+        if (current.answerCategory === 'pinyin' && typeof current.answer === 'string') {
+          const cleanAnswer = current.answer.replace(/ /g, '').toLowerCase();
+          const cleanInput = input.trim().replace(/ /g, '').toLowerCase();
 
-        if (testLogic.toneChecker(cleanInput, cleanAnswer)) {
-          resultString = 'Incorrect tones';
+          if (testLogic.toneChecker(cleanInput, cleanAnswer)) {
+            resultString = 'Incorrect tones';
+          }
+        }
+
+        setStateMerged({ result: resultString, showHint: false });
+        if (
+          current.useAutoRecord &&
+          !current.pauseAutoRecord &&
+          props.speechAvailable &&
+          answerQuizType(current) === 'input'
+        ) {
+          onListen();
         }
       }
 
-      setStateMerged({ result: resultString, showHint: false });
-      if (
-        current.useAutoRecord &&
-        !current.pauseAutoRecord &&
-        props.speechAvailable &&
-        answerQuizType(current) === 'input'
-      ) {
-        onListen();
-      }
-    }
+      current.recognition?.abort();
+    },
+    [checkAnswer, getState, onCorrectAnswer, onListen, props.speechAvailable, setStateMerged],
+  );
 
-    current.recognition?.abort();
-  }, [checkAnswer, getState, onCorrectAnswer, onListen, props.speechAvailable, setStateMerged]);
+  const onSubmitAnswer = useCallback((): void => {
+    submitAnswer(getState().answerInput);
+  }, [getState, submitAnswer]);
 
   const submitSpeech = useCallback(
     (speech: string): void => {
@@ -406,70 +413,24 @@ export const useTestEngine = (props: Props) => {
         submission = speech;
       }
 
-      if (
-        speech === current.chosenCharacter ||
-        (current.answerCategory === 'meaning' &&
-          Array.isArray(current.answer) &&
-          current.answer.includes(speech))
-      ) {
-        onCorrectAnswer(true);
-      } else if (submission === current.answer) {
-        onCorrectAnswer(true);
-      } else if (
-        current.answerCategory === 'pinyin' &&
-        typeof current.answer === 'string' &&
-        submission.replace(/[0-9]/g, '') === current.answer.replace(/[0-9]/g, '')
-      ) {
-        if (current.useSoundEffects) {
-          fail.play();
-        }
-        let sentence = 'Try different tones...';
-        if (current.chosenCharacter?.length === 1) {
-          sentence = 'Try a different tone...';
-        }
+      // Put the transcript in the input so a wrong answer can be edited there
+      setStateMerged({ answerInput: submission });
 
-        if (current.numSpeakTries > 0) {
-          setStateMerged({
-            result: `We heard: '${submission}', which is wrong. ${sentence}`,
-          });
-        } else {
-          setStateMerged((prevState) => ({
-            result: `We heard: '${submission}', which is wrong. ${sentence}`,
-            numSpeakTries: prevState.numSpeakTries + 1,
-          }));
-        }
-        if (current.useAutoRecord && !current.pauseAutoRecord) {
-          setTimeout(() => onListenRef.current(), 1500);
-        }
-      } else {
-        if (current.useSoundEffects) {
-          fail.play();
-        }
-        if (current.numSpeakTries > 0) {
-          setStateMerged({
-            result: `We heard: '${submission}', which is wrong. Try again...`,
-          });
-        } else {
-          setStateMerged((prevState) => ({
-            result: `We heard: '${submission}', which is wrong. Try again...`,
-            numSpeakTries: prevState.numSpeakTries + 1,
-          }));
-        }
-        if (current.useAutoRecord && !current.pauseAutoRecord) {
-          setTimeout(() => onListenRef.current(), 1500);
-        }
+      // Chinese speech recognition returns hanzi; an exact match on the target
+      // word is correct even if its derived pinyin reading differs
+      if (speech === current.chosenCharacter) {
+        onCorrectAnswer(true);
+        return;
       }
+
+      submitAnswer(submission, true);
     },
-    [getState, onCorrectAnswer, setStateMerged],
+    [getState, onCorrectAnswer, setStateMerged, submitAnswer],
   );
 
   useEffect(() => {
     submitSpeechRef.current = submitSpeech;
   }, [submitSpeech]);
-
-  useEffect(() => {
-    onListenRef.current = onListen;
-  }, [onListen]);
 
   // --- Hanzi Writer ---
 
@@ -597,7 +558,6 @@ export const useTestEngine = (props: Props) => {
             idkDisabled: false,
             result: '',
             answerInput: '',
-            numSpeakTries: 0,
             redoChar: redoChar,
             qNum: prevState.qNum + 1,
           }));
@@ -666,7 +626,6 @@ export const useTestEngine = (props: Props) => {
         idkDisabled: false,
         result: '',
         answerInput: '',
-        numSpeakTries: 0,
         qNum: prevState.qNum + 1,
         submitDisabled: false,
         showHint: false,
@@ -677,6 +636,8 @@ export const useTestEngine = (props: Props) => {
 
   // --- Key press (input submit) ---
 
+  // A wrong answer stays in the input for editing; correct answers are cleared
+  // when the next question loads.
   const onKeyPress = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>): void => {
       const current = getState();
@@ -684,9 +645,8 @@ export const useTestEngine = (props: Props) => {
         return;
       }
       onSubmitAnswer();
-      setStateMerged({ answerInput: '' });
     },
-    [getState, onSubmitAnswer, setStateMerged],
+    [getState, onSubmitAnswer],
   );
 
   // --- Hints ---

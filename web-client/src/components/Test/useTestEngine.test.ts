@@ -477,50 +477,144 @@ describe('useTestEngine — character hint flash', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Regression: submitSpeech numSpeakTries condition (was > -1, always true)
-// After a first wrong speech attempt, showInput should NOT be set yet;
-// the counter should increment so showInput appears only after the second fail.
+// Speech submissions go through the shared input flow: the transcript is
+// written into the answer input, submitted like a typed answer, and a wrong
+// transcript stays in the input so the user can edit and resubmit it.
 // ---------------------------------------------------------------------------
-describe('useTestEngine — submitSpeech first-attempt behaviour (regression)', () => {
-  function setupSpeechState(answerCategory: string, answer: string) {
-    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
-    return renderEngineWithState({
-      answerCategory,
-      answer,
-      chosenCharacter: '你好',
-      perm,
-      testSet: [makeWord()],
-      permList: [perm],
-      charSet: 'simp',
-      numSpeakTries: 0, // first attempt
-      useAutoRecord: false,
-    });
+describe('useTestEngine — speech submissions fill and submit the answer input', () => {
+  function setupSpeechRecognition() {
+    const listeners: Record<string, (event: any) => void> = {};
+    const mockRecognition = {
+      lang: '',
+      start: vi.fn(),
+      abort: vi.fn(),
+      stop: vi.fn(),
+      addEventListener: vi.fn((event: string, handler: (e: any) => void) => {
+        listeners[event] = handler;
+      }),
+      removeEventListener: vi.fn(),
+    };
+
+    class FakeRecognition {
+      lang = '';
+      start = mockRecognition.start;
+      abort = mockRecognition.abort;
+      stop = mockRecognition.stop;
+      addEventListener = mockRecognition.addEventListener;
+      removeEventListener = mockRecognition.removeEventListener;
+    }
+
+    (window as any).webkitSpeechRecognition = FakeRecognition;
+
+    const speak = (transcript: string) => {
+      listeners['result']?.({ results: [[{ transcript }]] });
+    };
+
+    return { mockRecognition, speak };
   }
 
-  it('numSpeakTries can be reset via setStateMerged (confirms the reset mechanism works)', () => {
-    // Regression: onIDontKnow's question-advance setTimeout did not include
-    // numSpeakTries: 0, so accumulated speech-attempt counts carried over to
-    // the next question. The fix adds numSpeakTries: 0 to the delayed state update.
+  function setupMeaningQuestion() {
     const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
-    const result = renderEngineWithState({
-      numSpeakTries: 2,
-      useHandwriting: false,
-      writer: null,
-      perm,
-      testSet: [makeWord()],
-      permList: [perm],
-      charSet: 'simp',
-    });
+    const sparePerm = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
+    return renderEngineWithState(
+      {
+        answerCategory: 'meaning',
+        answer: ['hello', 'hi'],
+        chosenCharacter: '你好',
+        meaningQuizType: 'input',
+        useAutoRecord: false,
+        perm,
+        testSet: [makeWord()],
+        permList: [perm, sparePerm],
+        charSet: 'simp',
+      },
+      { speechAvailable: true },
+    );
+  }
 
-    expect(result.current.state.numSpeakTries).toBe(2);
+  it('keeps a wrong transcript in the answer input for editing', () => {
+    const { speak } = setupSpeechRecognition();
+    const result = setupMeaningQuestion();
 
-    // The fixed setTimeout callback now merges numSpeakTries: 0 into state.
-    // Simulate what the resolved timeout callback does:
     act(() => {
-      result.current.setStateMerged({ numSpeakTries: 0 } as any);
+      result.current.onListen();
+    });
+    act(() => {
+      speak('goodbye');
     });
 
-    expect(result.current.state.numSpeakTries).toBe(0);
+    expect(result.current.state.answerInput).toBe('goodbye');
+    expect(result.current.state.result).toBe('Try again');
+    expect(result.current.state.idkDisabled).toBe(false);
+  });
+
+  it('accepts a correct transcript like a typed answer', () => {
+    const { speak } = setupSpeechRecognition();
+    const result = setupMeaningQuestion();
+
+    act(() => {
+      result.current.onListen();
+    });
+    act(() => {
+      speak('hello');
+    });
+
+    expect(result.current.state.answerInput).toBe('hello');
+    expect(result.current.state.result).toBe('Correct');
+    expect(result.current.state.idkDisabled).toBe(true);
+  });
+
+  it('an edited wrong transcript can be resubmitted as a typed answer', () => {
+    const { speak } = setupSpeechRecognition();
+    const result = setupMeaningQuestion();
+
+    act(() => {
+      result.current.onListen();
+    });
+    act(() => {
+      speak('goodbye');
+    });
+    expect(result.current.state.result).toBe('Try again');
+
+    // User edits the transcript in the input and submits again
+    act(() => {
+      result.current.setStateMerged({ answerInput: 'hi' } as any);
+    });
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+
+    expect(result.current.state.result).toBe('Correct');
+  });
+
+  it('accepts recognised hanzi matching the target word for pinyin answers', () => {
+    const { speak } = setupSpeechRecognition();
+    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
+    const sparePerm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const result = renderEngineWithState(
+      {
+        answerCategory: 'pinyin',
+        answer: 'ni3 hao3',
+        chosenCharacter: '你好',
+        pinyinQuizType: 'input',
+        useAutoRecord: false,
+        perm,
+        testSet: [makeWord()],
+        permList: [perm, sparePerm],
+        charSet: 'simp',
+      },
+      { speechAvailable: true },
+    );
+
+    act(() => {
+      result.current.onListen();
+    });
+    act(() => {
+      speak('你好');
+    });
+
+    expect(result.current.state.result).toBe('"ni3 hao3" is correct!');
+    expect(result.current.state.idkDisabled).toBe(true);
   });
 });
 

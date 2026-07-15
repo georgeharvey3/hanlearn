@@ -65,7 +65,6 @@ export const createInitialState = (props: Props): TestState => {
     testFinished: props.devTestFinished ?? false,
     showInputChars: [],
     drawnCharacters: [],
-    numSpeakTries: 0,
     useSound: true,
     useSoundEffects: true,
     useHandwriting: true,

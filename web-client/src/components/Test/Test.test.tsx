@@ -464,11 +464,11 @@ describe('useTestEngine — onKeyPress', () => {
     expect(result.current.state.result).toBe('Correct');
   });
 
-  it('clears answerInput after submitting via Enter', () => {
+  it('keeps a wrong answer in the input after submitting via Enter', () => {
     const result = renderEngineWithState({
       answerCategory: 'meaning',
       answer: ['hello'],
-      answerInput: 'hello',
+      answerInput: 'goodbye',
       submitDisabled: false,
       useAutoRecord: false,
       recognition: null,
@@ -479,6 +479,7 @@ describe('useTestEngine — onKeyPress', () => {
       result.current.onKeyPress(event);
     });
 
-    expect(result.current.state.answerInput).toBe('');
+    expect(result.current.state.result).toBe('Try again');
+    expect(result.current.state.answerInput).toBe('goodbye');
   });
 });

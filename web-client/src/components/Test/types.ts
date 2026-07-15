@@ -25,7 +25,6 @@ export interface TestState {
   testFinished: boolean;
   showInputChars: string[];
   drawnCharacters: string[];
-  numSpeakTries: number;
   useSound: boolean;
   useSoundEffects: boolean;
   useHandwriting: boolean;
