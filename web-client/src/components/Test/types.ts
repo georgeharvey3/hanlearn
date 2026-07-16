@@ -1,6 +1,7 @@
 import { RouteComponentProps } from 'react-router-dom';
 
 import { Word, TestPerm, WordScore } from '../../types/models';
+import { QuizType } from '../../utils/audioSettings';
 
 export interface TestState {
   testSet: Word[];
@@ -22,17 +23,14 @@ export interface TestState {
   idkList: string[];
   scoreList: WordScore[];
   testFinished: boolean;
-  showInput: boolean;
   showInputChars: string[];
   drawnCharacters: string[];
-  numSpeakTries: number;
   useSound: boolean;
   useSoundEffects: boolean;
   useHandwriting: boolean;
-  useChineseSpeechRecognition: boolean;
-  useEnglishSpeechRecognition: boolean;
+  meaningQuizType: QuizType;
+  pinyinQuizType: QuizType;
   useAutoRecord: boolean;
-  useFlashcards: boolean;
   showErrorMessage: boolean;
   redoChar: boolean;
   sentenceWords: Word[];
@@ -55,7 +53,6 @@ export interface TestState {
   speechLoading: boolean;
   interaction: boolean;
   speechResult: boolean;
-  useTypingInput: boolean;
 }
 
 export interface ReduxProps {

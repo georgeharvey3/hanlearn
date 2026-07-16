@@ -43,7 +43,6 @@ interface SentenceReadState {
   loading: boolean;
   synthLoading: boolean;
   useSound: boolean;
-  useEnglishSpeechRecognition: boolean;
   showText: boolean;
   openPopup: string;
   message: string;
@@ -54,6 +53,7 @@ interface SentenceReadState {
 
 const mapStateToProps = (state: RootState) => ({
   synthAvailable: state.settings.synthAvailable,
+  speechAvailable: state.settings.speechAvailable,
   voice: state.settings.voice,
   lang: state.settings.lang,
   addedWords: state.addWords.words,
@@ -129,6 +129,7 @@ const popupTextStyle: React.CSSProperties = {
 
 const SentenceRead: React.FC<Props> = ({
   synthAvailable,
+  speechAvailable,
   voice,
   lang,
   addedWords,
@@ -154,7 +155,6 @@ const SentenceRead: React.FC<Props> = ({
     loading: false,
     synthLoading: false,
     useSound: true,
-    useEnglishSpeechRecognition: false,
     showText: false,
     openPopup: '',
     message: '',
@@ -191,11 +191,8 @@ const SentenceRead: React.FC<Props> = ({
   const initialiseSettings = useCallback((): void => {
     const useSound =
       synthAvailable && (localStorage.getItem('useSound') !== 'false' || Boolean(isDemo));
-    const useEnglishSpeechRecognition =
-      synthAvailable &&
-      (localStorage.getItem('useEnglishSpeechRecognition') !== 'false' || Boolean(isDemo));
 
-    updateState({ useSound, useEnglishSpeechRecognition });
+    updateState({ useSound });
   }, [isDemo, synthAvailable, updateState]);
 
   const onSpeakPinyin = useCallback(
@@ -695,7 +692,7 @@ const SentenceRead: React.FC<Props> = ({
       </Stack>
     );
   } else {
-    const micButton = state.useEnglishSpeechRecognition ? (
+    const micButton = speechAvailable ? (
       <Stack direction="row" alignItems="center" spacing={1} justifyContent="center">
         {state.message && (
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>

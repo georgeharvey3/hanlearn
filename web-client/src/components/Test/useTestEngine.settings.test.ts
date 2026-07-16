@@ -27,17 +27,15 @@ vi.mock('./constants', () => ({
     idkList: [],
     scoreList: [],
     testFinished: false,
-    showInput: false,
     showInputChars: [],
     drawnCharacters: [],
     numSpeakTries: 0,
     useSound: false,
     useSoundEffects: false,
     useHandwriting: false,
-    useChineseSpeechRecognition: false,
-    useEnglishSpeechRecognition: false,
+    pinyinQuizType: 'input',
+    meaningQuizType: 'input',
     useAutoRecord: false,
-    useFlashcards: false,
     showErrorMessage: false,
     redoChar: false,
     sentenceWords: [],
@@ -60,7 +58,6 @@ vi.mock('./constants', () => ({
     speechLoading: false,
     interaction: false,
     speechResult: false,
-    useTypingInput: false,
   })),
 }));
 
@@ -173,25 +170,45 @@ describe('useTestEngine — initialiseSettings reads localStorage correctly', ()
     expect(result.current.state.useSoundEffects).toBe(false);
   });
 
-  it('disables flashcards when speechAvailable=false regardless of localStorage', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => null);
-
-    const props = makeProps({ speechAvailable: false });
-    const { result } = renderHook(() => useTestEngine(props));
-
-    expect(result.current.state.useFlashcards).toBe(false);
-  });
-
-  it('enables flashcards when speechAvailable=true and localStorage is not "false"', () => {
+  it('defaults to meaning=flashcard and pinyin=input when localStorage is empty', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => null);
 
     const props = makeProps({ speechAvailable: true });
     const { result } = renderHook(() => useTestEngine(props));
 
-    expect(result.current.state.useFlashcards).toBe(true);
+    expect(result.current.state.meaningQuizType).toBe('flashcard');
+    expect(result.current.state.pinyinQuizType).toBe('input');
   });
 
-  it('disables flashcards when localStorage useFlashcards is "false"', () => {
+  it('reads stored quiz types from localStorage', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
+      if (key === 'meaningQuizType') return 'input';
+      if (key === 'pinyinQuizType') return 'flashcard';
+      return null;
+    });
+
+    const props = makeProps({ speechAvailable: true });
+    const { result } = renderHook(() => useTestEngine(props));
+
+    expect(result.current.state.meaningQuizType).toBe('input');
+    expect(result.current.state.pinyinQuizType).toBe('flashcard');
+  });
+
+  it('maps the legacy text and speech quiz type values to input', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
+      if (key === 'meaningQuizType') return 'text';
+      if (key === 'pinyinQuizType') return 'speech';
+      return null;
+    });
+
+    const props = makeProps({ speechAvailable: true });
+    const { result } = renderHook(() => useTestEngine(props));
+
+    expect(result.current.state.meaningQuizType).toBe('input');
+    expect(result.current.state.pinyinQuizType).toBe('input');
+  });
+
+  it('maps legacy useFlashcards="false" to meaning=input', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
       if (key === 'useFlashcards') return 'false';
       return null;
@@ -200,10 +217,10 @@ describe('useTestEngine — initialiseSettings reads localStorage correctly', ()
     const props = makeProps({ speechAvailable: true });
     const { result } = renderHook(() => useTestEngine(props));
 
-    expect(result.current.state.useFlashcards).toBe(false);
+    expect(result.current.state.meaningQuizType).toBe('input');
   });
 
-  it('forces all settings on in demo mode regardless of localStorage', () => {
+  it('forces demo mode to meaning=flashcard and pinyin=input regardless of localStorage', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => 'false');
 
     const props = makeProps({
@@ -216,29 +233,8 @@ describe('useTestEngine — initialiseSettings reads localStorage correctly', ()
     expect(result.current.state.useSound).toBe(true);
     expect(result.current.state.useSoundEffects).toBe(true);
     expect(result.current.state.useHandwriting).toBe(true);
-    expect(result.current.state.useChineseSpeechRecognition).toBe(true);
-    expect(result.current.state.useEnglishSpeechRecognition).toBe(true);
-    expect(result.current.state.useFlashcards).toBe(true);
-  });
-
-  it('disables speech recognition when speechAvailable=false', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => null);
-
-    const props = makeProps({ speechAvailable: false });
-    const { result } = renderHook(() => useTestEngine(props));
-
-    expect(result.current.state.useChineseSpeechRecognition).toBe(false);
-    expect(result.current.state.useEnglishSpeechRecognition).toBe(false);
-  });
-
-  it('enables speech recognition when speechAvailable=true and localStorage allows', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => null);
-
-    const props = makeProps({ speechAvailable: true });
-    const { result } = renderHook(() => useTestEngine(props));
-
-    expect(result.current.state.useChineseSpeechRecognition).toBe(true);
-    expect(result.current.state.useEnglishSpeechRecognition).toBe(true);
+    expect(result.current.state.meaningQuizType).toBe('flashcard');
+    expect(result.current.state.pinyinQuizType).toBe('input');
   });
 });
 
@@ -254,7 +250,6 @@ describe('useTestEngine — onSpeak auto-record continuation', () => {
     act(() => {
       result.current.setStateMerged({
         answerCategory: 'pinyin',
-        useFlashcards: false,
         chosenCharacter: '好',
         useSound: true,
         interaction: true,
@@ -282,7 +277,6 @@ describe('useTestEngine — onSpeak auto-record continuation', () => {
     act(() => {
       result.current.setStateMerged({
         answerCategory: 'character',
-        useFlashcards: false,
         chosenCharacter: '好',
         useSound: true,
         interaction: true,
@@ -304,7 +298,7 @@ describe('useTestEngine — onSpeak auto-record continuation', () => {
     act(() => {
       result.current.setStateMerged({
         answerCategory: 'meaning',
-        useFlashcards: true,
+        meaningQuizType: 'flashcard',
         chosenCharacter: '好',
         useSound: true,
         interaction: true,

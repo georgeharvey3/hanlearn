@@ -1,6 +1,6 @@
 /**
  * Additional keyboard tests for useTestEngine — covers previously untested paths:
- * - Ctrl+B focuses answer-input or secondary-input
+ * - Ctrl+B focuses the answer input
  * - Spacebar + flashcards + meaning triggers onShowAnswer
  * - Spacebar + speaker available triggers onSpeak
  * - Spacebar when testFinished is ignored
@@ -32,16 +32,14 @@ vi.mock('./constants', () => ({
     idkList: [],
     scoreList: [],
     testFinished: false,
-    showInput: false,
     showInputChars: [],
     drawnCharacters: [],
     numSpeakTries: 0,
     useSound: false,
     useHandwriting: false,
-    useChineseSpeechRecognition: false,
-    useEnglishSpeechRecognition: false,
+    pinyinQuizType: 'input',
+    meaningQuizType: 'input',
     useAutoRecord: false,
-    useFlashcards: false,
     showErrorMessage: false,
     redoChar: false,
     sentenceWords: [],
@@ -64,7 +62,6 @@ vi.mock('./constants', () => ({
     speechLoading: false,
     interaction: false,
     speechResult: false,
-    useTypingInput: false,
     useSoundEffects: false,
   })),
 }));
@@ -188,23 +185,7 @@ describe('useTestEngine — keyboard Ctrl+B focuses input', () => {
     document.body.removeChild(input);
   });
 
-  it('focuses the secondary-input element when answer-input does not exist', () => {
-    const secondaryInput = document.createElement('input');
-    secondaryInput.id = 'secondary-input';
-    document.body.appendChild(secondaryInput);
-    const focusSpy = vi.spyOn(secondaryInput, 'focus');
-
-    renderEngineWithState({});
-
-    act(() => {
-      fireKeyUp('b', { ctrlKey: true });
-    });
-
-    expect(focusSpy).toHaveBeenCalled();
-    document.body.removeChild(secondaryInput);
-  });
-
-  it('does nothing when neither input element exists', () => {
+  it('does nothing when the input element does not exist', () => {
     // Just verifying no error is thrown
     renderEngineWithState({});
 
@@ -219,7 +200,7 @@ describe('useTestEngine — keyboard Ctrl+B focuses input', () => {
 // Spacebar + flashcards + meaning triggers onShowAnswer
 // ---------------------------------------------------------------------------
 describe('useTestEngine — spacebar triggers onShowAnswer in flashcard mode', () => {
-  it('reveals the answer when spacebar pressed with useFlashcards=true and answerCategory=meaning', () => {
+  it('reveals the answer when spacebar pressed with meaningQuizType=flashcard', () => {
     const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
@@ -229,8 +210,8 @@ describe('useTestEngine — spacebar triggers onShowAnswer in flashcard mode', (
       testSet: [makeWord()],
       permList: [perm],
       charSet: 'simp',
-      useFlashcards: true,
-      useChineseSpeechRecognition: false,
+      meaningQuizType: 'flashcard',
+      pinyinQuizType: 'input',
       testFinished: false,
       listening: false,
     });
@@ -240,6 +221,30 @@ describe('useTestEngine — spacebar triggers onShowAnswer in flashcard mode', (
     });
 
     expect(result.current.state.showAnswer).toBe(true);
+  });
+
+  it('reveals the answer when spacebar pressed with pinyinQuizType=flashcard', () => {
+    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
+    const result = renderEngineWithState({
+      answerCategory: 'pinyin',
+      questionCategory: 'meaning',
+      answer: 'ni3 hao3',
+      chosenCharacter: '你好',
+      perm,
+      testSet: [makeWord()],
+      permList: [perm],
+      charSet: 'simp',
+      pinyinQuizType: 'flashcard',
+      testFinished: false,
+      listening: false,
+    });
+
+    act(() => {
+      fireKeyUp(' ');
+    });
+
+    expect(result.current.state.showAnswer).toBe(true);
+    expect(result.current.state.result).toBe("Answer was: 'ni3 hao3'");
   });
 });
 
@@ -260,9 +265,8 @@ describe('useTestEngine — spacebar triggers onSpeak when speaker available', (
       permList: [perm],
       charSet: 'simp',
       useSound: true,
-      useFlashcards: false,
-      useChineseSpeechRecognition: false,
-      useEnglishSpeechRecognition: false,
+      pinyinQuizType: 'input',
+      meaningQuizType: 'input',
       testFinished: false,
       listening: false,
     });

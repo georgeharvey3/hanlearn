@@ -13,17 +13,17 @@ import Tooltip from '@mui/material/Tooltip';
 import { RootState } from '../../types/store';
 import { colors } from '../../theme';
 import { estimateTestTime, formatTestTime } from '../../utils/estimateTestTime';
+import { QuizCategory, QuizType, getQuizType, setQuizType } from '../../utils/audioSettings';
 
 interface SettingsState {
   charSet: string;
   numWords: number;
-  useChineseSpeechRecognition: boolean;
-  useEnglishSpeechRecognition: boolean;
   useHandwriting: boolean;
   useSound: boolean;
   useSoundEffects: boolean;
   useAutoRecord: boolean;
-  useFlashcards: boolean;
+  meaningQuizType: QuizType;
+  pinyinQuizType: QuizType;
   newWords: boolean;
   sentenceRead: boolean;
   sentenceWrite: boolean;
@@ -78,17 +78,56 @@ const SectionGroup: React.FC<{ label: string; children: React.ReactNode }> = ({
   </Box>
 );
 
+interface CheckboxItem {
+  value: string;
+  label: string;
+  checked: boolean;
+  disabled: boolean;
+  disabledTooltip: string;
+}
+
+const CheckboxRows: React.FC<{
+  items: CheckboxItem[];
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+}> = ({ items, onChange }) => (
+  <FormGroup>
+    {items.map(({ value, label, checked, disabled, disabledTooltip }) => (
+      <Box key={value} sx={rowSx}>
+        <Tooltip
+          title={disabled ? disabledTooltip : ''}
+          placement="right"
+          disableHoverListener={!disabled}
+          disableFocusListener={!disabled}
+        >
+          <span>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  size="small"
+                  value={value}
+                  checked={checked}
+                  onChange={onChange}
+                  disabled={disabled}
+                />
+              }
+              label={label}
+              sx={{ width: '100%', my: 0.25 }}
+            />
+          </span>
+        </Tooltip>
+      </Box>
+    ))}
+  </FormGroup>
+);
+
 const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable }) => {
   const [state, setState] = useState<SettingsState>(() => {
     const localCharSet = localStorage.getItem('charSet');
     const localNumWords = localStorage.getItem('numWords');
-    const useChineseSpeechRecognition = localStorage.getItem('useChineseSpeechRecognition');
-    const useEnglishSpeechRecognition = localStorage.getItem('useEnglishSpeechRecognition');
     const useHandwriting = localStorage.getItem('useHandwriting');
     const useSound = localStorage.getItem('useSound');
     const useSoundEffects = localStorage.getItem('useSoundEffects');
     const useAutoRecord = localStorage.getItem('useAutoRecord');
-    const useFlashcards = localStorage.getItem('useFlashcards');
     const newWords = localStorage.getItem('newWords');
     const sentenceRead = localStorage.getItem('sentenceRead');
     const sentenceWrite = localStorage.getItem('sentenceWrite');
@@ -99,13 +138,12 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
     return {
       charSet: localCharSet || 'trad',
       numWords: localNumWords ? parseInt(localNumWords) : 5,
-      useChineseSpeechRecognition: useChineseSpeechRecognition === 'false' ? false : true,
-      useEnglishSpeechRecognition: useEnglishSpeechRecognition === 'false' ? false : true,
       useHandwriting: useHandwriting === 'false' ? false : true,
       useSound: useSound === 'false' ? false : true,
       useSoundEffects: useSoundEffects === 'false' ? false : true,
       useAutoRecord: useAutoRecord === 'false' ? false : true,
-      useFlashcards: useFlashcards === 'false' ? false : true,
+      meaningQuizType: getQuizType('meaning'),
+      pinyinQuizType: getQuizType('pinyin'),
       newWords: newWords === 'false' ? false : true,
       sentenceRead: sentenceRead === 'false' ? false : true,
       sentenceWrite: sentenceWrite === 'false' ? false : true,
@@ -136,6 +174,19 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
     }
   }, []);
 
+  const onQuizTypeChange = useCallback(
+    (category: QuizCategory) =>
+      (e: ChangeEvent<HTMLInputElement>): void => {
+        const value = e.target.value as QuizType;
+        setState((prev) => ({
+          ...prev,
+          [category === 'meaning' ? 'meaningQuizType' : 'pinyinQuizType']: value,
+        }));
+        setQuizType(category, value);
+      },
+    [],
+  );
+
   const onSliderChange = useCallback((_e: Event, value: number | number[]): void => {
     const numValue = value as number;
     setState((prev) => ({
@@ -155,14 +206,6 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
         [key]: !prev[key],
       } as SettingsState;
 
-      if (key === 'useEnglishSpeechRecognition' && checked) {
-        nextState.useFlashcards = false;
-      }
-
-      if (key === 'useFlashcards' && checked) {
-        nextState.useEnglishSpeechRecognition = false;
-      }
-
       if (key === 'useHandwriting' && !checked) {
         nextState.priority = 'none';
         nextState.onlyPriority = false;
@@ -173,21 +216,34 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
 
     localStorage.setItem(e.target.value, String(checked));
 
-    if (e.target.value === 'useEnglishSpeechRecognition' && checked) {
-      localStorage.setItem('useFlashcards', 'false');
-    }
-
-    if (e.target.value === 'useFlashcards' && checked) {
-      localStorage.setItem('useEnglishSpeechRecognition', 'false');
-    }
-
     if (e.target.value === 'useHandwriting' && !checked) {
       localStorage.setItem('priority', 'none');
       localStorage.setItem('onlyPriority', 'false');
     }
   }, []);
 
-  const checkboxItems = [
+  const inputQuizSelected = state.meaningQuizType === 'input' || state.pinyinQuizType === 'input';
+
+  const quizCheckboxItems: CheckboxItem[] = [
+    {
+      value: 'useHandwriting',
+      label: 'Handwriting questions',
+      checked: state.useHandwriting,
+      disabled: false,
+      disabledTooltip: '',
+    },
+    {
+      value: 'useAutoRecord',
+      label: 'Auto-start microphone',
+      checked: state.useAutoRecord && inputQuizSelected && speechAvailable,
+      disabled: !inputQuizSelected || !speechAvailable,
+      disabledTooltip: !speechAvailable
+        ? 'Speech recognition is not available in this browser'
+        : 'Only used when Meaning or Pinyin is set to Input',
+    },
+  ];
+
+  const audioItems: CheckboxItem[] = [
     {
       value: 'useSound',
       label: 'Text-to-speech',
@@ -202,41 +258,6 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
       disabled: false,
       disabledTooltip: '',
     },
-    {
-      value: 'useChineseSpeechRecognition',
-      label: 'Chinese speech recognition',
-      checked: state.useChineseSpeechRecognition && speechAvailable,
-      disabled: !speechAvailable,
-      disabledTooltip: 'Speech recognition is not available in this browser',
-    },
-    {
-      value: 'useEnglishSpeechRecognition',
-      label: 'English speech recognition',
-      checked: state.useEnglishSpeechRecognition && speechAvailable,
-      disabled: !speechAvailable,
-      disabledTooltip: 'Speech recognition is not available in this browser',
-    },
-    {
-      value: 'useAutoRecord',
-      label: 'Automatic recording',
-      checked: state.useAutoRecord,
-      disabled: false,
-      disabledTooltip: '',
-    },
-    {
-      value: 'useFlashcards',
-      label: 'Meaning flashcards',
-      checked: state.useFlashcards,
-      disabled: false,
-      disabledTooltip: '',
-    },
-    {
-      value: 'useHandwriting',
-      label: 'Handwriting input',
-      checked: state.useHandwriting,
-      disabled: false,
-      disabledTooltip: '',
-    },
   ];
 
   const priorityItems = [
@@ -247,7 +268,7 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
     { value: 'CM', label: 'Writing', disabled: !state.useHandwriting },
   ];
 
-  const stageItems = [
+  const stageItems: CheckboxItem[] = [
     {
       value: 'newWords',
       label: 'New Words',
@@ -321,7 +342,7 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
         </Box>
       </SectionGroup>
 
-      <SectionGroup label="Characters per Test">
+      <SectionGroup label="Session">
         <Box sx={{ px: 2, pt: 2, pb: 1.5 }}>
           <Box
             sx={{
@@ -367,35 +388,37 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
         </Box>
       </SectionGroup>
 
-      <SectionGroup label="Test Settings">
-        <FormGroup>
-          {checkboxItems.map(({ value, label, checked, disabled, disabledTooltip }) => (
-            <Box key={value} sx={rowSx}>
-              <Tooltip
-                title={disabled ? disabledTooltip : ''}
-                placement="right"
-                disableHoverListener={!disabled}
-                disableFocusListener={!disabled}
-              >
-                <span>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        size="small"
-                        value={value}
-                        checked={checked}
-                        onChange={onCheckChange}
-                        disabled={disabled}
-                      />
-                    }
-                    label={label}
-                    sx={{ width: '100%', my: 0.25 }}
-                  />
-                </span>
-              </Tooltip>
-            </Box>
-          ))}
-        </FormGroup>
+      <SectionGroup label="Vocabulary Quiz">
+        {(
+          [
+            { category: 'meaning' as QuizCategory, label: 'Meaning', value: state.meaningQuizType },
+            { category: 'pinyin' as QuizCategory, label: 'Pinyin', value: state.pinyinQuizType },
+          ] as const
+        ).map(({ category, label, value }) => (
+          <Box key={category} sx={{ ...rowSx, py: 0.5, display: 'flex', alignItems: 'center' }}>
+            <Typography
+              variant="body2"
+              id={`quiz-type-${category}-label`}
+              sx={{ width: 72, color: 'text.secondary' }}
+            >
+              {label}
+            </Typography>
+            <RadioGroup
+              aria-labelledby={`quiz-type-${category}-label`}
+              value={value}
+              onChange={onQuizTypeChange(category)}
+              row
+            >
+              <FormControlLabel value="input" control={<Radio size="small" />} label="Input" />
+              <FormControlLabel
+                value="flashcard"
+                control={<Radio size="small" />}
+                label="Flashcard"
+              />
+            </RadioGroup>
+          </Box>
+        ))}
+        <CheckboxRows items={quizCheckboxItems} onChange={onCheckChange} />
       </SectionGroup>
 
       <SectionGroup label="Priority">
@@ -437,34 +460,11 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
       </SectionGroup>
 
       <SectionGroup label="Stages">
-        <FormGroup>
-          {stageItems.map(({ value, label, checked, disabled, disabledTooltip }) => (
-            <Box key={value} sx={rowSx}>
-              <Tooltip
-                title={disabled ? disabledTooltip : ''}
-                placement="right"
-                disableHoverListener={!disabled}
-                disableFocusListener={!disabled}
-              >
-                <span>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        size="small"
-                        value={value}
-                        checked={checked}
-                        onChange={onCheckChange}
-                        disabled={disabled}
-                      />
-                    }
-                    label={label}
-                    sx={{ width: '100%', my: 0.25 }}
-                  />
-                </span>
-              </Tooltip>
-            </Box>
-          ))}
-        </FormGroup>
+        <CheckboxRows items={stageItems} onChange={onCheckChange} />
+      </SectionGroup>
+
+      <SectionGroup label="Audio">
+        <CheckboxRows items={audioItems} onChange={onCheckChange} />
       </SectionGroup>
     </Box>
   );

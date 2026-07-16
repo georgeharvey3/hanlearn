@@ -1,5 +1,11 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { getAudioSettings, setAudioSetting, getAudioSettingItems } from './audioSettings';
+import { describe, it, expect, beforeEach } from 'vitest';
+import {
+  getAudioSettings,
+  setAudioSetting,
+  getAudioSettingItems,
+  getQuizType,
+  setQuizType,
+} from './audioSettings';
 
 describe('audioSettings', () => {
   beforeEach(() => {
@@ -7,15 +13,14 @@ describe('audioSettings', () => {
   });
 
   describe('getAudioSettings', () => {
-    it('returns all true by default (no localStorage values)', () => {
+    it('returns defaults when localStorage is empty', () => {
       const settings = getAudioSettings();
       expect(settings).toEqual({
         useSound: true,
         useSoundEffects: true,
-        useChineseSpeechRecognition: true,
-        useEnglishSpeechRecognition: true,
         useAutoRecord: true,
-        useFlashcards: true,
+        meaningQuizType: 'flashcard',
+        pinyinQuizType: 'input',
       });
     });
 
@@ -25,7 +30,7 @@ describe('audioSettings', () => {
       const settings = getAudioSettings();
       expect(settings.useSound).toBe(false);
       expect(settings.useAutoRecord).toBe(false);
-      expect(settings.useChineseSpeechRecognition).toBe(true);
+      expect(settings.useSoundEffects).toBe(true);
     });
 
     it('returns true for settings set to true', () => {
@@ -42,35 +47,58 @@ describe('audioSettings', () => {
       expect(result.useSound).toBe(false);
     });
 
-    it('disables flashcards when enabling English speech recognition', () => {
-      localStorage.setItem('useFlashcards', 'true');
-      const result = setAudioSetting('useEnglishSpeechRecognition', true);
-      expect(result.useEnglishSpeechRecognition).toBe(true);
-      expect(result.useFlashcards).toBe(false);
-      expect(localStorage.getItem('useFlashcards')).toBe('false');
+    it('leaves quiz types untouched when changing audio settings', () => {
+      setQuizType('meaning', 'input');
+      const result = setAudioSetting('useSound', false);
+      expect(result.meaningQuizType).toBe('input');
+    });
+  });
+
+  describe('getQuizType / setQuizType', () => {
+    it('round-trips a stored quiz type', () => {
+      setQuizType('meaning', 'input');
+      setQuizType('pinyin', 'flashcard');
+      expect(getQuizType('meaning')).toBe('input');
+      expect(getQuizType('pinyin')).toBe('flashcard');
+      expect(localStorage.getItem('meaningQuizType')).toBe('input');
+      expect(localStorage.getItem('pinyinQuizType')).toBe('flashcard');
     });
 
-    it('disables English speech recognition when enabling flashcards', () => {
-      localStorage.setItem('useEnglishSpeechRecognition', 'true');
-      const result = setAudioSetting('useFlashcards', true);
-      expect(result.useFlashcards).toBe(true);
-      expect(result.useEnglishSpeechRecognition).toBe(false);
-      expect(localStorage.getItem('useEnglishSpeechRecognition')).toBe('false');
+    it('ignores invalid stored values and falls back to defaults', () => {
+      localStorage.setItem('meaningQuizType', 'bogus');
+      localStorage.setItem('pinyinQuizType', 'bogus');
+      expect(getQuizType('meaning')).toBe('flashcard');
+      expect(getQuizType('pinyin')).toBe('input');
     });
 
-    it('does not trigger mutual exclusivity when disabling', () => {
-      localStorage.setItem('useFlashcards', 'true');
-      localStorage.setItem('useEnglishSpeechRecognition', 'true');
-      const result = setAudioSetting('useEnglishSpeechRecognition', false);
-      expect(result.useEnglishSpeechRecognition).toBe(false);
-      expect(result.useFlashcards).toBe(true);
+    it('defaults meaning to flashcard and pinyin to input', () => {
+      expect(getQuizType('meaning')).toBe('flashcard');
+      expect(getQuizType('pinyin')).toBe('input');
+    });
+
+    it('maps the legacy text and speech values to input', () => {
+      localStorage.setItem('meaningQuizType', 'text');
+      localStorage.setItem('pinyinQuizType', 'speech');
+      expect(getQuizType('meaning')).toBe('input');
+      expect(getQuizType('pinyin')).toBe('input');
+    });
+
+    it('maps legacy useFlashcards=false to meaning=input', () => {
+      localStorage.setItem('useFlashcards', 'false');
+      expect(getQuizType('meaning')).toBe('input');
+    });
+
+    it('prefers the new key over legacy settings', () => {
+      localStorage.setItem('useFlashcards', 'false');
+      setQuizType('meaning', 'flashcard');
+      expect(getQuizType('meaning')).toBe('flashcard');
     });
   });
 
   describe('getAudioSettingItems', () => {
-    it('returns 6 items', () => {
+    it('returns 3 checkbox items (quiz types are rendered separately)', () => {
       const items = getAudioSettingItems(true, true);
-      expect(items).toHaveLength(6);
+      expect(items.map((i) => i.key)).toEqual(['useSound', 'useSoundEffects', 'useAutoRecord']);
     });
 
     it('disables sound when synthAvailable is false', () => {
@@ -79,20 +107,12 @@ describe('audioSettings', () => {
       expect(sound?.disabled).toBe(true);
     });
 
-    it('disables speech recognition when speechAvailable is false', () => {
-      const items = getAudioSettingItems(false, true);
-      const chinese = items.find((i) => i.key === 'useChineseSpeechRecognition');
-      const english = items.find((i) => i.key === 'useEnglishSpeechRecognition');
-      expect(chinese?.disabled).toBe(true);
-      expect(english?.disabled).toBe(true);
-    });
-
-    it('does not disable autoRecord or flashcards based on availability', () => {
+    it('does not disable soundEffects or autoRecord based on availability', () => {
       const items = getAudioSettingItems(false, false);
+      const effects = items.find((i) => i.key === 'useSoundEffects');
       const auto = items.find((i) => i.key === 'useAutoRecord');
-      const flash = items.find((i) => i.key === 'useFlashcards');
+      expect(effects?.disabled).toBe(false);
       expect(auto?.disabled).toBe(false);
-      expect(flash?.disabled).toBe(false);
     });
   });
 });

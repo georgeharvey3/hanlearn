@@ -1,4 +1,4 @@
-import { AudioSettings } from '../../utils/audioSettings';
+import { AudioSettings, QuizType, getQuizType } from '../../utils/audioSettings';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { pinyin } from 'pinyin-pro';
 
@@ -9,11 +9,17 @@ import { WordScore } from '../../types/models';
 import { checkSentenceAvailability, getHintSentence } from '../../services/sentenceService';
 import * as ttsService from '../../services/ttsService';
 
+// Quiz type governing the current answer; character answers are always handwriting
+const answerQuizType = (state: TestState): QuizType | null => {
+  if (state.answerCategory === 'pinyin') return state.pinyinQuizType;
+  if (state.answerCategory === 'meaning') return state.meaningQuizType;
+  return null;
+};
+
 export const useTestEngine = (props: Props) => {
   const [state, setState] = useState<TestState>(() => createInitialState(props));
   const stateRef = useRef(state);
   const submitSpeechRef = useRef<(speech: string) => void>(() => {});
-  const onListenRef = useRef<() => void>(() => {});
   const initializedRef = useRef(false);
 
   useEffect(() => {
@@ -90,7 +96,7 @@ export const useTestEngine = (props: Props) => {
       const latest = getState();
       setStateMerged({ listening: false, speechLoading: false, speechResult: false });
       if (!result && !latest.idkDisabled) {
-        setStateMerged({ result: "Couldn't hear anything...", showInput: true });
+        setStateMerged({ result: "Couldn't hear anything..." });
       }
     });
 
@@ -127,15 +133,7 @@ export const useTestEngine = (props: Props) => {
         },
         onEnd: () => {
           const latest = getState();
-          if (
-            auto &&
-            !(
-              latest.answerCategory === 'character' ||
-              (latest.answerCategory === 'meaning' && latest.useFlashcards)
-            ) &&
-            ((latest.answerCategory === 'pinyin' && latest.useChineseSpeechRecognition) ||
-              (latest.answerCategory === 'meaning' && latest.useEnglishSpeechRecognition))
-          ) {
+          if (auto && props.speechAvailable && answerQuizType(latest) === 'input') {
             onListen();
           }
         },
@@ -144,7 +142,7 @@ export const useTestEngine = (props: Props) => {
         },
       });
     },
-    [getState, onListen, props.lang, props.voice, setStateMerged],
+    [getState, onListen, props.lang, props.speechAvailable, props.voice, setStateMerged],
   );
 
   // --- Score sending ---
@@ -162,14 +160,9 @@ export const useTestEngine = (props: Props) => {
   const onFinishTest = useCallback((): void => {
     const current = getState();
     const answerInput = document.getElementById('answer-input');
-    const secondaryInput = document.getElementById('secondary-input');
 
     if (answerInput !== null) {
       (answerInput as HTMLInputElement).blur();
-    }
-
-    if (secondaryInput !== null) {
-      (secondaryInput as HTMLInputElement).blur();
     }
 
     const idkCounts = testLogic.Counter(current.idkList);
@@ -280,7 +273,6 @@ export const useTestEngine = (props: Props) => {
 
       setStateMerged({
         result: resultString,
-        showInput: false,
         idkDisabled: true,
         submitDisabled: true,
       });
@@ -310,8 +302,6 @@ export const useTestEngine = (props: Props) => {
             chosenCharacter: newQuestion.chosenCharacter,
             result: '',
             answerInput: '',
-            showInput: false,
-            numSpeakTries: 0,
             qNum: prevState.qNum + 1,
             idkDisabled: false,
             submitDisabled: false,
@@ -349,33 +339,47 @@ export const useTestEngine = (props: Props) => {
     [getState],
   );
 
-  const onSubmitAnswer = useCallback((): void => {
-    const current = getState();
-    if (checkAnswer(current.answerInput)) {
-      onCorrectAnswer();
-    } else {
-      if (current.useSoundEffects) {
-        fail.play();
-      }
-      let resultString = 'Try again';
+  // Shared submission path for typed and spoken answers. On a wrong answer the
+  // input is left untouched so the user can edit and resubmit it.
+  const submitAnswer = useCallback(
+    (input: string, usedSpeech = false): void => {
+      const current = getState();
+      if (checkAnswer(input)) {
+        onCorrectAnswer(usedSpeech);
+      } else {
+        if (current.useSoundEffects) {
+          fail.play();
+        }
+        let resultString = 'Try again';
 
-      if (current.answerCategory === 'pinyin' && typeof current.answer === 'string') {
-        const cleanAnswer = current.answer.replace(/ /g, '').toLowerCase();
-        const cleanInput = current.answerInput.trim().replace(/ /g, '').toLowerCase();
+        if (current.answerCategory === 'pinyin' && typeof current.answer === 'string') {
+          const cleanAnswer = current.answer.replace(/ /g, '').toLowerCase();
+          const cleanInput = input.trim().replace(/ /g, '').toLowerCase();
 
-        if (testLogic.toneChecker(cleanInput, cleanAnswer)) {
-          resultString = 'Incorrect tones';
+          if (testLogic.toneChecker(cleanInput, cleanAnswer)) {
+            resultString = 'Incorrect tones';
+          }
+        }
+
+        setStateMerged({ result: resultString, showHint: false });
+        if (
+          current.useAutoRecord &&
+          !current.pauseAutoRecord &&
+          props.speechAvailable &&
+          answerQuizType(current) === 'input'
+        ) {
+          onListen();
         }
       }
 
-      setStateMerged({ result: resultString, showHint: false });
-      if (current.useAutoRecord && !current.pauseAutoRecord && !current.useTypingInput) {
-        onListen();
-      }
-    }
+      current.recognition?.abort();
+    },
+    [checkAnswer, getState, onCorrectAnswer, onListen, props.speechAvailable, setStateMerged],
+  );
 
-    current.recognition?.abort();
-  }, [checkAnswer, getState, onCorrectAnswer, onListen, setStateMerged]);
+  const onSubmitAnswer = useCallback((): void => {
+    submitAnswer(getState().answerInput);
+  }, [getState, submitAnswer]);
 
   const submitSpeech = useCallback(
     (speech: string): void => {
@@ -409,72 +413,24 @@ export const useTestEngine = (props: Props) => {
         submission = speech;
       }
 
-      if (
-        speech === current.chosenCharacter ||
-        (current.answerCategory === 'meaning' &&
-          Array.isArray(current.answer) &&
-          current.answer.includes(speech))
-      ) {
-        onCorrectAnswer(true);
-      } else if (submission === current.answer) {
-        onCorrectAnswer(true);
-      } else if (
-        current.answerCategory === 'pinyin' &&
-        typeof current.answer === 'string' &&
-        submission.replace(/[0-9]/g, '') === current.answer.replace(/[0-9]/g, '')
-      ) {
-        if (current.useSoundEffects) {
-          fail.play();
-        }
-        let sentence = 'Try different tones...';
-        if (current.chosenCharacter?.length === 1) {
-          sentence = 'Try a different tone...';
-        }
+      // Put the transcript in the input so a wrong answer can be edited there
+      setStateMerged({ answerInput: submission });
 
-        if (current.numSpeakTries > 0) {
-          setStateMerged({
-            result: `We heard: '${submission}', which is wrong. ${sentence}`,
-            showInput: true,
-          });
-        } else {
-          setStateMerged((prevState) => ({
-            result: `We heard: '${submission}', which is wrong. ${sentence}`,
-            numSpeakTries: prevState.numSpeakTries + 1,
-          }));
-        }
-        if (current.useAutoRecord && !current.pauseAutoRecord && !current.useTypingInput) {
-          setTimeout(() => onListenRef.current(), 1500);
-        }
-      } else {
-        if (current.useSoundEffects) {
-          fail.play();
-        }
-        if (current.numSpeakTries > 0) {
-          setStateMerged({
-            result: `We heard: '${submission}', which is wrong. Try again...`,
-            showInput: true,
-          });
-        } else {
-          setStateMerged((prevState) => ({
-            result: `We heard: '${submission}', which is wrong. Try again...`,
-            numSpeakTries: prevState.numSpeakTries + 1,
-          }));
-        }
-        if (current.useAutoRecord && !current.pauseAutoRecord && !current.useTypingInput) {
-          setTimeout(() => onListenRef.current(), 1500);
-        }
+      // Chinese speech recognition returns hanzi; an exact match on the target
+      // word is correct even if its derived pinyin reading differs
+      if (speech === current.chosenCharacter) {
+        onCorrectAnswer(true);
+        return;
       }
+
+      submitAnswer(submission, true);
     },
-    [getState, onCorrectAnswer, setStateMerged],
+    [getState, onCorrectAnswer, setStateMerged, submitAnswer],
   );
 
   useEffect(() => {
     submitSpeechRef.current = submitSpeech;
   }, [submitSpeech]);
-
-  useEffect(() => {
-    onListenRef.current = onListen;
-  }, [onListen]);
 
   // --- Hanzi Writer ---
 
@@ -602,7 +558,6 @@ export const useTestEngine = (props: Props) => {
             idkDisabled: false,
             result: '',
             answerInput: '',
-            numSpeakTries: 0,
             redoChar: redoChar,
             qNum: prevState.qNum + 1,
           }));
@@ -671,9 +626,7 @@ export const useTestEngine = (props: Props) => {
         idkDisabled: false,
         result: '',
         answerInput: '',
-        numSpeakTries: 0,
         qNum: prevState.qNum + 1,
-        showInput: false,
         submitDisabled: false,
         showHint: false,
         showAnswer: false,
@@ -683,6 +636,8 @@ export const useTestEngine = (props: Props) => {
 
   // --- Key press (input submit) ---
 
+  // A wrong answer stays in the input for editing; correct answers are cleared
+  // when the next question loads.
   const onKeyPress = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>): void => {
       const current = getState();
@@ -690,9 +645,8 @@ export const useTestEngine = (props: Props) => {
         return;
       }
       onSubmitAnswer();
-      setStateMerged({ answerInput: '' });
     },
-    [getState, onSubmitAnswer, setStateMerged],
+    [getState, onSubmitAnswer],
   );
 
   // --- Hints ---
@@ -814,24 +768,17 @@ export const useTestEngine = (props: Props) => {
       !(localStorage.getItem('useSoundEffects') === 'false') || Boolean(props.isDemo);
     const useHandwriting =
       !(localStorage.getItem('useHandwriting') === 'false') || Boolean(props.isDemo);
-    const useChineseSpeechRecognition =
-      props.speechAvailable &&
-      (!(localStorage.getItem('useChineseSpeechRecognition') === 'false') || Boolean(props.isDemo));
-    const useEnglishSpeechRecognition =
-      props.speechAvailable &&
-      (!(localStorage.getItem('useEnglishSpeechRecognition') === 'false') || Boolean(props.isDemo));
-    const useFlashcards =
-      (props.speechAvailable && !(localStorage.getItem('useFlashcards') === 'false')) ||
-      Boolean(props.isDemo);
+
+    const meaningQuizType: QuizType = props.isDemo ? 'flashcard' : getQuizType('meaning');
+    const pinyinQuizType: QuizType = props.isDemo ? 'input' : getQuizType('pinyin');
     const useAutoRecord = localStorage.getItem('useAutoRecord') === 'true' && !props.isDemo;
 
     setStateMerged({
       useSound,
       useSoundEffects,
       useHandwriting,
-      useChineseSpeechRecognition,
-      useEnglishSpeechRecognition,
-      useFlashcards,
+      meaningQuizType,
+      pinyinQuizType,
       useAutoRecord,
     });
 
@@ -850,9 +797,10 @@ export const useTestEngine = (props: Props) => {
     (event: KeyboardEvent): void => {
       const current = getState();
       const sourceElement = (event.target as HTMLElement).tagName.toLowerCase();
+      const currentQuizType = answerQuizType(current);
       const micAvailable =
-        ((current.useChineseSpeechRecognition && current.answerCategory === 'pinyin') ||
-          (current.useEnglishSpeechRecognition && current.answerCategory === 'meaning')) &&
+        props.speechAvailable &&
+        currentQuizType === 'input' &&
         !current.listening &&
         !current.testFinished;
 
@@ -874,10 +822,10 @@ export const useTestEngine = (props: Props) => {
         } else if (sourceElement !== 'input') {
           event.preventDefault();
           (event.target as HTMLElement).blur();
-          if (micAvailable && current.answerCategory === 'pinyin') {
-            onListen();
-          } else if (current.useFlashcards && current.answerCategory === 'meaning') {
+          if (currentQuizType === 'flashcard') {
             onShowAnswer();
+          } else if (micAvailable && current.answerCategory === 'pinyin') {
+            onListen();
           } else if (speakerAvailable && current.chosenCharacter) {
             onSpeak(current.chosenCharacter);
           }
@@ -898,11 +846,8 @@ export const useTestEngine = (props: Props) => {
 
       if (event.ctrlKey && event.key === 'b') {
         const answerInput = document.getElementById('answer-input');
-        const secondaryInput = document.getElementById('secondary-input');
         if (answerInput !== null) {
           answerInput.focus();
-        } else if (secondaryInput) {
-          secondaryInput.focus();
         }
       }
 
@@ -978,6 +923,7 @@ export const useTestEngine = (props: Props) => {
       onToggleShowPinyin,
       props.finalStage,
       props.isDemo,
+      props.speechAvailable,
       props.startSentenceRead,
       setStateMerged,
     ],
@@ -1023,37 +969,36 @@ export const useTestEngine = (props: Props) => {
 
     if (
       current.useAutoRecord &&
-      !current.useTypingInput &&
+      props.speechAvailable &&
+      answerQuizType(current) === 'input' &&
       !(current.questionCategory === 'pinyin' && current.useSound)
     ) {
-      if (current.answerCategory === 'pinyin' && current.useChineseSpeechRecognition) {
-        onListen();
-      }
-      if (current.answerCategory === 'meaning') {
-        if (!current.useFlashcards && current.useEnglishSpeechRecognition) {
-          onListen();
-        }
-      }
+      onListen();
     }
     if (current.answerCategory === 'character' && typeof current.answer === 'string') {
       setHanziWriter(current.answer);
     }
-  }, [state.qNum, getState, onListen, onSpeak, setHanziWriter, setStateMerged]);
+  }, [
+    state.qNum,
+    getState,
+    onListen,
+    onSpeak,
+    props.speechAvailable,
+    setHanziWriter,
+    setStateMerged,
+  ]);
 
   const refreshSettings = useCallback(
     (updated: AudioSettings): void => {
       setStateMerged({
         useSound: updated.useSound && Boolean(props.synthAvailable),
         useSoundEffects: updated.useSoundEffects,
-        useChineseSpeechRecognition:
-          updated.useChineseSpeechRecognition && Boolean(props.speechAvailable),
-        useEnglishSpeechRecognition:
-          updated.useEnglishSpeechRecognition && Boolean(props.speechAvailable),
         useAutoRecord: updated.useAutoRecord,
-        useFlashcards: updated.useFlashcards,
+        meaningQuizType: updated.meaningQuizType,
+        pinyinQuizType: updated.pinyinQuizType,
       });
     },
-    [props.speechAvailable, props.synthAvailable, setStateMerged],
+    [props.synthAvailable, setStateMerged],
   );
 
   return {

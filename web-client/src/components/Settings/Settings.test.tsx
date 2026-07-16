@@ -5,7 +5,7 @@
  * - Reads initial state from localStorage
  * - Radio buttons update charSet and persist to localStorage
  * - Checkboxes toggle boolean settings and persist to localStorage
- * - Mutual exclusion: enabling English speech disables flashcards (and vice versa)
+ * - Per-answer-type quiz type radios (Text/Speech/Flashcard) persist to localStorage
  * - Disabling handwriting resets priority to none
  * - Disabling handwriting disables the Writing priority option
  * - Slider updates numWords and persists to localStorage
@@ -16,7 +16,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
 
 import React from 'react';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'vitest-axe';
 
@@ -115,20 +115,39 @@ describe('Settings — checkbox toggles', () => {
     expect(localStorage.getItem('useSound')).toBe('false');
   });
 
-  it('toggling Meaning flashcards persists to localStorage', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<Settings />, { store: makeStore() });
+  it('defaults to meaning=Flashcard and pinyin=Input', () => {
+    renderWithProviders(<Settings />, { store: makeStore(true, false) });
 
-    const flashcardsCheckbox = screen.getByRole('checkbox', { name: /meaning flashcards/i });
-    await user.click(flashcardsCheckbox);
-    expect(localStorage.getItem('useFlashcards')).toBe('false');
+    const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
+    const pinyin = screen.getByRole('radiogroup', { name: 'Pinyin' });
+    expect(within(meaning).getByRole('radio', { name: 'Flashcard' })).toBeChecked();
+    expect(within(pinyin).getByRole('radio', { name: 'Input' })).toBeChecked();
   });
 
-  it('toggling Handwriting input persists to localStorage', async () => {
+  it('switching the pinyin quiz type persists to localStorage without touching meaning', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Settings />, { store: makeStore(true, false) });
+
+    const pinyin = screen.getByRole('radiogroup', { name: 'Pinyin' });
+    await user.click(within(pinyin).getByRole('radio', { name: 'Flashcard' }));
+
+    expect(localStorage.getItem('pinyinQuizType')).toBe('flashcard');
+    expect(localStorage.getItem('meaningQuizType')).toBeNull();
+  });
+
+  it('reads a stored quiz type from localStorage', () => {
+    localStorage.setItem('meaningQuizType', 'input');
+    renderWithProviders(<Settings />, { store: makeStore(true, false) });
+
+    const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
+    expect(within(meaning).getByRole('radio', { name: 'Input' })).toBeChecked();
+  });
+
+  it('toggling Handwriting questions persists to localStorage', async () => {
     const user = userEvent.setup();
     renderWithProviders(<Settings />, { store: makeStore() });
 
-    const handwritingCheckbox = screen.getByRole('checkbox', { name: /handwriting input/i });
+    const handwritingCheckbox = screen.getByRole('checkbox', { name: /handwriting questions/i });
     await user.click(handwritingCheckbox);
     expect(localStorage.getItem('useHandwriting')).toBe('false');
   });
@@ -143,42 +162,33 @@ describe('Settings — checkbox toggles', () => {
   });
 });
 
+describe('Settings — quiz type independence', () => {
+  it('supports input for pinyin and flashcard for meaning at the same time', async () => {
+    const user = userEvent.setup();
+    // Start away from the defaults so both clicks fire change events
+    localStorage.setItem('meaningQuizType', 'input');
+    localStorage.setItem('pinyinQuizType', 'flashcard');
+    renderWithProviders(<Settings />, { store: makeStore(true, false) });
+
+    const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
+    const pinyin = screen.getByRole('radiogroup', { name: 'Pinyin' });
+    await user.click(within(meaning).getByRole('radio', { name: 'Flashcard' }));
+    await user.click(within(pinyin).getByRole('radio', { name: 'Input' }));
+
+    expect(localStorage.getItem('meaningQuizType')).toBe('flashcard');
+    expect(localStorage.getItem('pinyinQuizType')).toBe('input');
+  });
+});
+
 describe('Settings — mutual exclusion rules', () => {
-  it('enabling English speech recognition disables Meaning flashcards', async () => {
-    const user = userEvent.setup();
-    // Start with speechAvailable=true, English speech off
-    localStorage.setItem('useEnglishSpeechRecognition', 'false');
-    renderWithProviders(<Settings />, { store: makeStore(true, false) });
-
-    const englishSpeechCheckbox = screen.getByRole('checkbox', {
-      name: /english speech recognition/i,
-    });
-    await user.click(englishSpeechCheckbox);
-
-    expect(localStorage.getItem('useFlashcards')).toBe('false');
-  });
-
-  it('enabling Meaning flashcards disables English speech recognition', async () => {
-    const user = userEvent.setup();
-    // Start with flashcards off, English speech on
-    localStorage.setItem('useFlashcards', 'false');
-    localStorage.setItem('useEnglishSpeechRecognition', 'true');
-    renderWithProviders(<Settings />, { store: makeStore(true, false) });
-
-    const flashcardsCheckbox = screen.getByRole('checkbox', { name: /meaning flashcards/i });
-    await user.click(flashcardsCheckbox);
-
-    expect(localStorage.getItem('useEnglishSpeechRecognition')).toBe('false');
-  });
-
-  it('disabling Handwriting input resets priority to none', async () => {
+  it('disabling Handwriting questions resets priority to none', async () => {
     const user = userEvent.setup();
     // Set priority to Writing (CM) first
     localStorage.setItem('priority', 'CM');
     localStorage.setItem('useHandwriting', 'true');
     renderWithProviders(<Settings />, { store: makeStore() });
 
-    const handwritingCheckbox = screen.getByRole('checkbox', { name: /handwriting input/i });
+    const handwritingCheckbox = screen.getByRole('checkbox', { name: /handwriting questions/i });
     await user.click(handwritingCheckbox);
 
     expect(localStorage.getItem('priority')).toBe('none');
@@ -240,20 +250,24 @@ describe('Settings — speech availability gating', () => {
     expect(soundCheckbox).not.toBeDisabled();
   });
 
-  it('disables Chinese speech recognition checkbox when speechAvailable is false', () => {
-    renderWithProviders(<Settings />, { store: makeStore(false, false) });
-    const chineseSpeechCheckbox = screen.getByRole('checkbox', {
-      name: /chinese speech recognition/i,
-    });
-    expect(chineseSpeechCheckbox).toBeDisabled();
+  it('disables Auto-start microphone when both quiz types are Flashcard', () => {
+    localStorage.setItem('meaningQuizType', 'flashcard');
+    localStorage.setItem('pinyinQuizType', 'flashcard');
+    renderWithProviders(<Settings />, { store: makeStore(true, false) });
+    expect(screen.getByRole('checkbox', { name: /auto-start microphone/i })).toBeDisabled();
   });
 
-  it('enables Chinese speech recognition checkbox when speechAvailable is true', () => {
+  it('disables Auto-start microphone when speechAvailable is false', () => {
+    localStorage.setItem('pinyinQuizType', 'input');
+    renderWithProviders(<Settings />, { store: makeStore(false, false) });
+    expect(screen.getByRole('checkbox', { name: /auto-start microphone/i })).toBeDisabled();
+  });
+
+  it('enables Auto-start microphone when a quiz type is Input and speech is available', () => {
+    localStorage.setItem('meaningQuizType', 'flashcard');
+    localStorage.setItem('pinyinQuizType', 'input');
     renderWithProviders(<Settings />, { store: makeStore(true, false) });
-    const chineseSpeechCheckbox = screen.getByRole('checkbox', {
-      name: /chinese speech recognition/i,
-    });
-    expect(chineseSpeechCheckbox).not.toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: /auto-start microphone/i })).not.toBeDisabled();
   });
 
   it('disables Translate Sentences stage when speechAvailable is false', () => {
