@@ -185,6 +185,7 @@ const Test: React.FC<Props> = (props) => {
           >
             <AnswerInput
               state={state}
+              speechAvailable={props.speechAvailable}
               onKeyPress={onKeyPress}
               onInputChanged={onInputChanged}
               onFocusEntry={onFocusEntry}

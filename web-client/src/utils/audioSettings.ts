@@ -1,36 +1,54 @@
+export type QuizType = 'input' | 'flashcard';
+
+export type QuizCategory = 'meaning' | 'pinyin';
+
+const quizTypeKey = (category: QuizCategory): string =>
+  category === 'meaning' ? 'meaningQuizType' : 'pinyinQuizType';
+
+export const getQuizType = (category: QuizCategory): QuizType => {
+  const stored = localStorage.getItem(quizTypeKey(category));
+  if (stored === 'flashcard') return 'flashcard';
+  // 'text' and 'speech' are legacy values from when input mode was split in two
+  if (stored === 'input' || stored === 'text' || stored === 'speech') return 'input';
+
+  // Fall back to the legacy boolean setting so preferences saved before the
+  // per-answer-type quiz setting existed (and e2e fixtures) carry over.
+  if (category === 'meaning' && localStorage.getItem('useFlashcards') !== 'false') {
+    return 'flashcard';
+  }
+  return 'input';
+};
+
+export const setQuizType = (category: QuizCategory, value: QuizType): void => {
+  localStorage.setItem(quizTypeKey(category), value);
+};
+
 export interface AudioSettings {
   useSound: boolean;
   useSoundEffects: boolean;
-  useChineseSpeechRecognition: boolean;
-  useEnglishSpeechRecognition: boolean;
   useAutoRecord: boolean;
-  useFlashcards: boolean;
+  meaningQuizType: QuizType;
+  pinyinQuizType: QuizType;
 }
+
+export type AudioSettingKey = 'useSound' | 'useSoundEffects' | 'useAutoRecord';
 
 export const getAudioSettings = (): AudioSettings => ({
   useSound: localStorage.getItem('useSound') !== 'false',
   useSoundEffects: localStorage.getItem('useSoundEffects') !== 'false',
-  useChineseSpeechRecognition: localStorage.getItem('useChineseSpeechRecognition') !== 'false',
-  useEnglishSpeechRecognition: localStorage.getItem('useEnglishSpeechRecognition') !== 'false',
   useAutoRecord: localStorage.getItem('useAutoRecord') !== 'false',
-  useFlashcards: localStorage.getItem('useFlashcards') !== 'false',
+  meaningQuizType: getQuizType('meaning'),
+  pinyinQuizType: getQuizType('pinyin'),
 });
 
-export const setAudioSetting = (key: keyof AudioSettings, value: boolean): AudioSettings => {
+export const setAudioSetting = (key: AudioSettingKey, value: boolean): AudioSettings => {
   localStorage.setItem(key, String(value));
-
-  if (key === 'useEnglishSpeechRecognition' && value) {
-    localStorage.setItem('useFlashcards', 'false');
-  }
-  if (key === 'useFlashcards' && value) {
-    localStorage.setItem('useEnglishSpeechRecognition', 'false');
-  }
 
   return getAudioSettings();
 };
 
 export interface AudioSettingItem {
-  key: keyof AudioSettings;
+  key: AudioSettingKey;
   label: string;
   disabled: boolean;
 }
@@ -50,23 +68,8 @@ export const getAudioSettingItems = (
     disabled: false,
   },
   {
-    key: 'useChineseSpeechRecognition',
-    label: 'Chinese speech recognition',
-    disabled: !speechAvailable,
-  },
-  {
-    key: 'useEnglishSpeechRecognition',
-    label: 'English speech recognition',
-    disabled: !speechAvailable,
-  },
-  {
     key: 'useAutoRecord',
-    label: 'Automatic recording',
-    disabled: false,
-  },
-  {
-    key: 'useFlashcards',
-    label: 'Meaning flashcards',
+    label: 'Auto-start microphone',
     disabled: false,
   },
 ];

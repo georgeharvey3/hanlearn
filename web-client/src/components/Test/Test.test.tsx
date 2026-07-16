@@ -32,16 +32,14 @@ vi.mock('./constants', () => ({
     idkList: [],
     scoreList: [],
     testFinished: false,
-    showInput: false,
     showInputChars: [],
     drawnCharacters: [],
     numSpeakTries: 0,
     useSound: false,
     useHandwriting: false,
-    useChineseSpeechRecognition: false,
-    useEnglishSpeechRecognition: false,
+    meaningQuizType: 'input',
+    pinyinQuizType: 'input',
     useAutoRecord: false,
-    useFlashcards: false,
     showErrorMessage: false,
     redoChar: false,
     sentenceWords: [],
@@ -64,7 +62,6 @@ vi.mock('./constants', () => ({
     speechLoading: false,
     interaction: false,
     speechResult: false,
-    useTypingInput: false,
   })),
 }));
 
@@ -192,10 +189,10 @@ describe('useTestEngine — refreshSettings', () => {
     act(() => {
       result.current.refreshSettings({
         useSound: true,
-        useChineseSpeechRecognition: false,
-        useEnglishSpeechRecognition: false,
+        useSoundEffects: true,
         useAutoRecord: false,
-        useFlashcards: false,
+        meaningQuizType: 'input',
+        pinyinQuizType: 'input',
       });
     });
 
@@ -208,10 +205,10 @@ describe('useTestEngine — refreshSettings', () => {
     act(() => {
       result.current.refreshSettings({
         useSound: true,
-        useChineseSpeechRecognition: false,
-        useEnglishSpeechRecognition: false,
+        useSoundEffects: true,
         useAutoRecord: false,
-        useFlashcards: false,
+        meaningQuizType: 'input',
+        pinyinQuizType: 'input',
       });
     });
 
@@ -224,64 +221,51 @@ describe('useTestEngine — refreshSettings', () => {
     act(() => {
       result.current.refreshSettings({
         useSound: false,
-        useChineseSpeechRecognition: false,
-        useEnglishSpeechRecognition: false,
+        useSoundEffects: true,
         useAutoRecord: true,
-        useFlashcards: false,
+        meaningQuizType: 'input',
+        pinyinQuizType: 'input',
       });
     });
 
     expect(result.current.state.useAutoRecord).toBe(true);
   });
 
-  it('enables useFlashcards via refreshSettings', () => {
+  it('updates quiz types via refreshSettings', () => {
     const result = renderEngineWithState({});
 
     act(() => {
       result.current.refreshSettings({
         useSound: false,
-        useChineseSpeechRecognition: false,
-        useEnglishSpeechRecognition: false,
+        useSoundEffects: true,
         useAutoRecord: false,
-        useFlashcards: true,
+        meaningQuizType: 'flashcard',
+        pinyinQuizType: 'flashcard',
       });
     });
 
-    expect(result.current.state.useFlashcards).toBe(true);
+    expect(result.current.state.meaningQuizType).toBe('flashcard');
+    expect(result.current.state.pinyinQuizType).toBe('flashcard');
   });
 
-  it('disables speech recognition when speechAvailable is false', () => {
-    const result = renderEngineWithState({}, { speechAvailable: false });
+  it('applies input quiz types regardless of speech availability', () => {
+    const result = renderEngineWithState(
+      { meaningQuizType: 'flashcard', pinyinQuizType: 'flashcard' },
+      { speechAvailable: false },
+    );
 
     act(() => {
       result.current.refreshSettings({
         useSound: false,
-        useChineseSpeechRecognition: true,
-        useEnglishSpeechRecognition: true,
+        useSoundEffects: true,
         useAutoRecord: false,
-        useFlashcards: false,
+        meaningQuizType: 'input',
+        pinyinQuizType: 'input',
       });
     });
 
-    expect(result.current.state.useChineseSpeechRecognition).toBe(false);
-    expect(result.current.state.useEnglishSpeechRecognition).toBe(false);
-  });
-
-  it('enables speech recognition when speechAvailable is true', () => {
-    const result = renderEngineWithState({}, { speechAvailable: true });
-
-    act(() => {
-      result.current.refreshSettings({
-        useSound: false,
-        useChineseSpeechRecognition: true,
-        useEnglishSpeechRecognition: true,
-        useAutoRecord: false,
-        useFlashcards: false,
-      });
-    });
-
-    expect(result.current.state.useChineseSpeechRecognition).toBe(true);
-    expect(result.current.state.useEnglishSpeechRecognition).toBe(true);
+    expect(result.current.state.meaningQuizType).toBe('input');
+    expect(result.current.state.pinyinQuizType).toBe('input');
   });
 });
 
@@ -469,7 +453,6 @@ describe('useTestEngine — onKeyPress', () => {
       answerInput: 'hello',
       submitDisabled: false,
       useAutoRecord: false,
-      useTypingInput: false,
       recognition: null,
     });
 
@@ -481,14 +464,13 @@ describe('useTestEngine — onKeyPress', () => {
     expect(result.current.state.result).toBe('Correct');
   });
 
-  it('clears answerInput after submitting via Enter', () => {
+  it('keeps a wrong answer in the input after submitting via Enter', () => {
     const result = renderEngineWithState({
       answerCategory: 'meaning',
       answer: ['hello'],
-      answerInput: 'hello',
+      answerInput: 'goodbye',
       submitDisabled: false,
       useAutoRecord: false,
-      useTypingInput: false,
       recognition: null,
     });
 
@@ -497,6 +479,7 @@ describe('useTestEngine — onKeyPress', () => {
       result.current.onKeyPress(event);
     });
 
-    expect(result.current.state.answerInput).toBe('');
+    expect(result.current.state.result).toBe('Try again');
+    expect(result.current.state.answerInput).toBe('goodbye');
   });
 });

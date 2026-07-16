@@ -33,7 +33,6 @@ interface SentenceResult {
 interface SentenceWriteState {
   wordIndex: number;
   charSet: 'simp' | 'trad';
-  useChineseSpeechRecognition: boolean;
   useSound: boolean;
 
   // Fetched Tatoeba sentence
@@ -114,9 +113,6 @@ const SentenceWrite: React.FC<Props> = ({
   const [state, setState] = useState<SentenceWriteState>(() => ({
     wordIndex: 0,
     charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad',
-    useChineseSpeechRecognition:
-      (localStorage.getItem('useChineseSpeechRecognition') !== 'false' || Boolean(isDemo)) &&
-      speechAvailable,
     useSound: (localStorage.getItem('useSound') !== 'false' || Boolean(isDemo)) && synthAvailable,
     loading: false,
     originalChinese: null,
@@ -693,7 +689,7 @@ const SentenceWrite: React.FC<Props> = ({
         >
           Submit
         </Button>
-        {state.useChineseSpeechRecognition && (
+        {speechAvailable && (
           <Stack direction="row" alignItems="center" spacing={1} justifyContent="center">
             {state.message && (
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
