@@ -629,6 +629,7 @@ export const useTestEngine = (props: Props) => {
         qNum: prevState.qNum + 1,
         submitDisabled: false,
         showHint: false,
+        hintLoading: false,
         showAnswer: false,
       }));
     }, 2000);
@@ -657,6 +658,12 @@ export const useTestEngine = (props: Props) => {
       getHintSentence(word)
         .then((sentence) => {
           const current = getState();
+          // The question can move on while the sentence loads. Drop a late
+          // answer so a hint never lands on the wrong word.
+          if (current.chosenCharacter !== word) {
+            setStateMerged({ hintLoading: false });
+            return;
+          }
           if (!sentence) {
             setStateMerged({ result: 'No example sentence found', hintLoading: false });
             return;
@@ -674,6 +681,10 @@ export const useTestEngine = (props: Props) => {
           }
         })
         .catch(() => {
+          if (getState().chosenCharacter !== word) {
+            setStateMerged({ hintLoading: false });
+            return;
+          }
           setStateMerged({ result: 'Could not load hint', hintLoading: false });
         });
     },
@@ -682,6 +693,9 @@ export const useTestEngine = (props: Props) => {
 
   const onHint = useCallback((): void => {
     const current = getState();
+    if (current.hintLoading) {
+      return;
+    }
     if (current.showHint) {
       if (current.answerCategory === 'character' && current.writer) {
         current.writer.hideOutline();
