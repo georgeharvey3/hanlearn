@@ -62,6 +62,23 @@ describe('Dashboard container', () => {
     await waitFor(() => expect(mockGetDashboardStats).toHaveBeenCalledWith('uid-xyz', 'default'));
   });
 
+  it('passes undefined instead of the __all__ sentinel so stats cover every list', async () => {
+    // Regression (#297): '__all__' is a virtual list id. Passing it straight through
+    // made Firestore query listId == '__all__', which matches no words, so the
+    // dashboard reported 0 due and 0 total while a single list showed the real count.
+    mockGetDashboardStats.mockResolvedValue(sampleStats);
+    const allListsState = authenticatedState('uid-all');
+    allListsState.addWords.lists = [
+      { id: 'default', name: 'General', createdAt: '', order: 0 },
+      { id: 'puerh', name: 'Puerh book', createdAt: '', order: 1 },
+    ];
+    allListsState.addWords.activeListId = '__all__';
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(allListsState),
+    });
+    await waitFor(() => expect(mockGetDashboardStats).toHaveBeenCalledWith('uid-all', undefined));
+  });
+
   it('shows an error message when the stats load fails', async () => {
     mockGetDashboardStats.mockRejectedValue(new Error('offline'));
     renderWithProviders(<Dashboard />, {
