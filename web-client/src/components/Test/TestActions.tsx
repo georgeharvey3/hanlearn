@@ -1,4 +1,5 @@
 import React from 'react';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import Button from '../UI/Buttons/Button/Button';
 import { TestState } from './types';
@@ -41,15 +42,23 @@ const TestActions: React.FC<TestActionsProps> = ({ state, onIDontKnow, onHint, s
             !pinyinAnswerMeaningQuestion &&
             !meaningAnswer &&
             state.answerCategory !== 'character') ||
-          state.showAnswer
+          state.showAnswer ||
+          state.hintLoading
         }
         clicked={onHint}
       >
-        {state.questionCategory === 'pinyin' && state.useSound
-          ? 'Hint'
-          : state.showHint
-            ? 'Hide Hint'
-            : 'Show Hint'}
+        {state.hintLoading ? (
+          <>
+            <CircularProgress size={14} color="inherit" aria-label="Loading hint" sx={{ mr: 1 }} />
+            Loading Hint
+          </>
+        ) : state.questionCategory === 'pinyin' && state.useSound ? (
+          'Hint'
+        ) : state.showHint ? (
+          'Hide Hint'
+        ) : (
+          'Show Hint'
+        )}
       </Button>
       {state.questionCategory === 'pinyin' &&
       state.useSound &&
