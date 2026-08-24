@@ -54,7 +54,11 @@ const Dashboard: React.FC<PropsFromRedux> = ({
     }
     setError(false);
     try {
-      const data = await getDashboardStats(userId, activeListId);
+      // '__all__' is a virtual list; pass undefined so stats cover every list
+      const data = await getDashboardStats(
+        userId,
+        activeListId === '__all__' ? undefined : activeListId,
+      );
       setStats(data);
     } catch (err) {
       console.error('Failed to load dashboard stats:', err);
