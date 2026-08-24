@@ -5,12 +5,18 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 vi.mock('../../../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
 vi.mock('../../../../services/decompositionService');
+vi.mock('@sentry/react', () => ({
+  captureException: vi.fn(),
+}));
 
 import DecompositionTree from './DecompositionTree';
+
+import * as Sentry from '@sentry/react';
 
 import { decomposeCharacter } from '../../../../services/decompositionService';
 
 const mockedDecompose = vi.mocked(decomposeCharacter);
+const mockedCaptureException = vi.mocked(Sentry.captureException);
 
 describe('DecompositionTree', () => {
   beforeEach(() => {
@@ -27,6 +33,22 @@ describe('DecompositionTree', () => {
     });
 
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  });
+
+  it('reports the failure to Sentry', async () => {
+    const error = new Error('network error');
+    mockedDecompose.mockRejectedValueOnce(error);
+
+    render(<DecompositionTree char="木" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Decomposition failed')).toBeInTheDocument();
+    });
+
+    expect(mockedCaptureException).toHaveBeenCalledWith(error, {
+      tags: { feature: 'decomposition' },
+      extra: { char: '木' },
+    });
   });
 
   it('retries decomposition when retry button is clicked', async () => {
