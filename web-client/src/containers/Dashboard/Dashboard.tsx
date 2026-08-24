@@ -24,6 +24,7 @@ const mapStateToProps = (state: RootState) => ({
 });
 
 const mapDispatchToProps = {
+  onInitWordLists: wordActions.initWordLists,
   onSwitchList: wordActions.switchActiveList,
   onCreateList: wordActions.postCreateWordList,
   onRenameList: wordActions.postRenameWordList,
@@ -38,6 +39,7 @@ const Dashboard: React.FC<PropsFromRedux> = ({
   lists,
   activeListId,
   listStats,
+  onInitWordLists,
   onSwitchList,
   onCreateList,
   onRenameList,
@@ -52,6 +54,7 @@ const Dashboard: React.FC<PropsFromRedux> = ({
       setLoading(false);
       return;
     }
+    setLoading(true);
     setError(false);
     try {
       // '__all__' is a virtual list; pass undefined so stats cover every list
@@ -68,41 +71,36 @@ const Dashboard: React.FC<PropsFromRedux> = ({
     }
   }, [userId, activeListId]);
 
-  const retryLoadStats = useCallback(() => {
-    setLoading(true);
-    loadStats();
-  }, [loadStats]);
-
   useEffect(() => {
     loadStats();
   }, [loadStats]);
 
-  if (loading) {
-    return <Spinner />;
-  }
+  useEffect(() => {
+    if (userId) {
+      onInitWordLists();
+    }
+  }, [userId, onInitWordLists]);
 
-  if (error) {
-    return (
-      <Box sx={{ textAlign: 'center', py: 4 }} role="alert">
-        <Typography sx={{ color: 'error.main', mb: 2 }}>Could not load dashboard data.</Typography>
-        <Typography
-          component="button"
-          onClick={retryLoadStats}
-          sx={{
-            color: 'primary.dark',
-            background: 'none',
-            border: 'none',
-            textDecoration: 'underline',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            fontSize: 'inherit',
-          }}
-        >
-          Try again
-        </Typography>
-      </Box>
-    );
-  }
+  const errorContent = (
+    <Box sx={{ textAlign: 'center', py: 4 }} role="alert">
+      <Typography sx={{ color: 'error.main', mb: 2 }}>Could not load dashboard data.</Typography>
+      <Typography
+        component="button"
+        onClick={loadStats}
+        sx={{
+          color: 'primary.dark',
+          background: 'none',
+          border: 'none',
+          textDecoration: 'underline',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          fontSize: 'inherit',
+        }}
+      >
+        Try again
+      </Typography>
+    </Box>
+  );
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -119,30 +117,36 @@ const Dashboard: React.FC<PropsFromRedux> = ({
         onDeleteList={onDeleteList}
         readOnly
       />
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <WordsDueCard
-            dueWords={stats?.dueWords ?? 0}
-            totalWords={stats?.totalWords ?? 0}
-            estimatedStudyTime={stats?.estimatedStudyTime}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StreakCard streak={stats?.streak ?? 0} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <WeeklyStatsCard
-            sessions={stats?.weeklyStats?.sessions ?? 0}
-            wordsReviewed={stats?.weeklyStats?.wordsReviewed ?? 0}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <LevelDistributionCard distribution={stats?.levelDistribution ?? {}} />
-        </Grid>
-      </Grid>
-      <ErrorBoundary>
-        <Chengyu />
-      </ErrorBoundary>
+      {loading && <Spinner />}
+      {!loading && error && errorContent}
+      {!loading && !error && (
+        <>
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <WordsDueCard
+                dueWords={stats?.dueWords ?? 0}
+                totalWords={stats?.totalWords ?? 0}
+                estimatedStudyTime={stats?.estimatedStudyTime}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <StreakCard streak={stats?.streak ?? 0} />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <WeeklyStatsCard
+                sessions={stats?.weeklyStats?.sessions ?? 0}
+                wordsReviewed={stats?.weeklyStats?.wordsReviewed ?? 0}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <LevelDistributionCard distribution={stats?.levelDistribution ?? {}} />
+            </Grid>
+          </Grid>
+          <ErrorBoundary>
+            <Chengyu />
+          </ErrorBoundary>
+        </>
+      )}
     </Box>
   );
 };

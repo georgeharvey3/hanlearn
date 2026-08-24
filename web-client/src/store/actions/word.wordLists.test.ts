@@ -47,6 +47,69 @@ const sampleWords = [
   },
 ];
 
+describe('initWordLists', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('stores the lists and the list stats without fetching words', async () => {
+    mockedWordService.getUserWordLists.mockResolvedValue([
+      { id: 'default', name: 'General', createdAt: '', order: 0 },
+      sampleList,
+    ]);
+    mockedWordService.getListStats.mockResolvedValue({ 'list-1': { due: 2, total: 9 } });
+    const store = createTestStore(authenticatedState());
+
+    await store.dispatch(wordActions.initWordLists() as any);
+
+    expect(mockedWordService.getUserWordLists).toHaveBeenCalledWith('test-user-123');
+    expect(store.getState().addWords.lists).toContainEqual(sampleList);
+    expect(store.getState().addWords.listStats).toEqual({ 'list-1': { due: 2, total: 9 } });
+    expect(mockedWordService.getUserWords).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when there is no userId', async () => {
+    const store = createTestStore({
+      auth: {
+        userId: null,
+        loading: false,
+        error: null,
+        newSignUp: false,
+        initialized: true,
+        modalOpen: false,
+        modalMode: 'login',
+      },
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [],
+        listStats: {},
+        error: false,
+        loading: false,
+      },
+      settings: { speechAvailable: false, synthAvailable: false },
+    } as any);
+
+    await store.dispatch(wordActions.initWordLists() as any);
+
+    expect(mockedWordService.getUserWordLists).not.toHaveBeenCalled();
+  });
+
+  it('keeps the previous lists when the fetch fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockedWordService.getUserWordLists.mockRejectedValue(new Error('offline'));
+    mockedWordService.getListStats.mockResolvedValue({});
+    const store = createTestStore(authenticatedState());
+
+    await store.dispatch(wordActions.initWordLists() as any);
+
+    expect(store.getState().addWords.lists).toEqual([
+      { id: 'default', name: 'General', createdAt: '', order: 0 },
+    ]);
+    consoleSpy.mockRestore();
+  });
+});
+
 describe('switchActiveList', () => {
   beforeEach(() => {
     vi.clearAllMocks();

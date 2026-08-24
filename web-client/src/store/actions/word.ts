@@ -156,6 +156,30 @@ export const initWords = (): AppThunk => {
 };
 
 /**
+ * Fetch word lists and per-list stats without loading the words themselves.
+ * Used by screens that show the list selector but read their own data,
+ * such as the Dashboard.
+ */
+export const initWordLists = (): AppThunk => {
+  return async (dispatch, getState) => {
+    const { auth } = getState();
+    if (!auth.userId) return;
+
+    try {
+      const [lists, stats] = await Promise.all([
+        wordService.getUserWordLists(auth.userId),
+        wordService.getListStats(auth.userId),
+      ]);
+      dispatch(setWordLists(lists));
+      dispatch(setListStats(stats));
+    } catch (error) {
+      console.error('Failed to fetch word lists:', error);
+      Sentry.captureException(error);
+    }
+  };
+};
+
+/**
  * Switch the active list and fetch its words.
  * Pass '__all__' to fetch words across all lists (cross-list mode).
  */

@@ -10,6 +10,10 @@ vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {
 vi.mock('../../services/dashboardService', () => ({
   getDashboardStats: vi.fn(),
 }));
+vi.mock('../../services/wordService', () => ({
+  getUserWordLists: vi.fn(),
+  getListStats: vi.fn(),
+}));
 
 // Chengyu makes async calls to local data — mock it to keep tests focused
 vi.mock('../../components/Home/Chengyu/Chengyu', () => ({
@@ -17,7 +21,15 @@ vi.mock('../../components/Home/Chengyu/Chengyu', () => ({
 }));
 
 import { getDashboardStats } from '../../services/dashboardService';
+import { getUserWordLists, getListStats } from '../../services/wordService';
 const mockGetDashboardStats = getDashboardStats as ReturnType<typeof vi.fn>;
+const mockGetUserWordLists = getUserWordLists as ReturnType<typeof vi.fn>;
+const mockGetListStats = getListStats as ReturnType<typeof vi.fn>;
+
+const sampleLists = [
+  { id: 'default', name: 'General', createdAt: '', order: 0 },
+  { id: 'hsk3', name: 'HSK 3', createdAt: '', order: 1 },
+];
 
 const sampleStats = {
   totalWords: 50,
@@ -32,6 +44,8 @@ const sampleStats = {
 describe('Dashboard container', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetUserWordLists.mockResolvedValue(sampleLists);
+    mockGetListStats.mockResolvedValue({ default: { due: 3, total: 20 } });
   });
 
   it('shows a spinner while loading', () => {
@@ -40,6 +54,53 @@ describe('Dashboard container', () => {
       store: createTestStore(authenticatedState()),
     });
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
+  });
+
+  it('loads the word lists so the list selector can render', async () => {
+    mockGetDashboardStats.mockResolvedValue(sampleStats);
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(authenticatedState('uid-lists')),
+    });
+    await waitFor(() => expect(mockGetUserWordLists).toHaveBeenCalledWith('uid-lists'));
+    expect(mockGetListStats).toHaveBeenCalledWith('uid-lists');
+    await waitFor(() => expect(screen.getByTestId('list-selector')).toBeInTheDocument());
+  });
+
+  it('keeps the heading and list selector visible while the stats load', async () => {
+    mockGetDashboardStats.mockImplementation(() => new Promise(() => {}));
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(authenticatedState()),
+    });
+    expect(screen.getByText('Dashboard')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('list-selector')).toBeInTheDocument());
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+  });
+
+  it('shows the spinner again while stats reload for another list', async () => {
+    mockGetDashboardStats.mockResolvedValue(sampleStats);
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: { ...authenticatedState().addWords, lists: sampleLists },
+    });
+    renderWithProviders(<Dashboard />, { store });
+
+    await waitFor(() => expect(screen.getByText('Words Due')).toBeInTheDocument());
+
+    let resolveSecondLoad: (value: typeof sampleStats) => void = () => {};
+    mockGetDashboardStats.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveSecondLoad = resolve;
+        }),
+    );
+    store.dispatch({ type: 'SET_ACTIVE_LIST', listId: 'hsk3' });
+
+    await waitFor(() => expect(screen.getByRole('progressbar')).toBeInTheDocument());
+    expect(screen.getByTestId('list-selector')).toBeInTheDocument();
+
+    resolveSecondLoad(sampleStats);
+    await waitFor(() => expect(screen.queryByRole('progressbar')).not.toBeInTheDocument());
+    expect(mockGetDashboardStats).toHaveBeenLastCalledWith('test-user-123', 'hsk3');
   });
 
   it('renders the heading and stat cards after a successful load', async () => {
@@ -162,8 +223,9 @@ describe('Dashboard container', () => {
     renderWithProviders(<Dashboard />, {
       store: createTestStore(unauthState),
     });
-    // The Dashboard heading appears once loading resolves to false.
-    await waitFor(() => expect(screen.getByText('Dashboard')).toBeInTheDocument());
+    // The spinner disappears once loading resolves to false.
+    await waitFor(() => expect(screen.queryByRole('progressbar')).not.toBeInTheDocument());
+    expect(screen.getByText('Dashboard')).toBeInTheDocument();
     expect(mockGetDashboardStats).not.toHaveBeenCalled();
   });
 

@@ -1,5 +1,6 @@
 export {
   initWords,
+  initWordLists,
   postWord,
   postCustomWord,
   deleteWord,
