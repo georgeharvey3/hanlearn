@@ -1,17 +1,8 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import * as hanzi from 'hanzi';
 import { checkRateLimit, RATE_LIMITS } from './rateLimit';
 
 admin.initializeApp();
-
-let hanziReady = false;
-function ensureHanzi(): void {
-  if (!hanziReady) {
-    hanzi.start();
-    hanziReady = true;
-  }
-}
 
 // Re-export dictionary Cloud Functions
 export {
@@ -27,6 +18,9 @@ export { textToSpeech } from './tts';
 
 // Re-export similarity scoring Cloud Function
 export { scoreSimilarity } from './similarity';
+
+// Re-export character decomposition Cloud Function
+export { decomposeCharacter } from './decompose';
 
 const db = admin.firestore();
 
@@ -237,97 +231,3 @@ export const lookupChengyuChar = functions.https.onCall(
   }
 );
 
-/**
- * Decompose a Chinese character into its radical/structural components.
- * Uses HanziJS for radical-level decomposition with meanings.
- */
-export const decomposeCharacter = functions.https.onCall(
-  async (data: { char: string }, context) => {
-    try {
-      const uid = verifyAuth(context);
-      await checkRateLimit(uid, 'decomposeCharacter', RATE_LIMITS.decomposeCharacter);
-      ensureHanzi();
-
-      const { char } = data;
-
-      if (!char || [...char].length !== 1) {
-        throw new functions.https.HttpsError(
-          'invalid-argument',
-          'A single Chinese character is required'
-        );
-      }
-
-      let components: { char: string; meaning: string | null; pinyin: string | null }[];
-
-      try {
-        const result = hanzi.decompose(char, 1);
-
-        // hanzi.decompose can return the string 'Invalid Input' for unknown chars
-        if (!result || typeof result === 'string') {
-          return { components: [] };
-        }
-
-        const rawComponents: string[] = Array.isArray(result.components)
-          ? result.components
-          : [];
-
-        // Filter out the character itself, placeholder values, empty strings,
-        // and raw Unicode code-point references (e.g. "37045") that appear in
-        // CJK decomposition data for obscure stroke components.
-        const filtered = rawComponents.filter(
-          (c: string) =>
-            c &&
-            c !== char &&
-            c !== 'No glyph available' &&
-            c.trim() !== '' &&
-            !/^\d+$/.test(c)
-        );
-
-        components = filtered.map((component: string) => {
-          let meaning: string | null = null;
-          let pinyin: string | null = null;
-
-          try {
-            const radicalMeaning = hanzi.getRadicalMeaning(component);
-            if (radicalMeaning && radicalMeaning !== 'N/A') {
-              meaning = radicalMeaning;
-            }
-          } catch {
-            // Radical lookup can fail for unusual components
-          }
-
-          try {
-            const defResult = hanzi.definitionLookup(component, 's');
-            if (Array.isArray(defResult) && defResult.length > 0) {
-              const entry = defResult[0];
-              if (entry.definition) {
-                meaning = meaning
-                  ? meaning
-                  : entry.definition.split('/')[0];
-              }
-              if (entry.pinyin) {
-                pinyin = entry.pinyin;
-              }
-            }
-          } catch {
-            // Dictionary lookup can fail for unusual components
-          }
-
-          return { char: component, meaning, pinyin };
-        });
-      } catch (err) {
-        console.error(`hanzi decomposition failed for "${char}":`, err);
-        components = [];
-      }
-
-      return { components };
-    } catch (err) {
-      // Re-throw HttpsErrors as-is so clients get proper error codes
-      if (err instanceof functions.https.HttpsError) {
-        throw err;
-      }
-      console.error('decomposeCharacter unhandled error:', err);
-      return { components: [] };
-    }
-  }
-);

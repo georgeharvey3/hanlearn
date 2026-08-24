@@ -19,3 +19,14 @@ declare module 'hanzi' {
     scriptType?: string
   ): DictionaryEntry[] | undefined;
 }
+
+declare module 'hanzi/lib/hanzidecomposer.js' {
+  interface DecomposeResult {
+    character: string;
+    components: string[];
+  }
+
+  function start(): void;
+  function decompose(character: string, type?: number): DecomposeResult;
+  function getRadicalMeaning(radical: string): string;
+}

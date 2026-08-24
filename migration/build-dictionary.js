@@ -43,6 +43,13 @@ async function buildDictionary() {
   const cedictPath = path.join(__dirname, 'cedict_ts.u8');
   const outputPath = path.join(__dirname, '..', 'web-client', 'public', 'dictionary.json');
   const functionsOutputPath = path.join(__dirname, '..', 'functions', 'data', 'dictionary.json');
+  const charDefinitionsPath = path.join(
+    __dirname,
+    '..',
+    'functions',
+    'data',
+    'char-definitions.json'
+  );
 
   if (!fs.existsSync(cedictPath)) {
     console.error('cedict_ts.u8 not found.');
@@ -89,6 +96,26 @@ async function buildDictionary() {
   }
   fs.writeFileSync(functionsOutputPath, json);
   console.log('Also wrote to: ' + functionsOutputPath);
+
+  // Write a single-character subset for the decomposeCharacter Cloud Function.
+  // Decomposition components are always single characters, so this function
+  // does not need the full dictionary in memory.
+  console.log('Writing char-definitions.json...');
+  const charDefinitions = {};
+  for (const word of words) {
+    for (const form of [word.simp, word.trad]) {
+      if ([...form].length === 1 && !charDefinitions[form]) {
+        charDefinitions[form] = { pinyin: word.pinyin, meaning: word.meaning };
+      }
+    }
+  }
+  fs.writeFileSync(charDefinitionsPath, JSON.stringify(charDefinitions));
+  console.log(
+    'Wrote ' +
+      Object.keys(charDefinitions).length +
+      ' characters to: ' +
+      charDefinitionsPath
+  );
 
   // Calculate file sizes
   const stats = fs.statSync(outputPath);
