@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { CSSProperties } from 'react';
 
 import { colors } from '../../theme';
 import Input from '../UI/Input/Input';
@@ -62,16 +62,26 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
     />
   );
 
+  // A grade is final until the next question, so the pressed button keeps a ring
+  // and the other one fades. This works with sound effects off.
+  const graded = state.yesClicked || state.noClicked;
+  const gradeStyle = (pressed: boolean, ring: string): CSSProperties => ({
+    ...(pressed ? activeButtonStyle : buttonStyle),
+    ...(pressed ? { boxShadow: `0 0 0 3px ${ring}` } : null),
+    opacity: graded && !pressed ? 0.3 : 1,
+    transition: 'opacity 150ms ease, box-shadow 150ms ease',
+  });
+
   const showAnswerContent = state.showAnswer ? (
-    <div>
+    <div style={{ pointerEvents: graded ? 'none' : 'auto' }}>
       <PictureButton
-        style={state.yesClicked ? activeButtonStyle : buttonStyle}
+        style={gradeStyle(state.yesClicked, colors.success)}
         clicked={onCorrectAnswer}
         src={likePic}
         aria-label="I knew this"
       />
       <PictureButton
-        style={state.noClicked ? activeButtonStyle : buttonStyle}
+        style={gradeStyle(state.noClicked, colors.error)}
         clicked={() => {
           if (state.useSoundEffects) fail.play();
           onIDontKnow();

@@ -208,6 +208,54 @@ describe('AnswerInput — flashcard mode (show-answer flow)', () => {
     expect(props.onCorrectAnswer).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps both buttons at full strength before a grade', () => {
+    renderAnswerInput({
+      answerCategory: 'meaning',
+      meaningQuizType: 'flashcard',
+      showAnswer: true,
+    });
+    expect(screen.getByLabelText(/i knew this/i)).toHaveStyle({ opacity: '1' });
+    expect(screen.getByLabelText(/i didn't know this/i)).toHaveStyle({ opacity: '1' });
+  });
+
+  it('rings the like button and fades the dislike button after a known grade', () => {
+    renderAnswerInput({
+      answerCategory: 'meaning',
+      meaningQuizType: 'flashcard',
+      showAnswer: true,
+      yesClicked: true,
+    });
+    const like = screen.getByLabelText(/i knew this/i);
+    expect(like).toHaveStyle({ opacity: '1' });
+    expect(like.style.boxShadow).toContain('3px');
+    expect(screen.getByLabelText(/i didn't know this/i)).toHaveStyle({ opacity: '0.3' });
+  });
+
+  it('rings the dislike button and fades the like button after a not-known grade', () => {
+    renderAnswerInput({
+      answerCategory: 'meaning',
+      meaningQuizType: 'flashcard',
+      showAnswer: true,
+      noClicked: true,
+    });
+    const dislike = screen.getByLabelText(/i didn't know this/i);
+    expect(dislike).toHaveStyle({ opacity: '1' });
+    expect(dislike.style.boxShadow).toContain('3px');
+    expect(screen.getByLabelText(/i knew this/i)).toHaveStyle({ opacity: '0.3' });
+  });
+
+  it('stops further presses once the answer is graded', () => {
+    renderAnswerInput({
+      answerCategory: 'meaning',
+      meaningQuizType: 'flashcard',
+      showAnswer: true,
+      yesClicked: true,
+    });
+    expect(screen.getByLabelText(/i knew this/i).parentElement).toHaveStyle({
+      pointerEvents: 'none',
+    });
+  });
+
   it('calls onIDontKnow when the dislike button is clicked', () => {
     const props = renderAnswerInput({
       answerCategory: 'meaning',
