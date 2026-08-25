@@ -255,13 +255,17 @@ reporting question, so this record only records it.
 
 ## Work that follows
 
-Issue #312 asks for separate issues for the work. This record proposes five:
+Issue #312 asks for separate issues for the work. This record gives five:
 
-1. Add Sentry to the Cloud Functions, with a shared report helper and a flush.
-2. Add the Cloud Monitoring alert policies, and set an explicit memory limit on
-   every function.
-3. Make `decomposeCharacter` and `getDailyChengyu` throw instead of a return of
-   an empty result, and handle the error in the client.
-4. Report the discarded errors in the web client, from the list above.
-5. Measure the memory headroom of the `dictionary*` functions in the deployed
-   runtime.
+1. #315 — Add Sentry to the Cloud Functions, with a shared report helper and a
+   flush.
+2. #316 — Add the Cloud Monitoring alert policies, and set an explicit memory
+   limit on every function.
+3. #317 — Make `decomposeCharacter` and `getDailyChengyu` throw instead of a
+   return of an empty result, and handle the error in the client.
+4. #318 — Report the discarded errors in the web client, from the list above.
+5. #319 — Measure the memory headroom of the `dictionary*` functions in the
+   deployed runtime.
+
+Do #316 first. The alerts cover the failure class that the other work cannot
+see, and #319 needs those alerts.
