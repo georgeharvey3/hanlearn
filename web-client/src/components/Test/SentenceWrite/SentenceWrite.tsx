@@ -23,6 +23,7 @@ import {
 } from '../../../utils/sentenceUtils';
 import { parseMeanings } from '../../../utils/meaningUtils';
 import { getSimilarityScore } from '../../../services/similarityService';
+import { reportError } from '../../../services/errorReporting';
 
 interface SentenceResult {
   original: string;
@@ -227,6 +228,7 @@ const SentenceWrite: React.FC<Props> = ({
         });
       } catch (error) {
         console.error('Error fetching sentence for SentenceWrite:', error);
+        reportError(error, { feature: 'sentence-write' });
         updateState({ loading: false, message: 'Could not load sentence. Please try again.' });
       }
     },
@@ -384,7 +386,8 @@ const SentenceWrite: React.FC<Props> = ({
         .then((result) => {
           updateState({ score: result.score, scoreLoading: false });
         })
-        .catch(() => {
+        .catch((error) => {
+          reportError(error, { feature: 'sentence-score', context: { language: 'zh' } });
           updateState({ score: null, scoreLoading: false });
         });
     }

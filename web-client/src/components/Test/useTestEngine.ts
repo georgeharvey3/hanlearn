@@ -8,12 +8,28 @@ import { Props, TestState, TestStateUpdate } from './types';
 import { WordScore } from '../../types/models';
 import { checkSentenceAvailability, getHintSentence } from '../../services/sentenceService';
 import * as ttsService from '../../services/ttsService';
+import { reportError } from '../../services/errorReporting';
 
 // Quiz type governing the current answer; character answers are always handwriting
 const answerQuizType = (state: TestState): QuizType | null => {
   if (state.answerCategory === 'pinyin') return state.pinyinQuizType;
   if (state.answerCategory === 'meaning') return state.meaningQuizType;
   return null;
+};
+
+/**
+ * Clear the HanziWriter mount point.
+ *
+ * The three call sites used to swallow the error here, which hid a broken
+ * HanziWriter mount. The DOM work is cheap, so the report is a warning.
+ */
+const clearCharacterTarget = (): void => {
+  try {
+    const el = document.getElementById('character-target-div');
+    if (el) el.innerHTML = '';
+  } catch (error) {
+    reportError(error, { feature: 'hanzi-writer', level: 'warning' });
+  }
 };
 
 export const useTestEngine = (props: Props) => {
@@ -232,7 +248,13 @@ export const useTestEngine = (props: Props) => {
         sentenceWords.map((w) =>
           checkSentenceAvailability(w.simp, current.charSet)
             .then((available) => (available ? w : null))
-            .catch(() => null),
+            .catch((error) => {
+              reportError(error, {
+                feature: 'sentence-availability',
+                context: { simp: w.simp },
+              });
+              return null;
+            }),
         ),
       ).then((results) => {
         const available = results.filter((w): w is import('../../types/models').Word => w !== null);
@@ -450,12 +472,7 @@ export const useTestEngine = (props: Props) => {
               drawnCharacters: prevState.drawnCharacters.concat(char),
             }));
             setTimeout(() => {
-              try {
-                const el = document.getElementById('character-target-div');
-                if (el) el.innerHTML = '';
-              } catch (e) {
-                // ignore
-              }
+              clearCharacterTarget();
               onCorrectAnswer();
             }, 1000);
           }
@@ -484,12 +501,7 @@ export const useTestEngine = (props: Props) => {
         numBeforeHint = 1;
       }
 
-      try {
-        const el = document.getElementById('character-target-div');
-        if (el) el.innerHTML = '';
-      } catch (e) {
-        // ignore
-      }
+      clearCharacterTarget();
 
       const writer = window.HanziWriter.create('character-target-div', char[index], {
         width: 150,
@@ -525,12 +537,7 @@ export const useTestEngine = (props: Props) => {
         if (index < char.length) {
           updateHanziWriterAnimate(writer, char, index);
         } else {
-          try {
-            const el = document.getElementById('character-target-div');
-            if (el) el.innerHTML = '';
-          } catch (e) {
-            // ignore
-          }
+          clearCharacterTarget();
           setStateMerged((prevState) => {
             const idkChar = prevState.perm
               ? prevState.testSet[parseInt(prevState.perm.index)][prevState.charSet]

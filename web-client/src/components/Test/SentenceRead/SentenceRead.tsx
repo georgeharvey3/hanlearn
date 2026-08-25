@@ -33,6 +33,7 @@ import { parseMeanings } from '../../../utils/meaningUtils';
 import { resolveSentence, SentenceWord, ResolvedSentence } from '../../../utils/sentenceUtils';
 import * as ttsService from '../../../services/ttsService';
 import { getSimilarityScore } from '../../../services/similarityService';
+import { reportError } from '../../../services/errorReporting';
 
 interface SentenceReadState {
   sentence: ResolvedSentence | null;
@@ -308,6 +309,7 @@ const SentenceRead: React.FC<Props> = ({
         }
       } catch (error) {
         console.error('Error fetching sentence:', error);
+        reportError(error, { feature: 'sentence-read' });
         if (stateRef.current.wordIndex >= words.length - 1) {
           onEndStage();
         } else {
@@ -359,7 +361,8 @@ const SentenceRead: React.FC<Props> = ({
         .then((result) => {
           updateState({ score: result.score, scoreLoading: false });
         })
-        .catch(() => {
+        .catch((error) => {
+          reportError(error, { feature: 'sentence-score', context: { language: 'en' } });
           updateState({ score: null, scoreLoading: false });
         });
     }
