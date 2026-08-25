@@ -351,3 +351,90 @@ describe('useTestEngine — qNum effect auto-record paths', () => {
     expect(result.current.state.qNum).toBe(5);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Flashcard grading — the feedback line and the pressed button state
+// ---------------------------------------------------------------------------
+describe('useTestEngine — flashcard grade feedback', () => {
+  const perm = { index: '0', aCategory: 'M' as any, qCategory: 'C' as any };
+
+  const gradeState = (overrides: Record<string, unknown> = {}) => ({
+    answerCategory: 'meaning',
+    answer: ['hello'],
+    chosenCharacter: '你好',
+    perm,
+    testSet: [makeWord()],
+    permList: [perm, { index: '0', aCategory: 'P' as any, qCategory: 'C' as any }],
+    charSet: 'simp',
+    idkList: [],
+    idkDisabled: false,
+    useHandwriting: false,
+    writer: null,
+    showAnswer: true,
+    ...overrides,
+  });
+
+  it('reports the grade instead of repeating the reveal text when the answer is shown', async () => {
+    const props = makeProps();
+    const { result } = renderHook(() => useTestEngine(props));
+
+    await act(async () => {
+      result.current.setStateMerged(gradeState() as any);
+    });
+
+    act(() => {
+      result.current.onIDontKnow();
+    });
+
+    expect(result.current.state.result).toContain('Not known');
+    expect(result.current.state.result).toContain('hello');
+    expect(result.current.state.noClicked).toBe(true);
+  });
+
+  it('keeps the plain answer text when the answer was not shown', async () => {
+    const props = makeProps();
+    const { result } = renderHook(() => useTestEngine(props));
+
+    await act(async () => {
+      result.current.setStateMerged(gradeState({ showAnswer: false }) as any);
+    });
+
+    act(() => {
+      result.current.onIDontKnow();
+    });
+
+    expect(result.current.state.result).toBe("Answer was: 'hello'");
+    expect(result.current.state.noClicked).toBe(false);
+  });
+
+  it('marks the like button pressed when the answer is graded as known', async () => {
+    const props = makeProps();
+    const { result } = renderHook(() => useTestEngine(props));
+
+    await act(async () => {
+      result.current.setStateMerged(gradeState() as any);
+    });
+
+    act(() => {
+      result.current.onCorrectAnswer();
+    });
+
+    expect(result.current.state.result).toBe('Correct');
+    expect(result.current.state.yesClicked).toBe(true);
+  });
+
+  it('does not mark the like button pressed for a typed correct answer', async () => {
+    const props = makeProps();
+    const { result } = renderHook(() => useTestEngine(props));
+
+    await act(async () => {
+      result.current.setStateMerged(gradeState({ showAnswer: false }) as any);
+    });
+
+    act(() => {
+      result.current.onCorrectAnswer();
+    });
+
+    expect(result.current.state.yesClicked).toBe(false);
+  });
+});

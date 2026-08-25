@@ -275,6 +275,8 @@ export const useTestEngine = (props: Props) => {
         result: resultString,
         idkDisabled: true,
         submitDisabled: true,
+        // Flashcard grading: mark the button pressed however it was triggered.
+        yesClicked: current.showAnswer,
       });
       if (current.useSoundEffects) {
         beep.play();
@@ -600,11 +602,16 @@ export const useTestEngine = (props: Props) => {
       const idkChar = prevState.perm
         ? prevState.testSet[parseInt(prevState.perm.index)][prevState.charSet]
         : '';
+      // In flashcard mode the answer is already on screen, so the feedback line
+      // reports the grade instead of repeating the reveal text unchanged.
       return {
         idkList: prevState.idkList.concat(idkChar),
         idkDisabled: true,
         submitDisabled: true,
-        result: `Answer was: '${displayAnswer}'`,
+        result: prevState.showAnswer
+          ? `Not known — answer was: '${displayAnswer}'`
+          : `Answer was: '${displayAnswer}'`,
+        noClicked: prevState.showAnswer,
       };
     });
 
@@ -867,7 +874,6 @@ export const useTestEngine = (props: Props) => {
 
       if (event.key === 'ArrowUp') {
         if (current.showAnswer && !current.idkDisabled) {
-          setStateMerged({ yesClicked: true });
           onCorrectAnswer();
         }
       }
@@ -877,7 +883,6 @@ export const useTestEngine = (props: Props) => {
           if (current.useSoundEffects) {
             fail.play();
           }
-          setStateMerged({ noClicked: true });
           onIDontKnow();
         }
       }
