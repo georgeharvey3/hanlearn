@@ -40,6 +40,28 @@ export { scoreSimilarity } from './similarity';
 const db = admin.firestore();
 
 /**
+ * Runtime options, so that the memory limit of each function is a decision and
+ * not the 1st gen default. See issue #316 and functions/monitoring/README.md;
+ * the two alert-policy files there group functions by these limits.
+ *
+ * Baseline for any instance is about 105 MB — firebase-functions, the Admin
+ * SDK, hanzi as a require, and Sentry.init. `standardRuntime` covers the
+ * handlers that add only per-request data on top of that.
+ */
+const standardRuntime = functions.runWith({ memory: '256MB' });
+
+/**
+ * `decomposeCharacter` calls `hanzi.start()`, which loads CC-CEDICT and the
+ * frequency data as well as the decomposition database. Measured peak RSS is
+ * about 328 MB, above the 256 MB default — this is the failure of issue #282.
+ * The larger CPU share that comes with 512 MB also shortens the ~1.4 s load.
+ */
+const decomposeRuntime = functions.runWith({
+  memory: '512MB',
+  timeoutSeconds: 30,
+});
+
+/**
  * Verify that the request is from an authenticated user
  */
 function verifyAuth(context: functions.https.CallableContext): string {
@@ -91,7 +113,7 @@ function getDaysSinceBase(): number {
  * document so that only the first call of the day reads the full collection.
  * Subsequent calls read a single cached document.
  */
-export const getDailyChengyu = functions.https.onCall(
+export const getDailyChengyu = standardRuntime.https.onCall(
   withErrorReporting('getDailyChengyu', async (data, context) => {
     const uid = verifyAuth(context);
     await checkRateLimit(uid, 'getDailyChengyu', RATE_LIMITS.getDailyChengyu);
@@ -205,7 +227,7 @@ export const getDailyChengyu = functions.https.onCall(
 /**
  * Look up a single character for the chengyu quiz
  */
-export const lookupChengyuChar = functions.https.onCall(
+export const lookupChengyuChar = standardRuntime.https.onCall(
   withErrorReporting('lookupChengyuChar', async (data: { char: string }, context) => {
     const uid = verifyAuth(context);
     await checkRateLimit(uid, 'lookupChengyuChar', RATE_LIMITS.lookupChengyuChar);
@@ -250,7 +272,7 @@ export const lookupChengyuChar = functions.https.onCall(
  * Decompose a Chinese character into its radical/structural components.
  * Uses HanziJS for radical-level decomposition with meanings.
  */
-export const decomposeCharacter = functions.https.onCall(
+export const decomposeCharacter = decomposeRuntime.https.onCall(
   withErrorReporting('decomposeCharacter', async (data: { char: string }, context) => {
     try {
       const uid = verifyAuth(context);

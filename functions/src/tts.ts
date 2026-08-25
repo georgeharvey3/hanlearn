@@ -7,7 +7,11 @@ import { internalError, withErrorReporting } from './reporting';
  * Cloud Function that proxies Google Cloud Text-to-Speech API requests.
  * Returns high-quality Mandarin audio as base64-encoded MP3.
  */
-export const textToSpeech = functions.https.onCall(
+// See functions/src/index.ts for the reasoning behind 256MB, and
+// functions/monitoring/README.md for the alert policy that watches it.
+export const textToSpeech = functions
+  .runWith({ memory: '256MB' })
+  .https.onCall(
   withErrorReporting('textToSpeech', async (data: { text: string; speed?: number }, context) => {
     // Verify authentication
     if (!context.auth) {
