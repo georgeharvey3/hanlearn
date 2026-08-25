@@ -24,15 +24,7 @@ const ComponentRow: React.FC<ComponentRowProps> = ({ component, depth }) => {
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
 
-  const handleDecompose = useCallback(async () => {
-    if (expanded) {
-      setExpanded(false);
-      return;
-    }
-    if (children !== null) {
-      setExpanded(true);
-      return;
-    }
+  const fetchChildren = useCallback(async () => {
     setLoading(true);
     setFetchError(false);
     try {
@@ -40,6 +32,9 @@ const ComponentRow: React.FC<ComponentRowProps> = ({ component, depth }) => {
       setChildren(result);
       setExpanded(true);
     } catch (error) {
+      // Since issue #317 the function throws functions/internal for a real
+      // failure, and returns an empty list only for a character that has no
+      // decomposition. So this branch always means something went wrong.
       reportError(error, {
         feature: 'decomposition',
         context: { char: component.char, depth },
@@ -49,7 +44,19 @@ const ComponentRow: React.FC<ComponentRowProps> = ({ component, depth }) => {
     } finally {
       setLoading(false);
     }
-  }, [expanded, children, component.char, depth]);
+  }, [component.char, depth]);
+
+  const handleDecompose = useCallback(async () => {
+    if (expanded) {
+      setExpanded(false);
+      return;
+    }
+    if (children !== null) {
+      setExpanded(true);
+      return;
+    }
+    await fetchChildren();
+  }, [expanded, children, fetchChildren]);
 
   return (
     <>
@@ -189,6 +196,16 @@ const ComponentRow: React.FC<ComponentRowProps> = ({ component, depth }) => {
           <Typography sx={{ fontSize: '0.8em', color: 'error.main', py: 0.5 }}>
             Could not load decomposition
           </Typography>
+          <Button
+            variant="text"
+            size="small"
+            onClick={fetchChildren}
+            disabled={loading}
+            aria-label={`Retry decomposition for ${component.char}`}
+            sx={{ fontSize: '0.75em', color: 'primary.main', px: 0, minWidth: 'auto' }}
+          >
+            Retry
+          </Button>
         </Box>
       )}
     </>

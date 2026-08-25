@@ -85,3 +85,79 @@ describe('DecompositionTree', () => {
     });
   });
 });
+
+describe('DecompositionTree empty vs failed (issue #317)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('shows an empty state and no error for a character with no decomposition', async () => {
+    // Since #317 the function returns an empty list only for this case; a real
+    // failure throws functions/internal instead.
+    mockedDecompose.mockResolvedValueOnce([]);
+
+    render(<DecompositionTree char="一" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('No decomposition available')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Decomposition failed')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+  });
+
+  it('offers a retry on a nested component when its decomposition fails', async () => {
+    const user = userEvent.setup();
+
+    mockedDecompose.mockResolvedValueOnce([{ char: '木', meaning: 'tree', pinyin: 'mù' }]);
+
+    render(<DecompositionTree char="林" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('木')).toBeInTheDocument();
+    });
+
+    const internalError = Object.assign(new Error('internal'), {
+      code: 'functions/internal',
+    });
+    mockedDecompose.mockRejectedValueOnce(internalError);
+
+    await user.click(screen.getByRole('button', { name: 'Decompose 木' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Could not load decomposition')).toBeInTheDocument();
+    });
+
+    const retry = screen.getByRole('button', { name: 'Retry decomposition for 木' });
+
+    mockedDecompose.mockResolvedValueOnce([{ char: '十', meaning: 'ten', pinyin: 'shí' }]);
+    await user.click(retry);
+
+    await waitFor(() => {
+      expect(screen.getByText('十')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Could not load decomposition')).not.toBeInTheDocument();
+  });
+
+  it('shows an empty state on a nested component with no further decomposition', async () => {
+    const user = userEvent.setup();
+
+    mockedDecompose.mockResolvedValueOnce([{ char: '木', meaning: 'tree', pinyin: 'mù' }]);
+
+    render(<DecompositionTree char="林" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('木')).toBeInTheDocument();
+    });
+
+    mockedDecompose.mockResolvedValueOnce([]);
+    await user.click(screen.getByRole('button', { name: 'Decompose 木' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('No further decomposition')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Could not load decomposition')).not.toBeInTheDocument();
+  });
+});
