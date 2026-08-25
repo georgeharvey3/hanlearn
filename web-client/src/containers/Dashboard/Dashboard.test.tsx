@@ -128,12 +128,18 @@ describe('Dashboard container', () => {
     // made Firestore query listId == '__all__', which matches no words, so the
     // dashboard reported 0 due and 0 total while a single list showed the real count.
     mockGetDashboardStats.mockResolvedValue(sampleStats);
-    const allListsState = authenticatedState('uid-all');
-    allListsState.addWords.lists = [
-      { id: 'default', name: 'General', createdAt: '', order: 0 },
-      { id: 'puerh', name: 'Puerh book', createdAt: '', order: 1 },
-    ];
-    allListsState.addWords.activeListId = '__all__';
+    const baseState = authenticatedState('uid-all');
+    const allListsState = {
+      ...baseState,
+      addWords: {
+        ...baseState.addWords,
+        lists: [
+          { id: 'default', name: 'General', createdAt: '', order: 0 },
+          { id: 'puerh', name: 'Puerh book', createdAt: '', order: 1 },
+        ],
+        activeListId: '__all__',
+      },
+    };
     renderWithProviders(<Dashboard />, {
       store: createTestStore(allListsState),
     });

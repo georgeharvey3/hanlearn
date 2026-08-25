@@ -2,21 +2,12 @@ import React, { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
-import { createStore, applyMiddleware, combineReducers } from 'redux';
+import { createStore, applyMiddleware } from 'redux';
 import { thunk } from 'redux-thunk';
 
-import wordsReducer from '../store/reducers/addWords';
-import authReducer from '../store/reducers/auth';
-import settingsReducer from '../store/reducers/settings';
-import notificationsReducer from '../store/reducers/notifications';
+import rootReducer, { PreloadedRootState } from '../store/rootReducer';
 
-export function createTestStore(preloadedState?: Record<string, unknown>) {
-  const rootReducer = combineReducers({
-    addWords: wordsReducer,
-    auth: authReducer,
-    settings: settingsReducer,
-    notifications: notificationsReducer,
-  });
+export function createTestStore(preloadedState?: PreloadedRootState) {
   return createStore(rootReducer, preloadedState, applyMiddleware(thunk));
 }
 
@@ -39,7 +30,7 @@ export function renderWithProviders(
 }
 
 /** Authenticated store state — userId set, loading false, initialized true */
-export function authenticatedState(userId = 'test-user-123') {
+export function authenticatedState(userId = 'test-user-123'): PreloadedRootState {
   return {
     auth: {
       userId,

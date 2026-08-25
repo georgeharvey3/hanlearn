@@ -37,21 +37,11 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
-import { createStore, applyMiddleware, combineReducers } from 'redux';
+import { createStore, applyMiddleware } from 'redux';
 import { thunk } from 'redux-thunk';
 
 import App from './App';
-import wordsReducer from './store/reducers/addWords';
-import authReducer from './store/reducers/auth';
-import settingsReducer from './store/reducers/settings';
-import notificationsReducer from './store/reducers/notifications';
-
-const rootReducer = combineReducers({
-  addWords: wordsReducer,
-  auth: authReducer,
-  settings: settingsReducer,
-  notifications: notificationsReducer,
-});
+import rootReducer from './store/rootReducer';
 
 const store = createStore(rootReducer, applyMiddleware(thunk));
 
