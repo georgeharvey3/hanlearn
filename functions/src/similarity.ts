@@ -86,7 +86,11 @@ function verifyAuth(context: functions.https.CallableContext): string {
  * Computes cosine similarity between user's translation and a reference sentence
  * using Vertex AI text embeddings. Returns a 0–100 rescaled score.
  */
-export const scoreSimilarity = functions.https.onCall(
+// See functions/src/index.ts for the reasoning behind 256MB, and
+// functions/monitoring/README.md for the alert policy that watches it.
+export const scoreSimilarity = functions
+  .runWith({ memory: '256MB' })
+  .https.onCall(
   withErrorReporting('scoreSimilarity', async (data: ScoringRequest, context) => {
     const uid = verifyAuth(context);
     await checkRateLimit(uid, 'scoreSimilarity', RATE_LIMITS.scoreSimilarity);

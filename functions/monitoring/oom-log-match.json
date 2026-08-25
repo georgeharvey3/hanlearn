@@ -1,0 +1,23 @@
+{
+  "displayName": "Cloud Function killed by the platform",
+  "documentation": {
+    "content": "A Cloud Function instance was killed before its handler could return. The usual cause is an out-of-memory error; a timeout and a container crash produce the same class of message.\n\nNo reporter inside the process runs for this class, so Sentry holds nothing. That is why this policy exists. See docs/adr/0001-error-reporting-for-the-cloud-functions.md.\n\nFirst step: open Cloud Logging with the filter from this policy, find the invocation, and read the function name off resource.labels.function_name. Then compare the function's memory metric against its runWith({ memory }) limit in functions/src.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "A kill message in the log of a 1st gen function",
+      "conditionMatchedLog": {
+        "filter": "resource.type=\"cloud_function\" severity>=ERROR (textPayload:\"memory limit exceeded\" OR textPayload:\"Function invocation was interrupted\" OR textPayload:\"finished with status: 'connection error'\")"
+      }
+    }
+  ],
+  "alertStrategy": {
+    "notificationRateLimit": {
+      "period": "300s"
+    },
+    "autoClose": "86400s"
+  },
+  "enabled": true
+}

@@ -68,6 +68,14 @@ here. Two alert policies in Cloud Monitoring cover this class:
 
 Send both to the same email address as the Sentry alerts.
 
+The policies live in `functions/monitoring/`, as files that
+`gcloud alpha monitoring policies create` applies. `functions/monitoring/README.md`
+holds the apply steps, the two values that have to be verified in the console
+before the first apply, and the rule for keeping the threshold groups in step
+with `runWith({ memory })`. There are three files rather than two: the threshold
+condition needs an absolute byte value, and the functions no longer share one
+memory limit, so there is one threshold policy per limit.
+
 ## Comparison of the two methods
 
 Question 1 in issue #312 asks whether Sentry in the functions gives value over
@@ -252,6 +260,31 @@ Bad:
 The five `dictionary*` functions have no `verifyAuth` call and no rate limit.
 Every other callable has both. This is a security question and not an error
 reporting question, so this record only records it.
+
+## Corrections to this record
+
+The review that produced this record read `main`. Most of the work that follows
+was done on `develop`. The two branches had diverged, so several statements
+above are true of `main` only:
+
+- **`functions/src/decompose.ts` does not exist on `develop`.** `decomposeCharacter`
+  is still in `index.ts` there. The line references in the table above
+  (`decompose.ts:154`, `:160`, `:56`, `:82`) point at the copy on `main`.
+- **`ensureCharDefinitions` and `describeComponent` do not exist on `develop`.**
+  They came with the `decompose.ts` split. The equivalent on `develop` is the
+  inline `try` around `hanzi.getRadicalMeaning` and `hanzi.definitionLookup`,
+  which is already silent, as this record asks.
+- **`DecompositionTree.tsx` did not report to Sentry on `develop`.** PR #311
+  added that on `main`. PR #322 added it on `develop` independently.
+- **No function on `develop` set `runWith()`.** PR #311 set the memory limit of
+  `decomposeCharacter` on `main` only, so `develop` still carried the
+  out-of-memory failure of issue #282. Measured peak for `hanzi.start()` on
+  Node 20 is 328 MB, against the 1st gen default of 256 MB.
+
+The cause is that PR #311 targeted `main` rather than `develop`, and was never
+merged back. `develop` is missing that fix. Repairing the divergence is separate
+work from this record, and it has to happen before `develop` reaches `main`
+again, or the merge will drop the fix for issue #282.
 
 ## Work that follows
 
