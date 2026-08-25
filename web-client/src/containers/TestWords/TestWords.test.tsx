@@ -65,9 +65,7 @@ const mockedInitWords = vi.mocked(wordActions.initWords);
 beforeEach(() => {
   vi.clearAllMocks();
   capturedTestProps = {};
-  mockedInitWords.mockReturnValue({ type: 'INIT_WORDS_NOOP' } as ReturnType<
-    typeof wordActions.initWords
-  >);
+  mockedInitWords.mockReturnValue(() => {});
 });
 
 /** A word that is due today */

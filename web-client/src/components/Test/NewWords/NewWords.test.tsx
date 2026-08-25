@@ -55,7 +55,7 @@ const word3 = makeWord(3, '三');
 function makeStore() {
   return createTestStore({
     ...authenticatedState(),
-    settings: { speechAvailable: false, synthAvailable: false, voice: null, lang: 'zh-CN' },
+    settings: { speechAvailable: false, synthAvailable: false, lang: 'zh-CN' },
   });
 }
 

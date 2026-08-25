@@ -1,6 +1,6 @@
 import React from 'react';
 import { screen, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, MockInstance } from 'vitest';
 
 vi.mock('../../../firebase/config', () => ({
   auth: {},
@@ -12,8 +12,8 @@ import Toolbar from './Toolbar';
 import { renderWithProviders } from '../../../test/utils';
 
 describe('Toolbar — scroll behaviour on home page', () => {
-  let addEventSpy: ReturnType<typeof vi.spyOn>;
-  let removeEventSpy: ReturnType<typeof vi.spyOn>;
+  let addEventSpy: MockInstance<typeof window.addEventListener>;
+  let removeEventSpy: MockInstance<typeof window.removeEventListener>;
 
   beforeEach(() => {
     addEventSpy = vi.spyOn(window, 'addEventListener');

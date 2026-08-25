@@ -61,10 +61,11 @@ import userEvent from '@testing-library/user-event';
 import { axe } from 'vitest-axe';
 
 import Chengyu from './Chengyu';
+import { Word } from '../../../types/models';
 import { renderWithProviders, createTestStore } from '../../../test/utils';
 import { getChengyuExampleSentence } from '../../../services/chengyuSentenceService';
 
-function makeStore(overrides?: { userId?: string | null; words?: Array<Record<string, unknown>> }) {
+function makeStore(overrides?: { userId?: string | null; words?: Word[] }) {
   return createTestStore({
     auth: {
       userId: overrides?.userId ?? null,
