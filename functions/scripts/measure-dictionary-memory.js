@@ -76,7 +76,9 @@ const coldStart = time(() => {
   require('firebase-functions');
   require('firebase-admin');
   require('@sentry/google-cloud-serverless');
-  require('hanzi');
+  // src/decompose.ts is re-exported from index.ts, so its require runs on a
+  // dictionary instance too. Only decomposeCharacter calls start() on it.
+  require('hanzi/lib/hanzidecomposer.js');
 });
 record('cold-start requires', coldStart.elapsedMs);
 
