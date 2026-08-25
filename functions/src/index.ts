@@ -2,11 +2,7 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import * as hanzi from 'hanzi';
 import { checkRateLimit, RATE_LIMITS } from './rateLimit';
-import {
-  initSentry,
-  reportHandledError,
-  withErrorReporting,
-} from './reporting';
+import { initSentry, internalError, withErrorReporting } from './reporting';
 
 // Start the error reporter before anything else, so that a failure during the
 // rest of the cold start is still reported.
@@ -122,7 +118,13 @@ export const getDailyChengyu = functions.https.onCall(
     }));
 
     if (chengyus.length === 0) {
-      return { chengyu: null, options: [], correct: '', char_results: [] };
+      // An admin manages this collection, so empty means broken data or broken
+      // rules. The client cannot show null anyway, and an empty result here was
+      // indistinguishable from a failure. See issue #317.
+      throw new functions.https.HttpsError(
+        'internal',
+        'The chengyus collection is empty'
+      );
     }
 
     // Select today's chengyu deterministically
@@ -271,7 +273,9 @@ export const decomposeCharacter = functions.https.onCall(
       try {
         const result = hanzi.decompose(char, 1);
 
-        // hanzi.decompose can return the string 'Invalid Input' for unknown chars
+        // hanzi.decompose can return the string 'Invalid Input' for unknown
+        // chars. This is the one true empty result: the character has no
+        // decomposition, and the client shows an empty state with no error.
         if (!result || typeof result === 'string') {
           return { components: [] };
         }
@@ -325,14 +329,9 @@ export const decomposeCharacter = functions.https.onCall(
           return { char: component, meaning, pinyin };
         });
       } catch (err) {
-        // The empty result stays for now; issue #317 turns this into a throw.
-        // The report is what makes the failure visible in the meantime.
-        reportHandledError(
-          'decomposeCharacter',
-          err,
-          `hanzi decomposition failed for "${char}"`
-        );
-        components = [];
+        // A failure of HanziJS is not an answer. Throwing lets the client tell
+        // it apart from a character with no decomposition and offer a retry.
+        throw internalError(`hanzi decomposition failed for "${char}"`, err);
       }
 
       return { components };
@@ -341,8 +340,7 @@ export const decomposeCharacter = functions.https.onCall(
       if (err instanceof functions.https.HttpsError) {
         throw err;
       }
-      reportHandledError('decomposeCharacter', err, 'unhandled error');
-      return { components: [] };
+      throw internalError('decomposeCharacter failed', err);
     }
   })
 );
