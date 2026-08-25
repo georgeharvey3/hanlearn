@@ -282,9 +282,21 @@ above are true of `main` only:
   Node 20 is 328 MB, against the 1st gen default of 256 MB.
 
 The cause is that PR #311 targeted `main` rather than `develop`, and was never
-merged back. `develop` is missing that fix. Repairing the divergence is separate
-work from this record, and it has to happen before `develop` reaches `main`
-again, or the merge will drop the fix for issue #282.
+merged back.
+
+This is now repaired: `main` was merged into `develop`, taking `main`'s side for
+`decompose.ts` and carrying the reporting work of #315, #317 and #318 onto it.
+The statements above are therefore true of both branches again, apart from the
+line references, which point at the pre-split copy. After the merge:
+
+- `decomposeCharacter` lives in `decompose.ts`, loads `hanzi/lib/hanzidecomposer.js`
+  rather than the whole of `hanzi`, and keeps the 512 MB limit from PR #311.
+  Measured peak RSS for its cold path is about 157 MB, against 328 MB for the
+  `hanzi.start()` path that `develop` carried.
+- `ensureCharDefinitions` keeps its `{}` fallback and reports the failure, which
+  is the case this record describes and the only call site of
+  `reportHandledError`.
+- `describeComponent` keeps its silent catch around the radical lookup.
 
 ## Work that follows
 

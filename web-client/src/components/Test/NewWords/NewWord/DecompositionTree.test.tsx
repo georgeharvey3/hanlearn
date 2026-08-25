@@ -5,12 +5,17 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 vi.mock('../../../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
 vi.mock('../../../../services/decompositionService');
+vi.mock('../../../../services/errorReporting', () => ({
+  reportError: vi.fn(),
+}));
 
 import DecompositionTree from './DecompositionTree';
 
 import { decomposeCharacter } from '../../../../services/decompositionService';
+import { reportError } from '../../../../services/errorReporting';
 
 const mockedDecompose = vi.mocked(decomposeCharacter);
+const mockedReportError = vi.mocked(reportError);
 
 describe('DecompositionTree', () => {
   beforeEach(() => {
@@ -27,6 +32,23 @@ describe('DecompositionTree', () => {
     });
 
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  });
+
+  it('reports the failure to Sentry', async () => {
+    const error = new Error('network error');
+    mockedDecompose.mockRejectedValueOnce(error);
+
+    render(<DecompositionTree char="木" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Decomposition failed')).toBeInTheDocument();
+    });
+
+    // reportError adds the layer:client tag from sentry.ts and the feature tag.
+    expect(mockedReportError).toHaveBeenCalledWith(error, {
+      feature: 'decomposition',
+      context: { char: '木', depth: 0 },
+    });
   });
 
   it('retries decomposition when retry button is clicked', async () => {
