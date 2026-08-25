@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as functions from 'firebase-functions';
+import { withErrorReporting } from './reporting';
 
 interface DictionaryEntry {
   id: number;
@@ -182,20 +183,23 @@ function substringMatchInternal(
 // --- Callable Cloud Functions ---
 
 export const dictionarySearchWord = functions.https.onCall(
-  (data: { character: string; charSet: 'simp' | 'trad' }) => {
-    const { character, charSet } = data;
-    if (!character || !charSet) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'character and charSet are required'
-      );
+  withErrorReporting(
+    'dictionarySearchWord',
+    (data: { character: string; charSet: 'simp' | 'trad' }) => {
+      const { character, charSet } = data;
+      if (!character || !charSet) {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'character and charSet are required'
+        );
+      }
+      return searchWordInternal(character, charSet);
     }
-    return searchWordInternal(character, charSet);
-  }
+  )
 );
 
 export const dictionaryLookupCharacter = functions.https.onCall(
-  (data: { char: string }) => {
+  withErrorReporting('dictionaryLookupCharacter', (data: { char: string }) => {
     const { char } = data;
     if (!char) {
       throw new functions.https.HttpsError(
@@ -204,44 +208,53 @@ export const dictionaryLookupCharacter = functions.https.onCall(
       );
     }
     return lookupCharacterInternal(char);
-  }
+  })
 );
 
 export const dictionaryLookupCharacterByTrad = functions.https.onCall(
-  (data: { char: string }) => {
-    const { char } = data;
-    if (!char) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'char is required'
-      );
+  withErrorReporting(
+    'dictionaryLookupCharacterByTrad',
+    (data: { char: string }) => {
+      const { char } = data;
+      if (!char) {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'char is required'
+        );
+      }
+      return lookupCharacterByTradInternal(char);
     }
-    return lookupCharacterByTradInternal(char);
-  }
+  )
 );
 
 export const dictionaryConvertText = functions.https.onCall(
-  (data: { text: string; toCharSet: 'simp' | 'trad' }) => {
-    const { text, toCharSet } = data;
-    if (!text || !toCharSet) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'text and toCharSet are required'
-      );
+  withErrorReporting(
+    'dictionaryConvertText',
+    (data: { text: string; toCharSet: 'simp' | 'trad' }) => {
+      const { text, toCharSet } = data;
+      if (!text || !toCharSet) {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'text and toCharSet are required'
+        );
+      }
+      return convertTextInternal(text, toCharSet);
     }
-    return convertTextInternal(text, toCharSet);
-  }
+  )
 );
 
 export const dictionarySubstringMatch = functions.https.onCall(
-  (data: { text: string; charSet: 'simp' | 'trad' }) => {
-    const { text, charSet } = data;
-    if (!text || !charSet) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'text and charSet are required'
-      );
+  withErrorReporting(
+    'dictionarySubstringMatch',
+    (data: { text: string; charSet: 'simp' | 'trad' }) => {
+      const { text, charSet } = data;
+      if (!text || !charSet) {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'text and charSet are required'
+        );
+      }
+      return substringMatchInternal(text, charSet);
     }
-    return substringMatchInternal(text, charSet);
-  }
+  )
 );
