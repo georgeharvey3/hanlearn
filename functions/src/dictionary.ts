@@ -182,7 +182,18 @@ function substringMatchInternal(
 
 // --- Callable Cloud Functions ---
 
-export const dictionarySearchWord = functions.https.onCall(
+/**
+ * Runtime options for every `dictionary*` function.
+ *
+ * `loadDictionary()` reads a 15.9 MB JSON file and builds two Map indexes over
+ * all 124k entries, once per instance. Measured peak RSS for that cold start is
+ * about 194 MB (see scripts/measure-dictionary-memory.js and issue #319), so
+ * the 1st gen default of 256 MB leaves only 24% of headroom. 512 MB leaves 62%,
+ * and the larger CPU share that comes with it also shortens the cold start.
+ */
+const dictionaryRuntime = functions.runWith({ memory: '512MB' });
+
+export const dictionarySearchWord = dictionaryRuntime.https.onCall(
   withErrorReporting(
     'dictionarySearchWord',
     (data: { character: string; charSet: 'simp' | 'trad' }) => {
@@ -198,7 +209,7 @@ export const dictionarySearchWord = functions.https.onCall(
   )
 );
 
-export const dictionaryLookupCharacter = functions.https.onCall(
+export const dictionaryLookupCharacter = dictionaryRuntime.https.onCall(
   withErrorReporting('dictionaryLookupCharacter', (data: { char: string }) => {
     const { char } = data;
     if (!char) {
@@ -211,7 +222,7 @@ export const dictionaryLookupCharacter = functions.https.onCall(
   })
 );
 
-export const dictionaryLookupCharacterByTrad = functions.https.onCall(
+export const dictionaryLookupCharacterByTrad = dictionaryRuntime.https.onCall(
   withErrorReporting(
     'dictionaryLookupCharacterByTrad',
     (data: { char: string }) => {
@@ -227,7 +238,7 @@ export const dictionaryLookupCharacterByTrad = functions.https.onCall(
   )
 );
 
-export const dictionaryConvertText = functions.https.onCall(
+export const dictionaryConvertText = dictionaryRuntime.https.onCall(
   withErrorReporting(
     'dictionaryConvertText',
     (data: { text: string; toCharSet: 'simp' | 'trad' }) => {
@@ -243,7 +254,7 @@ export const dictionaryConvertText = functions.https.onCall(
   )
 );
 
-export const dictionarySubstringMatch = functions.https.onCall(
+export const dictionarySubstringMatch = dictionaryRuntime.https.onCall(
   withErrorReporting(
     'dictionarySubstringMatch',
     (data: { text: string; charSet: 'simp' | 'trad' }) => {
