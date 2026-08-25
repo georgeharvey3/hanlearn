@@ -15,6 +15,7 @@ import LevelDistributionCard from './widgets/LevelDistributionCard';
 import WeeklyStatsCard from './widgets/WeeklyStatsCard';
 import Chengyu from '../../components/Home/Chengyu/Chengyu';
 import ErrorBoundary from '../../components/ErrorBoundary/ErrorBoundary';
+import { reportError } from '../../services/errorReporting';
 
 const mapStateToProps = (state: RootState) => ({
   userId: state.auth.userId,
@@ -65,6 +66,7 @@ const Dashboard: React.FC<PropsFromRedux> = ({
       setStats(data);
     } catch (err) {
       console.error('Failed to load dashboard stats:', err);
+      reportError(err, { feature: 'dashboard-stats' });
       setError(true);
     } finally {
       setLoading(false);

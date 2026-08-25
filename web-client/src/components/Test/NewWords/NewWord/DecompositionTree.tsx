@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Box, Button, CircularProgress, Typography } from '@mui/material';
 
 import { decomposeCharacter } from '../../../../services/decompositionService';
+import { reportError } from '../../../../services/errorReporting';
 
 interface DecompositionComponent {
   char: string;
@@ -38,13 +39,17 @@ const ComponentRow: React.FC<ComponentRowProps> = ({ component, depth }) => {
       const result = await decomposeCharacter(component.char);
       setChildren(result);
       setExpanded(true);
-    } catch {
+    } catch (error) {
+      reportError(error, {
+        feature: 'decomposition',
+        context: { char: component.char, depth },
+      });
       setFetchError(true);
       setExpanded(true);
     } finally {
       setLoading(false);
     }
-  }, [expanded, children, component.char]);
+  }, [expanded, children, component.char, depth]);
 
   return (
     <>
@@ -209,7 +214,8 @@ const DecompositionTree: React.FC<DecompositionTreeProps> = ({ char }) => {
         setComponents(result);
         setLoading(false);
       })
-      .catch(() => {
+      .catch((error) => {
+        reportError(error, { feature: 'decomposition', context: { char, depth: 0 } });
         setError('Decomposition failed');
         setLoading(false);
       });

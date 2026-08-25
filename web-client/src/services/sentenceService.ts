@@ -3,6 +3,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Converter } from 'opencc-js';
 
 import { ai, db } from '../firebase/config';
+import { reportError } from './errorReporting';
 
 const model = getGenerativeModel(ai, { model: 'gemini-2.5-flash-lite' });
 const toTraditional = Converter({ from: 'cn', to: 'tw' });
@@ -99,8 +100,12 @@ Requirements:
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
-  } catch {
+  } catch (error) {
     console.error('AI returned invalid JSON for sentence generation:', text.slice(0, 200));
+    reportError(error, {
+      feature: 'sentence-generation',
+      context: { reason: 'invalid-json', responseLength: text.length },
+    });
     return [];
   }
 

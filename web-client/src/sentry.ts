@@ -16,6 +16,10 @@ if (!import.meta.env.DEV && dsn) {
     replaysSessionSampleRate: 0.0,
     replaysOnErrorSampleRate: 1.0,
   });
+
+  // Tells a client event apart from the layer:functions event that a Cloud
+  // Function raises for the same failure.
+  Sentry.setTag('layer', 'client');
 }
 
 export function isInitialised(): boolean {

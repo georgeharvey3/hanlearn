@@ -1,6 +1,7 @@
 import { Howl } from 'howler';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase/config';
+import { reportError } from './errorReporting';
 
 const MAX_CACHE_SIZE = 200;
 
@@ -146,8 +147,15 @@ export function speak(text: string, options: SpeakOptions = {}): TtsHandle {
       activeHandle = handle;
       handle.play();
     })
-    .catch(() => {
+    .catch((error) => {
       if (stopped) return;
+
+      // The fallback is silent to the user, and it lasts for the rest of the
+      // session, so an outage of Google TTS has to raise an event.
+      reportError(error, {
+        feature: 'tts',
+        context: { textLength: text.length, fallback: 'native-speech-synthesis' },
+      });
 
       _googleTtsAvailable = false;
       // Fall back to native SpeechSynthesis
