@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions';
 import { checkRateLimit, RATE_LIMITS } from './rateLimit';
+import { internalError, withErrorReporting } from './reporting';
 
 // Import admin from the already-initialized instance in index.ts
 import * as admin from 'firebase-admin';
@@ -86,7 +87,7 @@ function verifyAuth(context: functions.https.CallableContext): string {
  * using Vertex AI text embeddings. Returns a 0–100 rescaled score.
  */
 export const scoreSimilarity = functions.https.onCall(
-  async (data: ScoringRequest, context) => {
+  withErrorReporting('scoreSimilarity', async (data: ScoringRequest, context) => {
     const uid = verifyAuth(context);
     await checkRateLimit(uid, 'scoreSimilarity', RATE_LIMITS.scoreSimilarity);
 
@@ -143,10 +144,7 @@ export const scoreSimilarity = functions.https.onCall(
       return { score, rawSimilarity };
     } catch (error) {
       console.error('Error computing similarity:', error);
-      throw new functions.https.HttpsError(
-        'internal',
-        'Failed to compute similarity score'
-      );
+      throw internalError('Failed to compute similarity score', error);
     }
-  }
+  })
 );

@@ -2,6 +2,15 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import * as hanzi from 'hanzi';
 import { checkRateLimit, RATE_LIMITS } from './rateLimit';
+import {
+  initSentry,
+  reportHandledError,
+  withErrorReporting,
+} from './reporting';
+
+// Start the error reporter before anything else, so that a failure during the
+// rest of the cold start is still reported.
+initSentry();
 
 admin.initializeApp();
 
@@ -83,7 +92,7 @@ function getDaysSinceBase(): number {
  * Subsequent calls read a single cached document.
  */
 export const getDailyChengyu = functions.https.onCall(
-  async (data, context) => {
+  withErrorReporting('getDailyChengyu', async (data, context) => {
     const uid = verifyAuth(context);
     await checkRateLimit(uid, 'getDailyChengyu', RATE_LIMITS.getDailyChengyu);
 
@@ -190,14 +199,14 @@ export const getDailyChengyu = functions.https.onCall(
     await cacheRef.set(result);
 
     return result;
-  }
+  })
 );
 
 /**
  * Look up a single character for the chengyu quiz
  */
 export const lookupChengyuChar = functions.https.onCall(
-  async (data: { char: string }, context) => {
+  withErrorReporting('lookupChengyuChar', async (data: { char: string }, context) => {
     const uid = verifyAuth(context);
     await checkRateLimit(uid, 'lookupChengyuChar', RATE_LIMITS.lookupChengyuChar);
 
@@ -234,7 +243,7 @@ export const lookupChengyuChar = functions.https.onCall(
       pinyins,
       meanings,
     };
-  }
+  })
 );
 
 /**
@@ -242,7 +251,7 @@ export const lookupChengyuChar = functions.https.onCall(
  * Uses HanziJS for radical-level decomposition with meanings.
  */
 export const decomposeCharacter = functions.https.onCall(
-  async (data: { char: string }, context) => {
+  withErrorReporting('decomposeCharacter', async (data: { char: string }, context) => {
     try {
       const uid = verifyAuth(context);
       await checkRateLimit(uid, 'decomposeCharacter', RATE_LIMITS.decomposeCharacter);
@@ -316,7 +325,13 @@ export const decomposeCharacter = functions.https.onCall(
           return { char: component, meaning, pinyin };
         });
       } catch (err) {
-        console.error(`hanzi decomposition failed for "${char}":`, err);
+        // The empty result stays for now; issue #317 turns this into a throw.
+        // The report is what makes the failure visible in the meantime.
+        reportHandledError(
+          'decomposeCharacter',
+          err,
+          `hanzi decomposition failed for "${char}"`
+        );
         components = [];
       }
 
@@ -326,8 +341,8 @@ export const decomposeCharacter = functions.https.onCall(
       if (err instanceof functions.https.HttpsError) {
         throw err;
       }
-      console.error('decomposeCharacter unhandled error:', err);
+      reportHandledError('decomposeCharacter', err, 'unhandled error');
       return { components: [] };
     }
-  }
+  })
 );
