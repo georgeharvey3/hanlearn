@@ -1,6 +1,39 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // ─── Helpers for the per-direction scheduling map on userWords ───────────
+    // A word carries one scheduling record per direction. The five direction
+    // keys are fixed. See docs/adr/0002-direction-level-scheduling.md.
+    function directionKeys() {
+      return ['MC', 'MP', 'PM', 'PC', 'CM'];
+    }
+
+    function validDirection(d) {
+      return d.keys().hasOnly(['bank', 'dueDate'])
+        && d.bank is int
+        && d.bank >= 1
+        && d.bank <= 5
+        && d.dueDate is timestamp;
+    }
+
+    function validDirections(dirs) {
+      return dirs is map
+        && dirs.keys().hasOnly(directionKeys())
+        && dirs.keys().hasAll(directionKeys())
+        && validDirection(dirs.MC)
+        && validDirection(dirs.MP)
+        && validDirection(dirs.PM)
+        && validDirection(dirs.PC)
+        && validDirection(dirs.CM);
+    }
+
+    // The map is optional so that a client running the previous release, which
+    // writes only the top-level bank and dueDate, is not rejected during the
+    // rollout. When it is written, it must be complete and in range.
+    function directionsOk(data) {
+      return !('directions' in data.keys()) || validDirections(data.directions);
+    }
+
     // Words collection - read-only for authenticated users
     match /words/{wordId} {
       allow read: if request.auth != null;
@@ -28,6 +61,7 @@ service cloud.firestore {
         allow read: if request.auth != null && request.auth.uid == userId;
         allow create: if request.auth != null && request.auth.uid == userId
           && request.resource.data.keys().hasAll(['wordData', 'bank', 'dueDate'])
+          && directionsOk(request.resource.data)
           && request.resource.data.bank is int
           && request.resource.data.bank >= 1
           && request.resource.data.bank <= 5
@@ -46,7 +80,9 @@ service cloud.firestore {
                   && request.resource.data.bank <= 5))
           && (!('amendedMeaning' in request.resource.data.diff(resource.data).affectedKeys())
               || (request.resource.data.amendedMeaning is string
-                  && request.resource.data.amendedMeaning.size() <= 500));
+                  && request.resource.data.amendedMeaning.size() <= 500))
+          && (!('directions' in request.resource.data.diff(resource.data).affectedKeys())
+              || validDirections(request.resource.data.directions));
         allow delete: if request.auth != null && request.auth.uid == userId;
       }
 

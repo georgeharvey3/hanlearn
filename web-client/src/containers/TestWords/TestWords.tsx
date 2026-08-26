@@ -17,6 +17,7 @@ import * as testLogic from '../../components/Test/Logic/TestLogic';
 import { RootState } from '../../types/store';
 import { Word, WordScore } from '../../types/models';
 import { getDevTestConfig, DevTestConfig } from '../../utils/devTestMode';
+import { makeDirections } from '../../utils/directions';
 
 import { Box, Chip, Stepper, Step, StepLabel, Typography } from '@mui/material';
 
@@ -121,6 +122,7 @@ const TestWords: React.FC<Props> = ({
 
   const setSelectedWords = useCallback((): void => {
     if (isDemo) {
+      const demoDueDate = new Date().toISOString();
       const demoWords: Word[] = [
         {
           id: 0,
@@ -128,8 +130,9 @@ const TestWords: React.FC<Props> = ({
           trad: '你好',
           pinyin: 'ni3 hao3',
           meaning: 'hello/hi',
-          due_date: new Date().toISOString(),
+          due_date: demoDueDate,
           level: 1,
+          directions: makeDirections(1, demoDueDate),
         },
       ];
       setState((prev) => ({

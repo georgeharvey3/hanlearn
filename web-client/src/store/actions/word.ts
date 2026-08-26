@@ -131,8 +131,9 @@ export const initWords = (): AppThunk => {
     dispatch({ type: actionTypes.FETCH_WORDS });
 
     try {
-      // Backfill listId on legacy words before querying by list
-      await wordService.migrateWordsWithoutListId(auth.userId);
+      // Backfill listId and the per-direction scheduling map on legacy words
+      // before querying by list. Both run in one pass over the collection.
+      await wordService.migrateUserWords(auth.userId);
 
       const lists = await wordService.getUserWordLists(auth.userId);
       dispatch(setWordLists(lists));
