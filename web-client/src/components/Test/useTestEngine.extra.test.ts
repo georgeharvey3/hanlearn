@@ -438,3 +438,38 @@ describe('useTestEngine — flashcard grade feedback', () => {
     expect(result.current.state.yesClicked).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// An empty plan: candidates exist, but none of their due directions is asked
+// ---------------------------------------------------------------------------
+describe('useTestEngine — a session with nothing to ask', () => {
+  it('finishes rather than showing a question that does not exist', () => {
+    // Only handwriting is due, and the session does not ask handwriting.
+    localStorage.setItem('useHandwriting', 'false');
+    const word: Word = {
+      id: 1,
+      simp: '你好',
+      trad: '你好',
+      pinyin: 'nǐ hǎo',
+      meaning: 'hello',
+      level: 2,
+      due_date: '2026/01/01',
+      directions: {
+        MC: { level: 2, dueDate: '2099/01/01' },
+        MP: { level: 2, dueDate: '2099/01/01' },
+        PM: { level: 2, dueDate: '2099/01/01' },
+        PC: { level: 2, dueDate: '2099/01/01' },
+        CM: { level: 2, dueDate: '2026/01/01' },
+      },
+    };
+
+    // The engine plans the session on mount.
+    const props = makeProps({ words: [word], isDemo: false });
+    const { result } = renderHook(() => useTestEngine(props));
+
+    expect(result.current.state.permList).toHaveLength(0);
+    expect(result.current.state.testFinished).toBe(true);
+    expect(result.current.state.scoreList).toEqual([]);
+    localStorage.removeItem('useHandwriting');
+  });
+});

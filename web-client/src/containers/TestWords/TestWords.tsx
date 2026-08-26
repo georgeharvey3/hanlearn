@@ -108,16 +108,18 @@ const TestWords: React.FC<Props> = ({
 
   const prevWordsLength = useRef(words.length);
 
+  /**
+   * The words the session may draw on. planSession picks the pairs and applies
+   * the budget, so this no longer truncates: handing it a fixed few words would
+   * cap the queue below the budget however many words were actually due.
+   */
   const selectTestWords = useCallback(
     (ignoreDueDates = false): Word[] => {
       const allWords = words.slice();
-      const actualNumWords = allWords.length >= state.numWords ? state.numWords : allWords.length;
-      if (ignoreDueDates) {
-        return testLogic.chooseRandomTestSet(allWords, actualNumWords);
-      }
-      return testLogic.chooseTestSet(allWords, actualNumWords);
+      if (ignoreDueDates) return allWords;
+      return allWords.filter((word) => testLogic.isDue(word));
     },
-    [state.numWords, words],
+    [words],
   );
 
   const setSelectedWords = useCallback((): void => {
@@ -144,7 +146,8 @@ const TestWords: React.FC<Props> = ({
     }
 
     const selectedWords = selectTestWords();
-    const newWords = selectedWords.filter(isNewWord);
+    // The queue admits at most this many new words, so teach no more than it asks.
+    const newWords = selectedWords.filter(isNewWord).slice(0, testLogic.NEW_WORDS_PER_SESSION);
 
     if (newWords.length === 0 || !state.newWordsEnabled) {
       setState((prev) => ({
@@ -204,7 +207,7 @@ const TestWords: React.FC<Props> = ({
       if (devConfig) {
         // For dev stages, use actual words from user's list (ignore due dates)
         const selectedWords = selectTestWords(true);
-        const newWords = selectedWords.filter(isNewWord);
+        const newWords = selectedWords.filter(isNewWord).slice(0, testLogic.NEW_WORDS_PER_SESSION);
         setState((prev) => ({
           ...prev,
           selectedWords,
@@ -243,7 +246,7 @@ const TestWords: React.FC<Props> = ({
 
   const onStartPractice = (): void => {
     const selectedWords = selectTestWords(true); // Ignore due dates
-    const newWords = selectedWords.filter(isNewWord);
+    const newWords = selectedWords.filter(isNewWord).slice(0, testLogic.NEW_WORDS_PER_SESSION);
 
     if (newWords.length === 0 || !state.newWordsEnabled) {
       setState((prev) => ({

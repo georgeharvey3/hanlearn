@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   chooseTestSet,
-  chooseRandomTestSet,
-  setPermList,
+  planSession,
+  NEW_WORDS_PER_SESSION,
   assignQA,
   toneChecker,
   Counter,
   removePunctuation,
   directionsOf,
 } from './TestLogic';
-import { Word } from '../../../types/models';
+import { DIRECTIONS, Word } from '../../../types/models';
 
 function makeWord(id: number, simp: string, due_date?: string): Word {
   return {
@@ -170,82 +170,6 @@ describe('chooseTestSet', () => {
   });
 });
 
-describe('chooseRandomTestSet', () => {
-  it('includes all words regardless of due_date', () => {
-    const words = [
-      makeWord(1, '你', '2099/01/01'), // far future
-      makeWord(2, '好'), // no due_date
-      makeWord(3, '学', '2020/01/01'), // past
-    ];
-    const result = chooseRandomTestSet(words, 3);
-    expect(result).toHaveLength(3);
-  });
-
-  it('caps at numWords', () => {
-    const words = Array.from({ length: 10 }, (_, i) => makeWord(i, `字${i}`));
-    const result = chooseRandomTestSet(words, 4);
-    expect(result).toHaveLength(4);
-  });
-
-  it('returns all words when numWords exceeds word list size', () => {
-    const words = [makeWord(1, '你'), makeWord(2, '好')];
-    const result = chooseRandomTestSet(words, 20);
-    expect(result).toHaveLength(2);
-  });
-
-  it('returns distinct words (no duplicates)', () => {
-    const words = Array.from({ length: 5 }, (_, i) => makeWord(i, `字${i}`));
-    const result = chooseRandomTestSet(words, 5);
-    const ids = result.map((w) => w.id);
-    expect(new Set(ids).size).toBe(ids.length);
-  });
-});
-
-describe('setPermList', () => {
-  const twoWords = [makeWord(1, '你'), makeWord(2, '好')];
-
-  it('creates 4 Q/A combinations per word when handwriting excluded', () => {
-    const perms = setPermList(twoWords, false);
-    // 2 words × 4 combinations (PC, PM, MP, MC) = 8
-    expect(perms).toHaveLength(8);
-  });
-
-  it('creates 5 Q/A combinations per word when handwriting included', () => {
-    const perms = setPermList(twoWords, true);
-    // 2 words × 5 combinations (CM, PC, PM, MP, MC) = 10
-    expect(perms).toHaveLength(10);
-  });
-
-  it('each perm has index, aCategory, qCategory fields', () => {
-    const perms = setPermList([makeWord(0, '你')], false);
-    perms.forEach((p) => {
-      expect(p).toHaveProperty('index');
-      expect(p).toHaveProperty('aCategory');
-      expect(p).toHaveProperty('qCategory');
-    });
-  });
-
-  it('filters to only priority perms when onlyPriority=true', () => {
-    const perms = setPermList(twoWords, false, 'PC', true);
-    // aCategory='P', qCategory='C' — one perm per word
-    expect(perms).toHaveLength(2);
-    perms.forEach((p) => {
-      expect(p.aCategory).toBe('P');
-      expect(p.qCategory).toBe('C');
-    });
-  });
-
-  it('returns all perms when onlyPriority=false even with priority set', () => {
-    const perms = setPermList(twoWords, false, 'PC', false);
-    expect(perms).toHaveLength(8);
-  });
-
-  it('returns empty array for empty test set', () => {
-    const perms = setPermList([], false);
-    expect(perms).toHaveLength(0);
-  });
-});
-
 describe('assignQA', () => {
   const word: Word = {
     id: 1,
@@ -311,17 +235,16 @@ describe('assignQA', () => {
     expect(result.perm).toBe(perm);
   });
 
-  it('prefers priority perms when priority is set and matches exist', () => {
+  it('takes the head of the queue, not a random entry', () => {
     const permList = [
       { index: '0', aCategory: 'P' as const, qCategory: 'C' as const },
       { index: '0', aCategory: 'C' as const, qCategory: 'M' as const },
       { index: '0', aCategory: 'M' as const, qCategory: 'P' as const },
     ];
-    // Run many times to confirm priority perm is always chosen
+    // planSession already ordered the queue, so this is deterministic.
     for (let i = 0; i < 20; i++) {
-      const result = assignQA(testSet, permList, 'simp', 'PC');
-      expect(result.answerCategory).toBe('pinyin');
-      expect(result.questionCategory).toBe('character');
+      const result = assignQA(testSet, permList, 'simp');
+      expect(result.perm).toBe(permList[0]);
     }
   });
 });
@@ -402,26 +325,289 @@ describe('removePunctuation', () => {
 });
 
 describe('directionsOf', () => {
-  it('returns the distinct directions of a perm list, in order', () => {
-    const permList = setPermList([makeWord(1, '你'), makeWord(2, '好')], true);
-
-    expect(directionsOf(permList)).toEqual(['CM', 'PC', 'PM', 'MP', 'MC']);
+  const perm = (direction: string) => ({
+    index: '0',
+    aCategory: direction[0] as any,
+    qCategory: direction[1] as any,
   });
 
-  it('leaves out handwriting when the session does not ask it', () => {
-    const permList = setPermList([makeWord(1, '你')], false);
+  it('returns the distinct directions of a queue, in order', () => {
+    const queue = [perm('MC'), perm('CM'), perm('MC'), perm('PC')];
 
-    expect(directionsOf(permList)).not.toContain('CM');
-    expect(directionsOf(permList)).toHaveLength(4);
+    expect(directionsOf(queue)).toEqual(['MC', 'CM', 'PC']);
   });
 
-  it('returns the single direction that onlyPriority leaves', () => {
-    const permList = setPermList([makeWord(1, '你')], true, 'PC', true);
-
-    expect(directionsOf(permList)).toEqual(['PC']);
-  });
-
-  it('returns an empty list for an empty perm list', () => {
+  it('returns an empty list for an empty queue', () => {
     expect(directionsOf([])).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// planSession — the session queue (issue #328 rules 1-8; closes #306)
+// ---------------------------------------------------------------------------
+describe('planSession', () => {
+  const TODAY = new Date(2026, 2, 10);
+  const past = '2026/03/01';
+  const soon = '2026/03/09';
+  const future = '2026/12/01';
+
+  /** A word with an explicit state for each direction. */
+  function wordWith(
+    id: number,
+    directions: Partial<Record<string, { level: number; dueDate: string }>>,
+    fallbackLevel = 3,
+  ): Word {
+    const full = DIRECTIONS.reduce<Record<string, { level: number; dueDate: string }>>(
+      (acc, direction) => {
+        acc[direction] = directions[direction] ?? { level: fallbackLevel, dueDate: future };
+        return acc;
+      },
+      {},
+    );
+    const earliest = DIRECTIONS.map((d) => full[d].dueDate).sort()[0];
+    return {
+      id,
+      simp: `字${id}`,
+      trad: `字${id}`,
+      pinyin: 'zì',
+      meaning: 'char',
+      level: Math.min(...DIRECTIONS.map((d) => full[d].level)),
+      due_date: earliest,
+      directions: full as Word['directions'],
+    };
+  }
+
+  /** A word that has never been answered correctly in any direction. */
+  function newWord(id: number, dueDate = past): Word {
+    return wordWith(
+      id,
+      DIRECTIONS.reduce<Record<string, { level: number; dueDate: string }>>((acc, d) => {
+        acc[d] = { level: 1, dueDate };
+        return acc;
+      }, {}),
+      1,
+    );
+  }
+
+  const plan = (candidates: Word[], overrides = {}) =>
+    planSession(candidates, {
+      budget: 25,
+      includeHandwriting: true,
+      now: TODAY,
+      ...overrides,
+    });
+
+  const directionsIn = (result: ReturnType<typeof planSession>) =>
+    result.queue.map((perm) => `${perm.aCategory}${perm.qCategory}`);
+
+  // ─── Rule 2: one direction per word. This is issue #306. ─────────────────
+
+  it('asks a word at most once, however many of its directions are due', () => {
+    const word = wordWith(1, {
+      MC: { level: 2, dueDate: past },
+      MP: { level: 2, dueDate: past },
+      PM: { level: 2, dueDate: past },
+      PC: { level: 2, dueDate: past },
+      CM: { level: 2, dueDate: past },
+    });
+
+    const result = plan([word]);
+
+    expect(result.queue).toHaveLength(1);
+  });
+
+  it('takes the first direction of the fixed order when several are due', () => {
+    const word = wordWith(1, {
+      PC: { level: 2, dueDate: past },
+      CM: { level: 2, dueDate: past },
+      MP: { level: 2, dueDate: past },
+    });
+
+    expect(directionsIn(plan([word]))).toEqual(['MP']);
+  });
+
+  it('asks the one direction that is due when the other four are not', () => {
+    const word = wordWith(1, { CM: { level: 2, dueDate: past } });
+
+    expect(directionsIn(plan([word]))).toEqual(['CM']);
+  });
+
+  it('leaves out a word with no due direction', () => {
+    const word = wordWith(1, {});
+
+    expect(plan([word]).queue).toHaveLength(0);
+  });
+
+  // ─── Rule 1: oldest due date first ───────────────────────────────────────
+
+  it('orders review pairs by due date, oldest first', () => {
+    const older = wordWith(1, { MC: { level: 2, dueDate: past } });
+    const newer = wordWith(2, { MC: { level: 2, dueDate: soon } });
+
+    const result = plan([newer, older]);
+
+    expect(result.words[parseInt(result.queue[0].index)].id).toBe(1);
+    expect(result.words[parseInt(result.queue[1].index)].id).toBe(2);
+  });
+
+  // ─── Rule 6: stop at the budget ──────────────────────────────────────────
+
+  it('stops at the budget', () => {
+    const words = Array.from({ length: 30 }, (_, i) =>
+      wordWith(i, { MC: { level: 2, dueDate: past } }),
+    );
+
+    expect(plan(words, { budget: 8 }).queue).toHaveLength(8);
+  });
+
+  it('gives a shorter session when the due words run out first', () => {
+    const words = Array.from({ length: 3 }, (_, i) =>
+      wordWith(i, { MC: { level: 2, dueDate: past } }),
+    );
+
+    expect(plan(words, { budget: 25 }).queue).toHaveLength(3);
+  });
+
+  it('returns an empty plan for a budget of zero', () => {
+    expect(plan([wordWith(1, { MC: { level: 2, dueDate: past } })], { budget: 0 }).queue).toEqual(
+      [],
+    );
+  });
+
+  // ─── Rule 4: a new word fans out ─────────────────────────────────────────
+
+  it('fans a new word out to every direction', () => {
+    const result = plan([newWord(1)]);
+
+    expect(result.queue).toHaveLength(DIRECTIONS.length);
+    expect(directionsIn(result).sort()).toEqual([...DIRECTIONS].sort());
+    expect(result.newWords.map((w) => w.id)).toEqual([1]);
+  });
+
+  it('fans out only the directions the session asks', () => {
+    const result = plan([newWord(1)], { includeHandwriting: false });
+
+    expect(result.queue).toHaveLength(4);
+    expect(directionsIn(result)).not.toContain('CM');
+  });
+
+  it('puts the new word after the review pairs', () => {
+    const review = wordWith(1, { MC: { level: 2, dueDate: past } });
+
+    const result = plan([newWord(2), review]);
+
+    expect(result.words[parseInt(result.queue[0].index)].id).toBe(1);
+    expect(result.words[parseInt(result.queue[1].index)].id).toBe(2);
+  });
+
+  // ─── Rule 5: at most five new words, and only with room for a fan-out ────
+
+  it('admits at most five new words', () => {
+    const words = Array.from({ length: 9 }, (_, i) => newWord(i));
+
+    const result = plan(words, { budget: 100 });
+
+    expect(result.newWords).toHaveLength(NEW_WORDS_PER_SESSION);
+    expect(result.queue).toHaveLength(NEW_WORDS_PER_SESSION * DIRECTIONS.length);
+  });
+
+  it('admits a new word only while the budget holds a whole fan-out', () => {
+    const reviews = Array.from({ length: 7 }, (_, i) =>
+      wordWith(i + 10, { MC: { level: 2, dueDate: past } }),
+    );
+
+    // 7 review pairs of a budget of 12 leave 5: room for exactly one fan-out.
+    const result = plan([...reviews, newWord(1), newWord(2)], { budget: 12 });
+
+    expect(result.newWords).toHaveLength(1);
+    expect(result.queue).toHaveLength(7 + DIRECTIONS.length);
+  });
+
+  it('admits no new word when the reviews leave too little budget', () => {
+    const reviews = Array.from({ length: 9 }, (_, i) =>
+      wordWith(i + 10, { MC: { level: 2, dueDate: past } }),
+    );
+
+    const result = plan([...reviews, newWord(1)], { budget: 12 });
+
+    expect(result.newWords).toHaveLength(0);
+    expect(result.queue).toHaveLength(9);
+  });
+
+  // ─── Rule 7: priority and onlyPriority ───────────────────────────────────
+
+  it('prefers the priority direction over the fixed order', () => {
+    const word = wordWith(1, {
+      MC: { level: 2, dueDate: past },
+      PC: { level: 2, dueDate: past },
+    });
+
+    expect(directionsIn(plan([word], { priority: 'PC' }))).toEqual(['PC']);
+  });
+
+  it('falls back to the fixed order when the priority direction is not due', () => {
+    const word = wordWith(1, { MC: { level: 2, dueDate: past } });
+
+    expect(directionsIn(plan([word], { priority: 'PC' }))).toEqual(['MC']);
+  });
+
+  it('onlyPriority filters the queue to that one direction', () => {
+    const asked = wordWith(1, { PC: { level: 2, dueDate: past } });
+    const notAsked = wordWith(2, { MC: { level: 2, dueDate: past } });
+
+    const result = plan([asked, notAsked], { priority: 'PC', onlyPriority: true });
+
+    expect(directionsIn(result)).toEqual(['PC']);
+  });
+
+  it('onlyPriority overrides the new-word fan-out', () => {
+    const result = plan([newWord(1)], { priority: 'PC', onlyPriority: true });
+
+    expect(directionsIn(result)).toEqual(['PC']);
+  });
+
+  // ─── Rule 8: practice mode ───────────────────────────────────────────────
+
+  it('practice ignores due dates and still asks each word once', () => {
+    const notDue = wordWith(1, {});
+    const alsoNotDue = wordWith(2, {});
+
+    const result = plan([notDue, alsoNotDue], { practiceMode: true });
+
+    expect(result.queue).toHaveLength(2);
+  });
+
+  it('practice varies the direction rather than always asking the first', () => {
+    const words = Array.from({ length: 40 }, (_, i) => wordWith(i, {}));
+
+    const seen = new Set(directionsIn(plan(words, { practiceMode: true, budget: 40 })));
+
+    // Random per word: 40 words hitting only one of five directions is
+    // vanishingly unlikely, and always-MC would make this exactly one.
+    expect(seen.size).toBeGreaterThan(1);
+  });
+
+  it('practice respects the handwriting setting', () => {
+    const words = Array.from({ length: 40 }, (_, i) => wordWith(i, {}));
+
+    const result = plan(words, { practiceMode: true, budget: 40, includeHandwriting: false });
+
+    expect(directionsIn(result)).not.toContain('CM');
+  });
+
+  // ─── Words a word list of legacy shape ───────────────────────────────────
+
+  it('falls back to the word due date when a word has no directions map', () => {
+    const legacy: Word = {
+      id: 1,
+      simp: '你',
+      trad: '你',
+      pinyin: 'nǐ',
+      meaning: 'you',
+      level: 3,
+      due_date: past,
+    };
+
+    expect(plan([legacy]).queue).toHaveLength(1);
   });
 });
