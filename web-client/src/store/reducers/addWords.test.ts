@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import reducer from './addWords';
 import * as actionTypes from '../actions/actionTypes';
 import { AddWordsState } from '../../types/store';
-import { Word } from '../../types/models';
+import { Word, DIRECTIONS } from '../../types/models';
 
 const initialState: AddWordsState = {
   lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
@@ -47,6 +47,22 @@ describe('addWords reducer', () => {
       expect(state.words[0].simp).toBe('你好');
       expect(state.words[0].level).toBe(1);
       expect(state.words[0].due_date).toBe(formatToday(new Date()));
+    });
+
+    it('carries all five directions at level 1 and the same due date', () => {
+      const state = reducer(initialState, {
+        type: actionTypes.ADD_WORD,
+        word: sampleWord,
+      });
+
+      const directions = state.words[0].directions!;
+      expect(Object.keys(directions).sort()).toEqual([...DIRECTIONS].sort());
+      for (const direction of DIRECTIONS) {
+        expect(directions[direction]).toEqual({
+          level: 1,
+          dueDate: state.words[0].due_date,
+        });
+      }
     });
 
     it('sets due_date to tomorrow when more than 9 words exist', () => {
@@ -112,6 +128,10 @@ describe('addWords reducer', () => {
       expect(state.words).toHaveLength(1);
       expect(state.words[0].level).toBe(1);
       expect(state.words[0].due_date).toBe(formatToday(new Date()));
+      expect(state.words[0].directions!.CM).toEqual({
+        level: 1,
+        dueDate: formatToday(new Date()),
+      });
     });
 
     it('sets due_date to tomorrow when more than 9 words exist (regression)', () => {

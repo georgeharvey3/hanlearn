@@ -87,8 +87,11 @@ import {
   deleteWordList,
   getListStats,
   migrateWordsWithoutListId,
+  migrateWordsWithoutDirections,
+  migrateUserWords,
   moveWordToList,
 } from './wordService';
+import { DIRECTIONS } from '../types/models';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -459,6 +462,167 @@ describe('migrateWordsWithoutListId', () => {
     const count = await migrateWordsWithoutListId('user-1');
 
     expect(count).toBe(0);
+    expect(mockBatchCommit).not.toHaveBeenCalled();
+  });
+});
+
+// ─── migrateWordsWithoutDirections ────────────────────────────────────────────
+
+/** A userWords document as Firestore holds it, with or without a directions map. */
+function makeMigrationDoc(id: string, data: object) {
+  return { id, ref: `ref-${id}`, data: () => data };
+}
+
+function fullDirections(bank: number, dueDate: object) {
+  return DIRECTIONS.reduce<Record<string, object>>((acc, direction) => {
+    acc[direction] = { bank, dueDate };
+    return acc;
+  }, {});
+}
+
+describe('migrateWordsWithoutDirections', () => {
+  const dueDate = { toDate: () => new Date(2026, 2, 5) };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockBatchCommit.mockResolvedValue(undefined);
+    mockWriteBatch.mockReturnValue({
+      update: mockBatchUpdate,
+      delete: mockBatchDelete,
+      commit: mockBatchCommit,
+    });
+  });
+
+  it('copies bank and dueDate into all five directions of a legacy document', async () => {
+    mockGetDocs.mockResolvedValue(
+      makeFakeSnapshot([makeMigrationDoc('w1', { bank: 3, dueDate, listId: 'default' })]),
+    );
+
+    const count = await migrateWordsWithoutDirections('user-1');
+
+    expect(count).toBe(1);
+    const [ref, update] = mockBatchUpdate.mock.calls[0];
+    expect(ref).toBe('ref-w1');
+    expect(Object.keys(update.directions).sort()).toEqual([...DIRECTIONS].sort());
+    for (const direction of DIRECTIONS) {
+      expect(update.directions[direction]).toEqual({ bank: 3, dueDate });
+    }
+  });
+
+  it('does not write a document that already has the full map', async () => {
+    mockGetDocs.mockResolvedValue(
+      makeFakeSnapshot([
+        makeMigrationDoc('w1', {
+          bank: 1,
+          dueDate,
+          listId: 'default',
+          directions: fullDirections(1, dueDate),
+        }),
+      ]),
+    );
+
+    const count = await migrateWordsWithoutDirections('user-1');
+
+    expect(count).toBe(0);
+    expect(mockBatchCommit).not.toHaveBeenCalled();
+  });
+
+  it('completes a partial map without overwriting the entries it holds', async () => {
+    const cmDueDate = { toDate: () => new Date(2026, 5, 1) };
+    mockGetDocs.mockResolvedValue(
+      makeFakeSnapshot([
+        makeMigrationDoc('w1', {
+          bank: 2,
+          dueDate,
+          listId: 'default',
+          directions: { CM: { bank: 5, dueDate: cmDueDate } },
+        }),
+      ]),
+    );
+
+    const count = await migrateWordsWithoutDirections('user-1');
+
+    expect(count).toBe(1);
+    const update = mockBatchUpdate.mock.calls[0][1];
+    expect(update.directions.CM).toEqual({ bank: 5, dueDate: cmDueDate });
+    expect(update.directions.MC).toEqual({ bank: 2, dueDate });
+  });
+
+  it('leaves listId alone', async () => {
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([makeMigrationDoc('w1', { bank: 1, dueDate })]));
+
+    await migrateWordsWithoutDirections('user-1');
+
+    expect(mockBatchUpdate.mock.calls[0][1]).not.toHaveProperty('listId');
+  });
+
+  it('returns 0 when the user has no words', async () => {
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([]));
+
+    expect(await migrateWordsWithoutDirections('user-1')).toBe(0);
+    expect(mockBatchCommit).not.toHaveBeenCalled();
+  });
+});
+
+// ─── migrateUserWords ─────────────────────────────────────────────────────────
+
+describe('migrateUserWords', () => {
+  const dueDate = { toDate: () => new Date(2026, 2, 5) };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockBatchCommit.mockResolvedValue(undefined);
+    mockWriteBatch.mockReturnValue({
+      update: mockBatchUpdate,
+      delete: mockBatchDelete,
+      commit: mockBatchCommit,
+    });
+  });
+
+  it('reads the collection once and writes both backfills in one update', async () => {
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([makeMigrationDoc('w1', { bank: 1, dueDate })]));
+
+    const count = await migrateUserWords('user-1');
+
+    expect(count).toBe(1);
+    expect(mockGetDocs).toHaveBeenCalledOnce();
+    expect(mockBatchUpdate).toHaveBeenCalledOnce();
+    const update = mockBatchUpdate.mock.calls[0][1];
+    expect(update.listId).toBe('default');
+    expect(Object.keys(update.directions)).toHaveLength(5);
+    expect(mockBatchCommit).toHaveBeenCalledOnce();
+  });
+
+  it('writes only the field a document is missing', async () => {
+    mockGetDocs.mockResolvedValue(
+      makeFakeSnapshot([
+        makeMigrationDoc('w1', { bank: 1, dueDate, directions: fullDirections(1, dueDate) }),
+        makeMigrationDoc('w2', { bank: 1, dueDate, listId: 'list-1' }),
+      ]),
+    );
+
+    const count = await migrateUserWords('user-1');
+
+    expect(count).toBe(2);
+    expect(mockBatchUpdate).toHaveBeenCalledWith('ref-w1', { listId: 'default' });
+    const w2Update = mockBatchUpdate.mock.calls[1][1];
+    expect(w2Update).not.toHaveProperty('listId');
+    expect(w2Update.directions).toBeDefined();
+  });
+
+  it('is a no-op on a fully migrated collection', async () => {
+    mockGetDocs.mockResolvedValue(
+      makeFakeSnapshot([
+        makeMigrationDoc('w1', {
+          bank: 1,
+          dueDate,
+          listId: 'default',
+          directions: fullDirections(1, dueDate),
+        }),
+      ]),
+    );
+
+    expect(await migrateUserWords('user-1')).toBe(0);
     expect(mockBatchCommit).not.toHaveBeenCalled();
   });
 });

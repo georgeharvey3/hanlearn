@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 HanLearn is a Chinese language learning application with spaced repetition for vocabulary and daily chengyu (成语) challenges. It uses a React/TypeScript frontend with Firebase backend services.
 
+[CONTEXT.md](CONTEXT.md) holds the domain glossary — read it for the words the code uses (direction, bank/level, session queue, new word).
+
 ## Development Commands
 
 ### Full Development Environment
@@ -91,8 +93,11 @@ users/{userId}/
   ├── userWords/{wordId}
   │   ├── wordData: { simp, trad, pinyin, meaning }
   │   ├── amendedMeaning: string | null
-  │   ├── level: 1-5             # Spaced repetition level (stored as `bank` in Firestore)
-  │   ├── dueDate: Timestamp     # Next review date
+  │   ├── level: 1-5             # Derived: lowest bank across directions (stored as `bank`)
+  │   ├── dueDate: Timestamp     # Derived: earliest dueDate across directions
+  │   ├── directions: {          # Per-direction scheduling state (see ADR 0002)
+  │   │     MC | MP | PM | PC | CM: { bank: 1-5, dueDate: Timestamp }
+  │   │   }
   │   └── listId?: string        # Optional word list membership
   └── testCompletions/{dateId}   # Streak tracking (dateId = YYYY-MM-DD)
       ├── testsCount: number
@@ -128,6 +133,7 @@ In [web-client/src/services/wordService.ts](web-client/src/services/wordService.
 - **5 levels** with intervals: 1, 3, 7, 30, 60 days
 - Score of 4 advances level; score < 4 resets to level 1
 - Due date calculated from level + current date
+- Each word carries its own level and due date **per direction** (`MC`, `MP`, `PM`, `PC`, `CM`); the top-level `bank`/`dueDate` are derived so Firestore can still range-query them. See [docs/adr/0002-direction-level-scheduling.md](docs/adr/0002-direction-level-scheduling.md)
 
 ## Firebase Emulators
 

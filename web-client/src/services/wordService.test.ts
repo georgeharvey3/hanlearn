@@ -82,6 +82,7 @@ import {
   addCustomWord,
 } from './wordService';
 import { lookupCharacter, lookupCharacterByTrad } from './dictionaryService';
+import { DIRECTIONS } from '../types/models';
 
 // Level intervals defined in wordService (duplicated here for assertion purposes)
 const LEVEL_INTERVALS: Record<number, number> = { 1: 1, 2: 3, 3: 7, 4: 30, 5: 60 };
@@ -279,6 +280,7 @@ function makeWordDoc(
     meaning: string;
     amendedMeaning: string | null;
     bank: number;
+    directions: object;
   }> = {},
 ) {
   const {
@@ -289,6 +291,7 @@ function makeWordDoc(
     meaning = 'to study',
     amendedMeaning = null,
     bank = 2,
+    directions,
   } = overrides;
   return {
     id,
@@ -299,8 +302,14 @@ function makeWordDoc(
       bank,
       dueDate: { toDate: () => new Date(2026, 2, 5) },
       addedAt: { toDate: () => new Date(2026, 1, 1) },
+      ...(directions ? { directions } : {}),
     },
   };
+}
+
+/** A stored direction record, as Firestore holds it. */
+function storedDirection(bank: number, date: Date) {
+  return { bank, dueDate: { toDate: () => date } };
 }
 
 // ─── getUserWords ─────────────────────────────────────────────────────────────
@@ -376,6 +385,76 @@ describe('getUserWords', () => {
   });
 });
 
+// ─── mapDocumentToWord — the directions map ───────────────────────────────────
+describe('the directions map on a read word', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('derives all five directions from bank and dueDate on a legacy document', async () => {
+    // A document written before the map existed carries neither key.
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([makeWordDoc({ bank: 3 })]));
+
+    const [word] = await getUserWords('user-1');
+
+    expect(Object.keys(word.directions!).sort()).toEqual([...DIRECTIONS].sort());
+    for (const direction of DIRECTIONS) {
+      expect(word.directions![direction]).toEqual({ level: 3, dueDate: '2026/03/05' });
+    }
+  });
+
+  it('reads the stored map on a migrated document', async () => {
+    mockGetDocs.mockResolvedValue(
+      makeFakeSnapshot([
+        makeWordDoc({
+          bank: 1,
+          directions: {
+            MC: storedDirection(4, new Date(2026, 3, 1)),
+            MP: storedDirection(3, new Date(2026, 2, 20)),
+            PM: storedDirection(2, new Date(2026, 2, 10)),
+            PC: storedDirection(2, new Date(2026, 2, 10)),
+            CM: storedDirection(1, new Date(2026, 2, 5)),
+          },
+        }),
+      ]),
+    );
+
+    const [word] = await getUserWords('user-1');
+
+    expect(word.directions!.MC).toEqual({ level: 4, dueDate: '2026/04/01' });
+    expect(word.directions!.CM).toEqual({ level: 1, dueDate: '2026/03/05' });
+  });
+
+  it('fills the missing entries of a partial map from bank and dueDate', async () => {
+    mockGetDocs.mockResolvedValue(
+      makeFakeSnapshot([
+        makeWordDoc({ bank: 2, directions: { CM: storedDirection(5, new Date(2026, 5, 1)) } }),
+      ]),
+    );
+
+    const [word] = await getUserWords('user-1');
+
+    expect(word.directions!.CM).toEqual({ level: 5, dueDate: '2026/06/01' });
+    expect(word.directions!.MC).toEqual({ level: 2, dueDate: '2026/03/05' });
+    expect(word.directions!.PC).toEqual({ level: 2, dueDate: '2026/03/05' });
+  });
+
+  it('is present on due words too, which are read without due_date', async () => {
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([makeWordDoc({ bank: 1 })]));
+
+    const [word] = await getDueUserWords('user-1');
+
+    expect(word.due_date).toBeUndefined();
+    expect(word.directions!.MC).toEqual({ level: 1, dueDate: '2026/03/05' });
+  });
+
+  it('leaves the derived top-level level unchanged', async () => {
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([makeWordDoc({ bank: 3 })]));
+
+    const [word] = await getUserWords('user-1');
+
+    expect(word.level).toBe(3);
+  });
+});
+
 // ─── getDueUserWords ──────────────────────────────────────────────────────────
 describe('getDueUserWords', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -438,6 +517,21 @@ describe('addWordToList', () => {
     expect(setDocArg.bank).toBe(1);
     expect(setDocArg.wordData.simp).toBe('书');
     expect(setDocArg.amendedMeaning).toBeNull();
+  });
+
+  it('writes all five directions at bank 1 and the same due date', async () => {
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([]));
+    mockSetDoc.mockResolvedValue(undefined);
+
+    await addWordToList('user-1', sampleWord);
+
+    const setDocArg = mockSetDoc.mock.calls[0][1];
+    expect(Object.keys(setDocArg.directions).sort()).toEqual([...DIRECTIONS].sort());
+    for (const direction of DIRECTIONS) {
+      expect(setDocArg.directions[direction].bank).toBe(1);
+      // The derived top-level dueDate is the same Timestamp instance.
+      expect(setDocArg.directions[direction].dueDate).toBe(setDocArg.dueDate);
+    }
   });
 
   it('sets due date to today when word count <= 9', async () => {

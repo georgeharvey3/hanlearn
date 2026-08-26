@@ -2,6 +2,7 @@ import * as actionTypes from '../actions/actionTypes';
 import { Word } from '../../types/models';
 import { AddWordsState } from '../../types/store';
 import { WordAction } from '../../types/actions';
+import { makeDirections } from '../../utils/directions';
 
 const DEFAULT_LIST = { id: 'default', name: 'General', createdAt: '', order: 0 };
 
@@ -47,17 +48,27 @@ const initialState: AddWordsState = {
 const reducer = (state = initialState, action: WordAction): AddWordsState => {
   switch (action.type) {
     case actionTypes.ADD_WORD: {
-      const word = { ...action.word, due_date: formatInitialDueDate(state.words.length), level: 1 };
+      const dueDate = formatInitialDueDate(state.words.length);
+      const word = {
+        ...action.word,
+        due_date: dueDate,
+        level: 1,
+        // Match what addWordToList writes, so the optimistic word has the same
+        // shape as the one the next read brings back.
+        directions: makeDirections(1, dueDate),
+      };
       return {
         ...state,
         words: insertSorted(state.words, word),
       };
     }
     case actionTypes.ADD_CUSTOM_WORD: {
+      const customDueDate = formatInitialDueDate(state.words.length);
       const customWord = {
         ...action.word,
-        due_date: formatInitialDueDate(state.words.length),
+        due_date: customDueDate,
         level: 1,
+        directions: makeDirections(1, customDueDate),
       };
       return {
         ...state,
