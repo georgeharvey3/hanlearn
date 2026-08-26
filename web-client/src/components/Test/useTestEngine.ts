@@ -5,7 +5,14 @@ import { pinyin } from 'pinyin-pro';
 import * as testLogic from './Logic/TestLogic';
 import { beep, fail, createInitialState } from './constants';
 import { Props, TestState, TestStateUpdate } from './types';
-import { Direction, DirectionResult, WordDirectionResults, WordScore } from '../../types/models';
+import {
+  Direction,
+  DirectionFailure,
+  DirectionResult,
+  WordDirectionResults,
+  WordScore,
+} from '../../types/models';
+import { isNewWord } from '../../utils/directions';
 import { checkSentenceAvailability, getHintSentence } from '../../services/sentenceService';
 import * as ttsService from '../../services/ttsService';
 import { reportError } from '../../services/errorReporting';
@@ -161,6 +168,20 @@ export const useTestEngine = (props: Props) => {
     [getState, onListen, props.lang, props.speechAvailable, props.voice, setStateMerged],
   );
 
+  // --- Failures ---
+
+  /**
+   * The (word, direction) pair the current question asks, recorded when the
+   * learner does not know it. Returns null when there is no current question,
+   * which the two call sites already guard against by other means.
+   */
+  const currentFailure = (state: TestState): DirectionFailure | null => {
+    if (!state.perm) return null;
+    const word = state.testSet[parseInt(state.perm.index)];
+    if (!word) return null;
+    return { wordId: word.id, direction: testLogic.directionOf(state.perm) };
+  };
+
   // --- Score sending ---
 
   const onSendResults = useCallback(
@@ -181,44 +202,37 @@ export const useTestEngine = (props: Props) => {
       (answerInput as HTMLInputElement).blur();
     }
 
-    const idkCounts = testLogic.Counter(current.idkList);
+    // The directions each word failed, by word id. A word that the learner knew
+    // in every direction has no entry.
+    const failedByWord = new Map<number, Set<Direction>>();
+    for (const { wordId, direction } of current.idkList) {
+      const failed = failedByWord.get(wordId);
+      if (failed) {
+        failed.add(direction);
+      } else {
+        failedByWord.set(wordId, new Set([direction]));
+      }
+    }
+
     const wordScores: WordScore[] = [];
     const sendResults: WordDirectionResults[] = [];
     const sentenceWords: import('../../types/models').Word[] = [];
 
-    const scoreDict: Record<number, WordScore['score']> = {
-      0: 'Very Strong',
-      1: 'Strong',
-      2: 'Average',
-      3: 'Weak',
-      4: 'Very Weak',
-    };
-
     current.testSet.forEach((word) => {
-      let count = idkCounts[word[current.charSet]] || 0;
-      if (count > 4) {
-        count = 4;
-      }
+      const failed = failedByWord.get(word.id);
 
-      if (
-        count === 0 &&
-        (word.level === 1 || props.practiceMode || props.sentenceStagesForAllWords)
-      ) {
+      // The sentence stages still gate on the word as a whole: they are a
+      // reward for a clean run, and issue #339 revisits what should gate them.
+      if (!failed && (isNewWord(word) || props.practiceMode || props.sentenceStagesForAllWords)) {
         sentenceWords.push(word);
       }
 
-      wordScores.push({
-        char: word[current.charSet],
-        score: scoreDict[count],
-      });
-
-      // The session records a failure against the word, not yet against the
-      // direction that produced it, so every direction it asked takes the same
-      // outcome. PR 3 replaces this with the per-direction results.
-      const result: DirectionResult = count === 0 ? 'pass' : 'fail';
       const directions: Partial<Record<Direction, DirectionResult>> = {};
       for (const direction of current.askedDirections) {
+        const result: DirectionResult = failed?.has(direction) ? 'fail' : 'pass';
         directions[direction] = result;
+        // One summary row per direction the session asked.
+        wordScores.push({ char: word[current.charSet], direction, result });
       }
 
       sendResults.push({ word_id: word.id, directions });
@@ -545,11 +559,9 @@ export const useTestEngine = (props: Props) => {
         } else {
           clearCharacterTarget();
           setStateMerged((prevState) => {
-            const idkChar = prevState.perm
-              ? prevState.testSet[parseInt(prevState.perm.index)][prevState.charSet]
-              : '';
+            const failure = currentFailure(prevState);
             return {
-              idkList: prevState.idkList.concat(idkChar),
+              idkList: failure ? prevState.idkList.concat(failure) : prevState.idkList,
             };
           });
 
@@ -612,13 +624,11 @@ export const useTestEngine = (props: Props) => {
     }
 
     setStateMerged((prevState) => {
-      const idkChar = prevState.perm
-        ? prevState.testSet[parseInt(prevState.perm.index)][prevState.charSet]
-        : '';
+      const failure = currentFailure(prevState);
       // In flashcard mode the answer is already on screen, so the feedback line
       // reports the grade instead of repeating the reveal text unchanged.
       return {
-        idkList: prevState.idkList.concat(idkChar),
+        idkList: failure ? prevState.idkList.concat(failure) : prevState.idkList,
         idkDisabled: true,
         submitDisabled: true,
         result: prevState.showAnswer

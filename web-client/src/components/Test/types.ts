@@ -1,6 +1,13 @@
 import { RouteComponentProps } from 'react-router-dom';
 
-import { Direction, Word, TestPerm, WordDirectionResults, WordScore } from '../../types/models';
+import {
+  Direction,
+  DirectionFailure,
+  Word,
+  TestPerm,
+  WordDirectionResults,
+  WordScore,
+} from '../../types/models';
 import { QuizType } from '../../utils/audioSettings';
 
 export interface TestState {
@@ -27,7 +34,11 @@ export interface TestState {
    * away — keeps the bank and due date it already holds.
    */
   askedDirections: Direction[];
-  idkList: string[];
+  /**
+   * The directions the learner did not know, in the order they happened.
+   * One entry per failed question, not per word.
+   */
+  idkList: DirectionFailure[];
   scoreList: WordScore[];
   testFinished: boolean;
   showInputChars: string[];

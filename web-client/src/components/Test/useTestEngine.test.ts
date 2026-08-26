@@ -305,7 +305,8 @@ describe("useTestEngine — I-don't-know flow", () => {
       result.current.onIDontKnow();
     });
 
-    expect(result.current.state.idkList).toContain('你好');
+    // The perm asks meaning from pinyin, so the failure is recorded against MP.
+    expect(result.current.state.idkList).toEqual([{ wordId: 1, direction: 'MP' }]);
     expect(result.current.state.idkDisabled).toBe(true);
   });
 
@@ -334,7 +335,7 @@ describe("useTestEngine — I-don't-know flow", () => {
     expect(result.current.state.result).toContain('Answer was');
   });
 
-  it("accumulates multiple IDK entries in idkList (each IDK = +1 to that word's score)", () => {
+  it('accumulates one idkList entry per failed direction of the same word', () => {
     const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const testWord = makeWord();
 
@@ -346,7 +347,7 @@ describe("useTestEngine — I-don't-know flow", () => {
       testSet: [testWord],
       permList: [perm],
       charSet: 'simp',
-      idkList: ['你好'], // already has one IDK
+      idkList: [{ wordId: 1, direction: 'PM' as const }], // a direction already failed
       idkDisabled: false,
       useHandwriting: false,
       writer: null,
@@ -356,7 +357,10 @@ describe("useTestEngine — I-don't-know flow", () => {
       result.current.onIDontKnow();
     });
 
-    expect(result.current.state.idkList.filter((c) => c === '你好')).toHaveLength(2);
+    expect(result.current.state.idkList).toEqual([
+      { wordId: 1, direction: 'PM' },
+      { wordId: 1, direction: 'MP' },
+    ]);
   });
 });
 

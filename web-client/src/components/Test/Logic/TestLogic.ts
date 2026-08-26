@@ -144,6 +144,10 @@ export const setPermList = (
   return permList;
 };
 
+/** The direction a perm asks, as the answer-first pair that names it. */
+export const directionOf = (perm: TestPerm): Direction =>
+  `${perm.aCategory}${perm.qCategory}` as Direction;
+
 /**
  * The distinct directions a perm list asks, in the order the list holds them.
  * finishTest reschedules only these, so the directions the session left out
@@ -153,10 +157,10 @@ export const directionsOf = (permList: TestPerm[]): Direction[] => {
   const seen = new Set<string>();
   const directions: Direction[] = [];
   for (const perm of permList) {
-    const direction = `${perm.aCategory}${perm.qCategory}`;
+    const direction = directionOf(perm);
     if (seen.has(direction)) continue;
     seen.add(direction);
-    directions.push(direction as Direction);
+    directions.push(direction);
   }
   return directions;
 };
