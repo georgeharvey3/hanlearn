@@ -60,6 +60,7 @@ export const createInitialState = (props: Props): TestState => {
     submitDisabled: false,
     progressBar: 0,
     initNumPerms: 0,
+    askedDirections: [],
     idkList: [],
     scoreList: devScoreList,
     testFinished: props.devTestFinished ?? false,

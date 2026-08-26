@@ -5,7 +5,7 @@ import { pinyin } from 'pinyin-pro';
 import * as testLogic from './Logic/TestLogic';
 import { beep, fail, createInitialState } from './constants';
 import { Props, TestState, TestStateUpdate } from './types';
-import { WordScore } from '../../types/models';
+import { Direction, DirectionResult, WordDirectionResults, WordScore } from '../../types/models';
 import { checkSentenceAvailability, getHintSentence } from '../../services/sentenceService';
 import * as ttsService from '../../services/ttsService';
 import { reportError } from '../../services/errorReporting';
@@ -163,8 +163,8 @@ export const useTestEngine = (props: Props) => {
 
   // --- Score sending ---
 
-  const onSendScores = useCallback(
-    (testResults: { word_id: number; score: number }[]): void => {
+  const onSendResults = useCallback(
+    (testResults: WordDirectionResults[]): void => {
       if (props.isDemo) return;
       props.onFinishTest(testResults);
     },
@@ -183,7 +183,7 @@ export const useTestEngine = (props: Props) => {
 
     const idkCounts = testLogic.Counter(current.idkList);
     const wordScores: WordScore[] = [];
-    const sendScores: { word_id: number; score: number }[] = [];
+    const sendResults: WordDirectionResults[] = [];
     const sentenceWords: import('../../types/models').Word[] = [];
 
     const scoreDict: Record<number, WordScore['score']> = {
@@ -212,14 +212,20 @@ export const useTestEngine = (props: Props) => {
         score: scoreDict[count],
       });
 
-      sendScores.push({
-        word_id: word.id,
-        score: 4 - count,
-      });
+      // The session records a failure against the word, not yet against the
+      // direction that produced it, so every direction it asked takes the same
+      // outcome. PR 3 replaces this with the per-direction results.
+      const result: DirectionResult = count === 0 ? 'pass' : 'fail';
+      const directions: Partial<Record<Direction, DirectionResult>> = {};
+      for (const direction of current.askedDirections) {
+        directions[direction] = result;
+      }
+
+      sendResults.push({ word_id: word.id, directions });
     });
 
     if (!props.isDemo && !props.practiceMode) {
-      onSendScores(sendScores);
+      onSendResults(sendResults);
     }
 
     if (sentenceWords.length === 0 || props.isDemo) {
@@ -275,7 +281,7 @@ export const useTestEngine = (props: Props) => {
     }
   }, [
     getState,
-    onSendScores,
+    onSendResults,
     props.isDemo,
     props.practiceMode,
     props.finalStage,
@@ -781,6 +787,7 @@ export const useTestEngine = (props: Props) => {
         questionCategory: initialVals.questionCategory,
         chosenCharacter: initialVals.chosenCharacter,
         initNumPerms: permList.length,
+        askedDirections: testLogic.directionsOf(permList),
         showErrorMessage: false,
         qNum: prevState.qNum + 1,
       }));

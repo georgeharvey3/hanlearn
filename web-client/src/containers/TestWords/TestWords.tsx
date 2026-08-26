@@ -17,7 +17,7 @@ import * as testLogic from '../../components/Test/Logic/TestLogic';
 import { RootState } from '../../types/store';
 import { Word, WordScore } from '../../types/models';
 import { getDevTestConfig, DevTestConfig } from '../../utils/devTestMode';
-import { makeDirections } from '../../utils/directions';
+import { isNewWord, makeDirections } from '../../utils/directions';
 
 import { Box, Chip, Stepper, Step, StepLabel, Typography } from '@mui/material';
 
@@ -144,7 +144,7 @@ const TestWords: React.FC<Props> = ({
     }
 
     const selectedWords = selectTestWords();
-    const newWords = selectedWords.filter((word) => word.level === 1);
+    const newWords = selectedWords.filter(isNewWord);
 
     if (newWords.length === 0 || !state.newWordsEnabled) {
       setState((prev) => ({
@@ -204,7 +204,7 @@ const TestWords: React.FC<Props> = ({
       if (devConfig) {
         // For dev stages, use actual words from user's list (ignore due dates)
         const selectedWords = selectTestWords(true);
-        const newWords = selectedWords.filter((word) => word.level === 1);
+        const newWords = selectedWords.filter(isNewWord);
         setState((prev) => ({
           ...prev,
           selectedWords,
@@ -243,7 +243,7 @@ const TestWords: React.FC<Props> = ({
 
   const onStartPractice = (): void => {
     const selectedWords = selectTestWords(true); // Ignore due dates
-    const newWords = selectedWords.filter((word) => word.level === 1);
+    const newWords = selectedWords.filter(isNewWord);
 
     if (newWords.length === 0 || !state.newWordsEnabled) {
       setState((prev) => ({

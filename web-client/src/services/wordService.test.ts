@@ -87,7 +87,20 @@ import { DIRECTIONS } from '../types/models';
 // Level intervals defined in wordService (duplicated here for assertion purposes)
 const LEVEL_INTERVALS: Record<number, number> = { 1: 1, 2: 3, 3: 7, 4: 30, 5: 60 };
 
-function makeFakeDoc(bank: number, simp: string, exists = true) {
+/** A stored direction record, as Firestore holds it. */
+function storedDirection(bank: number, date: Date) {
+  return { bank, dueDate: { toDate: () => date } };
+}
+
+/** All five directions at the same bank and due date. */
+function allDirections(bank: number, date = new Date(2026, 0, 1)) {
+  return DIRECTIONS.reduce<Record<string, object>>((acc, direction) => {
+    acc[direction] = storedDirection(bank, date);
+    return acc;
+  }, {});
+}
+
+function makeFakeDoc(bank: number, simp: string, exists = true, directions?: object) {
   return {
     exists: () => exists,
     data: () => ({
@@ -95,13 +108,22 @@ function makeFakeDoc(bank: number, simp: string, exists = true) {
       wordData: { simp, trad: simp, pinyin: 'pīn', meaning: 'meaning' },
       amendedMeaning: null,
       bank,
-      dueDate: { toDate: () => new Date() },
+      dueDate: { toDate: () => new Date(2026, 0, 1) },
       addedAt: { toDate: () => new Date() },
+      ...(directions ? { directions } : {}),
     }),
   };
 }
 
-describe('finishTest — spaced repetition level logic', () => {
+/** Ask every direction with the same outcome, as a session does today. */
+function allAsked(result: 'pass' | 'fail') {
+  return DIRECTIONS.reduce<Record<string, 'pass' | 'fail'>>((acc, direction) => {
+    acc[direction] = result;
+    return acc;
+  }, {});
+}
+
+describe('finishTest — per-direction scheduling', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockBatchCommit.mockResolvedValue(undefined);
@@ -111,152 +133,193 @@ describe('finishTest — spaced repetition level logic', () => {
     });
   });
 
-  it('advances level by 1 when score=4 and level < 5', async () => {
-    mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好'));
+  // ─── The case in issue #328 ────────────────────────────────────────────────
 
-    await finishTest('user-1', [{ word_id: 1, score: 4 }]);
+  it('a failure in one direction does not change the bank of the other four', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
 
-    expect(mockBatchUpdate).toHaveBeenCalledOnce();
-    const updateCall = mockBatchUpdate.mock.calls[0][1];
-    expect(updateCall.bank).toBe(2);
+    await finishTest('user-1', [{ word_id: 1, directions: { ...allAsked('pass'), CM: 'fail' } }]);
+
+    const update = mockBatchUpdate.mock.calls[0][1];
+    expect(update.directions.CM.bank).toBe(1);
+    expect(update.directions.MC.bank).toBe(4);
+    expect(update.directions.MP.bank).toBe(4);
+    expect(update.directions.PM.bank).toBe(4);
+    expect(update.directions.PC.bank).toBe(4);
   });
 
-  it('advances level from 4 to 5 (max) when score=4', async () => {
-    mockGetDoc.mockResolvedValue(makeFakeDoc(4, '你好'));
-
-    await finishTest('user-1', [{ word_id: 1, score: 4 }]);
-
-    const updateCall = mockBatchUpdate.mock.calls[0][1];
-    expect(updateCall.bank).toBe(5);
-  });
-
-  it('does not advance level beyond 5 when score=4 and already at max', async () => {
-    mockGetDoc.mockResolvedValue(makeFakeDoc(5, '你好'));
-
-    await finishTest('user-1', [{ word_id: 1, score: 4 }]);
-
-    const updateCall = mockBatchUpdate.mock.calls[0][1];
-    expect(updateCall.bank).toBe(5); // stays at 5
-  });
-
-  it('resets level to 1 when score < 4 (score=3)', async () => {
-    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好'));
-
-    await finishTest('user-1', [{ word_id: 1, score: 3 }]);
-
-    const updateCall = mockBatchUpdate.mock.calls[0][1];
-    expect(updateCall.bank).toBe(1);
-  });
-
-  it('resets level to 1 from level 5 when score < 4 (score=0)', async () => {
-    mockGetDoc.mockResolvedValue(makeFakeDoc(5, '你好'));
-
-    await finishTest('user-1', [{ word_id: 1, score: 0 }]);
-
-    const updateCall = mockBatchUpdate.mock.calls[0][1];
-    expect(updateCall.bank).toBe(1);
-  });
-
-  it('advances level from 2 to 3 when score=4 (middle level)', async () => {
-    mockGetDoc.mockResolvedValue(makeFakeDoc(2, '学'));
-
-    await finishTest('user-1', [{ word_id: 1, score: 4 }]);
-
-    const updateCall = mockBatchUpdate.mock.calls[0][1];
-    expect(updateCall.bank).toBe(3);
-  });
-
-  it('calculates due date using correct interval for new level', async () => {
-    vi.useFakeTimers();
-    const baseDate = new Date(2026, 1, 27, 12, 0, 0); // Feb 27, 2026
-    vi.setSystemTime(baseDate);
-
-    mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好'));
-
-    await finishTest('user-1', [{ word_id: 1, score: 4 }]);
-
-    // level advances 1→2, interval for level 2 = 3 days
-    const expectedDate = new Date(2026, 1, 27, 12, 0, 0);
-    expectedDate.setDate(expectedDate.getDate() + LEVEL_INTERVALS[2]);
-
-    expect(mockTimestampFromDate).toHaveBeenCalledWith(
-      expect.objectContaining({ getDate: expect.any(Function) }),
+  it('leaves a direction the session did not ask completely untouched', async () => {
+    const cmDate = new Date(2026, 5, 1);
+    mockGetDoc.mockResolvedValue(
+      makeFakeDoc(2, '你好', true, { ...allDirections(2), CM: storedDirection(5, cmDate) }),
     );
-    const passedDate: Date = mockTimestampFromDate.mock.calls[0][0];
-    expect(passedDate.getDate()).toBe(expectedDate.getDate());
-    expect(passedDate.getMonth()).toBe(expectedDate.getMonth());
 
-    vi.useRealTimers();
+    // Handwriting switched off: the session asks the other four only.
+    await finishTest('user-1', [
+      { word_id: 1, directions: { MC: 'pass', MP: 'pass', PM: 'fail', PC: 'pass' } },
+    ]);
+
+    const update = mockBatchUpdate.mock.calls[0][1];
+    expect(update.directions.CM.bank).toBe(5);
+    expect(update.directions.CM.dueDate.toDate()).toEqual(cmDate);
   });
 
-  it('calculates due date of +1 day after reset to level 1 (score<4)', async () => {
+  // ─── Per-direction bank movement ───────────────────────────────────────────
+
+  it('advances an asked direction by one bank on a pass', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', true, allDirections(1)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.bank).toBe(2);
+  });
+
+  it('does not advance a direction beyond bank 5', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(5, '你好', true, allDirections(5)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.bank).toBe(5);
+  });
+
+  it('resets a direction to bank 1 on a failure, from any bank', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(5, '你好', true, allDirections(5)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { PC: 'fail' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.PC.bank).toBe(1);
+  });
+
+  it('schedules each direction from the interval for its own new bank', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 1, 27, 12, 0, 0));
 
-    mockGetDoc.mockResolvedValue(makeFakeDoc(4, '你好'));
+    mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', true, allDirections(1)));
 
-    await finishTest('user-1', [{ word_id: 1, score: 2 }]);
+    // MC passes to bank 2 (3 days); CM fails to bank 1 (1 day).
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass', CM: 'fail' } }]);
 
-    // level resets to 1, interval = 1 day
-    const passedDate: Date = mockTimestampFromDate.mock.calls[0][0];
-    const expected = new Date(2026, 1, 27, 12, 0, 0);
-    expected.setDate(expected.getDate() + 1);
-    expect(passedDate.getDate()).toBe(expected.getDate());
+    const update = mockBatchUpdate.mock.calls[0][1];
+    const expectedPass = new Date(2026, 1, 27, 12, 0, 0);
+    expectedPass.setDate(expectedPass.getDate() + LEVEL_INTERVALS[2]);
+    const expectedFail = new Date(2026, 1, 27, 12, 0, 0);
+    expectedFail.setDate(expectedFail.getDate() + LEVEL_INTERVALS[1]);
+
+    expect(update.directions.MC.dueDate.toDate().getDate()).toBe(expectedPass.getDate());
+    expect(update.directions.CM.dueDate.toDate().getDate()).toBe(expectedFail.getDate());
 
     vi.useRealTimers();
   });
 
-  it('skips words whose Firestore document does not exist', async () => {
-    mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', false /* exists=false */));
+  // ─── Derived fields ────────────────────────────────────────────────────────
 
-    await finishTest('user-1', [{ word_id: 1, score: 4 }]);
+  it('writes the lowest bank across the directions to the derived field', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { ...allAsked('pass'), CM: 'fail' } }]);
+
+    // Four directions reach 4, handwriting resets to 1.
+    expect(mockBatchUpdate.mock.calls[0][1].bank).toBe(1);
+  });
+
+  it('writes the earliest due date across the directions to the derived field', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 1, 27, 12, 0, 0));
+
+    mockGetDoc.mockResolvedValue(makeFakeDoc(4, '你好', true, allDirections(4)));
+
+    // The four pass to bank 5 (60 days); handwriting fails to bank 1 (1 day),
+    // which is then the earliest of the five.
+    await finishTest('user-1', [{ word_id: 1, directions: { ...allAsked('pass'), CM: 'fail' } }]);
+
+    const update = mockBatchUpdate.mock.calls[0][1];
+    const expected = new Date(2026, 1, 27, 12, 0, 0);
+    expected.setDate(expected.getDate() + LEVEL_INTERVALS[1]);
+    expect(update.dueDate.toDate().getDate()).toBe(expected.getDate());
+
+    vi.useRealTimers();
+  });
+
+  it('derives the top-level fields from a direction it did not ask when that one is lowest', async () => {
+    mockGetDoc.mockResolvedValue(
+      makeFakeDoc(1, '你好', true, {
+        ...allDirections(4),
+        CM: storedDirection(1, new Date(2026, 0, 1)),
+      }),
+    );
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    const update = mockBatchUpdate.mock.calls[0][1];
+    expect(update.bank).toBe(1);
+    expect(update.dueDate.toDate()).toEqual(new Date(2026, 0, 1));
+  });
+
+  // ─── Documents the migration has not reached ───────────────────────────────
+
+  it('derives the five directions from bank and dueDate on a legacy document', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(2, '你好')); // no directions map
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    const update = mockBatchUpdate.mock.calls[0][1];
+    expect(update.directions.MC.bank).toBe(3); // asked, advanced from the old bank
+    expect(update.directions.CM.bank).toBe(2); // untouched, derived from the old bank
+    expect(Object.keys(update.directions).sort()).toEqual([...DIRECTIONS].sort());
+  });
+
+  // ─── Batch behavior and the return value ───────────────────────────────────
+
+  it('skips words whose Firestore document does not exist', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', false));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
 
     expect(mockBatchUpdate).not.toHaveBeenCalled();
   });
 
   it('returns a newDates record keyed by simp with formatted date strings', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 1, 27, 12, 0, 0));
+    mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', true, allDirections(1)));
 
-    mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好'));
+    const newDates = await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
 
-    const newDates = await finishTest('user-1', [{ word_id: 1, score: 4 }]);
-
-    // Result should have the simp as key
     expect(newDates).toHaveProperty('你好');
-    // Date format is YYYY/MM/DD
     expect(newDates['你好']).toMatch(/^\d{4}\/\d{2}\/\d{2}$/);
-
-    vi.useRealTimers();
   });
 
   it('processes multiple words in a single batch', async () => {
     mockGetDoc
-      .mockResolvedValueOnce(makeFakeDoc(1, '你好'))
-      .mockResolvedValueOnce(makeFakeDoc(3, '谢谢'));
+      .mockResolvedValueOnce(makeFakeDoc(1, '你好', true, allDirections(1)))
+      .mockResolvedValueOnce(makeFakeDoc(3, '谢谢', true, allDirections(3)));
 
-    const scores = [
-      { word_id: 1, score: 4 },
-      { word_id: 2, score: 2 },
-    ];
-    await finishTest('user-1', scores);
+    await finishTest('user-1', [
+      { word_id: 1, directions: { MC: 'pass' } },
+      { word_id: 2, directions: { MC: 'fail' } },
+    ]);
 
     expect(mockBatchUpdate).toHaveBeenCalledTimes(2);
     expect(mockBatchCommit).toHaveBeenCalledOnce();
-
-    const firstUpdate = mockBatchUpdate.mock.calls[0][1];
-    const secondUpdate = mockBatchUpdate.mock.calls[1][1];
-
-    expect(firstUpdate.bank).toBe(2); // 1 -> 2
-    expect(secondUpdate.bank).toBe(1); // 3 -> 1 (score < 4)
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.bank).toBe(2);
+    expect(mockBatchUpdate.mock.calls[1][1].directions.MC.bank).toBe(1);
   });
 
   it('returns empty object when all word documents are missing', async () => {
     mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', false));
 
-    const result = await finishTest('user-1', [{ word_id: 1, score: 4 }]);
+    const result = await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
 
     expect(result).toEqual({});
+  });
+
+  it('writes nothing for a word whose payload asks no direction', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(2, '你好', true, allDirections(2)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: {} }]);
+
+    const update = mockBatchUpdate.mock.calls[0][1];
+    for (const direction of DIRECTIONS) {
+      expect(update.directions[direction].bank).toBe(2);
+    }
   });
 });
 
@@ -305,11 +368,6 @@ function makeWordDoc(
       ...(directions ? { directions } : {}),
     },
   };
-}
-
-/** A stored direction record, as Firestore holds it. */
-function storedDirection(bank: number, date: Date) {
-  return { bank, dueDate: { toDate: () => date } };
 }
 
 // ─── getUserWords ─────────────────────────────────────────────────────────────

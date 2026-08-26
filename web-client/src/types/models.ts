@@ -63,9 +63,24 @@ export interface User {
   username: string;
 }
 
-export interface TestScore {
+/**
+ * The outcome of one direction in one session.
+ *
+ * A direction fails only when the learner selects "I don't know", or when the
+ * handwriting reveal runs. A wrong answer gives "Try again" and unlimited
+ * retries, so it is not a failure on its own.
+ */
+export type DirectionResult = 'pass' | 'fail';
+
+/**
+ * What one word's session produced, as submitted to finishTest.
+ *
+ * Only the directions the session asked appear. A direction that is absent
+ * keeps the bank and due date it already holds.
+ */
+export interface WordDirectionResults {
   word_id: number;
-  score: number;
+  directions: Partial<Record<Direction, DirectionResult>>;
 }
 
 export interface WordScore {

@@ -345,9 +345,9 @@ describe('word action thunks', () => {
   });
 
   describe('finishTest', () => {
-    const scores = [
-      { word_id: 1, score: 4 },
-      { word_id: 2, score: 2 },
+    const results = [
+      { word_id: 1, directions: { MC: 'pass' as const, CM: 'fail' as const } },
+      { word_id: 2, directions: { MC: 'fail' as const } },
     ];
 
     it('calls wordService.finishTest, re-fetches words, and records streak', async () => {
@@ -357,9 +357,9 @@ describe('word action thunks', () => {
       mockedStreakService.recordTestCompletion.mockResolvedValue(undefined);
       const store = createTestStore(authenticatedState());
 
-      await store.dispatch(wordActions.finishTest(scores) as any);
+      await store.dispatch(wordActions.finishTest(results) as any);
 
-      expect(mockedWordService.finishTest).toHaveBeenCalledWith('test-user-123', scores);
+      expect(mockedWordService.finishTest).toHaveBeenCalledWith('test-user-123', results);
       expect(mockedWordService.getUserWords).toHaveBeenCalledWith('test-user-123', 'default');
       // Verify the store was updated with refreshed words
       expect(store.getState().addWords.words).toEqual(updatedWords);
@@ -374,7 +374,7 @@ describe('word action thunks', () => {
       const store = createTestStore(authenticatedState());
 
       // Should not throw
-      await store.dispatch(wordActions.finishTest(scores) as any);
+      await store.dispatch(wordActions.finishTest(results) as any);
 
       expect(mockedWordService.finishTest).toHaveBeenCalled();
       expect(mockedStreakService.recordTestCompletion).toHaveBeenCalled();
@@ -388,7 +388,7 @@ describe('word action thunks', () => {
       mockedStreakService.recordTestCompletion.mockResolvedValue(undefined);
       const store = createTestStore(authenticatedState());
 
-      await store.dispatch(wordActions.finishTest(scores) as any);
+      await store.dispatch(wordActions.finishTest(results) as any);
 
       expect(mockedWordService.finishTest).toHaveBeenCalled();
       expect(mockedWordService.getUserWords).toHaveBeenCalled();
@@ -418,7 +418,7 @@ describe('word action thunks', () => {
         settings: { speechAvailable: false, synthAvailable: false },
       });
 
-      await store.dispatch(wordActions.finishTest(scores) as any);
+      await store.dispatch(wordActions.finishTest(results) as any);
 
       expect(mockedWordService.finishTest).not.toHaveBeenCalled();
     });
