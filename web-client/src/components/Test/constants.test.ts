@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createInitialState } from './constants';
 import { Props } from './types';
-import { Word } from '../../types/models';
+import { DIRECTIONS, Word } from '../../types/models';
 
 const mockWords: Word[] = [
   { id: 1, simp: '你好', trad: '你好', pinyin: 'nǐ hǎo', meaning: 'hello' },
@@ -78,12 +78,13 @@ describe('createInitialState', () => {
     expect(state.onlyPriority).toBe(false);
   });
 
-  it('populates scoreList with random scores when devTestFinished is true', () => {
+  it('populates scoreList with one row per direction when devTestFinished is true', () => {
     const state = createInitialState(makeProps({ devTestFinished: true }));
 
-    expect(state.scoreList).toHaveLength(mockWords.length);
+    expect(state.scoreList).toHaveLength(mockWords.length * DIRECTIONS.length);
     state.scoreList.forEach((score) => {
-      expect(['Very Strong', 'Strong', 'Average', 'Weak', 'Very Weak']).toContain(score.score);
+      expect(DIRECTIONS).toContain(score.direction);
+      expect(['pass', 'fail']).toContain(score.result);
     });
     expect(state.testFinished).toBe(true);
   });
@@ -91,8 +92,10 @@ describe('createInitialState', () => {
   it('uses trad characters by default for devTestFinished scoreList', () => {
     const state = createInitialState(makeProps({ devTestFinished: true }));
 
+    // Each word contributes one row per direction, so the second word's rows
+    // start after the first word's five.
     expect(state.scoreList[0].char).toBe('你好');
-    expect(state.scoreList[1].char).toBe('謝謝');
+    expect(state.scoreList[DIRECTIONS.length].char).toBe('謝謝');
   });
 
   it('uses simp characters when charSet is simp for devTestFinished scoreList', () => {
@@ -101,7 +104,7 @@ describe('createInitialState', () => {
     const state = createInitialState(makeProps({ devTestFinished: true }));
 
     expect(state.scoreList[0].char).toBe('你好');
-    expect(state.scoreList[1].char).toBe('谢谢');
+    expect(state.scoreList[DIRECTIONS.length].char).toBe('谢谢');
   });
 
   it('initializes all UI state fields to their defaults', () => {

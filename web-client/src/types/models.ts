@@ -83,9 +83,25 @@ export interface WordDirectionResults {
   directions: Partial<Record<Direction, DirectionResult>>;
 }
 
+/**
+ * One row of the session summary: how one direction of one word went.
+ * A word the session asked in five directions produces five of these.
+ */
 export interface WordScore {
   char: string;
-  score: 'Very Strong' | 'Strong' | 'Average' | 'Weak' | 'Very Weak';
+  direction: Direction;
+  result: DirectionResult;
+}
+
+/**
+ * A direction the learner did not know, recorded as the session runs.
+ *
+ * The word is held by id rather than by character, because two words in one
+ * session can share a character form and the results must not be merged.
+ */
+export interface DirectionFailure {
+  wordId: number;
+  direction: Direction;
 }
 
 export type QuestionCategory = 'C' | 'P' | 'M';

@@ -3,7 +3,7 @@ import { Howl } from 'howler';
 import successSound from '../../assets/sounds/success1.wav';
 import failSound from '../../assets/sounds/failure1.wav';
 
-import { WordScore } from '../../types/models';
+import { DIRECTIONS, DirectionResult, WordScore } from '../../types/models';
 import { Props, TestState } from './types';
 
 export const beep = new Howl({
@@ -34,13 +34,15 @@ export const createInitialState = (props: Props): TestState => {
   const priority = props.isDemo ? 'none' : localStorage.getItem('priority') || 'none';
   const onlyPriority = props.isDemo ? false : localStorage.getItem('onlyPriority') === 'true';
 
+  // The dev summary stage shows one row per direction, as a real session does.
   const devScoreList: WordScore[] = props.devTestFinished
-    ? props.words.map((word) => ({
-        char: word[charSet],
-        score: ['Very Strong', 'Strong', 'Average', 'Weak', 'Very Weak'][
-          Math.floor(Math.random() * 5)
-        ] as WordScore['score'],
-      }))
+    ? props.words.flatMap((word) =>
+        DIRECTIONS.map((direction) => ({
+          char: word[charSet],
+          direction,
+          result: (Math.random() < 0.75 ? 'pass' : 'fail') as DirectionResult,
+        })),
+      )
     : [];
 
   return {

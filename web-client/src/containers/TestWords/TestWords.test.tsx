@@ -519,7 +519,7 @@ describe('TestWords — stage transitions', () => {
       capturedTestProps.onVocabComplete as (
         scores: import('../../types/models').WordScore[],
       ) => void
-    )([{ char: '你好', score: 'Strong' }]);
+    )([{ char: '你好', direction: 'MC', result: 'pass' }]);
 
     await waitFor(() => {
       expect(screen.getByTestId('mock-test-summary')).toBeInTheDocument();

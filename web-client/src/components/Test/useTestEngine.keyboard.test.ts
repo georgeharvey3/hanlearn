@@ -85,7 +85,7 @@ vi.mock('pinyin-pro', () => ({
 
 import { renderHook, act } from '@testing-library/react';
 import { useTestEngine } from './useTestEngine';
-import { Word } from '../../types/models';
+import { DIRECTIONS, Direction, Word } from '../../types/models';
 import { Props } from './types';
 import * as ttsService from '../../services/ttsService';
 import { checkSentenceAvailability } from '../../services/sentenceService';
@@ -216,8 +216,34 @@ describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
       fireKeyUp('i', { ctrlKey: true });
     });
 
-    expect(result.current.state.idkList).toContain('你好');
+    // The perm asks meaning from pinyin, so the failure lands on MP, once.
+    expect(result.current.state.idkList).toEqual([{ wordId: 1, direction: 'MP' }]);
     expect(result.current.state.idkDisabled).toBe(true);
+  });
+
+  it('records the direction once, not twice, for a single Ctrl+i', () => {
+    // Regression: Ctrl+i used to match both the ctrl branch and the plain "i"
+    // branch of the key handler, so one keypress ran onIDontKnow twice.
+    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const result = renderEngineWithState({
+      answerCategory: 'meaning',
+      answer: ['hello'],
+      chosenCharacter: '你好',
+      perm,
+      testSet: [makeWord()],
+      permList: [perm],
+      charSet: 'simp',
+      idkList: [],
+      idkDisabled: false,
+      useHandwriting: false,
+      writer: null,
+    });
+
+    act(() => {
+      fireKeyUp('i', { ctrlKey: true });
+    });
+
+    expect(result.current.state.idkList).toHaveLength(1);
   });
 
   it('does NOT fire IDK when Ctrl+i is pressed but idkDisabled=true', () => {
@@ -267,7 +293,8 @@ describe('useTestEngine — keyboard "i" key triggers onIDontKnow from non-input
       fireKeyUp('i');
     });
 
-    expect(result.current.state.idkList).toContain('你好');
+    // The perm asks meaning from pinyin, so the failure lands on MP, once.
+    expect(result.current.state.idkList).toEqual([{ wordId: 1, direction: 'MP' }]);
   });
 });
 
@@ -424,7 +451,8 @@ describe('useTestEngine — keyboard ArrowDown marks IDK in flashcard mode', () 
     });
 
     expect(result.current.state.noClicked).toBe(true);
-    expect(result.current.state.idkList).toContain('你好');
+    // The perm asks meaning from pinyin, so the failure lands on MP, once.
+    expect(result.current.state.idkList).toEqual([{ wordId: 1, direction: 'MP' }]);
   });
 });
 
@@ -816,7 +844,12 @@ describe('useTestEngine — the finishTest payload', () => {
     vi.useRealTimers();
   });
 
-  function finishSessionWithIdkList(idkList: string[], onFinishTest: Props['onFinishTest']) {
+  /**
+   * Run a session of one word to its last question and return the payload.
+   * The session asks all five directions; `failed` names the ones the learner
+   * did not know.
+   */
+  function finishSessionFailing(failed: Direction[], onFinishTest: Props['onFinishTest']) {
     const word = makeWord({ id: 1, simp: '你好', level: 3 });
     const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
@@ -830,9 +863,8 @@ describe('useTestEngine — the finishTest payload', () => {
         testSet: [word],
         permList: [perm],
         charSet: 'simp',
-        idkList,
-        // The session asked these four; handwriting was switched off.
-        askedDirections: ['MC', 'MP', 'PM', 'PC'],
+        idkList: failed.map((direction) => ({ wordId: word.id, direction })),
+        askedDirections: DIRECTIONS,
         useAutoRecord: false,
         recognition: null,
       },
@@ -845,34 +877,167 @@ describe('useTestEngine — the finishTest payload', () => {
     act(() => {
       vi.advanceTimersByTime(1100);
     });
+
+    return result;
   }
 
-  it('marks every asked direction as a pass when the word had no failure', () => {
+  // This is the case in issue #328.
+  it('fails only the handwriting direction and passes the other four', () => {
     const onFinishTest = vi.fn();
 
-    finishSessionWithIdkList([], onFinishTest);
+    finishSessionFailing(['CM'], onFinishTest);
 
     expect(onFinishTest).toHaveBeenCalledWith([
-      { word_id: 1, directions: { MC: 'pass', MP: 'pass', PM: 'pass', PC: 'pass' } },
+      {
+        word_id: 1,
+        directions: { MC: 'pass', MP: 'pass', PM: 'pass', PC: 'pass', CM: 'fail' },
+      },
     ]);
   });
 
-  it('marks every asked direction as a failure when the word was not known', () => {
+  it('marks every direction as a pass when nothing was failed', () => {
     const onFinishTest = vi.fn();
 
-    finishSessionWithIdkList(['你好'], onFinishTest);
+    finishSessionFailing([], onFinishTest);
 
-    expect(onFinishTest).toHaveBeenCalledWith([
-      { word_id: 1, directions: { MC: 'fail', MP: 'fail', PM: 'fail', PC: 'fail' } },
-    ]);
+    const [payload] = onFinishTest.mock.calls[0];
+    for (const direction of DIRECTIONS) {
+      expect(payload[0].directions[direction]).toBe('pass');
+    }
+  });
+
+  it('marks several failed directions independently', () => {
+    const onFinishTest = vi.fn();
+
+    finishSessionFailing(['CM', 'PC'], onFinishTest);
+
+    const [payload] = onFinishTest.mock.calls[0];
+    expect(payload[0].directions.CM).toBe('fail');
+    expect(payload[0].directions.PC).toBe('fail');
+    expect(payload[0].directions.MC).toBe('pass');
   });
 
   it('leaves a direction the session did not ask out of the payload', () => {
     const onFinishTest = vi.fn();
+    const word = makeWord({ id: 1, simp: '你好', level: 3 });
+    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
-    finishSessionWithIdkList([], onFinishTest);
+    const result = renderEngineWithState(
+      {
+        answerCategory: 'meaning',
+        answer: ['hello'],
+        answerInput: 'hello',
+        chosenCharacter: '你好',
+        perm,
+        testSet: [word],
+        permList: [perm],
+        charSet: 'simp',
+        idkList: [],
+        // Handwriting switched off.
+        askedDirections: ['MC', 'MP', 'PM', 'PC'],
+        useAutoRecord: false,
+        recognition: null,
+      },
+      { words: [word], isDemo: false, practiceMode: false, onFinishTest },
+    );
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
 
-    const payload = onFinishTest.mock.calls[0][0];
-    expect(payload[0].directions).not.toHaveProperty('CM');
+    expect(onFinishTest.mock.calls[0][0][0].directions).not.toHaveProperty('CM');
+  });
+
+  it('does not merge the results of two words that share a character form', () => {
+    const onFinishTest = vi.fn();
+    const first = makeWord({ id: 1, simp: '干', level: 3 });
+    const second = makeWord({ id: 2, simp: '干', level: 3 });
+    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+
+    const result = renderEngineWithState(
+      {
+        answerCategory: 'meaning',
+        answer: ['hello'],
+        answerInput: 'hello',
+        chosenCharacter: '干',
+        perm,
+        testSet: [first, second],
+        permList: [perm],
+        charSet: 'simp',
+        idkList: [{ wordId: 2, direction: 'CM' as Direction }],
+        askedDirections: DIRECTIONS,
+        useAutoRecord: false,
+        recognition: null,
+      },
+      { words: [first, second], isDemo: false, practiceMode: false, onFinishTest },
+    );
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
+
+    const [payload] = onFinishTest.mock.calls[0];
+    expect(payload[0].directions.CM).toBe('pass');
+    expect(payload[1].directions.CM).toBe('fail');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A direction recorded twice is still one failure
+// ---------------------------------------------------------------------------
+describe('useTestEngine — a repeated failure of one direction', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('counts a direction recorded twice as a single failure', () => {
+    const onFinishTest = vi.fn();
+    const word = makeWord({ id: 1, simp: '你好', level: 3 });
+    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+
+    const result = renderEngineWithState(
+      {
+        answerCategory: 'meaning',
+        answer: ['hello'],
+        answerInput: 'hello',
+        chosenCharacter: '你好',
+        perm,
+        testSet: [word],
+        permList: [perm],
+        charSet: 'simp',
+        // Nothing produces this shape now that Ctrl+i fires once, but the
+        // payload must not care how many times a direction was recorded.
+        idkList: [
+          { wordId: 1, direction: 'CM' as Direction },
+          { wordId: 1, direction: 'CM' as Direction },
+        ],
+        askedDirections: DIRECTIONS,
+        useAutoRecord: false,
+        recognition: null,
+      },
+      { words: [word], isDemo: false, practiceMode: false, onFinishTest },
+    );
+
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
+
+    expect(onFinishTest).toHaveBeenCalledWith([
+      {
+        word_id: 1,
+        directions: { MC: 'pass', MP: 'pass', PM: 'pass', PC: 'pass', CM: 'fail' },
+      },
+    ]);
   });
 });

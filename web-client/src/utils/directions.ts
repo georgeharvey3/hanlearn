@@ -59,3 +59,15 @@ export function isNewWord(word: Pick<Word, 'level' | 'directions'>): boolean {
   if (!directions) return word.level === 1;
   return DIRECTIONS.every((direction) => directions[direction].level === 1);
 }
+
+/**
+ * How each direction reads to a learner, as question → answer.
+ * The direction itself is written answer-first, so these are reversed.
+ */
+export const DIRECTION_LABELS: Record<Direction, string> = {
+  MC: 'Character → Meaning',
+  MP: 'Pinyin → Meaning',
+  PM: 'Meaning → Pinyin',
+  PC: 'Character → Pinyin',
+  CM: 'Meaning → Character',
+};
