@@ -8,12 +8,28 @@ import { Props, TestState, TestStateUpdate } from './types';
 import { WordScore } from '../../types/models';
 import { checkSentenceAvailability, getHintSentence } from '../../services/sentenceService';
 import * as ttsService from '../../services/ttsService';
+import { reportError } from '../../services/errorReporting';
 
 // Quiz type governing the current answer; character answers are always handwriting
 const answerQuizType = (state: TestState): QuizType | null => {
   if (state.answerCategory === 'pinyin') return state.pinyinQuizType;
   if (state.answerCategory === 'meaning') return state.meaningQuizType;
   return null;
+};
+
+/**
+ * Clear the HanziWriter mount point.
+ *
+ * The three call sites used to swallow the error here, which hid a broken
+ * HanziWriter mount. The DOM work is cheap, so the report is a warning.
+ */
+const clearCharacterTarget = (): void => {
+  try {
+    const el = document.getElementById('character-target-div');
+    if (el) el.innerHTML = '';
+  } catch (error) {
+    reportError(error, { feature: 'hanzi-writer', level: 'warning' });
+  }
 };
 
 export const useTestEngine = (props: Props) => {
@@ -232,7 +248,13 @@ export const useTestEngine = (props: Props) => {
         sentenceWords.map((w) =>
           checkSentenceAvailability(w.simp, current.charSet)
             .then((available) => (available ? w : null))
-            .catch(() => null),
+            .catch((error) => {
+              reportError(error, {
+                feature: 'sentence-availability',
+                context: { simp: w.simp },
+              });
+              return null;
+            }),
         ),
       ).then((results) => {
         const available = results.filter((w): w is import('../../types/models').Word => w !== null);
@@ -275,6 +297,8 @@ export const useTestEngine = (props: Props) => {
         result: resultString,
         idkDisabled: true,
         submitDisabled: true,
+        // Flashcard grading: mark the button pressed however it was triggered.
+        yesClicked: current.showAnswer,
       });
       if (current.useSoundEffects) {
         beep.play();
@@ -448,12 +472,7 @@ export const useTestEngine = (props: Props) => {
               drawnCharacters: prevState.drawnCharacters.concat(char),
             }));
             setTimeout(() => {
-              try {
-                const el = document.getElementById('character-target-div');
-                if (el) el.innerHTML = '';
-              } catch (e) {
-                // ignore
-              }
+              clearCharacterTarget();
               onCorrectAnswer();
             }, 1000);
           }
@@ -482,12 +501,7 @@ export const useTestEngine = (props: Props) => {
         numBeforeHint = 1;
       }
 
-      try {
-        const el = document.getElementById('character-target-div');
-        if (el) el.innerHTML = '';
-      } catch (e) {
-        // ignore
-      }
+      clearCharacterTarget();
 
       const writer = window.HanziWriter.create('character-target-div', char[index], {
         width: 150,
@@ -523,12 +537,7 @@ export const useTestEngine = (props: Props) => {
         if (index < char.length) {
           updateHanziWriterAnimate(writer, char, index);
         } else {
-          try {
-            const el = document.getElementById('character-target-div');
-            if (el) el.innerHTML = '';
-          } catch (e) {
-            // ignore
-          }
+          clearCharacterTarget();
           setStateMerged((prevState) => {
             const idkChar = prevState.perm
               ? prevState.testSet[parseInt(prevState.perm.index)][prevState.charSet]
@@ -600,11 +609,16 @@ export const useTestEngine = (props: Props) => {
       const idkChar = prevState.perm
         ? prevState.testSet[parseInt(prevState.perm.index)][prevState.charSet]
         : '';
+      // In flashcard mode the answer is already on screen, so the feedback line
+      // reports the grade instead of repeating the reveal text unchanged.
       return {
         idkList: prevState.idkList.concat(idkChar),
         idkDisabled: true,
         submitDisabled: true,
-        result: `Answer was: '${displayAnswer}'`,
+        result: prevState.showAnswer
+          ? `Not known — answer was: '${displayAnswer}'`
+          : `Answer was: '${displayAnswer}'`,
+        noClicked: prevState.showAnswer,
       };
     });
 
@@ -629,6 +643,7 @@ export const useTestEngine = (props: Props) => {
         qNum: prevState.qNum + 1,
         submitDisabled: false,
         showHint: false,
+        hintLoading: false,
         showAnswer: false,
       }));
     }, 2000);
@@ -657,6 +672,12 @@ export const useTestEngine = (props: Props) => {
       getHintSentence(word)
         .then((sentence) => {
           const current = getState();
+          // The question can move on while the sentence loads. Drop a late
+          // answer so a hint never lands on the wrong word.
+          if (current.chosenCharacter !== word) {
+            setStateMerged({ hintLoading: false });
+            return;
+          }
           if (!sentence) {
             setStateMerged({ result: 'No example sentence found', hintLoading: false });
             return;
@@ -674,6 +695,10 @@ export const useTestEngine = (props: Props) => {
           }
         })
         .catch(() => {
+          if (getState().chosenCharacter !== word) {
+            setStateMerged({ hintLoading: false });
+            return;
+          }
           setStateMerged({ result: 'Could not load hint', hintLoading: false });
         });
     },
@@ -682,6 +707,9 @@ export const useTestEngine = (props: Props) => {
 
   const onHint = useCallback((): void => {
     const current = getState();
+    if (current.hintLoading) {
+      return;
+    }
     if (current.showHint) {
       if (current.answerCategory === 'character' && current.writer) {
         current.writer.hideOutline();
@@ -853,7 +881,6 @@ export const useTestEngine = (props: Props) => {
 
       if (event.key === 'ArrowUp') {
         if (current.showAnswer && !current.idkDisabled) {
-          setStateMerged({ yesClicked: true });
           onCorrectAnswer();
         }
       }
@@ -863,7 +890,6 @@ export const useTestEngine = (props: Props) => {
           if (current.useSoundEffects) {
             fail.play();
           }
-          setStateMerged({ noClicked: true });
           onIDontKnow();
         }
       }

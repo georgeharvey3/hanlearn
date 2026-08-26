@@ -5,18 +5,17 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 vi.mock('../../../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
 vi.mock('../../../../services/decompositionService');
-vi.mock('@sentry/react', () => ({
-  captureException: vi.fn(),
+vi.mock('../../../../services/errorReporting', () => ({
+  reportError: vi.fn(),
 }));
 
 import DecompositionTree from './DecompositionTree';
 
-import * as Sentry from '@sentry/react';
-
 import { decomposeCharacter } from '../../../../services/decompositionService';
+import { reportError } from '../../../../services/errorReporting';
 
 const mockedDecompose = vi.mocked(decomposeCharacter);
-const mockedCaptureException = vi.mocked(Sentry.captureException);
+const mockedReportError = vi.mocked(reportError);
 
 describe('DecompositionTree', () => {
   beforeEach(() => {
@@ -45,9 +44,10 @@ describe('DecompositionTree', () => {
       expect(screen.getByText('Decomposition failed')).toBeInTheDocument();
     });
 
-    expect(mockedCaptureException).toHaveBeenCalledWith(error, {
-      tags: { feature: 'decomposition' },
-      extra: { char: '木' },
+    // reportError adds the layer:client tag from sentry.ts and the feature tag.
+    expect(mockedReportError).toHaveBeenCalledWith(error, {
+      feature: 'decomposition',
+      context: { char: '木', depth: 0 },
     });
   });
 
@@ -105,5 +105,81 @@ describe('DecompositionTree', () => {
     await waitFor(() => {
       expect(screen.getByText('No decomposition available')).toBeInTheDocument();
     });
+  });
+});
+
+describe('DecompositionTree empty vs failed (issue #317)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('shows an empty state and no error for a character with no decomposition', async () => {
+    // Since #317 the function returns an empty list only for this case; a real
+    // failure throws functions/internal instead.
+    mockedDecompose.mockResolvedValueOnce([]);
+
+    render(<DecompositionTree char="一" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('No decomposition available')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Decomposition failed')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+  });
+
+  it('offers a retry on a nested component when its decomposition fails', async () => {
+    const user = userEvent.setup();
+
+    mockedDecompose.mockResolvedValueOnce([{ char: '木', meaning: 'tree', pinyin: 'mù' }]);
+
+    render(<DecompositionTree char="林" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('木')).toBeInTheDocument();
+    });
+
+    const internalError = Object.assign(new Error('internal'), {
+      code: 'functions/internal',
+    });
+    mockedDecompose.mockRejectedValueOnce(internalError);
+
+    await user.click(screen.getByRole('button', { name: 'Decompose 木' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Could not load decomposition')).toBeInTheDocument();
+    });
+
+    const retry = screen.getByRole('button', { name: 'Retry decomposition for 木' });
+
+    mockedDecompose.mockResolvedValueOnce([{ char: '十', meaning: 'ten', pinyin: 'shí' }]);
+    await user.click(retry);
+
+    await waitFor(() => {
+      expect(screen.getByText('十')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Could not load decomposition')).not.toBeInTheDocument();
+  });
+
+  it('shows an empty state on a nested component with no further decomposition', async () => {
+    const user = userEvent.setup();
+
+    mockedDecompose.mockResolvedValueOnce([{ char: '木', meaning: 'tree', pinyin: 'mù' }]);
+
+    render(<DecompositionTree char="林" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('木')).toBeInTheDocument();
+    });
+
+    mockedDecompose.mockResolvedValueOnce([]);
+    await user.click(screen.getByRole('button', { name: 'Decompose 木' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('No further decomposition')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Could not load decomposition')).not.toBeInTheDocument();
   });
 });

@@ -357,8 +357,15 @@ export const addCustomWord = async (
     if (charData) {
       if (pinyin && charData.pinyin) pinyin += ' ';
       pinyin += charData.pinyin || '';
-      simp += charSet === 'simp' ? char : charData.simp || char;
-      trad += charSet === 'trad' ? char : charData.trad || char;
+      // Each lookup gives the counterpart of the character set that it reads.
+      const counterpart = 'trad' in charData ? charData.trad : charData.simp;
+      if (charSet === 'simp') {
+        simp += char;
+        trad += counterpart || char;
+      } else {
+        trad += char;
+        simp += counterpart || char;
+      }
     } else {
       simp += char;
       trad += char;

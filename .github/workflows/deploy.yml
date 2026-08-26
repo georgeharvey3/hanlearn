@@ -52,6 +52,16 @@ jobs:
         run: npm run build
         working-directory: functions
 
+      # firebase-functions reads functions/.env at deploy time and sets these
+      # as environment variables on every deployed function.
+      - name: Write functions environment file
+        run: |
+          {
+            echo "SENTRY_DSN=${{ secrets.FUNCTIONS_SENTRY_DSN }}"
+            echo "SENTRY_ENVIRONMENT=production"
+            echo "SENTRY_RELEASE=${{ github.sha }}"
+          } > functions/.env
+
       - uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

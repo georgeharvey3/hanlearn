@@ -1,13 +1,18 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { checkRateLimit, RATE_LIMITS } from './rateLimit';
+import { internalError, withErrorReporting } from './reporting';
 
 /**
  * Cloud Function that proxies Google Cloud Text-to-Speech API requests.
  * Returns high-quality Mandarin audio as base64-encoded MP3.
  */
-export const textToSpeech = functions.https.onCall(
-  async (data: { text: string; speed?: number }, context) => {
+// See functions/src/index.ts for the reasoning behind 256MB, and
+// functions/monitoring/README.md for the alert policy that watches it.
+export const textToSpeech = functions
+  .runWith({ memory: '256MB' })
+  .https.onCall(
+  withErrorReporting('textToSpeech', async (data: { text: string; speed?: number }, context) => {
     // Verify authentication
     if (!context.auth) {
       throw new functions.https.HttpsError(
@@ -82,9 +87,11 @@ export const textToSpeech = functions.https.onCall(
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Google TTS API error:', response.status, errorText);
-        throw new functions.https.HttpsError(
-          'internal',
-          'Text-to-speech synthesis failed'
+        throw internalError(
+          'Text-to-speech synthesis failed',
+          new Error(
+            `Google TTS responded ${response.status}: ${errorText.slice(0, 500)}`
+          )
         );
       }
 
@@ -96,10 +103,7 @@ export const textToSpeech = functions.https.onCall(
         throw error;
       }
       console.error('TTS error:', error);
-      throw new functions.https.HttpsError(
-        'internal',
-        'Text-to-speech synthesis failed'
-      );
+      throw internalError('Text-to-speech synthesis failed', error);
     }
-  }
+  })
 );

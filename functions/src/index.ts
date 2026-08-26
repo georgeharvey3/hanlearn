@@ -1,6 +1,11 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { checkRateLimit, RATE_LIMITS } from './rateLimit';
+import { initSentry, withErrorReporting } from './reporting';
+
+// Start the error reporter before anything else, so that a failure during the
+// rest of the cold start is still reported.
+initSentry();
 
 admin.initializeApp();
 
@@ -23,6 +28,17 @@ export { scoreSimilarity } from './similarity';
 export { decomposeCharacter } from './decompose';
 
 const db = admin.firestore();
+
+/**
+ * Runtime options, so that the memory limit of each function is a decision and
+ * not the 1st gen default. See issue #316 and functions/monitoring/README.md;
+ * the two alert-policy files there group functions by these limits.
+ *
+ * Baseline for any instance is about 105 MB — firebase-functions, the Admin
+ * SDK and Sentry.init. `standardRuntime` covers the handlers that add only
+ * per-request data on top of that.
+ */
+const standardRuntime = functions.runWith({ memory: '256MB' });
 
 /**
  * Verify that the request is from an authenticated user
@@ -76,8 +92,8 @@ function getDaysSinceBase(): number {
  * document so that only the first call of the day reads the full collection.
  * Subsequent calls read a single cached document.
  */
-export const getDailyChengyu = functions.https.onCall(
-  async (data, context) => {
+export const getDailyChengyu = standardRuntime.https.onCall(
+  withErrorReporting('getDailyChengyu', async (data, context) => {
     const uid = verifyAuth(context);
     await checkRateLimit(uid, 'getDailyChengyu', RATE_LIMITS.getDailyChengyu);
 
@@ -107,7 +123,13 @@ export const getDailyChengyu = functions.https.onCall(
     }));
 
     if (chengyus.length === 0) {
-      return { chengyu: null, options: [], correct: '', char_results: [] };
+      // An admin manages this collection, so empty means broken data or broken
+      // rules. The client cannot show null anyway, and an empty result here was
+      // indistinguishable from a failure. See issue #317.
+      throw new functions.https.HttpsError(
+        'internal',
+        'The chengyus collection is empty'
+      );
     }
 
     // Select today's chengyu deterministically
@@ -184,14 +206,14 @@ export const getDailyChengyu = functions.https.onCall(
     await cacheRef.set(result);
 
     return result;
-  }
+  })
 );
 
 /**
  * Look up a single character for the chengyu quiz
  */
-export const lookupChengyuChar = functions.https.onCall(
-  async (data: { char: string }, context) => {
+export const lookupChengyuChar = standardRuntime.https.onCall(
+  withErrorReporting('lookupChengyuChar', async (data: { char: string }, context) => {
     const uid = verifyAuth(context);
     await checkRateLimit(uid, 'lookupChengyuChar', RATE_LIMITS.lookupChengyuChar);
 
@@ -228,6 +250,6 @@ export const lookupChengyuChar = functions.https.onCall(
       pinyins,
       meanings,
     };
-  }
+  })
 );
 

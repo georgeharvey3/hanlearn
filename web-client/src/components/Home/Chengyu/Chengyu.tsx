@@ -13,6 +13,7 @@ import Button from '../../UI/Buttons/Button/Button';
 import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
 import { postWord } from '../../../store/actions/word';
+import { reportError } from '../../../services/errorReporting';
 import {
   getChengyuExampleSentence,
   ChengyuSentence,
@@ -68,7 +69,13 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
       setSentenceLoading(true);
       getChengyuExampleSentence(dailyChengyu.chengyu, charSet)
         .then((sentence) => setExampleSentence(sentence))
-        .catch(() => setExampleSentence(null))
+        .catch((error) => {
+          reportError(error, {
+            feature: 'chengyu-example-sentence',
+            context: { chengyu: dailyChengyu.chengyu },
+          });
+          setExampleSentence(null);
+        })
         .finally(() => setSentenceLoading(false));
     }
   }, [finished, charSet, dailyChengyu.chengyu]);

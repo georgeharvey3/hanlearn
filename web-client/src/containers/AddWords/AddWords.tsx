@@ -27,6 +27,7 @@ import ListSelector from '../../components/UI/ListSelector/ListSelector';
 import { RootState } from '../../types/store';
 import { Word } from '../../types/models';
 import * as wordService from '../../services/wordService';
+import { reportError } from '../../services/errorReporting';
 import {
   searchInputSchema,
   customWordTextSchema,
@@ -299,6 +300,7 @@ const AddWords: React.FC<Props> = ({
         handleSearchResult(words, state.newWord);
       } catch (error) {
         console.error('Failed to search for word:', error);
+        reportError(error, { feature: 'add-words-search' });
         updateState({
           loading: false,
           addError: true,

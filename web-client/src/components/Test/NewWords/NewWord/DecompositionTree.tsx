@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 
-import * as Sentry from '@sentry/react';
-
 import { Box, Button, CircularProgress, Typography } from '@mui/material';
 
 import { decomposeCharacter } from '../../../../services/decompositionService';
+import { reportError } from '../../../../services/errorReporting';
 
 interface DecompositionComponent {
   char: string;
@@ -25,6 +24,28 @@ const ComponentRow: React.FC<ComponentRowProps> = ({ component, depth }) => {
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
 
+  const fetchChildren = useCallback(async () => {
+    setLoading(true);
+    setFetchError(false);
+    try {
+      const result = await decomposeCharacter(component.char);
+      setChildren(result);
+      setExpanded(true);
+    } catch (error) {
+      // Since issue #317 the function throws functions/internal for a real
+      // failure, and returns an empty list only for a character that has no
+      // decomposition. So this branch always means something went wrong.
+      reportError(error, {
+        feature: 'decomposition',
+        context: { char: component.char, depth },
+      });
+      setFetchError(true);
+      setExpanded(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [component.char, depth]);
+
   const handleDecompose = useCallback(async () => {
     if (expanded) {
       setExpanded(false);
@@ -34,23 +55,8 @@ const ComponentRow: React.FC<ComponentRowProps> = ({ component, depth }) => {
       setExpanded(true);
       return;
     }
-    setLoading(true);
-    setFetchError(false);
-    try {
-      const result = await decomposeCharacter(component.char);
-      setChildren(result);
-      setExpanded(true);
-    } catch (error) {
-      Sentry.captureException(error, {
-        tags: { feature: 'decomposition' },
-        extra: { char: component.char },
-      });
-      setFetchError(true);
-      setExpanded(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [expanded, children, component.char]);
+    await fetchChildren();
+  }, [expanded, children, fetchChildren]);
 
   return (
     <>
@@ -190,6 +196,16 @@ const ComponentRow: React.FC<ComponentRowProps> = ({ component, depth }) => {
           <Typography sx={{ fontSize: '0.8em', color: 'error.main', py: 0.5 }}>
             Could not load decomposition
           </Typography>
+          <Button
+            variant="text"
+            size="small"
+            onClick={fetchChildren}
+            disabled={loading}
+            aria-label={`Retry decomposition for ${component.char}`}
+            sx={{ fontSize: '0.75em', color: 'primary.main', px: 0, minWidth: 'auto' }}
+          >
+            Retry
+          </Button>
         </Box>
       )}
     </>
@@ -216,10 +232,7 @@ const DecompositionTree: React.FC<DecompositionTreeProps> = ({ char }) => {
         setLoading(false);
       })
       .catch((error) => {
-        Sentry.captureException(error, {
-          tags: { feature: 'decomposition' },
-          extra: { char },
-        });
+        reportError(error, { feature: 'decomposition', context: { char, depth: 0 } });
         setError('Decomposition failed');
         setLoading(false);
       });

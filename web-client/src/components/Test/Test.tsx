@@ -36,7 +36,11 @@ export const connector = connect(mapStateToProps, mapDispatchToProps);
 export function getResultColor(result: string, showAnswer: boolean): string {
   if (result === 'Correct' || result === 'Finished!') return 'success.main';
   if (result === 'Incorrect tones') return 'warning.main';
-  if ((result.startsWith('Answer was') && !showAnswer) || result.startsWith('Try'))
+  if (
+    (result.startsWith('Answer was') && !showAnswer) ||
+    result.startsWith('Try') ||
+    result.startsWith('Not known')
+  )
     return 'error.main';
   return 'text.primary';
 }

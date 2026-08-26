@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as functions from 'firebase-functions';
+import { withErrorReporting } from './reporting';
 
 interface DictionaryEntry {
   id: number;
@@ -181,21 +182,35 @@ function substringMatchInternal(
 
 // --- Callable Cloud Functions ---
 
-export const dictionarySearchWord = functions.https.onCall(
-  (data: { character: string; charSet: 'simp' | 'trad' }) => {
-    const { character, charSet } = data;
-    if (!character || !charSet) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'character and charSet are required'
-      );
+/**
+ * Runtime options for every `dictionary*` function.
+ *
+ * `loadDictionary()` reads a 15.9 MB JSON file and builds two Map indexes over
+ * all 124k entries, once per instance. Measured peak RSS for that cold start is
+ * about 194 MB (see scripts/measure-dictionary-memory.js and issue #319), so
+ * the 1st gen default of 256 MB leaves only 24% of headroom. 512 MB leaves 62%,
+ * and the larger CPU share that comes with it also shortens the cold start.
+ */
+const dictionaryRuntime = functions.runWith({ memory: '512MB' });
+
+export const dictionarySearchWord = dictionaryRuntime.https.onCall(
+  withErrorReporting(
+    'dictionarySearchWord',
+    (data: { character: string; charSet: 'simp' | 'trad' }) => {
+      const { character, charSet } = data;
+      if (!character || !charSet) {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'character and charSet are required'
+        );
+      }
+      return searchWordInternal(character, charSet);
     }
-    return searchWordInternal(character, charSet);
-  }
+  )
 );
 
-export const dictionaryLookupCharacter = functions.https.onCall(
-  (data: { char: string }) => {
+export const dictionaryLookupCharacter = dictionaryRuntime.https.onCall(
+  withErrorReporting('dictionaryLookupCharacter', (data: { char: string }) => {
     const { char } = data;
     if (!char) {
       throw new functions.https.HttpsError(
@@ -204,44 +219,53 @@ export const dictionaryLookupCharacter = functions.https.onCall(
       );
     }
     return lookupCharacterInternal(char);
-  }
+  })
 );
 
-export const dictionaryLookupCharacterByTrad = functions.https.onCall(
-  (data: { char: string }) => {
-    const { char } = data;
-    if (!char) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'char is required'
-      );
+export const dictionaryLookupCharacterByTrad = dictionaryRuntime.https.onCall(
+  withErrorReporting(
+    'dictionaryLookupCharacterByTrad',
+    (data: { char: string }) => {
+      const { char } = data;
+      if (!char) {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'char is required'
+        );
+      }
+      return lookupCharacterByTradInternal(char);
     }
-    return lookupCharacterByTradInternal(char);
-  }
+  )
 );
 
-export const dictionaryConvertText = functions.https.onCall(
-  (data: { text: string; toCharSet: 'simp' | 'trad' }) => {
-    const { text, toCharSet } = data;
-    if (!text || !toCharSet) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'text and toCharSet are required'
-      );
+export const dictionaryConvertText = dictionaryRuntime.https.onCall(
+  withErrorReporting(
+    'dictionaryConvertText',
+    (data: { text: string; toCharSet: 'simp' | 'trad' }) => {
+      const { text, toCharSet } = data;
+      if (!text || !toCharSet) {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'text and toCharSet are required'
+        );
+      }
+      return convertTextInternal(text, toCharSet);
     }
-    return convertTextInternal(text, toCharSet);
-  }
+  )
 );
 
-export const dictionarySubstringMatch = functions.https.onCall(
-  (data: { text: string; charSet: 'simp' | 'trad' }) => {
-    const { text, charSet } = data;
-    if (!text || !charSet) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'text and charSet are required'
-      );
+export const dictionarySubstringMatch = dictionaryRuntime.https.onCall(
+  withErrorReporting(
+    'dictionarySubstringMatch',
+    (data: { text: string; charSet: 'simp' | 'trad' }) => {
+      const { text, charSet } = data;
+      if (!text || !charSet) {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'text and charSet are required'
+        );
+      }
+      return substringMatchInternal(text, charSet);
     }
-    return substringMatchInternal(text, charSet);
-  }
+  )
 );

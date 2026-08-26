@@ -12,6 +12,7 @@ import DecompositionTree from './DecompositionTree';
 import speakerPic from '../../../../assets/images/speaker.png';
 
 import { searchWord } from '../../../../services/dictionaryService';
+import { reportError } from '../../../../services/errorReporting';
 import * as ttsService from '../../../../services/ttsService';
 
 import { RootState } from '../../../../types/store';
@@ -105,7 +106,9 @@ const NewWord: React.FC<Props> = ({
       }
       charCache.current.set(char, data);
       setCharData(data);
-    } catch {
+    } catch (error) {
+      // The user only sees '(lookup failed)', so the cause has to go somewhere.
+      reportError(error, { feature: 'character-lookup', context: { char } });
       setCharData({ simp: char, pinyins: [], meanings: ['(lookup failed)'] });
     } finally {
       setCharLoading(false);
@@ -175,8 +178,14 @@ const NewWord: React.FC<Props> = ({
             meanings: ['(not found in dictionary)'],
           });
         }
-      } catch {
-        // Pre-fetch failures are non-critical; will fall back to on-click fetch
+      } catch (error) {
+        // Non-critical: the on-click fetch runs again. Report it as a warning
+        // so a broken dictionary lookup still shows up.
+        reportError(error, {
+          feature: 'character-lookup',
+          context: { char, phase: 'prefetch' },
+          level: 'warning',
+        });
       }
     });
   }, [wordId, chars, charSet]);

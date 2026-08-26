@@ -275,3 +275,94 @@ describe('useTestEngine — onHint dismiss hides character outline', () => {
     expect(result.current.state.showHint).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// showSentenceHint — loading state and late answers
+// ---------------------------------------------------------------------------
+describe('useTestEngine — hint loading state', () => {
+  it('sets hintLoading while the sentence loads', async () => {
+    let resolveHint: (value: { chinese: string; english: string } | null) => void = () => {};
+    vi.mocked(getHintSentence).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveHint = resolve;
+        }),
+    );
+
+    const result = renderEngineWithState({
+      answerCategory: 'meaning',
+      answer: ['hello'],
+      chosenCharacter: '你好',
+      showHint: false,
+      useSound: false,
+    });
+
+    act(() => {
+      result.current.onHint();
+    });
+
+    expect(result.current.state.hintLoading).toBe(true);
+
+    await act(async () => {
+      resolveHint({ chinese: '你好吗', english: 'How are you?' });
+    });
+
+    expect(result.current.state.hintLoading).toBe(false);
+  });
+
+  it('ignores a second click while the sentence loads', () => {
+    vi.mocked(getHintSentence).mockClear();
+    vi.mocked(getHintSentence).mockImplementationOnce(() => new Promise(() => {}));
+
+    const result = renderEngineWithState({
+      answerCategory: 'meaning',
+      answer: ['hello'],
+      chosenCharacter: '你好',
+      showHint: false,
+      useSound: false,
+    });
+
+    act(() => {
+      result.current.onHint();
+    });
+    act(() => {
+      result.current.onHint();
+    });
+
+    expect(vi.mocked(getHintSentence)).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops a hint that arrives after the question changed', async () => {
+    let resolveHint: (value: { chinese: string; english: string } | null) => void = () => {};
+    vi.mocked(getHintSentence).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveHint = resolve;
+        }),
+    );
+
+    const result = renderEngineWithState({
+      answerCategory: 'meaning',
+      answer: ['hello'],
+      chosenCharacter: '你好',
+      showHint: false,
+      useSound: false,
+    });
+
+    act(() => {
+      result.current.onHint();
+    });
+
+    act(() => {
+      result.current.setStateMerged({ chosenCharacter: '再见' } as any);
+    });
+
+    await act(async () => {
+      resolveHint({ chinese: '你好吗', english: 'How are you?' });
+    });
+
+    expect(result.current.state.showHint).toBe(false);
+    expect(result.current.state.result).toBe('');
+    expect(result.current.state.hintLoading).toBe(false);
+  });
+});

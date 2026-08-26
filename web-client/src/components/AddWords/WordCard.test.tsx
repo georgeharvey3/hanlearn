@@ -99,7 +99,7 @@ describe('WordCard', () => {
 
     const callbacks = mockedSpeak.mock.calls[0][1]!;
     act(() => {
-      callbacks.onError!();
+      callbacks.onError!('playback failed');
     });
 
     expect(screen.getByRole('button', { name: /play pronunciation/i })).toBeInTheDocument();

@@ -9,6 +9,7 @@ import { RootState } from '../../types/store';
 import { Word } from '../../types/models';
 import { parseMeanings } from '../../utils/meaningUtils';
 import * as ttsService from '../../services/ttsService';
+import { reportError } from '../../services/errorReporting';
 
 interface CharData {
   simp: string;
@@ -82,10 +83,15 @@ const TestChengyusTest: React.FC<Props> = ({
             setState((prev) => ({ ...prev, charData: data }));
           });
         } else {
+          reportError(new Error(`lookup-chengyu-char responded ${response.status}`), {
+            feature: 'chengyu-char-lookup',
+            context: { char, status: response.status },
+          });
           setState((prev) => ({ ...prev, errorMessage: 'Error looking up character' }));
         }
       })
-      .catch(() => {
+      .catch((error) => {
+        reportError(error, { feature: 'chengyu-char-lookup', context: { char } });
         setState((prev) => ({ ...prev, errorMessage: 'Error looking up character' }));
       });
   };

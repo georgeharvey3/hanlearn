@@ -3,15 +3,12 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
-import { createStore, applyMiddleware, compose, combineReducers, Store } from 'redux';
+import { createStore, applyMiddleware, compose, Store, StoreEnhancer } from 'redux';
 import { thunk } from 'redux-thunk';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 
-import wordsReducer from './store/reducers/addWords';
-import authReducer from './store/reducers/auth';
-import settingsReducer from './store/reducers/settings';
-import notificationsReducer from './store/reducers/notifications';
+import rootReducer from './store/rootReducer';
 import theme from './theme';
 
 import './index.css';
@@ -19,6 +16,7 @@ import App from './App';
 import * as serviceWorker from './serviceWorker';
 import { initPerformanceMonitoring } from './services/performanceService';
 import { RootState } from './types/store';
+import { AppAction } from './types/actions';
 
 declare global {
   interface Window {
@@ -28,14 +26,10 @@ declare global {
 
 const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
 
-const rootReducer = combineReducers({
-  addWords: wordsReducer,
-  auth: authReducer,
-  settings: settingsReducer,
-  notifications: notificationsReducer,
-});
-
-const store: Store<RootState> = createStore(rootReducer, composeEnhancers(applyMiddleware(thunk)));
+const store: Store<RootState, AppAction> = createStore<RootState, AppAction>(
+  rootReducer,
+  composeEnhancers(applyMiddleware(thunk)) as StoreEnhancer,
+);
 
 const root = createRoot(document.getElementById('root')!);
 root.render(

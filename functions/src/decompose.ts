@@ -3,6 +3,11 @@ import * as path from 'path';
 import * as functions from 'firebase-functions';
 import * as hanziDecomposer from 'hanzi/lib/hanzidecomposer.js';
 import { checkRateLimit, RATE_LIMITS } from './rateLimit';
+import {
+  internalError,
+  reportHandledError,
+  withErrorReporting,
+} from './reporting';
 
 /**
  * Verify that the request is from an authenticated user
@@ -64,8 +69,14 @@ function ensureCharDefinitions(): void {
   } catch (err) {
     // The function still returns components without meanings if the file
     // is absent, for example in a local emulator that did not run the
-    // dictionary build.
-    console.error('char-definitions.json could not be loaded:', err);
+    // dictionary build. In production the file is absent only when the
+    // build is broken, so the fallback stays but the failure raises an
+    // event.
+    reportHandledError(
+      'decomposeCharacter',
+      err,
+      'char-definitions.json could not be loaded; components will have no meanings'
+    );
     charDefinitions = {};
   }
 }
@@ -100,69 +111,76 @@ function describeComponent(component: string): DecompositionComponent {
  * Decompose a Chinese character into its radical/structural components.
  * Uses HanziJS for radical-level decomposition with meanings.
  *
- * The memory limit is 512 MB because the decomposition database needs
- * more than the default 256 MB. On Cloud Functions the CPU share also
- * scales with the memory limit, so this makes the first call faster.
+ * The memory limit is 512 MB. Measured peak RSS for the cold path on
+ * Node 20 is about 157 MB: 101 MB of instance baseline, 52 MB for the
+ * decomposer, and 4 MB for the definitions. That would fit in 256 MB,
+ * but on Cloud Functions the CPU share scales with the memory limit, so
+ * 512 MB is what keeps the first call fast. functions/monitoring/ has
+ * the alert policy that watches this limit.
  */
 export const decomposeCharacter = functions
   .runWith({ memory: '512MB', timeoutSeconds: 30 })
-  .https.onCall(async (data: { char: string }, context) => {
-    try {
-      const uid = verifyAuth(context);
-
-      const { char } = data;
-
-      if (!char || [...char].length !== 1) {
-        throw new functions.https.HttpsError(
-          'invalid-argument',
-          'A single Chinese character is required'
-        );
-      }
-
-      await checkRateLimit(uid, 'decomposeCharacter', RATE_LIMITS.decomposeCharacter);
-
-      ensureDecomposer();
-      ensureCharDefinitions();
-
-      let components: DecompositionComponent[];
-
+  .https.onCall(
+    withErrorReporting('decomposeCharacter', async (data: { char: string }, context) => {
       try {
-        const result = hanziDecomposer.decompose(char, 1);
+        const uid = verifyAuth(context);
 
-        // decompose can return the string 'Invalid Input' for unknown chars
-        if (!result || typeof result === 'string') {
-          return { components: [] };
+        const { char } = data;
+
+        if (!char || [...char].length !== 1) {
+          throw new functions.https.HttpsError(
+            'invalid-argument',
+            'A single Chinese character is required'
+          );
         }
 
-        const rawComponents: string[] = Array.isArray(result.components)
-          ? result.components
-          : [];
+        await checkRateLimit(uid, 'decomposeCharacter', RATE_LIMITS.decomposeCharacter);
 
-        // Filter out the character itself, placeholder values, empty strings,
-        // and raw Unicode code-point references (e.g. "37045") that appear in
-        // CJK decomposition data for obscure stroke components.
-        const filtered = rawComponents.filter(
-          (c: string) =>
-            c &&
-            c !== char &&
-            c !== 'No glyph available' &&
-            c.trim() !== '' &&
-            !/^\d+$/.test(c)
-        );
+        ensureDecomposer();
+        ensureCharDefinitions();
 
-        components = filtered.map(describeComponent);
+        let components: DecompositionComponent[];
+
+        try {
+          const result = hanziDecomposer.decompose(char, 1);
+
+          // decompose can return the string 'Invalid Input' for unknown
+          // chars. This is the one true empty result: the character has no
+          // decomposition, and the client shows an empty state with no error.
+          if (!result || typeof result === 'string') {
+            return { components: [] };
+          }
+
+          const rawComponents: string[] = Array.isArray(result.components)
+            ? result.components
+            : [];
+
+          // Filter out the character itself, placeholder values, empty strings,
+          // and raw Unicode code-point references (e.g. "37045") that appear in
+          // CJK decomposition data for obscure stroke components.
+          const filtered = rawComponents.filter(
+            (c: string) =>
+              c &&
+              c !== char &&
+              c !== 'No glyph available' &&
+              c.trim() !== '' &&
+              !/^\d+$/.test(c)
+          );
+
+          components = filtered.map(describeComponent);
+        } catch (err) {
+          // A failure of HanziJS is not an answer. Throwing lets the client tell
+          // it apart from a character with no decomposition and offer a retry.
+          throw internalError(`hanzi decomposition failed for "${char}"`, err);
+        }
+
+        return { components };
       } catch (err) {
-        console.error(`hanzi decomposition failed for "${char}":`, err);
-        components = [];
+        // Re-throw HttpsErrors as-is so clients get proper error codes
+        if (err instanceof functions.https.HttpsError) {
+          throw err;
+        }
+        throw internalError('decomposeCharacter failed', err);
       }
-
-      return { components };
-    } catch (err) {
-      // Re-throw HttpsErrors as-is so clients get proper error codes
-      if (err instanceof functions.https.HttpsError) {
-        throw err;
-      }
-      console.error('decomposeCharacter unhandled error:', err);
-      return { components: [] };
-    }
-  });
+    })
+  );
