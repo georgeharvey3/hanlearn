@@ -946,7 +946,9 @@ export const useTestEngine = (props: Props) => {
         }
       }
 
-      if (event.key === 'i') {
+      // Ctrl+i has its own branch above, so it must not fall through to this
+      // one as well: it did, and one keypress then ran onIDontKnow twice.
+      if (event.key === 'i' && !event.ctrlKey) {
         if (sourceElement !== 'input') {
           if (!current.idkDisabled) {
             onIDontKnow();

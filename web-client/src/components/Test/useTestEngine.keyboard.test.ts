@@ -216,11 +216,34 @@ describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
       fireKeyUp('i', { ctrlKey: true });
     });
 
-    // The perm asks meaning from pinyin, so the failure lands on MP.
-    // Ctrl+i matches both the ctrl branch and the plain "i" branch of the key
-    // handler, so it records the direction twice; the payload de-duplicates.
-    expect(result.current.state.idkList).toContainEqual({ wordId: 1, direction: 'MP' });
+    // The perm asks meaning from pinyin, so the failure lands on MP, once.
+    expect(result.current.state.idkList).toEqual([{ wordId: 1, direction: 'MP' }]);
     expect(result.current.state.idkDisabled).toBe(true);
+  });
+
+  it('records the direction once, not twice, for a single Ctrl+i', () => {
+    // Regression: Ctrl+i used to match both the ctrl branch and the plain "i"
+    // branch of the key handler, so one keypress ran onIDontKnow twice.
+    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const result = renderEngineWithState({
+      answerCategory: 'meaning',
+      answer: ['hello'],
+      chosenCharacter: '你好',
+      perm,
+      testSet: [makeWord()],
+      permList: [perm],
+      charSet: 'simp',
+      idkList: [],
+      idkDisabled: false,
+      useHandwriting: false,
+      writer: null,
+    });
+
+    act(() => {
+      fireKeyUp('i', { ctrlKey: true });
+    });
+
+    expect(result.current.state.idkList).toHaveLength(1);
   });
 
   it('does NOT fire IDK when Ctrl+i is pressed but idkDisabled=true', () => {
@@ -270,10 +293,8 @@ describe('useTestEngine — keyboard "i" key triggers onIDontKnow from non-input
       fireKeyUp('i');
     });
 
-    // The perm asks meaning from pinyin, so the failure lands on MP.
-    // Ctrl+i matches both the ctrl branch and the plain "i" branch of the key
-    // handler, so it records the direction twice; the payload de-duplicates.
-    expect(result.current.state.idkList).toContainEqual({ wordId: 1, direction: 'MP' });
+    // The perm asks meaning from pinyin, so the failure lands on MP, once.
+    expect(result.current.state.idkList).toEqual([{ wordId: 1, direction: 'MP' }]);
   });
 });
 
@@ -430,10 +451,8 @@ describe('useTestEngine — keyboard ArrowDown marks IDK in flashcard mode', () 
     });
 
     expect(result.current.state.noClicked).toBe(true);
-    // The perm asks meaning from pinyin, so the failure lands on MP.
-    // Ctrl+i matches both the ctrl branch and the plain "i" branch of the key
-    // handler, so it records the direction twice; the payload de-duplicates.
-    expect(result.current.state.idkList).toContainEqual({ wordId: 1, direction: 'MP' });
+    // The perm asks meaning from pinyin, so the failure lands on MP, once.
+    expect(result.current.state.idkList).toEqual([{ wordId: 1, direction: 'MP' }]);
   });
 });
 
@@ -994,7 +1013,8 @@ describe('useTestEngine — a repeated failure of one direction', () => {
         testSet: [word],
         permList: [perm],
         charSet: 'simp',
-        // Ctrl+i records the same direction twice, so this shape is reachable.
+        // Nothing produces this shape now that Ctrl+i fires once, but the
+        // payload must not care how many times a direction was recorded.
         idkList: [
           { wordId: 1, direction: 'CM' as Direction },
           { wordId: 1, direction: 'CM' as Direction },
