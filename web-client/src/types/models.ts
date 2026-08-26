@@ -1,5 +1,37 @@
 // Domain models for HanLearn
 
+/**
+ * The five directions a word can be tested in.
+ *
+ * A direction is a pair of an answer category and a question category, written
+ * answer-first: 'MC' asks the character and takes the meaning as the answer.
+ * 'CM' is the handwriting direction, because the answer is the character.
+ *
+ * Receptive recognition ('MC', 'MP'), productive recall ('PC', 'PM') and
+ * handwriting production ('CM') are separate skills, so each one carries its
+ * own level and due date. See docs/adr/0002-direction-level-scheduling.md.
+ *
+ * The order of this list is also the rotation order the session queue uses when
+ * more than one direction of a word is due.
+ */
+export const DIRECTIONS = ['MC', 'MP', 'PM', 'PC', 'CM'] as const;
+
+export type Direction = (typeof DIRECTIONS)[number];
+
+/**
+ * The scheduling state of one direction of one word.
+ *
+ * `level` is the spaced repetition level, 1 to 5. Firestore stores it as `bank`,
+ * the same duplicate name the top-level field carries.
+ * `dueDate` is a YYYY/MM/DD string, the format `Word.due_date` uses.
+ */
+export interface DirectionState {
+  level: number;
+  dueDate: string;
+}
+
+export type DirectionStates = Record<Direction, DirectionState>;
+
 export interface Word {
   id: number;
   simp: string;
@@ -10,6 +42,12 @@ export interface Word {
   level?: number;
   ammended_meaning?: string;
   listId?: string;
+  /**
+   * Per-direction scheduling state. Optional on the type because a Word can be
+   * built from a dictionary result that has no scheduling state at all, but
+   * every word that comes out of the service layer carries all five directions.
+   */
+  directions?: DirectionStates;
 }
 
 export interface WordList {

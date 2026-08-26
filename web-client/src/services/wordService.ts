@@ -12,9 +12,18 @@ import {
   orderBy,
   Timestamp,
   writeBatch,
+  type DocumentReference,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { Word, WordList } from '../types/models';
+import {
+  DIRECTIONS,
+  Direction,
+  DirectionState,
+  DirectionStates,
+  Word,
+  WordList,
+} from '../types/models';
+import { fillDirections } from '../utils/directions';
 import {
   searchWord as searchDictionary,
   lookupCharacter,
@@ -35,6 +44,11 @@ const LEVEL_INTERVALS: Record<number, number> = {
   5: 60,
 };
 
+interface StoredDirectionState {
+  bank: number;
+  dueDate: Timestamp;
+}
+
 interface UserWordDocument {
   wordId: string;
   wordData: {
@@ -44,10 +58,51 @@ interface UserWordDocument {
     meaning: string;
   };
   amendedMeaning: string | null;
+  // `bank` and `dueDate` are derived: the lowest bank and the earliest due date
+  // across the directions. They stay at the top level because Firestore cannot
+  // range-query five map fields, so getDueUserWords, getListStats and
+  // getDashboardStats keep their existing queries and indexes.
   bank: number;
   dueDate: Timestamp;
   addedAt: Timestamp;
   listId?: string;
+  directions?: Partial<Record<Direction, StoredDirectionState>>;
+}
+
+/**
+ * Read the stored directions map into the client shape, converting each
+ * Timestamp to a date string. A document written before the map existed has no
+ * `directions` field, and fillDirections then derives all five entries from the
+ * top-level bank and due date.
+ */
+function readDirections(data: UserWordDocument): DirectionStates {
+  const stored: Partial<Record<Direction, Partial<DirectionState>>> = {};
+  for (const direction of DIRECTIONS) {
+    const entry = data.directions?.[direction];
+    if (!entry) continue;
+    stored[direction] = {
+      level: entry.bank,
+      dueDate: entry.dueDate ? formatDate(entry.dueDate.toDate()) : undefined,
+    };
+  }
+  return fillDirections(stored, data.bank, formatDate(data.dueDate.toDate()));
+}
+
+/**
+ * Build the stored form of a directions map, with every direction at the same
+ * bank and due date.
+ */
+function storedDirections(
+  bank: number,
+  dueDate: Timestamp,
+): Record<Direction, StoredDirectionState> {
+  return DIRECTIONS.reduce(
+    (acc, direction) => {
+      acc[direction] = { bank, dueDate };
+      return acc;
+    },
+    {} as Record<Direction, StoredDirectionState>,
+  );
 }
 
 function mapDocumentToWord(
@@ -64,6 +119,9 @@ function mapDocumentToWord(
     level: data.bank,
     ammended_meaning: data.amendedMeaning || undefined,
     listId: data.listId || 'default',
+    // Always present, whatever includeDueDate asks for: the session queue reads
+    // the per-direction due dates from words that getDueUserWords returned.
+    directions: readDirections(data),
   };
   if (includeDueDate) {
     word.due_date = formatDate(data.dueDate.toDate());
@@ -241,6 +299,7 @@ export const addWordToList = async (
     dueDate.setDate(dueDate.getDate() + 1);
   }
 
+  const dueTimestamp = Timestamp.fromDate(dueDate);
   const userWordRef = doc(db, 'users', userId, 'userWords', word.id.toString());
   await setDoc(userWordRef, {
     wordId: word.id.toString(),
@@ -251,8 +310,11 @@ export const addWordToList = async (
       meaning: word.meaning,
     },
     amendedMeaning: null,
+    // A new word starts at bank 1 in all five directions, so the two derived
+    // fields are the same values.
     bank: 1,
-    dueDate: Timestamp.fromDate(dueDate),
+    dueDate: dueTimestamp,
+    directions: storedDirections(1, dueTimestamp),
     addedAt: Timestamp.now(),
     listId,
   });
@@ -433,32 +495,98 @@ export const getListStats = async (
   return stats;
 };
 
+type WordMigration = 'listId' | 'directions';
+
+/** The fields one migration pass can add to a userWords document. */
+type WordMigrationUpdate = {
+  listId?: string;
+  directions?: Record<Direction, StoredDirectionState>;
+};
+
 /**
- * Backfill listId='default' on any userWords documents that lack a listId field.
- * Safe to call multiple times — only writes to docs that need updating.
+ * Backfill missing fields on a user's userWords documents in a single pass.
+ *
+ * Each migration is idempotent: a document is written only when it is missing
+ * the field the migration adds, and a document that is already complete costs
+ * nothing beyond the read. The migrations share one pass because each of them
+ * reads the whole collection, so running them together halves the reads.
  */
-export const migrateWordsWithoutListId = async (userId: string): Promise<number> => {
+async function runWordMigrations(userId: string, migrations: WordMigration[]): Promise<number> {
   const userWordsRef = collection(db, 'users', userId, 'userWords');
   const snapshot = await getDocs(userWordsRef);
 
-  const docsToUpdate = snapshot.docs.filter((d) => {
-    const data = d.data();
-    return !data.listId;
-  });
+  const backfillListId = migrations.includes('listId');
+  const backfillDirections = migrations.includes('directions');
 
-  if (docsToUpdate.length === 0) return 0;
+  const updates: { ref: DocumentReference; data: WordMigrationUpdate }[] = [];
+
+  for (const d of snapshot.docs) {
+    const data = d.data() as UserWordDocument;
+    const update: WordMigrationUpdate = {};
+
+    if (backfillListId && !data.listId) {
+      update.listId = 'default';
+    }
+
+    if (backfillDirections) {
+      const existing = data.directions;
+      const isComplete = existing !== undefined && DIRECTIONS.every((dir) => existing[dir]);
+      if (!isComplete) {
+        // Copy the single bank and due date into every direction the document
+        // is missing, and keep any direction it already holds.
+        const derived = storedDirections(data.bank ?? 1, data.dueDate ?? Timestamp.now());
+        update.directions = { ...derived, ...(existing ?? {}) };
+      }
+    }
+
+    if (Object.keys(update).length > 0) {
+      updates.push({ ref: d.ref, data: update });
+    }
+  }
+
+  if (updates.length === 0) return 0;
 
   // Firestore batches are limited to 500 operations
-  for (let i = 0; i < docsToUpdate.length; i += 500) {
+  for (let i = 0; i < updates.length; i += 500) {
     const batch = writeBatch(db);
-    const chunk = docsToUpdate.slice(i, i + 500);
-    for (const d of chunk) {
-      batch.update(d.ref, { listId: 'default' });
+    for (const { ref, data } of updates.slice(i, i + 500)) {
+      batch.update(ref, data);
     }
     await batch.commit();
   }
 
-  return docsToUpdate.length;
+  return updates.length;
+}
+
+/**
+ * Backfill listId='default' on any userWords documents that lack a listId field.
+ * Safe to call multiple times — only writes to docs that need updating.
+ *
+ * The app runs this together with the directions backfill through
+ * migrateUserWords. It stays exported so that either backfill can be run alone.
+ */
+export const migrateWordsWithoutListId = async (userId: string): Promise<number> => {
+  return runWordMigrations(userId, ['listId']);
+};
+
+/**
+ * Backfill the per-direction scheduling map on any userWords documents written
+ * before it existed, copying the single bank and due date into all five
+ * directions. Safe to call multiple times — only writes to docs that need it.
+ *
+ * The read path synthesizes the same values for a document this has not reached
+ * yet, so this migration is a cleanup rather than a prerequisite.
+ */
+export const migrateWordsWithoutDirections = async (userId: string): Promise<number> => {
+  return runWordMigrations(userId, ['directions']);
+};
+
+/**
+ * Run every userWords migration in one pass. This is what the app calls on load.
+ * Returns the number of documents written.
+ */
+export const migrateUserWords = async (userId: string): Promise<number> => {
+  return runWordMigrations(userId, ['listId', 'directions']);
 };
 
 /**
