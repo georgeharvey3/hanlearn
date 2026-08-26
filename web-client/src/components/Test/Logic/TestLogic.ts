@@ -1,4 +1,4 @@
-import { Word, TestPerm, QuestionCategory } from '../../../types/models';
+import { Direction, Word, TestPerm, QuestionCategory } from '../../../types/models';
 import { parseMeanings } from '../../../utils/meaningUtils';
 
 const pickRandom = <T>(array: T[], n: number): T[] => {
@@ -142,6 +142,23 @@ export const setPermList = (
   }
 
   return permList;
+};
+
+/**
+ * The distinct directions a perm list asks, in the order the list holds them.
+ * finishTest reschedules only these, so the directions the session left out
+ * keep the bank and due date they already hold.
+ */
+export const directionsOf = (permList: TestPerm[]): Direction[] => {
+  const seen = new Set<string>();
+  const directions: Direction[] = [];
+  for (const perm of permList) {
+    const direction = `${perm.aCategory}${perm.qCategory}`;
+    if (seen.has(direction)) continue;
+    seen.add(direction);
+    directions.push(direction as Direction);
+  }
+  return directions;
 };
 
 const ranChoice = <T>(array: T[]): T => array[Math.floor(Math.random() * array.length)];

@@ -14,6 +14,7 @@ import { useTestEngine } from './useTestEngine';
 import { AudioSettings } from '../../utils/audioSettings';
 
 import { RootState } from '../../types/store';
+import { WordDirectionResults } from '../../types/models';
 import { AppDispatch } from '../../types/actions';
 import * as actions from '../../store/actions/index';
 import { Props } from './types';
@@ -27,8 +28,7 @@ const mapStateToProps = (state: RootState) => ({
 });
 
 const mapDispatchToProps = (dispatch: AppDispatch) => ({
-  onFinishTest: (scores: { word_id: number; score: number }[]) =>
-    dispatch(actions.finishTest(scores)),
+  onFinishTest: (results: WordDirectionResults[]) => dispatch(actions.finishTest(results)),
 });
 
 export const connector = connect(mapStateToProps, mapDispatchToProps);

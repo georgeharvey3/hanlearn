@@ -7,6 +7,7 @@ import {
   toneChecker,
   Counter,
   removePunctuation,
+  directionsOf,
 } from './TestLogic';
 import { Word } from '../../../types/models';
 
@@ -397,5 +398,30 @@ describe('removePunctuation', () => {
 
   it('removes slashes', () => {
     expect(removePunctuation('hello/world')).toBe('helloworld');
+  });
+});
+
+describe('directionsOf', () => {
+  it('returns the distinct directions of a perm list, in order', () => {
+    const permList = setPermList([makeWord(1, '你'), makeWord(2, '好')], true);
+
+    expect(directionsOf(permList)).toEqual(['CM', 'PC', 'PM', 'MP', 'MC']);
+  });
+
+  it('leaves out handwriting when the session does not ask it', () => {
+    const permList = setPermList([makeWord(1, '你')], false);
+
+    expect(directionsOf(permList)).not.toContain('CM');
+    expect(directionsOf(permList)).toHaveLength(4);
+  });
+
+  it('returns the single direction that onlyPriority leaves', () => {
+    const permList = setPermList([makeWord(1, '你')], true, 'PC', true);
+
+    expect(directionsOf(permList)).toEqual(['PC']);
+  });
+
+  it('returns an empty list for an empty perm list', () => {
+    expect(directionsOf([])).toEqual([]);
   });
 });

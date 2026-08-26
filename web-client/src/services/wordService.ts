@@ -21,6 +21,7 @@ import {
   DirectionState,
   DirectionStates,
   Word,
+  WordDirectionResults,
   WordList,
 } from '../types/models';
 import { fillDirections } from '../utils/directions';
@@ -102,6 +103,36 @@ function storedDirections(
       return acc;
     },
     {} as Record<Direction, StoredDirectionState>,
+  );
+}
+
+/**
+ * The stored directions of a document, with any direction the document lacks
+ * derived from its top-level bank and due date. A document the migration has
+ * not reached yet therefore behaves exactly like one it has.
+ */
+function currentDirections(data: UserWordDocument): Record<Direction, StoredDirectionState> {
+  const derived = storedDirections(data.bank, data.dueDate);
+  const stored = data.directions;
+  if (!stored) return derived;
+  return DIRECTIONS.reduce(
+    (acc, direction) => {
+      acc[direction] = stored[direction] ?? derived[direction];
+      return acc;
+    },
+    {} as Record<Direction, StoredDirectionState>,
+  );
+}
+
+/** The lowest bank across the directions. Written to the derived top-level field. */
+function lowestBank(directions: Record<Direction, StoredDirectionState>): number {
+  return DIRECTIONS.reduce((min, direction) => Math.min(min, directions[direction].bank), 5);
+}
+
+/** The earliest due date across the directions. Written to the derived top-level field. */
+function earliestDueDate(directions: Record<Direction, StoredDirectionState>): Timestamp {
+  return DIRECTIONS.map((direction) => directions[direction].dueDate).reduce((earliest, dueDate) =>
+    dueDate.toDate().getTime() < earliest.toDate().getTime() ? dueDate : earliest,
   );
 }
 
@@ -342,41 +373,55 @@ export const updateWordMeaning = async (
 };
 
 /**
- * Submit test results and update levels and due dates
+ * Submit the results of a session and reschedule the directions it asked.
+ *
+ * Each direction carries its own bank and due date, so a failure in one leaves
+ * the other four untouched. A direction the session did not ask is absent from
+ * the payload and keeps the state it already holds.
+ *
+ * Returns the new derived due date of each word, keyed by its simplified form.
  */
 export const finishTest = async (
   userId: string,
-  scores: { word_id: number; score: number }[],
+  results: WordDirectionResults[],
 ): Promise<Record<string, string>> => {
   const newDates: Record<string, string> = {};
   const batch = writeBatch(db);
 
-  for (const { word_id, score } of scores) {
+  for (const { word_id, directions } of results) {
     const wordRef = doc(db, 'users', userId, 'userWords', word_id.toString());
     const wordDoc = await getDoc(wordRef);
 
     if (!wordDoc.exists()) continue;
 
     const data = wordDoc.data() as UserWordDocument;
-    let level = data.bank;
+    const updated = { ...currentDirections(data) };
 
-    // Update level based on score
-    if (score === 4 && level < 5) {
-      level += 1;
-    } else if (score < 4) {
-      level = 1;
+    for (const direction of DIRECTIONS) {
+      const result = directions[direction];
+      // Absent means the session did not ask this direction, so it keeps its state.
+      if (!result) continue;
+
+      const current = updated[direction].bank;
+      const bank = result === 'pass' ? Math.min(current + 1, 5) : 1;
+
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + LEVEL_INTERVALS[bank]);
+
+      updated[direction] = { bank, dueDate: Timestamp.fromDate(dueDate) };
     }
 
-    // Calculate new due date
-    const newDueDate = new Date();
-    newDueDate.setDate(newDueDate.getDate() + LEVEL_INTERVALS[level]);
+    const derivedDueDate = earliestDueDate(updated);
 
     batch.update(wordRef, {
-      bank: level,
-      dueDate: Timestamp.fromDate(newDueDate),
+      directions: updated,
+      // Both derived fields are rewritten in the same batch as the directions,
+      // so the queryable values never disagree with the map.
+      bank: lowestBank(updated),
+      dueDate: derivedDueDate,
     });
 
-    newDates[data.wordData.simp] = formatDate(newDueDate);
+    newDates[data.wordData.simp] = formatDate(derivedDueDate.toDate());
   }
 
   await batch.commit();

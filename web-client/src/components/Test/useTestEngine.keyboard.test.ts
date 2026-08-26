@@ -803,3 +803,76 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
     expect(result.current.state.sentenceCheckStatus).toBe('unavailable');
   });
 });
+
+// ---------------------------------------------------------------------------
+// The finishTest payload: one entry per word, carrying the asked directions
+// ---------------------------------------------------------------------------
+describe('useTestEngine — the finishTest payload', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function finishSessionWithIdkList(idkList: string[], onFinishTest: Props['onFinishTest']) {
+    const word = makeWord({ id: 1, simp: '你好', level: 3 });
+    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+
+    const result = renderEngineWithState(
+      {
+        answerCategory: 'meaning',
+        answer: ['hello'],
+        answerInput: 'hello',
+        chosenCharacter: '你好',
+        perm,
+        testSet: [word],
+        permList: [perm],
+        charSet: 'simp',
+        idkList,
+        // The session asked these four; handwriting was switched off.
+        askedDirections: ['MC', 'MP', 'PM', 'PC'],
+        useAutoRecord: false,
+        recognition: null,
+      },
+      { words: [word], isDemo: false, practiceMode: false, onFinishTest },
+    );
+
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
+  }
+
+  it('marks every asked direction as a pass when the word had no failure', () => {
+    const onFinishTest = vi.fn();
+
+    finishSessionWithIdkList([], onFinishTest);
+
+    expect(onFinishTest).toHaveBeenCalledWith([
+      { word_id: 1, directions: { MC: 'pass', MP: 'pass', PM: 'pass', PC: 'pass' } },
+    ]);
+  });
+
+  it('marks every asked direction as a failure when the word was not known', () => {
+    const onFinishTest = vi.fn();
+
+    finishSessionWithIdkList(['你好'], onFinishTest);
+
+    expect(onFinishTest).toHaveBeenCalledWith([
+      { word_id: 1, directions: { MC: 'fail', MP: 'fail', PM: 'fail', PC: 'fail' } },
+    ]);
+  });
+
+  it('leaves a direction the session did not ask out of the payload', () => {
+    const onFinishTest = vi.fn();
+
+    finishSessionWithIdkList([], onFinishTest);
+
+    const payload = onFinishTest.mock.calls[0][0];
+    expect(payload[0].directions).not.toHaveProperty('CM');
+  });
+});

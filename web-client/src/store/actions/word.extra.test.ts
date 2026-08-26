@@ -86,14 +86,14 @@ describe('word action thunks — error paths', () => {
   });
 
   describe('finishTest', () => {
-    const scores = [{ word_id: 1, score: 3 }];
+    const results = [{ word_id: 1, directions: { MC: 'fail' as const } }];
 
     it('catches outer error when wordService.finishTest itself throws', async () => {
       mockedWordService.finishTest.mockRejectedValue(new Error('Test submission failed'));
       const store = createTestStore(authenticatedState());
 
       // Should not throw — outer catch handles it
-      await store.dispatch(wordActions.finishTest(scores) as any);
+      await store.dispatch(wordActions.finishTest(results) as any);
 
       expect(mockedWordService.finishTest).toHaveBeenCalled();
       // getUserWords should NOT be called since finishTest threw before reaching it

@@ -1,4 +1,4 @@
-import { DIRECTIONS, Direction, DirectionState, DirectionStates } from '../types/models';
+import { DIRECTIONS, Direction, DirectionState, DirectionStates, Word } from '../types/models';
 
 /**
  * Helpers for the per-direction scheduling state of a word.
@@ -45,4 +45,17 @@ export function fillDirections(
     };
     return acc;
   }, {} as DirectionStates);
+}
+
+/**
+ * A word is new when it has never been answered correctly in any direction,
+ * that is, when all five directions are still at level 1.
+ *
+ * The fallback reads the top-level level, for a word built without scheduling
+ * state at all — a dictionary search result, for instance.
+ */
+export function isNewWord(word: Pick<Word, 'level' | 'directions'>): boolean {
+  const directions = word.directions;
+  if (!directions) return word.level === 1;
+  return DIRECTIONS.every((direction) => directions[direction].level === 1);
 }

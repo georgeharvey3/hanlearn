@@ -2,7 +2,7 @@
  * Tests for the per-direction scheduling helpers.
  */
 import { describe, it, expect } from 'vitest';
-import { makeDirections, fillDirections } from './directions';
+import { makeDirections, fillDirections, isNewWord } from './directions';
 import { DIRECTIONS } from '../types/models';
 
 describe('makeDirections', () => {
@@ -50,5 +50,31 @@ describe('fillDirections', () => {
     directions.MC.level = 5;
 
     expect(directions.CM.level).toBe(1);
+  });
+});
+
+describe('isNewWord', () => {
+  const word = (level: number, directions?: Record<string, { level: number; dueDate: string }>) =>
+    ({ level, directions }) as Parameters<typeof isNewWord>[0];
+
+  it('is true when every direction is still at level 1', () => {
+    expect(isNewWord(word(1, makeDirections(1, '2026/03/05')))).toBe(true);
+  });
+
+  it('is false once one direction has advanced', () => {
+    const directions = {
+      ...makeDirections(1, '2026/03/05'),
+      MC: { level: 2, dueDate: '2026/03/08' },
+    };
+    expect(isNewWord(word(1, directions))).toBe(false);
+  });
+
+  it('is false when every direction has advanced', () => {
+    expect(isNewWord(word(3, makeDirections(3, '2026/03/05')))).toBe(false);
+  });
+
+  it('falls back to the top-level level for a word with no directions', () => {
+    expect(isNewWord(word(1))).toBe(true);
+    expect(isNewWord(word(2))).toBe(false);
   });
 });
