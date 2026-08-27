@@ -348,6 +348,7 @@ describe('directionsOf', () => {
 describe('planSession', () => {
   const TODAY = new Date(2026, 2, 10);
   const past = '2026/03/01';
+  const older = '2026/02/20';
   const soon = '2026/03/09';
   const future = '2026/12/01';
 
@@ -375,6 +376,17 @@ describe('planSession', () => {
       due_date: earliest,
       directions: full as Word['directions'],
     };
+  }
+
+  /** A word past its first pass, with all five directions due on the same day. */
+  function allDue(id: number, dueDate = past): Word {
+    return wordWith(
+      id,
+      DIRECTIONS.reduce<Record<string, { level: number; dueDate: string }>>((acc, d) => {
+        acc[d] = { level: 2, dueDate };
+        return acc;
+      }, {}),
+    );
   }
 
   /** A word that has never been answered correctly in any direction. */
@@ -416,14 +428,42 @@ describe('planSession', () => {
     expect(result.queue).toHaveLength(1);
   });
 
-  it('takes the first direction of the fixed order when several are due', () => {
+  it('takes the direction with the oldest due date when several are due', () => {
     const word = wordWith(1, {
       PC: { level: 2, dueDate: past },
-      CM: { level: 2, dueDate: past },
+      CM: { level: 2, dueDate: older },
       MP: { level: 2, dueDate: past },
     });
 
-    expect(directionsIn(plan([word]))).toEqual(['MP']);
+    expect(directionsIn(plan([word]))).toEqual(['CM']);
+  });
+
+  it('varies the direction across words whose directions are all in step', () => {
+    const words = Array.from({ length: 40 }, (_, i) => allDue(i));
+
+    const seen = new Set(directionsIn(plan(words, { budget: 40 })));
+
+    // The fixed order this replaces made this exactly one, for every session,
+    // which is the fault in issue #328 comment 5416130923.
+    expect(seen.size).toBeGreaterThan(1);
+  });
+
+  it('does not favour the first direction of DIRECTIONS among tied ones', () => {
+    const words = Array.from({ length: 40 }, (_, i) => allDue(i));
+
+    const asked = directionsIn(plan(words, { budget: 40 }));
+
+    expect(asked.filter((direction) => direction === 'MC').length).toBeLessThan(asked.length);
+  });
+
+  it('asks the same word the same direction twice on one day', () => {
+    const words = Array.from({ length: 20 }, (_, i) => allDue(i));
+
+    // The budget cut needs a session that survives a reload, so the tie-break
+    // is seeded rather than random.
+    expect(directionsIn(plan(words, { budget: 20 }))).toEqual(
+      directionsIn(plan(words, { budget: 20 })),
+    );
   });
 
   it('asks the one direction that is due when the other four are not', () => {
@@ -536,7 +576,7 @@ describe('planSession', () => {
 
   // ─── Rule 7: priority and onlyPriority ───────────────────────────────────
 
-  it('prefers the priority direction over the fixed order', () => {
+  it('takes the priority direction when it shares the oldest due date', () => {
     const word = wordWith(1, {
       MC: { level: 2, dueDate: past },
       PC: { level: 2, dueDate: past },
@@ -545,7 +585,26 @@ describe('planSession', () => {
     expect(directionsIn(plan([word], { priority: 'PC' }))).toEqual(['PC']);
   });
 
-  it('falls back to the fixed order when the priority direction is not due', () => {
+  it('takes the priority direction for every word that is still in step', () => {
+    const words = Array.from({ length: 20 }, (_, i) => allDue(i));
+
+    const asked = directionsIn(plan(words, { priority: 'PC', budget: 20 }));
+
+    expect(asked.every((direction) => direction === 'PC')).toBe(true);
+  });
+
+  it('leaves the priority direction out when an older direction is due', () => {
+    const word = wordWith(1, {
+      MC: { level: 2, dueDate: older },
+      PC: { level: 2, dueDate: past },
+    });
+
+    // A direction that falls behind outranks the priority, so no direction
+    // starves. See docs/adr/0004-priority-breaks-ties-only.md.
+    expect(directionsIn(plan([word], { priority: 'PC' }))).toEqual(['MC']);
+  });
+
+  it('ranks by due date when the priority direction is not due', () => {
     const word = wordWith(1, { MC: { level: 2, dueDate: past } });
 
     expect(directionsIn(plan([word], { priority: 'PC' }))).toEqual(['MC']);
@@ -558,6 +617,27 @@ describe('planSession', () => {
     const result = plan([asked, notAsked], { priority: 'PC', onlyPriority: true });
 
     expect(directionsIn(result)).toEqual(['PC']);
+  });
+
+  it('spreads the new-word fan-outs rather than blocking them per word', () => {
+    const result = plan([newWord(1), newWord(2)], { budget: 25 });
+
+    const indexes = result.queue.map((perm) => perm.index);
+    const blocked = ['0', '0', '0', '0', '0', '1', '1', '1', '1', '1'];
+
+    expect(indexes.slice().sort()).toEqual(blocked.slice().sort());
+    expect(indexes).not.toEqual(blocked);
+  });
+
+  it('asks every direction of every new word it admits', () => {
+    const result = plan([newWord(1), newWord(2)], { budget: 25 });
+
+    for (const index of ['0', '1']) {
+      const forWord = result.queue.filter((perm) => perm.index === index);
+      expect(new Set(forWord.map((perm) => `${perm.aCategory}${perm.qCategory}`)).size).toBe(
+        DIRECTIONS.length,
+      );
+    }
   });
 
   it('onlyPriority overrides the new-word fan-out', () => {

@@ -157,27 +157,71 @@ function isDirectionDue(word: Word, direction: Direction, today: Date): boolean 
 }
 
 /**
+ * A seed for one word's tie-break, distinct from every other word's.
+ *
+ * The day seed alone is not enough. seededShuffle is a plain LCG, so the same
+ * seed and the same tied set give the same permutation, and every word whose
+ * five directions are still in step would take the same direction all day.
+ * That is the fault this replaces, one step to the side.
+ *
+ * `id` is parseInt of the Firestore document id, so it is NaN for a document
+ * whose id is not numeric. The characters carry the seed in that case.
+ */
+function wordSeed(word: Word, daySeed: number): number {
+  let hash = daySeed;
+  const text = word.simp || word.trad || '';
+  for (let i = 0; i < text.length; i++) {
+    hash = (hash * 31 + text.charCodeAt(i)) | 0;
+  }
+  return (hash ^ (Number.isFinite(word.id) ? word.id : 0)) | 0;
+}
+
+/** The due day of one direction, or +Infinity when it has no due date at all. */
+function directionDueDay(word: Word, direction: Direction): number {
+  const dueDate = directionDueDate(word, direction);
+  if (!dueDate) return Number.POSITIVE_INFINITY;
+  const due = parseDueDate(dueDate);
+  return due === null
+    ? Number.POSITIVE_INFINITY
+    : new Date(due.getFullYear(), due.getMonth(), due.getDate()).getTime();
+}
+
+/**
  * The direction to ask a word in, from the ones available for it.
  *
- * Outside practice the fixed order of DIRECTIONS decides, so a word rotates:
- * the direction that passes takes a later due date, and the next session
- * reaches the next one down the list. `priority` displaces that order when the
- * preferred direction is among those available.
+ * The direction that has waited longest wins: the available directions are
+ * ranked by their own due dates, oldest first. A direction that falls behind
+ * therefore cannot be starved by one that is already ahead.
  *
- * Practice reschedules nothing, so that rotation would never advance and every
- * word would be asked in the same direction forever. It picks at random
- * instead, which is what practice did before the queue existed.
+ * Directions that share the oldest due date are interchangeable, and the
+ * schedule has no opinion between them. `priority` decides there if the learner
+ * set one. Otherwise the choice is random, seeded per word so that a reload on
+ * the same day asks the same question while different words differ.
+ *
+ * The fixed order of DIRECTIONS used to decide this outright, which asked `MC`
+ * of every word until it passed, because a word whose directions are still in
+ * step has all five tied. See docs/adr/0003-direction-choice-by-oldest-due.md.
+ *
+ * Practice reschedules nothing, so every direction stays tied forever and the
+ * seeded choice would repeat for the rest of the day. It picks at random on
+ * every call instead, which is what practice did before the queue existed.
  */
 function chooseDirection(
+  word: Word,
   available: Direction[],
   priority: string,
   practiceMode: boolean,
+  daySeed: number,
 ): Direction {
   if (practiceMode) return ranChoice(available);
-  if (priority !== 'none' && available.includes(priority as Direction)) {
+
+  const oldest = Math.min(...available.map((direction) => directionDueDay(word, direction)));
+  const tied = available.filter((direction) => directionDueDay(word, direction) === oldest);
+
+  if (priority !== 'none' && tied.includes(priority as Direction)) {
     return priority as Direction;
   }
-  return DIRECTIONS.filter((direction) => available.includes(direction))[0];
+  return seededShuffle(tied, wordSeed(word, daySeed))[0];
 }
 
 /** The directions a session may ask at all, before any word is considered. */
@@ -216,6 +260,11 @@ export const planSession = (candidates: Word[], options: PlanSessionOptions): Se
   const newCandidates = candidates.filter(isNewWord);
   const reviewCandidates = candidates.filter((word) => !isNewWord(word));
 
+  // One seed for the day, so a reload rebuilds the same session. Every use
+  // below mixes something of its own into it: the word for a direction
+  // tie-break, the entry itself for the two shuffles over distinct lists.
+  const seed = seedFromDate(today);
+
   // ─── Review pairs: one direction per word, oldest due date first ──────────
   const reviewPairs: { word: Word; direction: Direction; dueDay: number }[] = [];
 
@@ -225,7 +274,7 @@ export const planSession = (candidates: Word[], options: PlanSessionOptions): Se
     );
     if (available.length === 0) continue;
 
-    const direction = chooseDirection(available, priority, practiceMode);
+    const direction = chooseDirection(word, available, priority, practiceMode, seed);
     const dueDate = directionDueDate(word, direction);
     reviewPairs.push({
       word,
@@ -237,7 +286,6 @@ export const planSession = (candidates: Word[], options: PlanSessionOptions): Se
   // Words that came due on the same day are interchangeable, so shuffle within
   // each day rather than letting the list order decide who is cut at the
   // budget. The seed is the day, so one day's session is stable if it reloads.
-  const seed = seedFromDate(today);
   const byDay = new Map<number, typeof reviewPairs>();
   for (const pair of reviewPairs) {
     const group = byDay.get(pair.dueDay);
@@ -265,12 +313,18 @@ export const planSession = (candidates: Word[], options: PlanSessionOptions): Se
   const words: Word[] = [...orderedReview.map((pair) => pair.word), ...admittedNew];
   const queue: TestPerm[] = orderedReview.map((pair, index) => permFor(index, pair.direction));
 
+  // The fan-outs are shuffled together rather than blocked per word. Five
+  // consecutive questions on one word reads as a drill, and spacing a word's
+  // questions apart is better for retention. Nothing leaks either way: the
+  // new-word stage has already shown all three facts of every word here.
+  const fanOut: TestPerm[] = [];
   admittedNew.forEach((_, newIndex) => {
     const index = orderedReview.length + newIndex;
     for (const direction of eligible) {
-      queue.push(permFor(index, direction));
+      fanOut.push(permFor(index, direction));
     }
   });
+  queue.push(...seededShuffle(fanOut, seed));
 
   return { words, queue, newWords: admittedNew };
 };

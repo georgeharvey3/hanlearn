@@ -17,8 +17,11 @@ answer-first. There are five:
 | `PC`      | Character      | Pinyin       | Productive recall      |
 | `CM`      | Meaning        | Character    | Handwriting production |
 
-The listed order is also the rotation order the session queue uses when more
-than one direction of a word is due.
+The listed order has no effect on the session queue. When more than one
+direction of a word is due, the queue asks the direction with the oldest due
+date. Directions that share the oldest date go to the `priority` setting, or to
+a random choice. See
+[docs/adr/0003-direction-choice-by-oldest-due.md](docs/adr/0003-direction-choice-by-oldest-due.md).
 
 Each direction of each word carries its own bank and due date. See
 [docs/adr/0002-direction-level-scheduling.md](docs/adr/0002-direction-level-scheduling.md).
