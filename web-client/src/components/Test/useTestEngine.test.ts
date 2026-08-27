@@ -96,8 +96,15 @@ const makeWord = (overrides: Partial<Word> = {}): Word => ({
   ...overrides,
 });
 
+// Three words, so the queue outlives the first answer. A word is one question
+// now, so a single-word session finishes as soon as it is answered, and these
+// tests are about the answer check rather than the end of the session.
 const makeProps = (overrides: Partial<Props> = {}): Props => ({
-  words: [makeWord()],
+  words: [
+    makeWord(),
+    makeWord({ id: 2, simp: '再见', trad: '再見' }),
+    makeWord({ id: 3, simp: '谢谢', trad: '謝謝' }),
+  ],
   userId: 'user-1',
   speechAvailable: false,
   synthAvailable: false,

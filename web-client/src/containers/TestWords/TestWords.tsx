@@ -17,7 +17,7 @@ import * as testLogic from '../../components/Test/Logic/TestLogic';
 import { RootState } from '../../types/store';
 import { Word, WordScore } from '../../types/models';
 import { getDevTestConfig, DevTestConfig } from '../../utils/devTestMode';
-import { isNewWord, makeDirections } from '../../utils/directions';
+import { makeDirections } from '../../utils/directions';
 
 import { Box, Chip, Stepper, Step, StepLabel, Typography } from '@mui/material';
 
@@ -32,6 +32,12 @@ interface TestWordsState {
   numWords: number;
   newWords: Word[];
   selectedWords: Word[];
+  /**
+   * The plan the session runs. It is built here, not in the engine, because the
+   * Learn step has to teach the new words the queue actually asks. Two separate
+   * counts of "the new words for this session" once taught five and asked none.
+   */
+  plan: testLogic.SessionPlan | null;
   newWordsEnabled: boolean;
   sentenceReadEnabled: boolean;
   sentenceWriteEnabled: boolean;
@@ -92,6 +98,7 @@ const TestWords: React.FC<Props> = ({
     stage: getInitialStage(),
     numWords: isDemo ? 5 : parseInt(localStorage.getItem('numWords') || '5', 10),
     newWords: [],
+    plan: null,
     selectedWords: [],
     newWordsEnabled: isDemo ? true : localStorage.getItem('newWords') !== 'false',
     sentenceReadEnabled: isDemo ? true : localStorage.getItem('sentenceRead') !== 'false',
@@ -122,6 +129,21 @@ const TestWords: React.FC<Props> = ({
     [words],
   );
 
+  /**
+   * Plan the session for a set of words.
+   *
+   * The Learn step teaches `plan.newWords`, and the engine asks `plan.queue`.
+   * Both come from this one call, so the two can never disagree.
+   */
+  const planFor = useCallback(
+    (selectedWords: Word[], practiceMode = false): testLogic.SessionPlan =>
+      testLogic.planSession(selectedWords, {
+        ...testLogic.readSessionSettings(isDemo),
+        practiceMode,
+      }),
+    [isDemo],
+  );
+
   const setSelectedWords = useCallback((): void => {
     if (isDemo) {
       const demoDueDate = new Date().toISOString();
@@ -146,27 +168,18 @@ const TestWords: React.FC<Props> = ({
     }
 
     const selectedWords = selectTestWords();
-    // The queue admits at most this many new words, so teach no more than it asks.
-    const newWords = selectedWords.filter(isNewWord).slice(0, testLogic.NEW_WORDS_PER_SESSION);
+    const plan = planFor(selectedWords);
+    const newWords = plan.newWords;
 
-    if (newWords.length === 0 || !state.newWordsEnabled) {
-      setState((prev) => ({
-        ...prev,
-        stage: 'vocab',
-        newWords: newWords,
-        selectedWords: selectedWords,
-        wordsInitialized: true,
-      }));
-    } else {
-      setState((prev) => ({
-        ...prev,
-        stage: 'new',
-        newWords: newWords,
-        selectedWords: selectedWords,
-        wordsInitialized: true,
-      }));
-    }
-  }, [isDemo, selectTestWords, state.newWordsEnabled]);
+    setState((prev) => ({
+      ...prev,
+      stage: newWords.length === 0 || !state.newWordsEnabled ? 'vocab' : 'new',
+      newWords: newWords,
+      plan,
+      selectedWords: selectedWords,
+      wordsInitialized: true,
+    }));
+  }, [isDemo, planFor, selectTestWords, state.newWordsEnabled]);
 
   // Track whether we've already initialized to prevent re-running setSelectedWords
   const hasInitialized = useRef(false);
@@ -207,11 +220,12 @@ const TestWords: React.FC<Props> = ({
       if (devConfig) {
         // For dev stages, use actual words from user's list (ignore due dates)
         const selectedWords = selectTestWords(true);
-        const newWords = selectedWords.filter(isNewWord).slice(0, testLogic.NEW_WORDS_PER_SESSION);
+        const plan = planFor(selectedWords);
         setState((prev) => ({
           ...prev,
           selectedWords,
-          newWords,
+          newWords: plan.newWords,
+          plan,
           sentenceWords: selectedWords,
           wordsInitialized: true,
         }));
@@ -246,25 +260,17 @@ const TestWords: React.FC<Props> = ({
 
   const onStartPractice = (): void => {
     const selectedWords = selectTestWords(true); // Ignore due dates
-    const newWords = selectedWords.filter(isNewWord).slice(0, testLogic.NEW_WORDS_PER_SESSION);
+    const plan = planFor(selectedWords, true);
+    const newWords = plan.newWords;
 
-    if (newWords.length === 0 || !state.newWordsEnabled) {
-      setState((prev) => ({
-        ...prev,
-        stage: 'vocab',
-        newWords: newWords,
-        selectedWords: selectedWords,
-        practiceMode: true,
-      }));
-    } else {
-      setState((prev) => ({
-        ...prev,
-        stage: 'new',
-        newWords: newWords,
-        selectedWords: selectedWords,
-        practiceMode: true,
-      }));
-    }
+    setState((prev) => ({
+      ...prev,
+      stage: newWords.length === 0 || !state.newWordsEnabled ? 'vocab' : 'new',
+      newWords: newWords,
+      plan,
+      selectedWords: selectedWords,
+      practiceMode: true,
+    }));
   };
 
   const onStartVocab = (): void => {
@@ -337,6 +343,7 @@ const TestWords: React.FC<Props> = ({
             <Test
               isDemo={isDemo || !!devConfig}
               words={state.selectedWords}
+              plan={state.plan ?? undefined}
               startSentenceRead={(sentenceWords: Word[], scores?: WordScore[]) =>
                 onStartSentenceRead(sentenceWords, scores)
               }
@@ -385,6 +392,7 @@ const TestWords: React.FC<Props> = ({
         content = (
           <Test
             words={state.selectedWords}
+            plan={state.plan ?? undefined}
             startSentenceRead={(sentenceWords: Word[], scores?: WordScore[]) =>
               onStartSentenceRead(sentenceWords, scores)
             }

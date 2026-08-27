@@ -783,16 +783,16 @@ export const useTestEngine = (props: Props) => {
   const onInitialiseTestSet = useCallback(
     (useHandwriting: boolean): void => {
       const current = getState();
-      // One question per word, except a new word, which fans out. The budget
-      // is in questions: five per word keeps a session the length it was
-      // before the queue existed, until PR 5 lands `questionsPerSession`.
-      const plan = testLogic.planSession(props.words, {
-        budget: current.numWords * 5,
-        includeHandwriting: useHandwriting,
-        priority: current.priority,
-        onlyPriority: current.onlyPriority,
-        practiceMode: Boolean(props.practiceMode),
-      });
+      // TestWords plans the session, because the Learn step has to teach the
+      // new words the queue asks. The fallback covers the demo and the unit
+      // tests, which render the engine without a container.
+      const plan =
+        props.plan ??
+        testLogic.planSession(props.words, {
+          ...testLogic.readSessionSettings(Boolean(props.isDemo)),
+          includeHandwriting: useHandwriting,
+          practiceMode: Boolean(props.practiceMode),
+        });
       const permList = plan.queue;
 
       if (permList.length === 0) {
@@ -827,7 +827,7 @@ export const useTestEngine = (props: Props) => {
         qNum: prevState.qNum + 1,
       }));
     },
-    [getState, props.practiceMode, props.words, setStateMerged],
+    [getState, props.isDemo, props.plan, props.practiceMode, props.words, setStateMerged],
   );
 
   const initialiseSettings = useCallback((): void => {

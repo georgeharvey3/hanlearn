@@ -117,6 +117,49 @@ function makeStore(overrides: Partial<ReturnType<typeof authenticatedState>['add
   });
 }
 
+describe('TestWords — the Learn stage teaches what the queue asks', () => {
+  // A default session is numWords=5, and the budget is five questions per word,
+  // so 25 questions. Every word costs one question, review or new.
+
+  it('teaches no new word when the reviews take the whole budget', async () => {
+    const reviews = Array.from({ length: 25 }, (_, i) => dueWord(i + 100, `旧${i}`, 2));
+    const store = makeStore({ words: [...reviews, dueWord(1, '新一'), dueWord(2, '新二')] });
+
+    renderWithProviders(<TestWords />, { store });
+
+    // Before this was coupled, the Learn stage taught five new words and the
+    // queue asked none of them.
+    await waitFor(() => expect(screen.getByTestId('mock-test')).toBeInTheDocument());
+    expect(screen.queryByTestId('mock-new-words')).not.toBeInTheDocument();
+    expect((capturedTestProps.plan as { newWords: Word[] }).newWords).toHaveLength(0);
+  });
+
+  it('teaches exactly the new words the queue admits', async () => {
+    const reviews = Array.from({ length: 24 }, (_, i) => dueWord(i + 100, `旧${i}`, 2));
+    const store = makeStore({ words: [...reviews, dueWord(1, '新一'), dueWord(2, '新二')] });
+
+    renderWithProviders(<TestWords />, { store });
+
+    // 24 review pairs of 25 leave room for one new word, not two.
+    const learn = await screen.findByTestId('mock-new-words');
+    expect(learn).toHaveTextContent('NewWords: 新一');
+    expect(learn).not.toHaveTextContent('新二');
+  });
+
+  it('gives the Test component the same plan the Learn stage taught from', async () => {
+    const store = makeStore({ words: [dueWord(1, '新一'), dueWord(2, '新二')] });
+
+    renderWithProviders(<TestWords />, { store });
+
+    await userEvent.click(await screen.findByTestId('start-test-btn'));
+
+    const plan = capturedTestProps.plan as { newWords: Word[]; queue: unknown[] };
+    expect(plan.newWords.map((w) => w.simp)).toEqual(['新一', '新二']);
+    // One question per word now, not one per direction.
+    expect(plan.queue).toHaveLength(2);
+  });
+});
+
 describe('TestWords — newWordsEnabled=false skips Learn stage', () => {
   it('goes directly to vocab stage when newWords setting is disabled', async () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {

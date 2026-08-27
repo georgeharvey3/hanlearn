@@ -514,21 +514,36 @@ describe('planSession', () => {
     );
   });
 
-  // ─── Rule 4: a new word fans out ─────────────────────────────────────────
+  // ─── Rule 4: a new word takes one direction, like any other word ─────────
 
-  it('fans a new word out to every direction', () => {
+  it('asks a new word once, not once per direction', () => {
     const result = plan([newWord(1)]);
 
-    expect(result.queue).toHaveLength(DIRECTIONS.length);
-    expect(directionsIn(result).sort()).toEqual([...DIRECTIONS].sort());
+    expect(result.queue).toHaveLength(1);
     expect(result.newWords.map((w) => w.id)).toEqual([1]);
   });
 
-  it('fans out only the directions the session asks', () => {
+  it('asks a new word only in a direction the session asks', () => {
     const result = plan([newWord(1)], { includeHandwriting: false });
 
-    expect(result.queue).toHaveLength(4);
+    expect(result.queue).toHaveLength(1);
     expect(directionsIn(result)).not.toContain('CM');
+  });
+
+  it('varies the direction across new words', () => {
+    const words = Array.from({ length: 40 }, (_, i) => newWord(i));
+
+    const seen = new Set(directionsIn(plan(words, { budget: 40 })));
+
+    // The five directions of a new word are all at level 1 and share one due
+    // date, so they are all tied and the tie-break settles it.
+    expect(seen.size).toBeGreaterThan(1);
+  });
+
+  it('leaves the four directions it did not ask for a later session', () => {
+    const result = plan([newWord(1)]);
+
+    expect(directionsOf(result.queue)).toHaveLength(1);
   });
 
   it('puts the new word after the review pairs', () => {
@@ -540,7 +555,7 @@ describe('planSession', () => {
     expect(result.words[parseInt(result.queue[1].index)].id).toBe(2);
   });
 
-  // ─── Rule 5: at most five new words, and only with room for a fan-out ────
+  // ─── Rule 5: at most five new words, after the reviews ───────────────────
 
   it('admits at most five new words', () => {
     const words = Array.from({ length: 9 }, (_, i) => newWord(i));
@@ -548,30 +563,30 @@ describe('planSession', () => {
     const result = plan(words, { budget: 100 });
 
     expect(result.newWords).toHaveLength(NEW_WORDS_PER_SESSION);
-    expect(result.queue).toHaveLength(NEW_WORDS_PER_SESSION * DIRECTIONS.length);
+    expect(result.queue).toHaveLength(NEW_WORDS_PER_SESSION);
   });
 
-  it('admits a new word only while the budget holds a whole fan-out', () => {
-    const reviews = Array.from({ length: 7 }, (_, i) =>
+  it('admits a new word for each question the reviews leave', () => {
+    const reviews = Array.from({ length: 10 }, (_, i) =>
       wordWith(i + 10, { MC: { level: 2, dueDate: past } }),
     );
 
-    // 7 review pairs of a budget of 12 leave 5: room for exactly one fan-out.
-    const result = plan([...reviews, newWord(1), newWord(2)], { budget: 12 });
+    // 10 review pairs of a budget of 12 leave 2, so two new words enter.
+    const result = plan([...reviews, newWord(1), newWord(2), newWord(3)], { budget: 12 });
 
-    expect(result.newWords).toHaveLength(1);
-    expect(result.queue).toHaveLength(7 + DIRECTIONS.length);
+    expect(result.newWords).toHaveLength(2);
+    expect(result.queue).toHaveLength(12);
   });
 
-  it('admits no new word when the reviews leave too little budget', () => {
-    const reviews = Array.from({ length: 9 }, (_, i) =>
+  it('admits no new word when the reviews take the whole budget', () => {
+    const reviews = Array.from({ length: 12 }, (_, i) =>
       wordWith(i + 10, { MC: { level: 2, dueDate: past } }),
     );
 
     const result = plan([...reviews, newWord(1)], { budget: 12 });
 
     expect(result.newWords).toHaveLength(0);
-    expect(result.queue).toHaveLength(9);
+    expect(result.queue).toHaveLength(12);
   });
 
   // ─── Rule 7: priority and onlyPriority ───────────────────────────────────
@@ -619,28 +634,13 @@ describe('planSession', () => {
     expect(directionsIn(result)).toEqual(['PC']);
   });
 
-  it('spreads the new-word fan-outs rather than blocking them per word', () => {
+  it('asks each admitted new word exactly once', () => {
     const result = plan([newWord(1), newWord(2)], { budget: 25 });
 
-    const indexes = result.queue.map((perm) => perm.index);
-    const blocked = ['0', '0', '0', '0', '0', '1', '1', '1', '1', '1'];
-
-    expect(indexes.slice().sort()).toEqual(blocked.slice().sort());
-    expect(indexes).not.toEqual(blocked);
+    expect(result.queue.map((perm) => perm.index)).toEqual(['0', '1']);
   });
 
-  it('asks every direction of every new word it admits', () => {
-    const result = plan([newWord(1), newWord(2)], { budget: 25 });
-
-    for (const index of ['0', '1']) {
-      const forWord = result.queue.filter((perm) => perm.index === index);
-      expect(new Set(forWord.map((perm) => `${perm.aCategory}${perm.qCategory}`)).size).toBe(
-        DIRECTIONS.length,
-      );
-    }
-  });
-
-  it('onlyPriority overrides the new-word fan-out', () => {
+  it('onlyPriority asks a new word in that one direction', () => {
     const result = plan([newWord(1)], { priority: 'PC', onlyPriority: true });
 
     expect(directionsIn(result)).toEqual(['PC']);

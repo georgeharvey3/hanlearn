@@ -2,17 +2,6 @@ import { DIRECTIONS, Direction, Word, TestPerm, QuestionCategory } from '../../.
 import { parseMeanings } from '../../../utils/meaningUtils';
 import { isNewWord } from '../../../utils/directions';
 
-const pickRandom = <T>(array: T[], n: number): T[] => {
-  const remaining = [...array];
-  const selected: T[] = [];
-  const count = Math.min(n, remaining.length);
-  for (let i = 0; i < count; i++) {
-    const index = Math.floor(Math.random() * remaining.length);
-    selected.push(remaining.splice(index, 1)[0]);
-  }
-  return selected;
-};
-
 /**
  * Parse a due-date string into a Date.
  *
@@ -109,6 +98,25 @@ export const chooseTestSet = (allWords: Word[], numWords: number): Word[] => {
 };
 
 const ranChoice = <T>(array: T[]): T => array[Math.floor(Math.random() * array.length)];
+
+/**
+ * The session options that the learner's settings decide.
+ *
+ * `TestWords` plans the session and the engine reads that plan, so both need
+ * the same options. Reading them here rather than in each caller keeps one
+ * answer to "how long is a session, and which directions does it ask".
+ */
+export const readSessionSettings = (isDemo = false): Omit<PlanSessionOptions, 'practiceMode'> => {
+  const numWords = parseInt(localStorage.getItem('numWords') || '5');
+  return {
+    // Five questions per word keeps a session the length it was before the
+    // queue existed. PR 5 replaces this with the `questionsPerSession` setting.
+    budget: numWords * 5,
+    includeHandwriting: localStorage.getItem('useHandwriting') !== 'false' || isDemo,
+    priority: isDemo ? 'none' : localStorage.getItem('priority') || 'none',
+    onlyPriority: isDemo ? false : localStorage.getItem('onlyPriority') === 'true',
+  };
+};
 
 /** At most this many new words enter one session (rule 5 of the plan on #328). */
 export const NEW_WORDS_PER_SESSION = 5;
@@ -240,16 +248,15 @@ function eligibleDirections(options: PlanSessionOptions): Direction[] {
  * about one word in the same session give each other away, because a word
  * holds three facts and every direction exposes two of them.
  *
- * A new word is the exception. It fans out to every direction the session asks,
- * because the new-word stage has just shown its character, pinyin and meaning
- * together, so there is nothing left for the fan-out to leak. At most
- * NEW_WORDS_PER_SESSION of them enter, after the review pairs, and only while
- * the budget still has room for a whole fan-out.
+ * A new word is no exception. It takes one direction like any other word, and
+ * the four it leaves stay at level 1 and due, so later sessions reach them
+ * through the same ranking. At most NEW_WORDS_PER_SESSION of them enter, after
+ * the review pairs. See docs/adr/0005-new-words-take-one-direction.md.
  *
  * See docs/adr/0002-direction-level-scheduling.md and the plan on issue #328.
  */
 export const planSession = (candidates: Word[], options: PlanSessionOptions): SessionPlan => {
-  const { budget, priority = 'none', onlyPriority = false, practiceMode = false } = options;
+  const { budget, priority = 'none', practiceMode = false } = options;
   const today = options.now ?? new Date();
 
   const eligible = eligibleDirections(options);
@@ -297,36 +304,37 @@ export const planSession = (candidates: Word[], options: PlanSessionOptions): Se
     .flatMap((day) => seededShuffle(byDay.get(day)!, seed))
     .slice(0, budget);
 
-  // ─── New words: a whole fan-out each, while the budget holds one ──────────
-  const questionsPerNewWord = onlyPriority && priority !== 'none' ? 1 : eligible.length;
-  const admittedNew: Word[] = [];
+  // ─── New words: one direction each, after the reviews ────────────────────
+  // A new word costs one question, the same as a review word. All five of its
+  // directions are at level 1 and share one due date, so they are all tied and
+  // chooseDirection settles it the same way it settles any other tie.
+  const newPairs: { word: Word; direction: Direction }[] = [];
   let remaining = budget - orderedReview.length;
 
   for (const word of newCandidates) {
-    if (admittedNew.length >= NEW_WORDS_PER_SESSION) break;
-    if (remaining < questionsPerNewWord) break;
-    admittedNew.push(word);
-    remaining -= questionsPerNewWord;
+    if (newPairs.length >= NEW_WORDS_PER_SESSION) break;
+    if (remaining < 1) break;
+
+    // A new word is due in every direction, so this filter normally keeps them
+    // all. It stays for a word added with a due date in the future.
+    const due = eligible.filter(
+      (direction) => practiceMode || isDirectionDue(word, direction, today),
+    );
+    const available = due.length > 0 ? due : eligible;
+
+    newPairs.push({
+      word,
+      direction: chooseDirection(word, available, priority, practiceMode, seed),
+    });
+    remaining -= 1;
   }
 
   // ─── Assemble ────────────────────────────────────────────────────────────
-  const words: Word[] = [...orderedReview.map((pair) => pair.word), ...admittedNew];
-  const queue: TestPerm[] = orderedReview.map((pair, index) => permFor(index, pair.direction));
+  const pairs = [...orderedReview, ...newPairs];
+  const words: Word[] = pairs.map((pair) => pair.word);
+  const queue: TestPerm[] = pairs.map((pair, index) => permFor(index, pair.direction));
 
-  // The fan-outs are shuffled together rather than blocked per word. Five
-  // consecutive questions on one word reads as a drill, and spacing a word's
-  // questions apart is better for retention. Nothing leaks either way: the
-  // new-word stage has already shown all three facts of every word here.
-  const fanOut: TestPerm[] = [];
-  admittedNew.forEach((_, newIndex) => {
-    const index = orderedReview.length + newIndex;
-    for (const direction of eligible) {
-      fanOut.push(permFor(index, direction));
-    }
-  });
-  queue.push(...seededShuffle(fanOut, seed));
-
-  return { words, queue, newWords: admittedNew };
+  return { words, queue, newWords: newPairs.map((pair) => pair.word) };
 };
 
 /** The direction a perm asks, as the answer-first pair that names it. */
