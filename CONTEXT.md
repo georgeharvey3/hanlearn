@@ -58,6 +58,9 @@ A **session** is one run of the test flow. Its **queue** is an ordered list of
 **(word, direction) pairs**, and one pair is one question. A word appears at most
 once in a session. There is no exception.
 
+The due date of the chosen direction gives the order, oldest first. Pairs that
+share a day are shuffled, and the **budget** cuts the queue at its end.
+
 ## New word
 
 A word whose five directions are all at bank 1, that is, one that has never been
@@ -68,6 +71,10 @@ direction like any other word. The five directions of a new word share one due
 date, so the queue treats them as tied. The four directions that the session
 does not ask stay at bank 1 and due, and a later session reaches them. See
 [docs/adr/0005-new-words-take-one-direction.md](docs/adr/0005-new-words-take-one-direction.md).
+
+A new word holds no place of its own in the queue. Its due date ranks it against
+every other word, it has no cap, and a word with no due date is not due. See
+[docs/adr/0006-the-due-date-is-the-only-rank.md](docs/adr/0006-the-due-date-is-the-only-rank.md).
 
 ## Practice
 

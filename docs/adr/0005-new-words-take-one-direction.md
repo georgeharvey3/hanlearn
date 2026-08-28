@@ -1,6 +1,7 @@
 # 5. A new word takes one direction
 
-- Status: accepted
+- Status: superseded in part by
+  [0006-the-due-date-is-the-only-rank.md](0006-the-due-date-is-the-only-rank.md)
 - Date: 2026-08-27
 - Issue: #328
 - Related: #306,
@@ -37,14 +38,14 @@ other: the `priority` setting, or a random choice seeded from the day and the
 word. There is no special case.
 
 New words still enter after the review pairs, and at most
-`NEW_WORDS_PER_SESSION` of them enter.
+`NEW_WORDS_PER_SESSION` of them enter. ADR 0006 removes both of these rules.
+The due date ranks a new word against every other word.
 
 ## Consequences
 
 Good:
 
-- A new word costs one question. Five new words cost 5 questions of 25, not all
-  25.
+- A new word costs one question. Five new words cost 5 questions of 25, not all 25.
 - New words reach the queue on a day with a backlog. The old rule needed 5 free
   questions for one new word.
 - One rule covers every word, so `planSession` has no fan-out branch and the

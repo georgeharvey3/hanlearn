@@ -89,6 +89,9 @@ const makeWord = (overrides: Partial<Word> = {}): Word => ({
   pinyin: 'hǎo',
   meaning: 'good',
   level: 1,
+  // The queue asks a word only when it is due, and a word with no due date is
+  // never due. A date in the past keeps these fixtures in the session.
+  due_date: '2020/01/01',
   ...overrides,
 });
 

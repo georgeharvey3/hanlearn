@@ -78,7 +78,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function dueWord(id: number, simp: string, level = 1): Word {
+function dueWord(id: number, simp: string, level = 1, daysAgo = 0): Word {
   return {
     id,
     simp,
@@ -86,7 +86,7 @@ function dueWord(id: number, simp: string, level = 1): Word {
     pinyin: 'test',
     meaning: 'test meaning',
     level,
-    due_date: new Date(Date.now() - 1000).toISOString(),
+    due_date: new Date(Date.now() - 1000 - daysAgo * 86400000).toISOString(),
   };
 }
 
@@ -121,8 +121,8 @@ describe('TestWords — the Learn stage teaches what the queue asks', () => {
   // A default session is numWords=5, and the budget is five questions per word,
   // so 25 questions. Every word costs one question, review or new.
 
-  it('teaches no new word when the reviews take the whole budget', async () => {
-    const reviews = Array.from({ length: 25 }, (_, i) => dueWord(i + 100, `旧${i}`, 2));
+  it('teaches no new word when older review words take the whole budget', async () => {
+    const reviews = Array.from({ length: 25 }, (_, i) => dueWord(i + 100, `旧${i}`, 2, 10));
     const store = makeStore({ words: [...reviews, dueWord(1, '新一'), dueWord(2, '新二')] });
 
     renderWithProviders(<TestWords />, { store });
@@ -135,15 +135,30 @@ describe('TestWords — the Learn stage teaches what the queue asks', () => {
   });
 
   it('teaches exactly the new words the queue admits', async () => {
-    const reviews = Array.from({ length: 24 }, (_, i) => dueWord(i + 100, `旧${i}`, 2));
-    const store = makeStore({ words: [...reviews, dueWord(1, '新一'), dueWord(2, '新二')] });
+    const reviews = Array.from({ length: 24 }, (_, i) => dueWord(i + 100, `旧${i}`, 2, 10));
+    const store = makeStore({
+      words: [...reviews, dueWord(1, '新一', 1, 5), dueWord(2, '新二', 1, 0)],
+    });
 
     renderWithProviders(<TestWords />, { store });
 
-    // 24 review pairs of 25 leave room for one new word, not two.
+    // 24 review pairs of 25 leave room for one new word. 新一 has waited five
+    // days and 新二 came due today, so the due date takes 新一.
     const learn = await screen.findByTestId('mock-new-words');
     expect(learn).toHaveTextContent('NewWords: 新一');
     expect(learn).not.toHaveTextContent('新二');
+  });
+
+  it('takes a new word before a review word that came due later', async () => {
+    const reviews = Array.from({ length: 25 }, (_, i) => dueWord(i + 100, `旧${i}`, 2, 0));
+    const store = makeStore({ words: [...reviews, dueWord(1, '新一', 1, 10)] });
+
+    renderWithProviders(<TestWords />, { store });
+
+    // The new word has waited ten days, so it outranks every review word and
+    // the budget cuts a review word instead of the new word.
+    const learn = await screen.findByTestId('mock-new-words');
+    expect(learn).toHaveTextContent('NewWords: 新一');
   });
 
   it('gives the Test component the same plan the Learn stage taught from', async () => {

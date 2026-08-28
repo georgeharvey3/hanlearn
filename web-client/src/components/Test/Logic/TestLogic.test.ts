@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   chooseTestSet,
   planSession,
-  NEW_WORDS_PER_SESSION,
   assignQA,
   toneChecker,
   Counter,
@@ -546,47 +545,72 @@ describe('planSession', () => {
     expect(directionsOf(result.queue)).toHaveLength(1);
   });
 
-  it('puts the new word after the review pairs', () => {
+  // ─── Rule 5: the due date is the only rank ───────────────────────────────
+
+  it('puts the older new word before the newer review word', () => {
     const review = wordWith(1, { MC: { level: 2, dueDate: past } });
 
-    const result = plan([newWord(2), review]);
+    const result = plan([review, newWord(2, older)]);
+
+    expect(result.words[parseInt(result.queue[0].index)].id).toBe(2);
+    expect(result.words[parseInt(result.queue[1].index)].id).toBe(1);
+  });
+
+  it('puts the older review word before the newer new word', () => {
+    const review = wordWith(1, { MC: { level: 2, dueDate: older } });
+
+    const result = plan([newWord(2, past), review]);
 
     expect(result.words[parseInt(result.queue[0].index)].id).toBe(1);
     expect(result.words[parseInt(result.queue[1].index)].id).toBe(2);
   });
 
-  // ─── Rule 5: at most five new words, after the reviews ───────────────────
-
-  it('admits at most five new words', () => {
+  it('admits more than five new words when the budget allows', () => {
     const words = Array.from({ length: 9 }, (_, i) => newWord(i));
 
     const result = plan(words, { budget: 100 });
 
-    expect(result.newWords).toHaveLength(NEW_WORDS_PER_SESSION);
-    expect(result.queue).toHaveLength(NEW_WORDS_PER_SESSION);
+    expect(result.newWords).toHaveLength(9);
+    expect(result.queue).toHaveLength(9);
   });
 
-  it('admits a new word for each question the reviews leave', () => {
+  it('cuts the review words that are newer than the new words at the budget', () => {
     const reviews = Array.from({ length: 10 }, (_, i) =>
       wordWith(i + 10, { MC: { level: 2, dueDate: past } }),
     );
 
-    // 10 review pairs of a budget of 12 leave 2, so two new words enter.
-    const result = plan([...reviews, newWord(1), newWord(2), newWord(3)], { budget: 12 });
+    // The three new words are due before every review word, so they take the
+    // first three questions and the budget cuts three review words.
+    const result = plan([...reviews, newWord(1, older), newWord(2, older), newWord(3, older)], {
+      budget: 12,
+    });
 
-    expect(result.newWords).toHaveLength(2);
+    expect(result.newWords).toHaveLength(3);
     expect(result.queue).toHaveLength(12);
+    expect(
+      result.words
+        .slice(0, 3)
+        .map((word) => word.id)
+        .sort(),
+    ).toEqual([1, 2, 3]);
   });
 
-  it('admits no new word when the reviews take the whole budget', () => {
+  it('admits no new word when older review words take the whole budget', () => {
     const reviews = Array.from({ length: 12 }, (_, i) =>
-      wordWith(i + 10, { MC: { level: 2, dueDate: past } }),
+      wordWith(i + 10, { MC: { level: 2, dueDate: older } }),
     );
 
-    const result = plan([...reviews, newWord(1)], { budget: 12 });
+    const result = plan([...reviews, newWord(1, past)], { budget: 12 });
 
     expect(result.newWords).toHaveLength(0);
     expect(result.queue).toHaveLength(12);
+  });
+
+  it('leaves out a new word that is not due yet', () => {
+    const result = plan([newWord(1, future)]);
+
+    expect(result.queue).toHaveLength(0);
+    expect(result.newWords).toHaveLength(0);
   });
 
   // ─── Rule 7: priority and onlyPriority ───────────────────────────────────
