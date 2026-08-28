@@ -1,4 +1,4 @@
-import { DIRECTIONS, Direction, Word, TestPerm, QuestionCategory } from '../../../types/models';
+import { DIRECTIONS, Direction, Word, QueuePair, QuestionCategory } from '../../../types/models';
 import { parseMeanings } from '../../../utils/meaningUtils';
 import { isNewWord } from '../../../utils/directions';
 import { readQuestionsPerSession } from '../../../utils/sessionSettings';
@@ -133,13 +133,13 @@ export interface SessionPlan {
   /** The words the queue refers to. A queue entry's index points into this. */
   words: Word[];
   /** The (word, direction) pairs to ask, in the order to ask them. */
-  queue: TestPerm[];
+  queue: QueuePair[];
   /** The new words the session admits, which the new-word stage teaches first. */
   newWords: Word[];
 }
 
-/** A perm for one word (by its index in the plan) in one direction. */
-function permFor(index: number, direction: Direction): TestPerm {
+/** The queue pair for one word, by its index in the plan, in one direction. */
+function pairFor(index: number, direction: Direction): QueuePair {
   return {
     index: index.toString(),
     aCategory: direction[0] as QuestionCategory,
@@ -297,25 +297,25 @@ export const planSession = (candidates: Word[], options: PlanSessionOptions): Se
 
   // ─── Assemble ────────────────────────────────────────────────────────────
   const words: Word[] = ordered.map((pair) => pair.word);
-  const queue: TestPerm[] = ordered.map((pair, index) => permFor(index, pair.direction));
+  const queue: QueuePair[] = ordered.map((pair, index) => pairFor(index, pair.direction));
 
   return { words, queue, newWords: words.filter(isNewWord) };
 };
 
-/** The direction a perm asks, as the answer-first pair that names it. */
-export const directionOf = (perm: TestPerm): Direction =>
-  `${perm.aCategory}${perm.qCategory}` as Direction;
+/** The direction a queue pair asks, written answer-first. */
+export const directionOf = (pair: QueuePair): Direction =>
+  `${pair.aCategory}${pair.qCategory}` as Direction;
 
 /**
- * The distinct directions a perm list asks, in the order the list holds them.
+ * The distinct directions a queue asks, in the order the queue holds them.
  * finishTest reschedules only these, so the directions the session left out
  * keep the bank and due date they already hold.
  */
-export const directionsOf = (permList: TestPerm[]): Direction[] => {
+export const directionsOf = (queue: QueuePair[]): Direction[] => {
   const seen = new Set<string>();
   const directions: Direction[] = [];
-  for (const perm of permList) {
-    const direction = directionOf(perm);
+  for (const pair of queue) {
+    const direction = directionOf(pair);
     if (seen.has(direction)) continue;
     seen.add(direction);
     directions.push(direction);
@@ -334,7 +334,7 @@ function resolveCategory(
 }
 
 export interface AssignQAResult {
-  perm: TestPerm;
+  pair: QueuePair;
   chosenCharacter: string;
   answer: string | string[];
   answerCategory: string;
@@ -351,17 +351,17 @@ export interface AssignQAResult {
  */
 export const assignQA = (
   testSet: Word[],
-  queue: TestPerm[],
+  queue: QueuePair[],
   charSet: 'simp' | 'trad',
 ): AssignQAResult => {
-  const perm = queue[0];
-  const word = testSet[parseInt(perm.index)];
+  const pair = queue[0];
+  const word = testSet[parseInt(pair.index)];
 
-  const { value: Ax, label: ACs } = resolveCategory(perm.aCategory, word, charSet);
-  const { value: Qx, label: QCs } = resolveCategory(perm.qCategory, word, charSet);
+  const { value: Ax, label: ACs } = resolveCategory(pair.aCategory, word, charSet);
+  const { value: Qx, label: QCs } = resolveCategory(pair.qCategory, word, charSet);
 
   return {
-    perm,
+    pair,
     chosenCharacter: word[charSet],
     answer: Ax,
     answerCategory: ACs,

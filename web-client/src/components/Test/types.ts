@@ -4,7 +4,7 @@ import {
   Direction,
   DirectionFailure,
   Word,
-  TestPerm,
+  QueuePair,
   WordDirectionResults,
   WordScore,
 } from '../../types/models';
@@ -13,9 +13,9 @@ import { SessionPlan } from './Logic/TestLogic';
 
 export interface TestState {
   testSet: Word[];
-  permList: TestPerm[];
+  queue: QueuePair[];
   charSet: 'simp' | 'trad';
-  perm: TestPerm | null;
+  currentPair: QueuePair | null;
   answer: string | string[] | null;
   answerCategory: string | null;
   question: string | string[] | null;
@@ -26,9 +26,9 @@ export interface TestState {
   idkDisabled: boolean;
   submitDisabled: boolean;
   progressBar: number;
-  initNumPerms: number;
+  initialQueueLength: number;
   /**
-   * The directions this session asks, taken from the perm list when it is built.
+   * The directions this session asks, taken from the queue when it is built.
    * finishTest reschedules only these, so a direction the session left out —
    * handwriting when it is switched off, or the four that onlyPriority filters
    * away — keeps the bank and due date it already holds.

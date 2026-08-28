@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { Direction, TestPerm, Word } from '../types/models';
+import { Direction, QueuePair, Word } from '../types/models';
 import { SessionPlan } from '../components/Test/Logic/TestLogic';
 import {
   assumedNewWordCount,
@@ -179,16 +179,16 @@ describe('estimatePlannedTime', () => {
     meaning: 'good',
   });
 
-  const perm = (index: number, direction: Direction): TestPerm => ({
+  const pair = (index: number, direction: Direction): QueuePair => ({
     index: index.toString(),
-    aCategory: direction[0] as TestPerm['aCategory'],
-    qCategory: direction[1] as TestPerm['qCategory'],
+    aCategory: direction[0] as QueuePair['aCategory'],
+    qCategory: direction[1] as QueuePair['qCategory'],
   });
 
   it('reads the questions and the new words from the plan', () => {
     const plan: SessionPlan = {
       words: [word(1), word(2), word(3)],
-      queue: [perm(0, 'MC'), perm(1, 'CM'), perm(2, 'MP')],
+      queue: [pair(0, 'MC'), pair(1, 'CM'), pair(2, 'MP')],
       newWords: [word(1)],
     };
 

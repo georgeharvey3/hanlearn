@@ -46,9 +46,9 @@ export const createInitialState = (props: Props): TestState => {
 
   return {
     testSet: [],
-    permList: [],
+    queue: [],
     charSet: charSet,
-    perm: null,
+    currentPair: null,
     answer: null,
     answerCategory: null,
     question: null,
@@ -59,7 +59,7 @@ export const createInitialState = (props: Props): TestState => {
     idkDisabled: false,
     submitDisabled: false,
     progressBar: 0,
-    initNumPerms: 0,
+    initialQueueLength: 0,
     askedDirections: [],
     idkList: [],
     scoreList: devScoreList,

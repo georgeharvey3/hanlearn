@@ -106,7 +106,14 @@ export interface DirectionFailure {
 
 export type QuestionCategory = 'C' | 'P' | 'M';
 
-export interface TestPerm {
+/**
+ * One entry of the session queue: one word, asked in one direction.
+ *
+ * `index` points into the words of the plan, and the two categories are the
+ * direction split into the answer it wants and the question it shows. The
+ * direction that names the pair is `directionOf` in `TestLogic.ts`.
+ */
+export interface QueuePair {
   index: string;
   aCategory: QuestionCategory;
   qCategory: QuestionCategory;

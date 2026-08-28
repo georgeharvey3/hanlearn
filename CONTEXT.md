@@ -26,15 +26,18 @@ a random choice. See
 Each direction of each word carries its own bank and due date. See
 [docs/adr/0002-direction-level-scheduling.md](docs/adr/0002-direction-level-scheduling.md).
 
-**Direction is the canonical name.** The code still uses three older names for
-the same concept, and a later pull request renames them:
+**Direction is the canonical name.** The code used four older names for the
+same concept, and issue #328 removed them all. Older issues and pull requests
+still hold them:
 
-| Older name         | Where                              | Replaced by                               |
-| ------------------ | ---------------------------------- | ----------------------------------------- |
-| `TestPerm`         | `types/models.ts`                  | The direction and its resolved categories |
-| `permList`, `perm` | `TestLogic.ts`, `useTestEngine.ts` | The session queue and its entries         |
-| `qaCombinations`   | `TestLogic.ts`                     | `DIRECTIONS`                              |
-| "QA combination"   | Issues and comments                | Direction                                 |
+| Older name       | Current name                                      |
+| ---------------- | ------------------------------------------------- |
+| `TestPerm`       | `QueuePair`                                       |
+| `permList`       | `queue`                                           |
+| `perm`           | `pair`, and `currentPair` for the one being asked |
+| `initNumPerms`   | `initialQueueLength`                              |
+| `qaCombinations` | `DIRECTIONS`                                      |
+| "QA combination" | Direction                                         |
 
 ## Bank and level
 
@@ -60,6 +63,10 @@ once in a session. There is no exception.
 
 The due date of the chosen direction gives the order, oldest first. Pairs that
 share a day are shuffled, and the **budget** cuts the queue at its end.
+
+The code calls one pair a `QueuePair`, and it holds the index of the word plus
+the two categories of the direction. `TestState` holds the queue as `queue`, and
+the pair the learner answers now as `currentPair`.
 
 ## Budget
 
@@ -89,11 +96,9 @@ every other word, it has no cap, and a word with no due date is not due. See
 
 ## Practice
 
-Two different things carry this name today:
-
-- **Practice mode** — the unscored run that ignores due dates. This use stays.
-- The **"Practice" step** of the session stepper, which holds the sentence
-  stages. This one is renamed to **"Sentences"**.
+**Practice mode** is the unscored run that ignores due dates. This is the only
+thing the name covers. The step of the session stepper that holds the sentence
+stages carried the same name before, and it is **"Sentences"** now.
 
 ## Pass and failure
 

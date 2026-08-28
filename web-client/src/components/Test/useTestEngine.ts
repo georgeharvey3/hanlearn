@@ -176,10 +176,10 @@ export const useTestEngine = (props: Props) => {
    * which the two call sites already guard against by other means.
    */
   const currentFailure = (state: TestState): DirectionFailure | null => {
-    if (!state.perm) return null;
-    const word = state.testSet[parseInt(state.perm.index)];
+    if (!state.currentPair) return null;
+    const word = state.testSet[parseInt(state.currentPair.index)];
     if (!word) return null;
-    return { wordId: word.id, direction: testLogic.directionOf(state.perm) };
+    return { wordId: word.id, direction: testLogic.directionOf(state.currentPair) };
   };
 
   // --- Score sending ---
@@ -323,17 +323,17 @@ export const useTestEngine = (props: Props) => {
       if (current.useSoundEffects) {
         beep.play();
       }
-      const permIndex = current.permList.indexOf(current.perm!);
-      const newPermList = current.permList.filter((_, index) => index !== permIndex);
+      const pairIndex = current.queue.indexOf(current.currentPair!);
+      const remainingQueue = current.queue.filter((_, index) => index !== pairIndex);
 
-      if (permIndex !== -1) {
-        setStateMerged({ permList: newPermList });
+      if (pairIndex !== -1) {
+        setStateMerged({ queue: remainingQueue });
       }
-      if (newPermList.length !== 0) {
-        const newQuestion = testLogic.assignQA(current.testSet, newPermList, current.charSet);
+      if (remainingQueue.length !== 0) {
+        const newQuestion = testLogic.assignQA(current.testSet, remainingQueue, current.charSet);
         setTimeout(() => {
           setStateMerged((prevState) => ({
-            perm: newQuestion.perm,
+            currentPair: newQuestion.pair,
             answer: newQuestion.answer,
             answerCategory: newQuestion.answerCategory,
             question: newQuestion.question,
@@ -563,19 +563,19 @@ export const useTestEngine = (props: Props) => {
           const latest = getState();
           // A revealed direction is answered, so it leaves the queue: the queue
           // is read in order now, and leaving it in would ask it forever.
-          const newPermList = latest.permList.filter((perm) => perm !== latest.perm);
-          setStateMerged({ permList: newPermList });
+          const remainingQueue = latest.queue.filter((pair) => pair !== latest.currentPair);
+          setStateMerged({ queue: remainingQueue });
 
-          if (newPermList.length === 0) {
+          if (remainingQueue.length === 0) {
             onFinishTest();
             setStateMerged({ result: 'Finished!' });
             return;
           }
 
-          const newQuestion = testLogic.assignQA(latest.testSet, newPermList, latest.charSet);
+          const newQuestion = testLogic.assignQA(latest.testSet, remainingQueue, latest.charSet);
 
           setStateMerged((prevState) => ({
-            perm: newQuestion.perm,
+            currentPair: newQuestion.pair,
             answer: newQuestion.answer,
             answerCategory: newQuestion.answerCategory,
             question: newQuestion.question,
@@ -639,10 +639,10 @@ export const useTestEngine = (props: Props) => {
     });
 
     // As above: the direction was revealed, so it leaves the queue.
-    const newPermList = current.permList.filter((perm) => perm !== current.perm);
-    setStateMerged({ permList: newPermList });
+    const remainingQueue = current.queue.filter((pair) => pair !== current.currentPair);
+    setStateMerged({ queue: remainingQueue });
 
-    if (newPermList.length === 0) {
+    if (remainingQueue.length === 0) {
       // Let the reveal stand for a moment before the summary replaces it.
       setTimeout(() => {
         onFinishTest();
@@ -651,11 +651,11 @@ export const useTestEngine = (props: Props) => {
       return;
     }
 
-    const newQuestion = testLogic.assignQA(current.testSet, newPermList, current.charSet);
+    const newQuestion = testLogic.assignQA(current.testSet, remainingQueue, current.charSet);
 
     setTimeout(() => {
       setStateMerged((prevState) => ({
-        perm: newQuestion.perm,
+        currentPair: newQuestion.pair,
         answer: newQuestion.answer,
         answerCategory: newQuestion.answerCategory,
         question: newQuestion.question,
@@ -793,17 +793,17 @@ export const useTestEngine = (props: Props) => {
           includeHandwriting: useHandwriting,
           practiceMode: Boolean(props.practiceMode),
         });
-      const permList = plan.queue;
+      const queue = plan.queue;
 
-      if (permList.length === 0) {
+      if (queue.length === 0) {
         // Reachable when every candidate's only due direction is one the
         // session does not ask — handwriting switched off, say. Go straight to
         // the summary rather than showing a question that does not exist. This
         // submits nothing, so no schedule moves and no streak is recorded.
         setStateMerged({
           testSet: plan.words,
-          permList,
-          initNumPerms: 0,
+          queue,
+          initialQueueLength: 0,
           askedDirections: [],
           scoreList: [],
           testFinished: true,
@@ -811,18 +811,18 @@ export const useTestEngine = (props: Props) => {
         return;
       }
 
-      const initialVals = testLogic.assignQA(plan.words, permList, current.charSet);
+      const initialVals = testLogic.assignQA(plan.words, queue, current.charSet);
       setStateMerged((prevState) => ({
         testSet: plan.words,
-        permList: permList,
-        perm: initialVals.perm,
+        queue: queue,
+        currentPair: initialVals.pair,
         answer: initialVals.answer,
         answerCategory: initialVals.answerCategory,
         question: initialVals.question,
         questionCategory: initialVals.questionCategory,
         chosenCharacter: initialVals.chosenCharacter,
-        initNumPerms: permList.length,
-        askedDirections: testLogic.directionsOf(permList),
+        initialQueueLength: queue.length,
+        askedDirections: testLogic.directionsOf(queue),
         showErrorMessage: false,
         qNum: prevState.qNum + 1,
       }));

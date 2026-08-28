@@ -504,14 +504,14 @@ const TestWords: React.FC<Props> = ({
     const steps: string[] = [];
     if (state.newWords.length > 0 && state.newWordsEnabled) steps.push('Learn');
     steps.push('Test');
-    if (state.sentenceReadEnabled || state.sentenceWriteEnabled) steps.push('Practice');
+    if (state.sentenceReadEnabled || state.sentenceWriteEnabled) steps.push('Sentences');
     steps.push('Done');
 
     const stageToStep: Partial<Record<Stage, number>> = {
       new: steps.indexOf('Learn'),
       vocab: steps.indexOf('Test'),
-      read: steps.indexOf('Practice'),
-      write: steps.indexOf('Practice'),
+      read: steps.indexOf('Sentences'),
+      write: steps.indexOf('Sentences'),
       summary: steps.indexOf('Done'),
     };
     const activeStep = stageToStep[state.stage] ?? 0;
