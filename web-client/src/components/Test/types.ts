@@ -14,7 +14,6 @@ import { SessionPlan } from './Logic/TestLogic';
 export interface TestState {
   testSet: Word[];
   permList: TestPerm[];
-  numWords: number;
   charSet: 'simp' | 'trad';
   perm: TestPerm | null;
   answer: string | string[] | null;
