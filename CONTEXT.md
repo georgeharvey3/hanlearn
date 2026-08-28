@@ -17,8 +17,11 @@ answer-first. There are five:
 | `PC`      | Character      | Pinyin       | Productive recall      |
 | `CM`      | Meaning        | Character    | Handwriting production |
 
-The listed order is also the rotation order the session queue uses when more
-than one direction of a word is due.
+The listed order has no effect on the session queue. When more than one
+direction of a word is due, the queue asks the direction with the oldest due
+date. Directions that share the oldest date go to the `priority` setting, or to
+a random choice. See
+[docs/adr/0003-direction-choice-by-oldest-due.md](docs/adr/0003-direction-choice-by-oldest-due.md).
 
 Each direction of each word carries its own bank and due date. See
 [docs/adr/0002-direction-level-scheduling.md](docs/adr/0002-direction-level-scheduling.md).
@@ -53,14 +56,25 @@ also writes both, in the same batch.
 
 A **session** is one run of the test flow. Its **queue** is an ordered list of
 **(word, direction) pairs**, and one pair is one question. A word appears at most
-once in a session, except in the new-word fan-out.
+once in a session. There is no exception.
+
+The due date of the chosen direction gives the order, oldest first. Pairs that
+share a day are shuffled, and the **budget** cuts the queue at its end.
 
 ## New word
 
 A word whose five directions are all at bank 1, that is, one that has never been
-answered correctly in any direction. A new word is exempt from the one-pair rule
-and contributes all five directions to the queue. The exemption ends as soon as
-one direction passes.
+answered correctly in any direction.
+
+The session teaches a new word in the Learn step, then asks it once, in one
+direction like any other word. The five directions of a new word share one due
+date, so the queue treats them as tied. The four directions that the session
+does not ask stay at bank 1 and due, and a later session reaches them. See
+[docs/adr/0005-new-words-take-one-direction.md](docs/adr/0005-new-words-take-one-direction.md).
+
+A new word holds no place of its own in the queue. Its due date ranks it against
+every other word, it has no cap, and a word with no due date is not due. See
+[docs/adr/0006-the-due-date-is-the-only-rank.md](docs/adr/0006-the-due-date-is-the-only-rank.md).
 
 ## Practice
 
@@ -74,5 +88,4 @@ Two different things carry this name today:
 
 A direction **fails** only when the learner selects "I don't know", or when the
 handwriting reveal runs. A wrong answer gives "Try again" and unlimited retries.
-Inside a new-word fan-out, a direction that fails and is then answered correctly
-counts as failed.
+A direction that fails and is then answered correctly counts as failed.

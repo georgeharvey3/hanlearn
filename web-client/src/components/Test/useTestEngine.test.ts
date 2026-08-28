@@ -93,11 +93,21 @@ const makeWord = (overrides: Partial<Word> = {}): Word => ({
   pinyin: 'nǐ hǎo',
   meaning: 'hello/hi',
   level: 1,
+  // The queue asks a word only when it is due, and a word with no due date is
+  // never due. A date in the past keeps these fixtures in the session.
+  due_date: '2020/01/01',
   ...overrides,
 });
 
+// Three words, so the queue outlives the first answer. A word is one question
+// now, so a single-word session finishes as soon as it is answered, and these
+// tests are about the answer check rather than the end of the session.
 const makeProps = (overrides: Partial<Props> = {}): Props => ({
-  words: [makeWord()],
+  words: [
+    makeWord(),
+    makeWord({ id: 2, simp: '再见', trad: '再見' }),
+    makeWord({ id: 3, simp: '谢谢', trad: '謝謝' }),
+  ],
   userId: 'user-1',
   speechAvailable: false,
   synthAvailable: false,

@@ -9,6 +9,7 @@ import {
   WordScore,
 } from '../../types/models';
 import { QuizType } from '../../utils/audioSettings';
+import { SessionPlan } from './Logic/TestLogic';
 
 export interface TestState {
   testSet: Word[];
@@ -84,6 +85,12 @@ export interface ReduxProps {
 
 export interface OwnProps {
   words: Word[];
+  /**
+   * The plan the session runs, built by TestWords so that the Learn step and
+   * the queue agree on which new words the session admits. The engine plans for
+   * itself only when this is absent, which is the demo and the unit tests.
+   */
+  plan?: SessionPlan;
   isDemo?: boolean;
   finalStage?: boolean;
   startSentenceRead?: (words: Word[], scores?: WordScore[]) => void;

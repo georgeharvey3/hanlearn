@@ -330,12 +330,7 @@ export const useTestEngine = (props: Props) => {
         setStateMerged({ permList: newPermList });
       }
       if (newPermList.length !== 0) {
-        const newQuestion = testLogic.assignQA(
-          current.testSet,
-          newPermList,
-          current.charSet,
-          current.priority,
-        );
+        const newQuestion = testLogic.assignQA(current.testSet, newPermList, current.charSet);
         setTimeout(() => {
           setStateMerged((prevState) => ({
             perm: newQuestion.perm,
@@ -566,14 +561,18 @@ export const useTestEngine = (props: Props) => {
           });
 
           const latest = getState();
-          const newQuestion = testLogic.assignQA(
-            latest.testSet,
-            latest.permList,
-            latest.charSet,
-            latest.priority,
-          );
+          // A revealed direction is answered, so it leaves the queue: the queue
+          // is read in order now, and leaving it in would ask it forever.
+          const newPermList = latest.permList.filter((perm) => perm !== latest.perm);
+          setStateMerged({ permList: newPermList });
 
-          const redoChar = newQuestion.perm === latest.perm;
+          if (newPermList.length === 0) {
+            onFinishTest();
+            setStateMerged({ result: 'Finished!' });
+            return;
+          }
+
+          const newQuestion = testLogic.assignQA(latest.testSet, newPermList, latest.charSet);
 
           setStateMerged((prevState) => ({
             perm: newQuestion.perm,
@@ -585,13 +584,14 @@ export const useTestEngine = (props: Props) => {
             idkDisabled: false,
             result: '',
             answerInput: '',
-            redoChar: redoChar,
+            // The question just left the queue, so it cannot be the next one.
+            redoChar: false,
             qNum: prevState.qNum + 1,
           }));
         }
       });
     },
-    [getState, setStateMerged],
+    [getState, onFinishTest, setStateMerged],
   );
 
   const onIdkChar = useCallback(
@@ -638,12 +638,20 @@ export const useTestEngine = (props: Props) => {
       };
     });
 
-    const newQuestion = testLogic.assignQA(
-      current.testSet,
-      current.permList,
-      current.charSet,
-      current.priority,
-    );
+    // As above: the direction was revealed, so it leaves the queue.
+    const newPermList = current.permList.filter((perm) => perm !== current.perm);
+    setStateMerged({ permList: newPermList });
+
+    if (newPermList.length === 0) {
+      // Let the reveal stand for a moment before the summary replaces it.
+      setTimeout(() => {
+        onFinishTest();
+        setStateMerged({ result: 'Finished!' });
+      }, 2000);
+      return;
+    }
+
+    const newQuestion = testLogic.assignQA(current.testSet, newPermList, current.charSet);
 
     setTimeout(() => {
       setStateMerged((prevState) => ({
@@ -663,7 +671,7 @@ export const useTestEngine = (props: Props) => {
         showAnswer: false,
       }));
     }, 2000);
-  }, [getState, onIdkChar, setStateMerged]);
+  }, [getState, onFinishTest, onIdkChar, setStateMerged]);
 
   // --- Key press (input submit) ---
 
@@ -775,20 +783,37 @@ export const useTestEngine = (props: Props) => {
   const onInitialiseTestSet = useCallback(
     (useHandwriting: boolean): void => {
       const current = getState();
-      const permList = testLogic.setPermList(
-        props.words,
-        useHandwriting,
-        current.priority,
-        current.onlyPriority,
-      );
-      const initialVals = testLogic.assignQA(
-        props.words,
-        permList,
-        current.charSet,
-        current.priority,
-      );
+      // TestWords plans the session, because the Learn step has to teach the
+      // new words the queue asks. The fallback covers the demo and the unit
+      // tests, which render the engine without a container.
+      const plan =
+        props.plan ??
+        testLogic.planSession(props.words, {
+          ...testLogic.readSessionSettings(Boolean(props.isDemo)),
+          includeHandwriting: useHandwriting,
+          practiceMode: Boolean(props.practiceMode),
+        });
+      const permList = plan.queue;
+
+      if (permList.length === 0) {
+        // Reachable when every candidate's only due direction is one the
+        // session does not ask — handwriting switched off, say. Go straight to
+        // the summary rather than showing a question that does not exist. This
+        // submits nothing, so no schedule moves and no streak is recorded.
+        setStateMerged({
+          testSet: plan.words,
+          permList,
+          initNumPerms: 0,
+          askedDirections: [],
+          scoreList: [],
+          testFinished: true,
+        });
+        return;
+      }
+
+      const initialVals = testLogic.assignQA(plan.words, permList, current.charSet);
       setStateMerged((prevState) => ({
-        testSet: props.words,
+        testSet: plan.words,
         permList: permList,
         perm: initialVals.perm,
         answer: initialVals.answer,
@@ -802,7 +827,7 @@ export const useTestEngine = (props: Props) => {
         qNum: prevState.qNum + 1,
       }));
     },
-    [getState, props.words, setStateMerged],
+    [getState, props.isDemo, props.plan, props.practiceMode, props.words, setStateMerged],
   );
 
   const initialiseSettings = useCallback((): void => {
