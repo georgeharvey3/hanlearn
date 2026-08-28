@@ -61,6 +61,17 @@ once in a session. There is no exception.
 The due date of the chosen direction gives the order, oldest first. Pairs that
 share a day are shuffled, and the **budget** cuts the queue at its end.
 
+## Budget
+
+How many questions one session may ask. The learner sets it with the "Questions
+per session" slider, which runs from 5 to 50 in steps of 5 and defaults to 25.
+The setting is stored as `questionsPerSession`.
+
+The slider counted words before the queue existed, and one word gave five
+questions. A learner who has the old `numWords` value keeps the session length
+they had: `readQuestionsPerSession` reads it one time, multiplies it by five,
+and caps the result at 50.
+
 ## New word
 
 A word whose five directions are all at bank 1, that is, one that has never been

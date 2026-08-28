@@ -29,7 +29,6 @@ type Stage = 'new' | 'vocab' | 'read' | 'write' | 'summary';
 interface TestWordsState {
   sentenceWords: Word[];
   stage: Stage;
-  numWords: number;
   newWords: Word[];
   selectedWords: Word[];
   /**
@@ -96,7 +95,6 @@ const TestWords: React.FC<Props> = ({
   const [state, setState] = useState<TestWordsState>({
     sentenceWords: [],
     stage: getInitialStage(),
-    numWords: isDemo ? 5 : parseInt(localStorage.getItem('numWords') || '5', 10),
     newWords: [],
     plan: null,
     selectedWords: [],

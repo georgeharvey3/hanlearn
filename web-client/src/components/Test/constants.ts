@@ -29,7 +29,6 @@ export const activeButtonStyle = {
 };
 
 export const createInitialState = (props: Props): TestState => {
-  const numWords = parseInt(localStorage.getItem('numWords') || '5');
   const charSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad';
   const priority = props.isDemo ? 'none' : localStorage.getItem('priority') || 'none';
   const onlyPriority = props.isDemo ? false : localStorage.getItem('onlyPriority') === 'true';
@@ -48,7 +47,6 @@ export const createInitialState = (props: Props): TestState => {
   return {
     testSet: [],
     permList: [],
-    numWords: numWords,
     charSet: charSet,
     perm: null,
     answer: null,

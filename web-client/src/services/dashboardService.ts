@@ -1,6 +1,7 @@
 import { getUserWords, getDueUserWords } from './wordService';
 import { getStreakData, calculateStreak, computeWeeklyStats, WeeklyStats } from './streakService';
-import { estimateTestTime, formatTestTime } from '../utils/estimateTestTime';
+import { estimatePlannedTime, formatTestTime } from '../utils/estimateTestTime';
+import { planSession, readSessionSettings } from '../components/Test/Logic/TestLogic';
 import { traceAsync } from './performanceService';
 
 export interface DashboardStats {
@@ -35,12 +36,12 @@ export const getDashboardStats = async (userId: string, listId?: string): Promis
     let estimatedStudyTime: string | null = null;
 
     if (dueCount > 0) {
-      const numWords = parseInt(localStorage.getItem('numWords') || '5', 10);
-      const totalSeconds = estimateTestTime({
-        numWords,
-        useHandwriting: localStorage.getItem('useHandwriting') !== 'false',
-        priority: localStorage.getItem('priority') || 'none',
-        onlyPriority: localStorage.getItem('onlyPriority') === 'true',
+      // The session the learner would start now, planned from the words that
+      // are due. The queue decides how many questions they get and which
+      // directions those ask, so the estimate reads the plan rather than
+      // guessing from the budget alone.
+      const plan = planSession(dueWords, readSessionSettings());
+      const totalSeconds = estimatePlannedTime(plan, {
         newWordsEnabled: localStorage.getItem('newWords') !== 'false',
         sentenceReadEnabled: localStorage.getItem('sentenceRead') !== 'false',
         sentenceWriteEnabled: localStorage.getItem('sentenceWrite') !== 'false',

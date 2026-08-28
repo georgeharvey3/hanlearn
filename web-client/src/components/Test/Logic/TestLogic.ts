@@ -1,6 +1,7 @@
 import { DIRECTIONS, Direction, Word, TestPerm, QuestionCategory } from '../../../types/models';
 import { parseMeanings } from '../../../utils/meaningUtils';
 import { isNewWord } from '../../../utils/directions';
+import { readQuestionsPerSession } from '../../../utils/sessionSettings';
 
 /**
  * Parse a due-date string into a Date.
@@ -107,11 +108,8 @@ const ranChoice = <T>(array: T[]): T => array[Math.floor(Math.random() * array.l
  * answer to "how long is a session, and which directions does it ask".
  */
 export const readSessionSettings = (isDemo = false): Omit<PlanSessionOptions, 'practiceMode'> => {
-  const numWords = parseInt(localStorage.getItem('numWords') || '5');
   return {
-    // Five questions per word keeps a session the length it was before the
-    // queue existed. PR 5 replaces this with the `questionsPerSession` setting.
-    budget: numWords * 5,
+    budget: readQuestionsPerSession(),
     includeHandwriting: localStorage.getItem('useHandwriting') !== 'false' || isDemo,
     priority: isDemo ? 'none' : localStorage.getItem('priority') || 'none',
     onlyPriority: isDemo ? false : localStorage.getItem('onlyPriority') === 'true',
@@ -230,7 +228,9 @@ function chooseDirection(
 }
 
 /** The directions a session may ask at all, before any word is considered. */
-function eligibleDirections(options: PlanSessionOptions): Direction[] {
+export function eligibleDirections(
+  options: Pick<PlanSessionOptions, 'includeHandwriting' | 'priority' | 'onlyPriority'>,
+): Direction[] {
   const { includeHandwriting, priority = 'none', onlyPriority = false } = options;
   if (onlyPriority && priority !== 'none') {
     return DIRECTIONS.filter((direction) => direction === priority);

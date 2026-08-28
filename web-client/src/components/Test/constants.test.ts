@@ -38,19 +38,11 @@ describe('createInitialState', () => {
   it('returns default values when localStorage is empty', () => {
     const state = createInitialState(makeProps());
 
-    expect(state.numWords).toBe(5);
     expect(state.charSet).toBe('trad');
     expect(state.priority).toBe('none');
     expect(state.onlyPriority).toBe(false);
     expect(state.testFinished).toBe(false);
     expect(state.scoreList).toEqual([]);
-  });
-
-  it('reads numWords from localStorage', () => {
-    localStorage.setItem('numWords', '10');
-
-    const state = createInitialState(makeProps());
-    expect(state.numWords).toBe(10);
   });
 
   it('reads charSet from localStorage', () => {
