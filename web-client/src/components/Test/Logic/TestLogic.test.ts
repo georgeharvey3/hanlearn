@@ -180,70 +180,70 @@ describe('assignQA', () => {
   const testSet = [word];
 
   it('returns character (simp) as answer for aCategory=C, simp charSet', () => {
-    const perms = [{ index: '0', aCategory: 'C' as const, qCategory: 'M' as const }];
-    const result = assignQA(testSet, perms, 'simp');
+    const pairs = [{ index: '0', aCategory: 'C' as const, qCategory: 'M' as const }];
+    const result = assignQA(testSet, pairs, 'simp');
     expect(result.answer).toBe('你好');
     expect(result.answerCategory).toBe('character');
   });
 
   it('returns character (trad) as answer for aCategory=C, trad charSet', () => {
-    const perms = [{ index: '0', aCategory: 'C' as const, qCategory: 'P' as const }];
-    const result = assignQA(testSet, perms, 'trad');
+    const pairs = [{ index: '0', aCategory: 'C' as const, qCategory: 'P' as const }];
+    const result = assignQA(testSet, pairs, 'trad');
     expect(result.answer).toBe('妳好');
     expect(result.chosenCharacter).toBe('妳好');
   });
 
   it('returns pinyin as answer for aCategory=P', () => {
-    const perms = [{ index: '0', aCategory: 'P' as const, qCategory: 'C' as const }];
-    const result = assignQA(testSet, perms, 'simp');
+    const pairs = [{ index: '0', aCategory: 'P' as const, qCategory: 'C' as const }];
+    const result = assignQA(testSet, pairs, 'simp');
     expect(result.answer).toBe('nǐ hǎo');
     expect(result.answerCategory).toBe('pinyin');
   });
 
   it('returns meaning array as answer for aCategory=M', () => {
-    const perms = [{ index: '0', aCategory: 'M' as const, qCategory: 'C' as const }];
-    const result = assignQA(testSet, perms, 'simp');
+    const pairs = [{ index: '0', aCategory: 'M' as const, qCategory: 'C' as const }];
+    const result = assignQA(testSet, pairs, 'simp');
     expect(result.answer).toEqual(['hello', 'hi']);
     expect(result.answerCategory).toBe('meaning');
   });
 
   it('returns meaning array as question for qCategory=M', () => {
-    const perms = [{ index: '0', aCategory: 'C' as const, qCategory: 'M' as const }];
-    const result = assignQA(testSet, perms, 'simp');
+    const pairs = [{ index: '0', aCategory: 'C' as const, qCategory: 'M' as const }];
+    const result = assignQA(testSet, pairs, 'simp');
     expect(result.question).toEqual(['hello', 'hi']);
     expect(result.questionCategory).toBe('meaning');
   });
 
   it('returns pinyin as question for qCategory=P', () => {
-    const perms = [{ index: '0', aCategory: 'C' as const, qCategory: 'P' as const }];
-    const result = assignQA(testSet, perms, 'simp');
+    const pairs = [{ index: '0', aCategory: 'C' as const, qCategory: 'P' as const }];
+    const result = assignQA(testSet, pairs, 'simp');
     expect(result.question).toBe('nǐ hǎo');
     expect(result.questionCategory).toBe('pinyin');
   });
 
   it('returns character as question for qCategory=C', () => {
-    const perms = [{ index: '0', aCategory: 'M' as const, qCategory: 'C' as const }];
-    const result = assignQA(testSet, perms, 'simp');
+    const pairs = [{ index: '0', aCategory: 'M' as const, qCategory: 'C' as const }];
+    const result = assignQA(testSet, pairs, 'simp');
     expect(result.question).toBe('你好');
     expect(result.questionCategory).toBe('character');
   });
 
-  it('returns the perm that was selected', () => {
-    const perm = { index: '0', aCategory: 'C' as const, qCategory: 'M' as const };
-    const result = assignQA(testSet, [perm], 'simp');
-    expect(result.perm).toBe(perm);
+  it('returns the pair that was selected', () => {
+    const pair = { index: '0', aCategory: 'C' as const, qCategory: 'M' as const };
+    const result = assignQA(testSet, [pair], 'simp');
+    expect(result.pair).toBe(pair);
   });
 
   it('takes the head of the queue, not a random entry', () => {
-    const permList = [
+    const queue = [
       { index: '0', aCategory: 'P' as const, qCategory: 'C' as const },
       { index: '0', aCategory: 'C' as const, qCategory: 'M' as const },
       { index: '0', aCategory: 'M' as const, qCategory: 'P' as const },
     ];
     // planSession already ordered the queue, so this is deterministic.
     for (let i = 0; i < 20; i++) {
-      const result = assignQA(testSet, permList, 'simp');
-      expect(result.perm).toBe(permList[0]);
+      const result = assignQA(testSet, queue, 'simp');
+      expect(result.pair).toBe(queue[0]);
     }
   });
 });
@@ -324,14 +324,14 @@ describe('removePunctuation', () => {
 });
 
 describe('directionsOf', () => {
-  const perm = (direction: string) => ({
+  const pair = (direction: string) => ({
     index: '0',
     aCategory: direction[0] as any,
     qCategory: direction[1] as any,
   });
 
   it('returns the distinct directions of a queue, in order', () => {
-    const queue = [perm('MC'), perm('CM'), perm('MC'), perm('PC')];
+    const queue = [pair('MC'), pair('CM'), pair('MC'), pair('PC')];
 
     expect(directionsOf(queue)).toEqual(['MC', 'CM', 'PC']);
   });
@@ -409,7 +409,7 @@ describe('planSession', () => {
     });
 
   const directionsIn = (result: ReturnType<typeof planSession>) =>
-    result.queue.map((perm) => `${perm.aCategory}${perm.qCategory}`);
+    result.queue.map((pair) => `${pair.aCategory}${pair.qCategory}`);
 
   // ─── Rule 2: one direction per word. This is issue #306. ─────────────────
 
@@ -661,7 +661,7 @@ describe('planSession', () => {
   it('asks each admitted new word exactly once', () => {
     const result = plan([newWord(1), newWord(2)], { budget: 25 });
 
-    expect(result.queue.map((perm) => perm.index)).toEqual(['0', '1']);
+    expect(result.queue.map((pair) => pair.index)).toEqual(['0', '1']);
   });
 
   it('onlyPriority asks a new word in that one direction', () => {

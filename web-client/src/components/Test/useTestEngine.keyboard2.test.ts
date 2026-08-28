@@ -14,10 +14,10 @@ vi.mock('./constants', () => ({
   fail: { play: vi.fn() },
   createInitialState: vi.fn((props: { words?: unknown[] }) => ({
     testSet: props.words ?? [],
-    permList: [],
+    queue: [],
     numWords: 5,
     charSet: 'simp',
-    perm: null,
+    currentPair: null,
     answer: null,
     answerCategory: null,
     question: null,
@@ -28,7 +28,7 @@ vi.mock('./constants', () => ({
     idkDisabled: false,
     submitDisabled: false,
     progressBar: 0,
-    initNumPerms: 0,
+    initialQueueLength: 0,
     idkList: [],
     scoreList: [],
     testFinished: false,
@@ -201,14 +201,14 @@ describe('useTestEngine — keyboard Ctrl+B focuses input', () => {
 // ---------------------------------------------------------------------------
 describe('useTestEngine — spacebar triggers onShowAnswer in flashcard mode', () => {
   it('reveals the answer when spacebar pressed with meaningQuizType=flashcard', () => {
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
       answer: ['hello'],
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
       meaningQuizType: 'flashcard',
       pinyinQuizType: 'input',
@@ -224,15 +224,15 @@ describe('useTestEngine — spacebar triggers onShowAnswer in flashcard mode', (
   });
 
   it('reveals the answer when spacebar pressed with pinyinQuizType=flashcard', () => {
-    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
+    const pair = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
     const result = renderEngineWithState({
       answerCategory: 'pinyin',
       questionCategory: 'meaning',
       answer: 'ni3 hao3',
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
       pinyinQuizType: 'flashcard',
       testFinished: false,
@@ -255,14 +255,14 @@ describe('useTestEngine — spacebar triggers onSpeak when speaker available', (
   it('calls ttsService.speak when spacebar pressed with useSound=true and questionCategory=pinyin', () => {
     vi.mocked(ttsService.speak).mockClear();
 
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     renderEngineWithState({
       answerCategory: 'meaning',
       questionCategory: 'pinyin',
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
       useSound: true,
       pinyinQuizType: 'input',
@@ -286,13 +286,13 @@ describe('useTestEngine — spacebar ignored when test is finished', () => {
   it('does not trigger any action when spacebar pressed and testFinished=true', () => {
     vi.mocked(ttsService.speak).mockClear();
 
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
       useSound: true,
       questionCategory: 'pinyin',
@@ -398,7 +398,7 @@ describe('useTestEngine — onFinishTest handles sentence check rejection', () =
 
     const onVocabComplete = vi.fn();
     const level1Word = makeWord({ id: 1, level: 1 });
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
     const result = renderEngineWithState(
       {
@@ -406,9 +406,9 @@ describe('useTestEngine — onFinishTest handles sentence check rejection', () =
         answer: ['hello'],
         answerInput: 'hello',
         chosenCharacter: '你好',
-        perm,
+        currentPair: pair,
         testSet: [level1Word],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
         idkList: [],
         useAutoRecord: false,

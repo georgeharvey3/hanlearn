@@ -103,8 +103,8 @@ describe('createInitialState', () => {
     const state = createInitialState(makeProps());
 
     expect(state.testSet).toEqual([]);
-    expect(state.permList).toEqual([]);
-    expect(state.perm).toBeNull();
+    expect(state.queue).toEqual([]);
+    expect(state.currentPair).toBeNull();
     expect(state.answer).toBeNull();
     expect(state.question).toBeNull();
     expect(state.result).toBe('');

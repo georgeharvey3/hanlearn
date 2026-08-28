@@ -9,10 +9,10 @@ vi.mock('./constants', () => ({
   fail: { play: vi.fn() },
   createInitialState: vi.fn((props: { words?: unknown[] }) => ({
     testSet: props.words ?? [],
-    permList: [],
+    queue: [],
     numWords: 5,
     charSet: 'simp',
-    perm: null,
+    currentPair: null,
     answer: null,
     answerCategory: null,
     question: null,
@@ -23,7 +23,7 @@ vi.mock('./constants', () => ({
     idkDisabled: false,
     submitDisabled: false,
     progressBar: 0,
-    initNumPerms: 0,
+    initialQueueLength: 0,
     idkList: [],
     scoreList: [],
     testFinished: false,
@@ -291,14 +291,14 @@ describe('useTestEngine — no reinitialisation or audio after test finishes (#1
     const props = makeProps();
     const { result } = renderHook(() => useTestEngine(props));
 
-    // Set up a test in progress with known permList
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    // Set up a test in progress with known queue
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     act(() => {
       result.current.setStateMerged({
         testSet: [makeWord()],
-        permList: [perm],
-        initNumPerms: 3,
-        perm,
+        queue: [pair],
+        initialQueueLength: 3,
+        currentPair: pair,
         answer: ['good'],
         answerCategory: 'meaning',
         question: 'hǎo',
@@ -307,24 +307,24 @@ describe('useTestEngine — no reinitialisation or audio after test finishes (#1
       } as any);
     });
 
-    const permListAfterSetup = result.current.state.permList.length;
+    const queueAfterSetup = result.current.state.queue.length;
 
     // Mark the test as finished (simulating what happens after last answer)
     act(() => {
       result.current.setStateMerged({
         testFinished: true,
-        permList: [],
+        queue: [],
         scoreList: [{ char: '好', score: 'Very Strong' as const }],
       } as any);
     });
 
-    // permList should be empty (finished)
-    expect(result.current.state.permList).toHaveLength(0);
+    // queue should be empty (finished)
+    expect(result.current.state.queue).toHaveLength(0);
     expect(result.current.state.testFinished).toBe(true);
 
-    // The permList should not have been reset to a new full set
+    // The queue should not have been reset to a new full set
     // (i.e., no reinitialisation occurred)
-    expect(result.current.state.permList).toHaveLength(0);
+    expect(result.current.state.queue).toHaveLength(0);
   });
 });
 
@@ -359,15 +359,15 @@ describe('useTestEngine — qNum effect auto-record paths', () => {
 // Flashcard grading — the feedback line and the pressed button state
 // ---------------------------------------------------------------------------
 describe('useTestEngine — flashcard grade feedback', () => {
-  const perm = { index: '0', aCategory: 'M' as any, qCategory: 'C' as any };
+  const pair = { index: '0', aCategory: 'M' as any, qCategory: 'C' as any };
 
   const gradeState = (overrides: Record<string, unknown> = {}) => ({
     answerCategory: 'meaning',
     answer: ['hello'],
     chosenCharacter: '你好',
-    perm,
+    currentPair: pair,
     testSet: [makeWord()],
-    permList: [perm, { index: '0', aCategory: 'P' as any, qCategory: 'C' as any }],
+    queue: [pair, { index: '0', aCategory: 'P' as any, qCategory: 'C' as any }],
     charSet: 'simp',
     idkList: [],
     idkDisabled: false,
@@ -470,7 +470,7 @@ describe('useTestEngine — a session with nothing to ask', () => {
     const props = makeProps({ words: [word], isDemo: false });
     const { result } = renderHook(() => useTestEngine(props));
 
-    expect(result.current.state.permList).toHaveLength(0);
+    expect(result.current.state.queue).toHaveLength(0);
     expect(result.current.state.testFinished).toBe(true);
     expect(result.current.state.scoreList).toEqual([]);
     localStorage.removeItem('useHandwriting');

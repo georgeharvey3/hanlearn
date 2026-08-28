@@ -526,7 +526,7 @@ describe('TestWords — stage transitions', () => {
     });
   });
 
-  it('shows Practice step in stepper when sentenceReadEnabled=true', async () => {
+  it('shows Sentences step in stepper when sentenceReadEnabled=true', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -541,8 +541,8 @@ describe('TestWords — stage transitions', () => {
     renderWithProviders(<TestWords />, { store });
 
     await waitFor(() => {
-      // Practice step should appear in the stepper (sentenceRead is enabled by default)
-      expect(screen.getByText('Practice')).toBeInTheDocument();
+      // The Sentences step appears in the stepper (sentenceRead is on by default)
+      expect(screen.getByText('Sentences')).toBeInTheDocument();
     });
   });
 

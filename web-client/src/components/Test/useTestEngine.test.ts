@@ -11,10 +11,10 @@ vi.mock('./constants', () => ({
   fail: { play: vi.fn() },
   createInitialState: vi.fn((props: { words?: unknown[] }) => ({
     testSet: props.words ?? [],
-    permList: [],
+    queue: [],
     numWords: 5,
     charSet: 'simp',
-    perm: null,
+    currentPair: null,
     answer: null,
     answerCategory: null,
     question: null,
@@ -25,7 +25,7 @@ vi.mock('./constants', () => ({
     idkDisabled: false,
     submitDisabled: false,
     progressBar: 0,
-    initNumPerms: 0,
+    initialQueueLength: 0,
     idkList: [],
     scoreList: [],
     testFinished: false,
@@ -295,15 +295,15 @@ describe('useTestEngine — checkAnswer for meaning answers', () => {
 
 describe("useTestEngine — I-don't-know flow", () => {
   it('adds the chosen character to idkList when IDK is triggered', () => {
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
     const result = renderEngineWithState({
       answerCategory: 'meaning',
       answer: ['hello'],
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
       idkList: [],
       idkDisabled: false,
@@ -315,21 +315,21 @@ describe("useTestEngine — I-don't-know flow", () => {
       result.current.onIDontKnow();
     });
 
-    // The perm asks meaning from pinyin, so the failure is recorded against MP.
+    // The queue pair asks meaning from pinyin, so the failure is recorded against MP.
     expect(result.current.state.idkList).toEqual([{ wordId: 1, direction: 'MP' }]);
     expect(result.current.state.idkDisabled).toBe(true);
   });
 
   it('shows the correct answer in result text when IDK is triggered', () => {
-    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
+    const pair = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
 
     const result = renderEngineWithState({
       answerCategory: 'pinyin',
       answer: 'nǐ hǎo',
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
       idkList: [],
       idkDisabled: false,
@@ -346,16 +346,16 @@ describe("useTestEngine — I-don't-know flow", () => {
   });
 
   it('accumulates one idkList entry per failed direction of the same word', () => {
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const testWord = makeWord();
 
     const result = renderEngineWithState({
       answerCategory: 'meaning',
       answer: ['hello'],
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [testWord],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
       idkList: [{ wordId: 1, direction: 'PM' as const }], // a direction already failed
       idkDisabled: false,
@@ -528,8 +528,8 @@ describe('useTestEngine — speech submissions fill and submit the answer input'
   }
 
   function setupMeaningQuestion() {
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
-    const sparePerm = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const sparePair = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
     return renderEngineWithState(
       {
         answerCategory: 'meaning',
@@ -537,9 +537,9 @@ describe('useTestEngine — speech submissions fill and submit the answer input'
         chosenCharacter: '你好',
         meaningQuizType: 'input',
         useAutoRecord: false,
-        perm,
+        currentPair: pair,
         testSet: [makeWord()],
-        permList: [perm, sparePerm],
+        queue: [pair, sparePair],
         charSet: 'simp',
       },
       { speechAvailable: true },
@@ -603,8 +603,8 @@ describe('useTestEngine — speech submissions fill and submit the answer input'
 
   it('accepts recognised hanzi matching the target word for pinyin answers', () => {
     const { speak } = setupSpeechRecognition();
-    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
-    const sparePerm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
+    const sparePair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState(
       {
         answerCategory: 'pinyin',
@@ -612,9 +612,9 @@ describe('useTestEngine — speech submissions fill and submit the answer input'
         chosenCharacter: '你好',
         pinyinQuizType: 'input',
         useAutoRecord: false,
-        perm,
+        currentPair: pair,
         testSet: [makeWord()],
-        permList: [perm, sparePerm],
+        queue: [pair, sparePair],
         charSet: 'simp',
       },
       { speechAvailable: true },
@@ -671,7 +671,7 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
   it('calls onListen when answerCategory=pinyin, useAutoRecord=true, and speech is available on qNum change', () => {
     const mockRecognition = setupRecognitionMock();
 
-    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
+    const pair = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
     const result = renderEngineWithState(
       {
         answerCategory: 'pinyin',
@@ -681,9 +681,9 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
         useSound: false,
         useHandwriting: false,
         writer: null,
-        perm,
+        currentPair: pair,
         testSet: [makeWord()],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
         chosenCharacter: '你好',
         qNum: 1,
@@ -703,7 +703,7 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
   it('does NOT call onListen when useAutoRecord=true but speech recognition is unavailable', () => {
     const mockRecognition = setupRecognitionMock();
 
-    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
+    const pair = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
     const result = renderEngineWithState(
       {
         answerCategory: 'pinyin',
@@ -713,9 +713,9 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
         useSound: false,
         useHandwriting: false,
         writer: null,
-        perm,
+        currentPair: pair,
         testSet: [makeWord()],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
         chosenCharacter: '你好',
         qNum: 1,
@@ -733,7 +733,7 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
   it('calls onListen when answerCategory=meaning, useAutoRecord=true, and speech is available', () => {
     const mockRecognition = setupRecognitionMock();
 
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState(
       {
         answerCategory: 'meaning',
@@ -743,9 +743,9 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
         useSound: false,
         useHandwriting: false,
         writer: null,
-        perm,
+        currentPair: pair,
         testSet: [makeWord()],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
         chosenCharacter: '你好',
         qNum: 1,
@@ -763,7 +763,7 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
   it('does NOT call onListen when answerCategory=meaning + quiz type flashcard', () => {
     const mockRecognition = setupRecognitionMock();
 
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState(
       {
         answerCategory: 'meaning',
@@ -773,9 +773,9 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
         meaningQuizType: 'flashcard',
         useHandwriting: false,
         writer: null,
-        perm,
+        currentPair: pair,
         testSet: [makeWord()],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
         chosenCharacter: '你好',
         qNum: 1,
@@ -793,7 +793,7 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
 
   it('calls HanziWriter.create when answerCategory=character and answer is set on qNum change', () => {
     // No speech recognition needed for this test
-    const perm = { index: '0', aCategory: 'C' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'C' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'character',
       questionCategory: 'pinyin',
@@ -802,9 +802,9 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
       useSound: false,
       useHandwriting: true,
       writer: null,
-      perm,
+      currentPair: pair,
       testSet: [makeWord({ simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' })],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
       chosenCharacter: '你',
       qNum: 1,

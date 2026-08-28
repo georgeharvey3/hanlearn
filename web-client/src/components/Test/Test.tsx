@@ -73,7 +73,7 @@ const Test: React.FC<Props> = (props) => {
     [refreshSettings],
   );
 
-  const progressNum = Math.floor((state.permList.length / state.initNumPerms) * 100) || 0;
+  const progressNum = Math.floor((state.queue.length / state.initialQueueLength) * 100) || 0;
   const verb = getVerb(state);
 
   if (state.testSet.length !== 0 || props.isDemo) {

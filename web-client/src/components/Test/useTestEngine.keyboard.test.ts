@@ -15,10 +15,10 @@ vi.mock('./constants', () => ({
   fail: { play: vi.fn() },
   createInitialState: vi.fn((props: { words?: unknown[] }) => ({
     testSet: props.words ?? [],
-    permList: [],
+    queue: [],
     numWords: 5,
     charSet: 'simp',
-    perm: null,
+    currentPair: null,
     answer: null,
     answerCategory: null,
     question: null,
@@ -29,7 +29,7 @@ vi.mock('./constants', () => ({
     idkDisabled: false,
     submitDisabled: false,
     progressBar: 0,
-    initNumPerms: 0,
+    initialQueueLength: 0,
     idkList: [],
     scoreList: [],
     testFinished: false,
@@ -200,14 +200,14 @@ function renderEngineWithState(
 // ---------------------------------------------------------------------------
 describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
   it('adds word to idkList when Ctrl+i is pressed and idkDisabled=false', () => {
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
       answer: ['hello'],
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
       idkList: [],
       idkDisabled: false,
@@ -219,7 +219,7 @@ describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
       fireKeyUp('i', { ctrlKey: true });
     });
 
-    // The perm asks meaning from pinyin, so the failure lands on MP, once.
+    // The queue pair asks meaning from pinyin, so the failure lands on MP, once.
     expect(result.current.state.idkList).toEqual([{ wordId: 1, direction: 'MP' }]);
     expect(result.current.state.idkDisabled).toBe(true);
   });
@@ -227,14 +227,14 @@ describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
   it('records the direction once, not twice, for a single Ctrl+i', () => {
     // Regression: Ctrl+i used to match both the ctrl branch and the plain "i"
     // branch of the key handler, so one keypress ran onIDontKnow twice.
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
       answer: ['hello'],
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
       idkList: [],
       idkDisabled: false,
@@ -250,14 +250,14 @@ describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
   });
 
   it('does NOT fire IDK when Ctrl+i is pressed but idkDisabled=true', () => {
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
       answer: ['hello'],
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
       idkList: [],
       idkDisabled: true,
@@ -276,14 +276,14 @@ describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
 // ---------------------------------------------------------------------------
 describe('useTestEngine — keyboard "i" key triggers onIDontKnow from non-input', () => {
   it('adds word to idkList when "i" is pressed from body (non-input element)', () => {
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
       answer: ['hello'],
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
       idkList: [],
       idkDisabled: false,
@@ -296,7 +296,7 @@ describe('useTestEngine — keyboard "i" key triggers onIDontKnow from non-input
       fireKeyUp('i');
     });
 
-    // The perm asks meaning from pinyin, so the failure lands on MP, once.
+    // The queue pair asks meaning from pinyin, so the failure lands on MP, once.
     expect(result.current.state.idkList).toEqual([{ wordId: 1, direction: 'MP' }]);
   });
 });
@@ -308,7 +308,7 @@ describe('useTestEngine — spacebar triggers onListen for pinyin answers', () =
   it('calls recognition.start when spacebar pressed in pinyin mode with speech enabled', () => {
     const mockRecognition = setupRecognitionMock();
 
-    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
+    const pair = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
     const result = renderEngineWithState(
       {
         answerCategory: 'pinyin',
@@ -317,9 +317,9 @@ describe('useTestEngine — spacebar triggers onListen for pinyin answers', () =
         listening: false,
         testFinished: false,
         chosenCharacter: '你好',
-        perm,
+        currentPair: pair,
         testSet: [makeWord()],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
       },
       { speechAvailable: true },
@@ -405,14 +405,14 @@ describe('useTestEngine — keyboard "p" key toggles question pinyin', () => {
 // ---------------------------------------------------------------------------
 describe('useTestEngine — keyboard ArrowUp confirms answer in flashcard mode', () => {
   it('sets yesClicked=true and calls onCorrectAnswer when ArrowUp pressed with showAnswer=true', () => {
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
       answer: ['hello'],
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
       showAnswer: true,
       idkDisabled: false,
@@ -423,7 +423,7 @@ describe('useTestEngine — keyboard ArrowUp confirms answer in flashcard mode',
     });
 
     expect(result.current.state.yesClicked).toBe(true);
-    // onCorrectAnswer removes perm from permList; since this is the last perm, it triggers finish
+    // onCorrectAnswer removes pair from queue; since this is the last pair, it triggers finish
     expect(result.current.state.result).toMatch(/Correct|Finished/);
   });
 });
@@ -433,14 +433,14 @@ describe('useTestEngine — keyboard ArrowUp confirms answer in flashcard mode',
 // ---------------------------------------------------------------------------
 describe('useTestEngine — keyboard ArrowDown marks IDK in flashcard mode', () => {
   it('sets noClicked=true and adds to idkList when ArrowDown pressed with showAnswer=true', () => {
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
       answer: ['hello'],
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
       idkList: [],
       showAnswer: true,
@@ -454,7 +454,7 @@ describe('useTestEngine — keyboard ArrowDown marks IDK in flashcard mode', () 
     });
 
     expect(result.current.state.noClicked).toBe(true);
-    // The perm asks meaning from pinyin, so the failure lands on MP, once.
+    // The queue pair asks meaning from pinyin, so the failure lands on MP, once.
     expect(result.current.state.idkList).toEqual([{ wordId: 1, direction: 'MP' }]);
   });
 });
@@ -466,7 +466,7 @@ describe('useTestEngine — keyboard Ctrl+m triggers onListen', () => {
   it('calls recognition.start when Ctrl+m is pressed and mic is available', () => {
     const mockRecognition = setupRecognitionMock();
 
-    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
+    const pair = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
     const result = renderEngineWithState(
       {
         answerCategory: 'pinyin',
@@ -475,9 +475,9 @@ describe('useTestEngine — keyboard Ctrl+m triggers onListen', () => {
         listening: false,
         testFinished: false,
         chosenCharacter: '你好',
-        perm,
+        currentPair: pair,
         testSet: [makeWord()],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
       },
       { speechAvailable: true },
@@ -498,16 +498,16 @@ describe('useTestEngine — keyboard Ctrl+q triggers onSpeak', () => {
   it('calls ttsService.speak when Ctrl+q is pressed and speaker is available', () => {
     vi.mocked(ttsService.speak).mockClear();
 
-    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
+    const pair = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
     const result = renderEngineWithState({
       useSound: true,
       questionCategory: 'pinyin',
       testFinished: false,
       listening: false,
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
     });
 
@@ -566,16 +566,16 @@ describe('useTestEngine — keyboard "s" key triggers onSpeak', () => {
   it('calls ttsService.speak when "s" is pressed and speaker is available', () => {
     vi.mocked(ttsService.speak).mockClear();
 
-    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
+    const pair = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
     const result = renderEngineWithState({
       useSound: true,
       questionCategory: 'pinyin',
       testFinished: false,
       listening: false,
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
     });
 
@@ -597,16 +597,16 @@ describe('useTestEngine — qNum effect triggers onSpeak when useSound=true', ()
   it('calls ttsService.speak when questionCategory=pinyin and useSound=true on qNum change', () => {
     vi.mocked(ttsService.speak).mockClear();
 
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       questionCategory: 'pinyin',
       answerCategory: 'meaning',
       useSound: true,
       chosenCharacter: '你好',
       useAutoRecord: false,
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
       qNum: 1,
     });
@@ -639,16 +639,16 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
     const startSentenceRead = vi.fn();
     const level1Word = makeWord({ id: 1, level: 1 });
 
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState(
       {
         answerCategory: 'meaning',
         answer: ['hello'],
         answerInput: 'hello', // must match to trigger onCorrectAnswer
         chosenCharacter: '你好',
-        perm,
+        currentPair: pair,
         testSet: [level1Word],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
         idkList: [],
         useAutoRecord: false,
@@ -664,7 +664,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
       },
     );
 
-    // Trigger correct answer — last perm is exhausted, onFinishTest called
+    // Trigger correct answer — last pair is exhausted, onFinishTest called
     act(() => {
       result.current.onSubmitAnswer();
     });
@@ -695,16 +695,16 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
     const onVocabComplete = vi.fn();
     const level1Word = makeWord({ id: 1, level: 1 });
 
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState(
       {
         answerCategory: 'meaning',
         answer: ['hello'],
         answerInput: 'hello',
         chosenCharacter: '你好',
-        perm,
+        currentPair: pair,
         testSet: [level1Word],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
         idkList: [],
         useAutoRecord: false,
@@ -742,7 +742,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
     vi.mocked(checkSentenceAvailability).mockResolvedValue(true);
 
     const level1Word = makeWord({ id: 1, level: 1 });
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
     const result = renderEngineWithState(
       {
@@ -750,9 +750,9 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         answer: ['hello'],
         answerInput: 'hello',
         chosenCharacter: '你好',
-        perm,
+        currentPair: pair,
         testSet: [level1Word],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
         idkList: [],
         useAutoRecord: false,
@@ -790,7 +790,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
     vi.mocked(checkSentenceAvailability).mockResolvedValue(false);
 
     const level1Word = makeWord({ id: 1, level: 1 });
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
     const result = renderEngineWithState(
       {
@@ -798,9 +798,9 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         answer: ['hello'],
         answerInput: 'hello',
         chosenCharacter: '你好',
-        perm,
+        currentPair: pair,
         testSet: [level1Word],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
         idkList: [],
         useAutoRecord: false,
@@ -854,7 +854,7 @@ describe('useTestEngine — the finishTest payload', () => {
    */
   function finishSessionFailing(failed: Direction[], onFinishTest: Props['onFinishTest']) {
     const word = makeWord({ id: 1, simp: '你好', level: 3 });
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
     const result = renderEngineWithState(
       {
@@ -862,9 +862,9 @@ describe('useTestEngine — the finishTest payload', () => {
         answer: ['hello'],
         answerInput: 'hello',
         chosenCharacter: '你好',
-        perm,
+        currentPair: pair,
         testSet: [word],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
         idkList: failed.map((direction) => ({ wordId: word.id, direction })),
         askedDirections: DIRECTIONS,
@@ -923,7 +923,7 @@ describe('useTestEngine — the finishTest payload', () => {
   it('leaves a direction the session did not ask out of the payload', () => {
     const onFinishTest = vi.fn();
     const word = makeWord({ id: 1, simp: '你好', level: 3 });
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
     const result = renderEngineWithState(
       {
@@ -931,9 +931,9 @@ describe('useTestEngine — the finishTest payload', () => {
         answer: ['hello'],
         answerInput: 'hello',
         chosenCharacter: '你好',
-        perm,
+        currentPair: pair,
         testSet: [word],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
         idkList: [],
         // Handwriting switched off.
@@ -957,7 +957,7 @@ describe('useTestEngine — the finishTest payload', () => {
     const onFinishTest = vi.fn();
     const first = makeWord({ id: 1, simp: '干', level: 3 });
     const second = makeWord({ id: 2, simp: '干', level: 3 });
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
     const result = renderEngineWithState(
       {
@@ -965,9 +965,9 @@ describe('useTestEngine — the finishTest payload', () => {
         answer: ['hello'],
         answerInput: 'hello',
         chosenCharacter: '干',
-        perm,
+        currentPair: pair,
         testSet: [first, second],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
         idkList: [{ wordId: 2, direction: 'CM' as Direction }],
         askedDirections: DIRECTIONS,
@@ -1004,7 +1004,7 @@ describe('useTestEngine — a repeated failure of one direction', () => {
   it('counts a direction recorded twice as a single failure', () => {
     const onFinishTest = vi.fn();
     const word = makeWord({ id: 1, simp: '你好', level: 3 });
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
     const result = renderEngineWithState(
       {
@@ -1012,9 +1012,9 @@ describe('useTestEngine — a repeated failure of one direction', () => {
         answer: ['hello'],
         answerInput: 'hello',
         chosenCharacter: '你好',
-        perm,
+        currentPair: pair,
         testSet: [word],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
         // Nothing produces this shape now that Ctrl+i fires once, but the
         // payload must not care how many times a direction was recorded.
