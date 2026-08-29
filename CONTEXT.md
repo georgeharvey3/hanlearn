@@ -100,8 +100,72 @@ every other word, it has no cap, and a word with no due date is not due. See
 thing the name covers. The step of the session stepper that holds the sentence
 stages carried the same name before, and it is **"Sentences"** now.
 
-## Pass and failure
+## Grade
 
-A direction **fails** only when the learner selects "I don't know", or when the
-handwriting reveal runs. A wrong answer gives "Try again" and unlimited retries.
-A direction that fails and is then answered correctly counts as failed.
+A **grade** is how one question went. The grade comes from the **first attempt**
+at that question, and one question gets one grade. There are three:
+
+| Grade   | The learner                                                     | Bank                    |
+| ------- | --------------------------------------------------------------- | ----------------------- |
+| `pass`  | answered correctly on the first attempt                           | + 1, to a maximum of 5  |
+| `lapse` | answered wrongly first, then answered correctly without a reveal  | − 1, to a minimum of 1  |
+| `fail`  | selected "I don't know", or the handwriting reveal ran            | 1                       |
+
+The retries stay. A wrong answer gives "Try again", and the learner can answer
+again as many times as they want. The retries give feedback and learning value.
+They do not change the grade of the question.
+
+`fail` keeps the meaning it always had: the learner did not retrieve the answer.
+`lapse` is the new middle grade for a retrieval that succeeded late. See
+[docs/adr/0007-grade-the-first-attempt.md](docs/adr/0007-grade-the-first-attempt.md).
+
+The grade of a question comes from what the learner did, and each answer mode
+gives it in a different way:
+
+| Answer mode | `pass`                    | `lapse`                        | `fail`                |
+| ----------- | ------------------------- | ------------------------------ | --------------------- |
+| Input       | correct on first attempt  | wrong first, then correct      | "I don't know"        |
+| Flashcard   | the learner reports it    | the learner reports it         | the learner reports it |
+| Handwriting | drawn with no stroke missed 5 times | drawn after 5 misses on a stroke | the reveal ran   |
+
+Flashcard is a recognition task with no attempt to read, so the learner grades
+the question. This is why the reveal shows three buttons and not two.
+
+The handwriting quiz counts the misses on each stroke, and it shows the stroke
+outline after five misses on one stroke. Five misses is the point where the app
+helps, so it is the point where a handwriting question stops being a `pass`. A
+word of more than one character takes the worst grade of its characters.
+
+## Aid
+
+An **aid** is help that the learner asks for during a question. The hint, the
+character of a pinyin question, and the pinyin of a character question are all
+aids.
+
+An aid does not change the grade. A meaning gloss or a bare pinyin can fit more
+than one word, so the learner sometimes needs an aid to find out which word the
+question asks. A grade that counted aids would grade this ambiguity and not the
+memory of the learner.
+
+There is one exception. The stroke outline of a character question is the answer
+and not a way to identify the question. A learner who asks for the outline gets
+the same grade as a learner who missed one stroke five times. Both cap the
+question at `lapse`.
+
+## Attempt
+
+An **attempt** is one answer that the learner sends. The learner sends it with
+the Submit button, or with the Enter key.
+
+Speech recognition does not send an attempt. The transcript goes into the input,
+and the learner reads it and sends it. A transcript that the learner did not send
+has no grade, because the grade would be a measure of the recognizer.
+
+## Tone error
+
+A **tone error** is an attempt at a pinyin answer that gives the correct
+syllables with one or more incorrect tones. A tone error is an incorrect answer,
+and it takes the same grade as any other incorrect answer.
+
+The direction counts the tone errors that it collects, so that a later feature
+can show the learner which words hold the tones that they do not know.
