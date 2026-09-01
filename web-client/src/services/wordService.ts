@@ -18,6 +18,7 @@ import { db } from '../firebase/config';
 import {
   DIRECTIONS,
   Direction,
+  DirectionResult,
   DirectionState,
   DirectionStates,
   Word,
@@ -48,6 +49,12 @@ const LEVEL_INTERVALS: Record<number, number> = {
 interface StoredDirectionState {
   bank: number;
   dueDate: Timestamp;
+  /**
+   * How many tone errors this direction has collected, over every session that
+   * asked it. Absent reads as 0, so a document written before the counter
+   * existed needs no migration.
+   */
+  toneErrors?: number;
 }
 
 interface UserWordDocument {
@@ -373,11 +380,27 @@ export const updateWordMeaning = async (
 };
 
 /**
+ * The bank a direction moves to, from the bank it holds and the grade it got.
+ *
+ * A `lapse` demotes one bank rather than resetting, so a learner who knows a
+ * word but answers it wrongly on the first attempt loses one bank and not four.
+ * See docs/adr/0007-grade-the-first-attempt.md.
+ */
+function nextBank(current: number, result: DirectionResult): number {
+  if (result === 'pass') return Math.min(current + 1, 5);
+  if (result === 'lapse') return Math.max(current - 1, 1);
+  return 1;
+}
+
+/**
  * Submit the results of a session and reschedule the directions it asked.
  *
  * Each direction carries its own bank and due date, so a failure in one leaves
  * the other four untouched. A direction the session did not ask is absent from
  * the payload and keeps the state it already holds.
+ *
+ * The tone errors of a direction are added to the count it already holds, in
+ * the same batch that writes the bank.
  *
  * Returns the new derived due date of each word, keyed by its simplified form.
  */
@@ -388,7 +411,7 @@ export const finishTest = async (
   const newDates: Record<string, string> = {};
   const batch = writeBatch(db);
 
-  for (const { word_id, directions } of results) {
+  for (const { word_id, directions, toneErrors } of results) {
     const wordRef = doc(db, 'users', userId, 'userWords', word_id.toString());
     const wordDoc = await getDoc(wordRef);
 
@@ -402,13 +425,21 @@ export const finishTest = async (
       // Absent means the session did not ask this direction, so it keeps its state.
       if (!result) continue;
 
-      const current = updated[direction].bank;
-      const bank = result === 'pass' ? Math.min(current + 1, 5) : 1;
+      const current = updated[direction];
+      const bank = nextBank(current.bank, result);
 
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + LEVEL_INTERVALS[bank]);
 
-      updated[direction] = { bank, dueDate: Timestamp.fromDate(dueDate) };
+      const collected = (current.toneErrors ?? 0) + (toneErrors?.[direction] ?? 0);
+
+      updated[direction] = {
+        bank,
+        dueDate: Timestamp.fromDate(dueDate),
+        // A direction that has never collected a tone error stays without the
+        // field, so a session of correct tones writes nothing new.
+        ...(collected > 0 ? { toneErrors: collected } : {}),
+      };
     }
 
     const derivedDueDate = earliestDueDate(updated);

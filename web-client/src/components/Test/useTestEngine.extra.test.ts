@@ -24,7 +24,9 @@ vi.mock('./constants', () => ({
     submitDisabled: false,
     progressBar: 0,
     initialQueueLength: 0,
-    idkList: [],
+    gradeList: [],
+    gradeCap: 'pass',
+    toneErrorCount: 0,
     scoreList: [],
     testFinished: false,
     showInputChars: [],
@@ -50,8 +52,7 @@ vi.mock('./constants', () => ({
     showQuestionPinyin: false,
     hintLoading: false,
     showAnswer: false,
-    yesClicked: false,
-    noClicked: false,
+    gradeClicked: null,
     pauseAutoRecord: false,
     synthLoading: false,
     speechLoading: false,
@@ -220,14 +221,13 @@ describe('useTestEngine — qNum effect triggers setHanziWriter for character qu
     expect((window as any).HanziWriter.create.mock.calls.length).toBe(callsBefore);
   });
 
-  it('resets yesClicked, noClicked, showQuestionPinyin, pauseAutoRecord on qNum change', async () => {
+  it('resets gradeClicked, showQuestionPinyin, pauseAutoRecord on qNum change', async () => {
     const props = makeProps();
     const { result } = renderHook(() => useTestEngine(props));
 
     await act(async () => {
       result.current.setStateMerged({
-        yesClicked: true,
-        noClicked: true,
+        gradeClicked: 'pass',
         showQuestionPinyin: true,
         pauseAutoRecord: true,
         answerCategory: 'meaning',
@@ -241,8 +241,7 @@ describe('useTestEngine — qNum effect triggers setHanziWriter for character qu
       result.current.setStateMerged({ qNum: 4 } as any);
     });
 
-    expect(result.current.state.yesClicked).toBe(false);
-    expect(result.current.state.noClicked).toBe(false);
+    expect(result.current.state.gradeClicked).toBeNull();
     expect(result.current.state.showQuestionPinyin).toBe(false);
     expect(result.current.state.pauseAutoRecord).toBe(false);
   });
@@ -369,7 +368,9 @@ describe('useTestEngine — flashcard grade feedback', () => {
     testSet: [makeWord()],
     queue: [pair, { index: '0', aCategory: 'P' as any, qCategory: 'C' as any }],
     charSet: 'simp',
-    idkList: [],
+    gradeList: [],
+    gradeCap: 'pass',
+    toneErrorCount: 0,
     idkDisabled: false,
     useHandwriting: false,
     writer: null,
@@ -391,7 +392,7 @@ describe('useTestEngine — flashcard grade feedback', () => {
 
     expect(result.current.state.result).toContain('Not known');
     expect(result.current.state.result).toContain('hello');
-    expect(result.current.state.noClicked).toBe(true);
+    expect(result.current.state.gradeClicked).toBe('fail');
   });
 
   it('keeps the plain answer text when the answer was not shown', async () => {
@@ -407,7 +408,7 @@ describe('useTestEngine — flashcard grade feedback', () => {
     });
 
     expect(result.current.state.result).toBe("Answer was: 'hello'");
-    expect(result.current.state.noClicked).toBe(false);
+    expect(result.current.state.gradeClicked).toBeNull();
   });
 
   it('marks the like button pressed when the answer is graded as known', async () => {
@@ -423,7 +424,7 @@ describe('useTestEngine — flashcard grade feedback', () => {
     });
 
     expect(result.current.state.result).toBe('Correct');
-    expect(result.current.state.yesClicked).toBe(true);
+    expect(result.current.state.gradeClicked).toBe('pass');
   });
 
   it('does not mark the like button pressed for a typed correct answer', async () => {
@@ -438,7 +439,23 @@ describe('useTestEngine — flashcard grade feedback', () => {
       result.current.onCorrectAnswer();
     });
 
-    expect(result.current.state.yesClicked).toBe(false);
+    expect(result.current.state.gradeClicked).toBeNull();
+  });
+
+  it('marks the nearly button pressed when the learner reports a lapse', async () => {
+    const props = makeProps();
+    const { result } = renderHook(() => useTestEngine(props));
+
+    await act(async () => {
+      result.current.setStateMerged(gradeState() as any);
+    });
+
+    act(() => {
+      result.current.onNearlyKnew();
+    });
+
+    expect(result.current.state.result).toBe('Nearly');
+    expect(result.current.state.gradeClicked).toBe('lapse');
   });
 });
 

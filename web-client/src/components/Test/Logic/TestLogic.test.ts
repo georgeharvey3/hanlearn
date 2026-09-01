@@ -6,7 +6,6 @@ import {
   toneChecker,
   Counter,
   removePunctuation,
-  directionsOf,
 } from './TestLogic';
 import { DIRECTIONS, Word } from '../../../types/models';
 
@@ -323,24 +322,6 @@ describe('removePunctuation', () => {
   });
 });
 
-describe('directionsOf', () => {
-  const pair = (direction: string) => ({
-    index: '0',
-    aCategory: direction[0] as any,
-    qCategory: direction[1] as any,
-  });
-
-  it('returns the distinct directions of a queue, in order', () => {
-    const queue = [pair('MC'), pair('CM'), pair('MC'), pair('PC')];
-
-    expect(directionsOf(queue)).toEqual(['MC', 'CM', 'PC']);
-  });
-
-  it('returns an empty list for an empty queue', () => {
-    expect(directionsOf([])).toEqual([]);
-  });
-});
-
 // ---------------------------------------------------------------------------
 // planSession — the session queue (issue #328 rules 1-8; closes #306)
 // ---------------------------------------------------------------------------
@@ -542,7 +523,7 @@ describe('planSession', () => {
   it('leaves the four directions it did not ask for a later session', () => {
     const result = plan([newWord(1)]);
 
-    expect(directionsOf(result.queue)).toHaveLength(1);
+    expect(result.queue).toHaveLength(1);
   });
 
   // ─── Rule 5: the due date is the only rank ───────────────────────────────

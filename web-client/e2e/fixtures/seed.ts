@@ -149,14 +149,35 @@ export async function seedWords(
 export async function readWordFromFirestore(
   userId: string,
   wordId: number,
-): Promise<{ level: number; dueDate: string } | null> {
+): Promise<{
+  level: number;
+  dueDate: string;
+  banks: Record<string, number>;
+  toneErrors: Record<string, number>;
+} | null> {
   const url = emulatorFirestoreUrl(`users/${userId}/userWords/${wordId}`);
   const res = await fetch(url, { headers: { 'Authorization': 'Bearer owner' } });
   if (!res.ok) return null;
   const data = await res.json();
+
+  // The bank and the tone errors of each direction. A document the session has
+  // not written yet holds no directions map, and both records are then empty.
+  const banks: Record<string, number> = {};
+  const toneErrors: Record<string, number> = {};
+  const stored = data.fields.directions?.mapValue?.fields ?? {};
+  for (const [direction, entry] of Object.entries<any>(stored)) {
+    const fields = entry.mapValue?.fields ?? {};
+    if (fields.bank) banks[direction] = parseInt(fields.bank.integerValue, 10);
+    if (fields.toneErrors) {
+      toneErrors[direction] = parseInt(fields.toneErrors.integerValue, 10);
+    }
+  }
+
   return {
     level: parseInt(data.fields.bank.integerValue, 10),
     dueDate: data.fields.dueDate.timestampValue,
+    banks,
+    toneErrors,
   };
 }
 

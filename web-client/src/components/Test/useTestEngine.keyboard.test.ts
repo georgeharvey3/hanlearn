@@ -30,7 +30,9 @@ vi.mock('./constants', () => ({
     submitDisabled: false,
     progressBar: 0,
     initialQueueLength: 0,
-    idkList: [],
+    gradeList: [],
+    gradeCap: 'pass',
+    toneErrorCount: 0,
     scoreList: [],
     testFinished: false,
     showInputChars: [],
@@ -56,8 +58,7 @@ vi.mock('./constants', () => ({
     showQuestionPinyin: false,
     hintLoading: false,
     showAnswer: false,
-    yesClicked: false,
-    noClicked: false,
+    gradeClicked: null,
     pauseAutoRecord: false,
     synthLoading: false,
     speechLoading: false,
@@ -199,7 +200,7 @@ function renderEngineWithState(
 // Keyboard: Ctrl+i triggers IDK
 // ---------------------------------------------------------------------------
 describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
-  it('adds word to idkList when Ctrl+i is pressed and idkDisabled=false', () => {
+  it('grades the question a fail when Ctrl+i is pressed and idkDisabled=false', () => {
     const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
@@ -209,7 +210,9 @@ describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
       testSet: [makeWord()],
       queue: [pair],
       charSet: 'simp',
-      idkList: [],
+      gradeList: [],
+      gradeCap: 'pass',
+      toneErrorCount: 0,
       idkDisabled: false,
       useHandwriting: false,
       writer: null,
@@ -219,8 +222,10 @@ describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
       fireKeyUp('i', { ctrlKey: true });
     });
 
-    // The queue pair asks meaning from pinyin, so the failure lands on MP, once.
-    expect(result.current.state.idkList).toEqual([{ wordId: 1, direction: 'MP' }]);
+    // The queue pair asks meaning from pinyin, so the grade lands on MP, once.
+    expect(result.current.state.gradeList).toEqual([
+      { wordId: 1, direction: 'MP', result: 'fail', toneErrors: 0 },
+    ]);
     expect(result.current.state.idkDisabled).toBe(true);
   });
 
@@ -236,7 +241,9 @@ describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
       testSet: [makeWord()],
       queue: [pair],
       charSet: 'simp',
-      idkList: [],
+      gradeList: [],
+      gradeCap: 'pass',
+      toneErrorCount: 0,
       idkDisabled: false,
       useHandwriting: false,
       writer: null,
@@ -246,7 +253,7 @@ describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
       fireKeyUp('i', { ctrlKey: true });
     });
 
-    expect(result.current.state.idkList).toHaveLength(1);
+    expect(result.current.state.gradeList).toHaveLength(1);
   });
 
   it('does NOT fire IDK when Ctrl+i is pressed but idkDisabled=true', () => {
@@ -259,7 +266,9 @@ describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
       testSet: [makeWord()],
       queue: [pair],
       charSet: 'simp',
-      idkList: [],
+      gradeList: [],
+      gradeCap: 'pass',
+      toneErrorCount: 0,
       idkDisabled: true,
     });
 
@@ -267,7 +276,7 @@ describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
       fireKeyUp('i', { ctrlKey: true });
     });
 
-    expect(result.current.state.idkList).toHaveLength(0);
+    expect(result.current.state.gradeList).toHaveLength(0);
   });
 });
 
@@ -275,7 +284,7 @@ describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
 // Keyboard: 'i' key (without Ctrl) triggers IDK when source is not input
 // ---------------------------------------------------------------------------
 describe('useTestEngine — keyboard "i" key triggers onIDontKnow from non-input', () => {
-  it('adds word to idkList when "i" is pressed from body (non-input element)', () => {
+  it('grades the question a fail when "i" is pressed from body (non-input element)', () => {
     const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
@@ -285,7 +294,9 @@ describe('useTestEngine — keyboard "i" key triggers onIDontKnow from non-input
       testSet: [makeWord()],
       queue: [pair],
       charSet: 'simp',
-      idkList: [],
+      gradeList: [],
+      gradeCap: 'pass',
+      toneErrorCount: 0,
       idkDisabled: false,
       useHandwriting: false,
       writer: null,
@@ -296,8 +307,10 @@ describe('useTestEngine — keyboard "i" key triggers onIDontKnow from non-input
       fireKeyUp('i');
     });
 
-    // The queue pair asks meaning from pinyin, so the failure lands on MP, once.
-    expect(result.current.state.idkList).toEqual([{ wordId: 1, direction: 'MP' }]);
+    // The queue pair asks meaning from pinyin, so the grade lands on MP, once.
+    expect(result.current.state.gradeList).toEqual([
+      { wordId: 1, direction: 'MP', result: 'fail', toneErrors: 0 },
+    ]);
   });
 });
 
@@ -404,7 +417,7 @@ describe('useTestEngine — keyboard "p" key toggles question pinyin', () => {
 // Keyboard: ArrowUp in flashcard mode confirms correct answer
 // ---------------------------------------------------------------------------
 describe('useTestEngine — keyboard ArrowUp confirms answer in flashcard mode', () => {
-  it('sets yesClicked=true and calls onCorrectAnswer when ArrowUp pressed with showAnswer=true', () => {
+  it('grades a pass and marks the button when ArrowUp is pressed with showAnswer=true', () => {
     const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
@@ -422,17 +435,12 @@ describe('useTestEngine — keyboard ArrowUp confirms answer in flashcard mode',
       fireKeyUp('ArrowUp');
     });
 
-    expect(result.current.state.yesClicked).toBe(true);
+    expect(result.current.state.gradeClicked).toBe('pass');
     // onCorrectAnswer removes pair from queue; since this is the last pair, it triggers finish
     expect(result.current.state.result).toMatch(/Correct|Finished/);
   });
-});
 
-// ---------------------------------------------------------------------------
-// Keyboard: ArrowDown in flashcard mode marks answer wrong (IDK)
-// ---------------------------------------------------------------------------
-describe('useTestEngine — keyboard ArrowDown marks IDK in flashcard mode', () => {
-  it('sets noClicked=true and adds to idkList when ArrowDown pressed with showAnswer=true', () => {
+  it('grades a lapse and marks the button when ArrowRight is pressed', () => {
     const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
@@ -442,7 +450,41 @@ describe('useTestEngine — keyboard ArrowDown marks IDK in flashcard mode', () 
       testSet: [makeWord()],
       queue: [pair],
       charSet: 'simp',
-      idkList: [],
+      gradeList: [],
+      gradeCap: 'pass',
+      toneErrorCount: 0,
+      showAnswer: true,
+      idkDisabled: false,
+    });
+
+    act(() => {
+      fireKeyUp('ArrowRight');
+    });
+
+    expect(result.current.state.gradeClicked).toBe('lapse');
+    expect(result.current.state.gradeList).toEqual([
+      { wordId: 1, direction: 'MP', result: 'lapse', toneErrors: 0 },
+    ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Keyboard: ArrowDown in flashcard mode marks answer wrong (IDK)
+// ---------------------------------------------------------------------------
+describe('useTestEngine — keyboard ArrowDown marks IDK in flashcard mode', () => {
+  it('grades a fail and marks the button when ArrowDown is pressed with showAnswer=true', () => {
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const result = renderEngineWithState({
+      answerCategory: 'meaning',
+      answer: ['hello'],
+      chosenCharacter: '你好',
+      currentPair: pair,
+      testSet: [makeWord()],
+      queue: [pair],
+      charSet: 'simp',
+      gradeList: [],
+      gradeCap: 'pass',
+      toneErrorCount: 0,
       showAnswer: true,
       idkDisabled: false,
       useHandwriting: false,
@@ -453,9 +495,11 @@ describe('useTestEngine — keyboard ArrowDown marks IDK in flashcard mode', () 
       fireKeyUp('ArrowDown');
     });
 
-    expect(result.current.state.noClicked).toBe(true);
-    // The queue pair asks meaning from pinyin, so the failure lands on MP, once.
-    expect(result.current.state.idkList).toEqual([{ wordId: 1, direction: 'MP' }]);
+    expect(result.current.state.gradeClicked).toBe('fail');
+    // The queue pair asks meaning from pinyin, so the grade lands on MP, once.
+    expect(result.current.state.gradeList).toEqual([
+      { wordId: 1, direction: 'MP', result: 'fail', toneErrors: 0 },
+    ]);
   });
 });
 
@@ -650,7 +694,9 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         testSet: [level1Word],
         queue: [pair],
         charSet: 'simp',
-        idkList: [],
+        gradeList: [],
+        gradeCap: 'pass',
+        toneErrorCount: 0,
         useAutoRecord: false,
         recognition: null,
       },
@@ -706,7 +752,9 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         testSet: [level1Word],
         queue: [pair],
         charSet: 'simp',
-        idkList: [],
+        gradeList: [],
+        gradeCap: 'pass',
+        toneErrorCount: 0,
         useAutoRecord: false,
         recognition: null,
       },
@@ -754,7 +802,9 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         testSet: [level1Word],
         queue: [pair],
         charSet: 'simp',
-        idkList: [],
+        gradeList: [],
+        gradeCap: 'pass',
+        toneErrorCount: 0,
         useAutoRecord: false,
         recognition: null,
       },
@@ -802,7 +852,9 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         testSet: [level1Word],
         queue: [pair],
         charSet: 'simp',
-        idkList: [],
+        gradeList: [],
+        gradeCap: 'pass',
+        toneErrorCount: 0,
         useAutoRecord: false,
         recognition: null,
       },
@@ -836,7 +888,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
 });
 
 // ---------------------------------------------------------------------------
-// The finishTest payload: one entry per word, carrying the asked directions
+// The finishTest payload: one entry per word, carrying the grades it collected
 // ---------------------------------------------------------------------------
 describe('useTestEngine — the finishTest payload', () => {
   beforeEach(() => {
@@ -848,12 +900,14 @@ describe('useTestEngine — the finishTest payload', () => {
   });
 
   /**
-   * Run a session of one word to its last question and return the payload.
-   * The session asks all five directions; `failed` names the ones the learner
-   * did not know.
+   * Answer the last question of a session correctly and return the payload the
+   * engine submitted. `state` seeds the grades the session already collected.
    */
-  function finishSessionFailing(failed: Direction[], onFinishTest: Props['onFinishTest']) {
-    const word = makeWord({ id: 1, simp: '你好', level: 3 });
+  function finishSession(
+    state: Record<string, unknown>,
+    words: ReturnType<typeof makeWord>[],
+    onFinishTest: Props['onFinishTest'],
+  ) {
     const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
     const result = renderEngineWithState(
@@ -861,17 +915,19 @@ describe('useTestEngine — the finishTest payload', () => {
         answerCategory: 'meaning',
         answer: ['hello'],
         answerInput: 'hello',
-        chosenCharacter: '你好',
+        chosenCharacter: words[0].simp,
         currentPair: pair,
-        testSet: [word],
+        testSet: words,
         queue: [pair],
         charSet: 'simp',
-        idkList: failed.map((direction) => ({ wordId: word.id, direction })),
-        askedDirections: DIRECTIONS,
+        gradeList: [],
+        gradeCap: 'pass',
+        toneErrorCount: 0,
         useAutoRecord: false,
         recognition: null,
+        ...state,
       },
-      { words: [word], isDemo: false, practiceMode: false, onFinishTest },
+      { words, isDemo: false, practiceMode: false, onFinishTest },
     );
 
     act(() => {
@@ -884,71 +940,57 @@ describe('useTestEngine — the finishTest payload', () => {
     return result;
   }
 
-  // This is the case in issue #328.
-  it('fails only the handwriting direction and passes the other four', () => {
+  it('writes only the direction the session asked of that word', () => {
     const onFinishTest = vi.fn();
+    const word = makeWord({ id: 1, simp: '你好', level: 3 });
 
-    finishSessionFailing(['CM'], onFinishTest);
+    finishSession({}, [word], onFinishTest);
 
     expect(onFinishTest).toHaveBeenCalledWith([
-      {
-        word_id: 1,
-        directions: { MC: 'pass', MP: 'pass', PM: 'pass', PC: 'pass', CM: 'fail' },
-      },
+      { word_id: 1, directions: { MP: 'pass' }, toneErrors: {} },
     ]);
   });
 
-  it('marks every direction as a pass when nothing was failed', () => {
+  it('carries a lapse and a fail beside a pass', () => {
     const onFinishTest = vi.fn();
+    const word = makeWord({ id: 1, simp: '你好', level: 3 });
 
-    finishSessionFailing([], onFinishTest);
+    finishSession(
+      {
+        gradeList: [
+          { wordId: 1, direction: 'CM' as Direction, result: 'fail', toneErrors: 0 },
+          { wordId: 1, direction: 'PC' as Direction, result: 'lapse', toneErrors: 0 },
+        ],
+      },
+      [word],
+      onFinishTest,
+    );
 
     const [payload] = onFinishTest.mock.calls[0];
-    for (const direction of DIRECTIONS) {
-      expect(payload[0].directions[direction]).toBe('pass');
-    }
+    expect(payload[0].directions).toEqual({ CM: 'fail', PC: 'lapse', MP: 'pass' });
   });
 
-  it('marks several failed directions independently', () => {
+  it('carries the tone errors of each direction', () => {
     const onFinishTest = vi.fn();
+    const word = makeWord({ id: 1, simp: '你好', level: 3 });
 
-    finishSessionFailing(['CM', 'PC'], onFinishTest);
+    finishSession(
+      {
+        gradeList: [{ wordId: 1, direction: 'PM' as Direction, result: 'lapse', toneErrors: 2 }],
+      },
+      [word],
+      onFinishTest,
+    );
 
     const [payload] = onFinishTest.mock.calls[0];
-    expect(payload[0].directions.CM).toBe('fail');
-    expect(payload[0].directions.PC).toBe('fail');
-    expect(payload[0].directions.MC).toBe('pass');
+    expect(payload[0].toneErrors).toEqual({ PM: 2 });
   });
 
   it('leaves a direction the session did not ask out of the payload', () => {
     const onFinishTest = vi.fn();
     const word = makeWord({ id: 1, simp: '你好', level: 3 });
-    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
-    const result = renderEngineWithState(
-      {
-        answerCategory: 'meaning',
-        answer: ['hello'],
-        answerInput: 'hello',
-        chosenCharacter: '你好',
-        currentPair: pair,
-        testSet: [word],
-        queue: [pair],
-        charSet: 'simp',
-        idkList: [],
-        // Handwriting switched off.
-        askedDirections: ['MC', 'MP', 'PM', 'PC'],
-        useAutoRecord: false,
-        recognition: null,
-      },
-      { words: [word], isDemo: false, practiceMode: false, onFinishTest },
-    );
-    act(() => {
-      result.current.onSubmitAnswer();
-    });
-    act(() => {
-      vi.advanceTimersByTime(1100);
-    });
+    finishSession({}, [word], onFinishTest);
 
     expect(onFinishTest.mock.calls[0][0][0].directions).not.toHaveProperty('CM');
   });
@@ -957,90 +999,18 @@ describe('useTestEngine — the finishTest payload', () => {
     const onFinishTest = vi.fn();
     const first = makeWord({ id: 1, simp: '干', level: 3 });
     const second = makeWord({ id: 2, simp: '干', level: 3 });
-    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
-    const result = renderEngineWithState(
+    finishSession(
       {
-        answerCategory: 'meaning',
-        answer: ['hello'],
-        answerInput: 'hello',
         chosenCharacter: '干',
-        currentPair: pair,
-        testSet: [first, second],
-        queue: [pair],
-        charSet: 'simp',
-        idkList: [{ wordId: 2, direction: 'CM' as Direction }],
-        askedDirections: DIRECTIONS,
-        useAutoRecord: false,
-        recognition: null,
+        gradeList: [{ wordId: 2, direction: 'CM' as Direction, result: 'fail', toneErrors: 0 }],
       },
-      { words: [first, second], isDemo: false, practiceMode: false, onFinishTest },
+      [first, second],
+      onFinishTest,
     );
-    act(() => {
-      result.current.onSubmitAnswer();
-    });
-    act(() => {
-      vi.advanceTimersByTime(1100);
-    });
 
     const [payload] = onFinishTest.mock.calls[0];
-    expect(payload[0].directions.CM).toBe('pass');
-    expect(payload[1].directions.CM).toBe('fail');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// A direction recorded twice is still one failure
-// ---------------------------------------------------------------------------
-describe('useTestEngine — a repeated failure of one direction', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('counts a direction recorded twice as a single failure', () => {
-    const onFinishTest = vi.fn();
-    const word = makeWord({ id: 1, simp: '你好', level: 3 });
-    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
-
-    const result = renderEngineWithState(
-      {
-        answerCategory: 'meaning',
-        answer: ['hello'],
-        answerInput: 'hello',
-        chosenCharacter: '你好',
-        currentPair: pair,
-        testSet: [word],
-        queue: [pair],
-        charSet: 'simp',
-        // Nothing produces this shape now that Ctrl+i fires once, but the
-        // payload must not care how many times a direction was recorded.
-        idkList: [
-          { wordId: 1, direction: 'CM' as Direction },
-          { wordId: 1, direction: 'CM' as Direction },
-        ],
-        askedDirections: DIRECTIONS,
-        useAutoRecord: false,
-        recognition: null,
-      },
-      { words: [word], isDemo: false, practiceMode: false, onFinishTest },
-    );
-
-    act(() => {
-      result.current.onSubmitAnswer();
-    });
-    act(() => {
-      vi.advanceTimersByTime(1100);
-    });
-
-    expect(onFinishTest).toHaveBeenCalledWith([
-      {
-        word_id: 1,
-        directions: { MC: 'pass', MP: 'pass', PM: 'pass', PC: 'pass', CM: 'fail' },
-      },
-    ]);
+    expect(payload[0]).toEqual({ word_id: 1, directions: { MP: 'pass' }, toneErrors: {} });
+    expect(payload[1]).toEqual({ word_id: 2, directions: { CM: 'fail' }, toneErrors: {} });
   });
 });

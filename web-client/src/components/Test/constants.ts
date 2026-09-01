@@ -33,14 +33,18 @@ export const createInitialState = (props: Props): TestState => {
   const priority = props.isDemo ? 'none' : localStorage.getItem('priority') || 'none';
   const onlyPriority = props.isDemo ? false : localStorage.getItem('onlyPriority') === 'true';
 
-  // The dev summary stage shows one row per direction, as a real session does.
+  // The dev summary stage fills the summary with one row per direction of each
+  // word, so that every grade and a long list are both visible at once.
   const devScoreList: WordScore[] = props.devTestFinished
     ? props.words.flatMap((word) =>
-        DIRECTIONS.map((direction) => ({
-          char: word[charSet],
-          direction,
-          result: (Math.random() < 0.75 ? 'pass' : 'fail') as DirectionResult,
-        })),
+        DIRECTIONS.map((direction) => {
+          const roll = Math.random();
+          return {
+            char: word[charSet],
+            direction,
+            result: (roll < 0.6 ? 'pass' : roll < 0.85 ? 'lapse' : 'fail') as DirectionResult,
+          };
+        }),
       )
     : [];
 
@@ -60,8 +64,9 @@ export const createInitialState = (props: Props): TestState => {
     submitDisabled: false,
     progressBar: 0,
     initialQueueLength: 0,
-    askedDirections: [],
-    idkList: [],
+    gradeList: [],
+    gradeCap: 'pass',
+    toneErrorCount: 0,
     scoreList: devScoreList,
     testFinished: props.devTestFinished ?? false,
     showInputChars: [],
@@ -87,8 +92,7 @@ export const createInitialState = (props: Props): TestState => {
     showQuestionPinyin: false,
     hintLoading: false,
     showAnswer: false,
-    yesClicked: false,
-    noClicked: false,
+    gradeClicked: null,
     pauseAutoRecord: false,
     synthLoading: false,
     speechLoading: false,

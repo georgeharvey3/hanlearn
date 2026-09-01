@@ -306,23 +306,6 @@ export const planSession = (candidates: Word[], options: PlanSessionOptions): Se
 export const directionOf = (pair: QueuePair): Direction =>
   `${pair.aCategory}${pair.qCategory}` as Direction;
 
-/**
- * The distinct directions a queue asks, in the order the queue holds them.
- * finishTest reschedules only these, so the directions the session left out
- * keep the bank and due date they already hold.
- */
-export const directionsOf = (queue: QueuePair[]): Direction[] => {
-  const seen = new Set<string>();
-  const directions: Direction[] = [];
-  for (const pair of queue) {
-    const direction = directionOf(pair);
-    if (seen.has(direction)) continue;
-    seen.add(direction);
-    directions.push(direction);
-  }
-  return directions;
-};
-
 function resolveCategory(
   category: QuestionCategory,
   word: Word,

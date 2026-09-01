@@ -64,28 +64,34 @@ export interface User {
 }
 
 /**
- * The outcome of one direction in one session.
+ * The grade of one question: how the first attempt at it went.
  *
- * A direction fails only when the learner selects "I don't know", or when the
- * handwriting reveal runs. A wrong answer gives "Try again" and unlimited
- * retries, so it is not a failure on its own.
+ * `pass` is a correct first attempt, `lapse` is a correct answer that followed
+ * a wrong one, and `fail` is "I don't know" or the handwriting reveal. The
+ * retries stay, and they do not change the grade. See
+ * docs/adr/0007-grade-the-first-attempt.md.
  */
-export type DirectionResult = 'pass' | 'fail';
+export type DirectionResult = 'pass' | 'lapse' | 'fail';
 
 /**
  * What one word's session produced, as submitted to finishTest.
  *
  * Only the directions the session asked appear. A direction that is absent
- * keeps the bank and due date it already holds.
+ * keeps the bank, due date and tone error count it already holds.
+ *
+ * `toneErrors` is a separate map because it has a separate life: the grade
+ * replaces the bank of a direction, and the tone errors add to a running count
+ * that every session of that direction contributes to.
  */
 export interface WordDirectionResults {
   word_id: number;
   directions: Partial<Record<Direction, DirectionResult>>;
+  toneErrors?: Partial<Record<Direction, number>>;
 }
 
 /**
- * One row of the session summary: how one direction of one word went.
- * A word the session asked in five directions produces five of these.
+ * One row of the session summary: how one question went.
+ * The session asks a word in one direction, so a word produces one of these.
  */
 export interface WordScore {
   char: string;
@@ -94,14 +100,20 @@ export interface WordScore {
 }
 
 /**
- * A direction the learner did not know, recorded as the session runs.
+ * The grade of one question, recorded as the session runs.
  *
  * The word is held by id rather than by character, because two words in one
  * session can share a character form and the results must not be merged.
+ *
+ * `toneErrors` counts the attempts at this question that gave the correct
+ * syllables with an incorrect tone. It is 0 for every question that does not
+ * ask for pinyin.
  */
-export interface DirectionFailure {
+export interface DirectionGrade {
   wordId: number;
   direction: Direction;
+  result: DirectionResult;
+  toneErrors: number;
 }
 
 export type QuestionCategory = 'C' | 'P' | 'M';

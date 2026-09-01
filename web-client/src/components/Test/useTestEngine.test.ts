@@ -26,7 +26,9 @@ vi.mock('./constants', () => ({
     submitDisabled: false,
     progressBar: 0,
     initialQueueLength: 0,
-    idkList: [],
+    gradeList: [],
+    gradeCap: 'pass',
+    toneErrorCount: 0,
     scoreList: [],
     testFinished: false,
     showInputChars: [],
@@ -52,8 +54,7 @@ vi.mock('./constants', () => ({
     showQuestionPinyin: false,
     hintLoading: false,
     showAnswer: false,
-    yesClicked: false,
-    noClicked: false,
+    gradeClicked: null,
     pauseAutoRecord: false,
     synthLoading: false,
     speechLoading: false,
@@ -293,8 +294,171 @@ describe('useTestEngine — checkAnswer for meaning answers', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// The grade comes from the first attempt, and the retries do not change it.
+// ---------------------------------------------------------------------------
+describe('useTestEngine — the grade of the first attempt', () => {
+  const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+  const sparePair = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
+
+  function meaningQuestion(overrides: Record<string, unknown> = {}) {
+    return renderEngineWithState({
+      answerCategory: 'meaning',
+      answer: ['hello'],
+      chosenCharacter: '你好',
+      currentPair: pair,
+      testSet: [makeWord()],
+      // A spare pair keeps the session running, so the grade stays in state.
+      queue: [pair, sparePair],
+      charSet: 'simp',
+      gradeList: [],
+      gradeCap: 'pass',
+      toneErrorCount: 0,
+      useAutoRecord: false,
+      recognition: null,
+      ...overrides,
+    });
+  }
+
+  it('grades a pass when the first attempt is correct', () => {
+    const result = meaningQuestion({ answerInput: 'hello' });
+
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+
+    expect(result.current.state.gradeList).toEqual([
+      { wordId: 1, direction: 'MP', result: 'pass', toneErrors: 0 },
+    ]);
+  });
+
+  it('caps the question at a lapse as soon as one attempt is wrong', () => {
+    const result = meaningQuestion({ answerInput: 'goodbye' });
+
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+
+    expect(result.current.state.gradeCap).toBe('lapse');
+    expect(result.current.state.gradeList).toEqual([]);
+  });
+
+  it('grades a lapse when a correct answer follows a wrong one', () => {
+    const result = meaningQuestion({ answerInput: 'goodbye' });
+
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+    act(() => {
+      result.current.setStateMerged({ answerInput: 'hello' } as any);
+    });
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+
+    expect(result.current.state.result).toBe('Correct');
+    expect(result.current.state.gradeList).toEqual([
+      { wordId: 1, direction: 'MP', result: 'lapse', toneErrors: 0 },
+    ]);
+  });
+
+  it('keeps the lapse however many wrong attempts follow', () => {
+    const result = meaningQuestion({ answerInput: 'goodbye' });
+
+    for (const attempt of ['goodbye', 'bye', 'hello']) {
+      act(() => {
+        result.current.setStateMerged({ answerInput: attempt } as any);
+      });
+      act(() => {
+        result.current.onSubmitAnswer();
+      });
+    }
+
+    expect(result.current.state.gradeList).toEqual([
+      { wordId: 1, direction: 'MP', result: 'lapse', toneErrors: 0 },
+    ]);
+  });
+
+  it('counts a tone error and grades it like any other wrong answer', () => {
+    const result = renderEngineWithState({
+      answerCategory: 'pinyin',
+      answer: 'ni3 hao3',
+      answerInput: 'ni1 hao1',
+      chosenCharacter: '你好',
+      currentPair: sparePair,
+      testSet: [makeWord()],
+      queue: [sparePair, pair],
+      charSet: 'simp',
+      gradeList: [],
+      gradeCap: 'pass',
+      toneErrorCount: 0,
+      useAutoRecord: false,
+      recognition: null,
+    });
+
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+    expect(result.current.state.result).toBe('Incorrect tones');
+    expect(result.current.state.toneErrorCount).toBe(1);
+
+    act(() => {
+      result.current.setStateMerged({ answerInput: 'ni3 hao3' } as any);
+    });
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+
+    expect(result.current.state.gradeList).toEqual([
+      { wordId: 1, direction: 'PM', result: 'lapse', toneErrors: 1 },
+    ]);
+  });
+
+  it('does not count a wrong answer that is not a tone error', () => {
+    const result = meaningQuestion({ answerInput: 'goodbye' });
+
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+
+    expect(result.current.state.toneErrorCount).toBe(0);
+  });
+
+  it('leaves the grade alone when the learner asks for a hint', () => {
+    const result = meaningQuestion({
+      answerCategory: 'pinyin',
+      answer: 'ni3 hao3',
+      answerInput: 'ni3 hao3',
+    });
+
+    act(() => {
+      result.current.onHint();
+    });
+    expect(result.current.state.gradeCap).toBe('pass');
+
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+
+    expect(result.current.state.gradeList).toEqual([
+      { wordId: 1, direction: 'MP', result: 'pass', toneErrors: 0 },
+    ]);
+  });
+
+  it('caps the question at a lapse when the learner asks for the stroke outline', () => {
+    const result = meaningQuestion({ answerCategory: 'character', writer: mockWriter });
+
+    act(() => {
+      result.current.onHint();
+    });
+
+    expect(mockWriter.showOutline).toHaveBeenCalled();
+    expect(result.current.state.gradeCap).toBe('lapse');
+  });
+});
+
 describe("useTestEngine — I-don't-know flow", () => {
-  it('adds the chosen character to idkList when IDK is triggered', () => {
+  it('grades the question a fail when IDK is triggered', () => {
     const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
     const result = renderEngineWithState({
@@ -305,7 +469,9 @@ describe("useTestEngine — I-don't-know flow", () => {
       testSet: [makeWord()],
       queue: [pair],
       charSet: 'simp',
-      idkList: [],
+      gradeList: [],
+      gradeCap: 'pass',
+      toneErrorCount: 0,
       idkDisabled: false,
       useHandwriting: false,
       writer: null,
@@ -315,8 +481,10 @@ describe("useTestEngine — I-don't-know flow", () => {
       result.current.onIDontKnow();
     });
 
-    // The queue pair asks meaning from pinyin, so the failure is recorded against MP.
-    expect(result.current.state.idkList).toEqual([{ wordId: 1, direction: 'MP' }]);
+    // The queue pair asks meaning from pinyin, so the grade is recorded against MP.
+    expect(result.current.state.gradeList).toEqual([
+      { wordId: 1, direction: 'MP', result: 'fail', toneErrors: 0 },
+    ]);
     expect(result.current.state.idkDisabled).toBe(true);
   });
 
@@ -331,7 +499,9 @@ describe("useTestEngine — I-don't-know flow", () => {
       testSet: [makeWord()],
       queue: [pair],
       charSet: 'simp',
-      idkList: [],
+      gradeList: [],
+      gradeCap: 'pass',
+      toneErrorCount: 0,
       idkDisabled: false,
       useHandwriting: false,
       writer: null,
@@ -345,7 +515,7 @@ describe("useTestEngine — I-don't-know flow", () => {
     expect(result.current.state.result).toContain('Answer was');
   });
 
-  it('accumulates one idkList entry per failed direction of the same word', () => {
+  it('accumulates one grade per direction of the same word', () => {
     const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const testWord = makeWord();
 
@@ -357,7 +527,10 @@ describe("useTestEngine — I-don't-know flow", () => {
       testSet: [testWord],
       queue: [pair],
       charSet: 'simp',
-      idkList: [{ wordId: 1, direction: 'PM' as const }], // a direction already failed
+      // a direction of this word that the session already graded
+      gradeList: [{ wordId: 1, direction: 'PM' as const, result: 'fail' as const, toneErrors: 0 }],
+      gradeCap: 'pass' as const,
+      toneErrorCount: 0,
       idkDisabled: false,
       useHandwriting: false,
       writer: null,
@@ -367,9 +540,9 @@ describe("useTestEngine — I-don't-know flow", () => {
       result.current.onIDontKnow();
     });
 
-    expect(result.current.state.idkList).toEqual([
-      { wordId: 1, direction: 'PM' },
-      { wordId: 1, direction: 'MP' },
+    expect(result.current.state.gradeList).toEqual([
+      { wordId: 1, direction: 'PM', result: 'fail', toneErrors: 0 },
+      { wordId: 1, direction: 'MP', result: 'fail', toneErrors: 0 },
     ]);
   });
 });
@@ -491,11 +664,10 @@ describe('useTestEngine — character hint flash', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Speech submissions go through the shared input flow: the transcript is
-// written into the answer input, submitted like a typed answer, and a wrong
-// transcript stays in the input so the user can edit and resubmit it.
+// A transcript is not an attempt. It goes into the answer input and stays
+// there, and the learner sends it with Submit or the Enter key.
 // ---------------------------------------------------------------------------
-describe('useTestEngine — speech submissions fill and submit the answer input', () => {
+describe('useTestEngine — speech fills the answer input and sends nothing', () => {
   function setupSpeechRecognition() {
     const listeners: Record<string, (event: any) => void> = {};
     const mockRecognition = {
@@ -546,7 +718,7 @@ describe('useTestEngine — speech submissions fill and submit the answer input'
     );
   }
 
-  it('keeps a wrong transcript in the answer input for editing', () => {
+  it('puts a wrong transcript in the answer input and grades nothing', () => {
     const { speak } = setupSpeechRecognition();
     const result = setupMeaningQuestion();
 
@@ -558,11 +730,13 @@ describe('useTestEngine — speech submissions fill and submit the answer input'
     });
 
     expect(result.current.state.answerInput).toBe('goodbye');
-    expect(result.current.state.result).toBe('Try again');
+    expect(result.current.state.result).toBe('');
+    expect(result.current.state.gradeCap).toBe('pass');
+    expect(result.current.state.gradeList).toEqual([]);
     expect(result.current.state.idkDisabled).toBe(false);
   });
 
-  it('accepts a correct transcript like a typed answer', () => {
+  it('puts a correct transcript in the answer input and does not submit it', () => {
     const { speak } = setupSpeechRecognition();
     const result = setupMeaningQuestion();
 
@@ -574,11 +748,31 @@ describe('useTestEngine — speech submissions fill and submit the answer input'
     });
 
     expect(result.current.state.answerInput).toBe('hello');
-    expect(result.current.state.result).toBe('Correct');
-    expect(result.current.state.idkDisabled).toBe(true);
+    expect(result.current.state.result).toBe('');
+    expect(result.current.state.idkDisabled).toBe(false);
   });
 
-  it('an edited wrong transcript can be resubmitted as a typed answer', () => {
+  it('grades a pass when the learner sends a correct transcript', () => {
+    const { speak } = setupSpeechRecognition();
+    const result = setupMeaningQuestion();
+
+    act(() => {
+      result.current.onListen();
+    });
+    act(() => {
+      speak('hello');
+    });
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+
+    expect(result.current.state.result).toBe('Correct');
+    expect(result.current.state.gradeList).toEqual([
+      { wordId: 1, direction: 'MP', result: 'pass', toneErrors: 0 },
+    ]);
+  });
+
+  it('an edited wrong transcript can be sent as a typed answer', () => {
     const { speak } = setupSpeechRecognition();
     const result = setupMeaningQuestion();
 
@@ -587,6 +781,9 @@ describe('useTestEngine — speech submissions fill and submit the answer input'
     });
     act(() => {
       speak('goodbye');
+    });
+    act(() => {
+      result.current.onSubmitAnswer();
     });
     expect(result.current.state.result).toBe('Try again');
 
@@ -599,9 +796,13 @@ describe('useTestEngine — speech submissions fill and submit the answer input'
     });
 
     expect(result.current.state.result).toBe('Correct');
+    // The first attempt was wrong, so the question is a lapse.
+    expect(result.current.state.gradeList).toEqual([
+      { wordId: 1, direction: 'MP', result: 'lapse', toneErrors: 0 },
+    ]);
   });
 
-  it('accepts recognised hanzi matching the target word for pinyin answers', () => {
+  it('reads recognised hanzi as pinyin into the input, and sends nothing', () => {
     const { speak } = setupSpeechRecognition();
     const pair = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
     const sparePair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
@@ -627,8 +828,9 @@ describe('useTestEngine — speech submissions fill and submit the answer input'
       speak('你好');
     });
 
-    expect(result.current.state.result).toBe('"ni3 hao3" is correct!');
-    expect(result.current.state.idkDisabled).toBe(true);
+    expect(result.current.state.answerInput).not.toBe('');
+    expect(result.current.state.idkDisabled).toBe(false);
+    expect(result.current.state.gradeList).toEqual([]);
   });
 });
 
@@ -819,6 +1021,43 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
 
     // HanziWriter.create should be called to set up the character quiz
     expect((window as any).HanziWriter.create).toHaveBeenCalled();
+  });
+
+  it('caps a handwriting question at a lapse after five misses on one stroke', () => {
+    const pair = { index: '0', aCategory: 'C' as any, qCategory: 'P' as any };
+    const result = renderEngineWithState({
+      answerCategory: 'character',
+      questionCategory: 'pinyin',
+      answer: '你',
+      useAutoRecord: false,
+      useSound: false,
+      useHandwriting: true,
+      writer: null,
+      currentPair: pair,
+      testSet: [makeWord({ simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' })],
+      queue: [pair],
+      charSet: 'simp',
+      chosenCharacter: '你',
+      gradeCap: 'pass',
+      qNum: 1,
+    });
+
+    mockWriter.quiz.mockClear();
+    act(() => {
+      result.current.setStateMerged({ qNum: 2 } as any);
+    });
+
+    const { onMistake } = mockWriter.quiz.mock.calls[0][0];
+
+    act(() => {
+      onMistake({ mistakesOnStroke: 4, strokeNum: 0, totalMistakes: 4 });
+    });
+    expect(result.current.state.gradeCap).toBe('pass');
+
+    act(() => {
+      onMistake({ mistakesOnStroke: 5, strokeNum: 0, totalMistakes: 5 });
+    });
+    expect(result.current.state.gradeCap).toBe('lapse');
   });
 });
 

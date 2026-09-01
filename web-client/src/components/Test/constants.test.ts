@@ -76,7 +76,7 @@ describe('createInitialState', () => {
     expect(state.scoreList).toHaveLength(mockWords.length * DIRECTIONS.length);
     state.scoreList.forEach((score) => {
       expect(DIRECTIONS).toContain(score.direction);
-      expect(['pass', 'fail']).toContain(score.result);
+      expect(['pass', 'lapse', 'fail']).toContain(score.result);
     });
     expect(state.testFinished).toBe(true);
   });

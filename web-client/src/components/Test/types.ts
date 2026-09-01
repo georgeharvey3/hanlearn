@@ -1,8 +1,8 @@
 import { RouteComponentProps } from 'react-router-dom';
 
 import {
-  Direction,
-  DirectionFailure,
+  DirectionGrade,
+  DirectionResult,
   Word,
   QueuePair,
   WordDirectionResults,
@@ -28,17 +28,20 @@ export interface TestState {
   progressBar: number;
   initialQueueLength: number;
   /**
-   * The directions this session asks, taken from the queue when it is built.
-   * finishTest reschedules only these, so a direction the session left out —
-   * handwriting when it is switched off, or the four that onlyPriority filters
-   * away — keeps the bank and due date it already holds.
+   * The grade of every question the session has finished, in the order the
+   * questions were asked. finishTest reschedules exactly these, so a direction
+   * the session did not ask keeps the bank and due date it already holds.
    */
-  askedDirections: Direction[];
+  gradeList: DirectionGrade[];
   /**
-   * The directions the learner did not know, in the order they happened.
-   * One entry per failed question, not per word.
+   * The best grade the current question can still get. It starts at `pass` and
+   * a wrong first attempt, five misses on one stroke, or the stroke outline
+   * drops it to `lapse`. "I don't know" and the reveal grade `fail` outright,
+   * so they do not read this.
    */
-  idkList: DirectionFailure[];
+  gradeCap: Exclude<DirectionResult, 'fail'>;
+  /** Tone errors collected on the current question. */
+  toneErrorCount: number;
   scoreList: WordScore[];
   testFinished: boolean;
   showInputChars: string[];
@@ -64,8 +67,12 @@ export interface TestState {
   showQuestionPinyin: boolean;
   hintLoading: boolean;
   showAnswer: boolean;
-  yesClicked: boolean;
-  noClicked: boolean;
+  /**
+   * The grade button the learner pressed on the current flashcard question, or
+   * null while the question is ungraded. It styles the three buttons, so it is
+   * set however the grade was given, by mouse or by keyboard.
+   */
+  gradeClicked: DirectionResult | null;
   pauseAutoRecord: boolean;
   synthLoading: boolean;
   speechLoading: boolean;

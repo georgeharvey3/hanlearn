@@ -7,7 +7,7 @@ import { beep, fail, createInitialState } from './constants';
 import { Props, TestState, TestStateUpdate } from './types';
 import {
   Direction,
-  DirectionFailure,
+  DirectionGrade,
   DirectionResult,
   WordDirectionResults,
   WordScore,
@@ -16,6 +16,16 @@ import { isNewWord } from '../../utils/directions';
 import { checkSentenceAvailability, getHintSentence } from '../../services/sentenceService';
 import * as ttsService from '../../services/ttsService';
 import { reportError } from '../../services/errorReporting';
+
+/**
+ * Misses on one stroke before the handwriting quiz shows the stroke outline.
+ *
+ * The demo shows the outline sooner, so that a visitor sees the whole quiz in a
+ * few strokes. The demo grades nothing, so the two numbers never disagree about
+ * a grade the scheduler reads.
+ */
+const MISSES_BEFORE_HINT = 5;
+const DEMO_MISSES_BEFORE_HINT = 1;
 
 // Quiz type governing the current answer; character answers are always handwriting
 const answerQuizType = (state: TestState): QuizType | null => {
@@ -42,8 +52,9 @@ const clearCharacterTarget = (): void => {
 export const useTestEngine = (props: Props) => {
   const [state, setState] = useState<TestState>(() => createInitialState(props));
   const stateRef = useRef(state);
-  const submitSpeechRef = useRef<(speech: string) => void>(() => {});
+  const applySpeechRef = useRef<(speech: string) => void>(() => {});
   const initializedRef = useRef(false);
+  const missesBeforeHint = props.isDemo ? DEMO_MISSES_BEFORE_HINT : MISSES_BEFORE_HINT;
 
   useEffect(() => {
     stateRef.current = state;
@@ -112,7 +123,7 @@ export const useTestEngine = (props: Props) => {
     recognition.addEventListener('result', (event: SpeechRecognitionEvent) => {
       setStateMerged({ speechResult: true });
       result = event.results[0][0].transcript;
-      submitSpeechRef.current(result.toLowerCase());
+      applySpeechRef.current(result.toLowerCase());
     });
 
     recognition.addEventListener('end', () => {
@@ -168,18 +179,22 @@ export const useTestEngine = (props: Props) => {
     [getState, onListen, props.lang, props.speechAvailable, props.voice, setStateMerged],
   );
 
-  // --- Failures ---
+  // --- Grades ---
 
   /**
-   * The (word, direction) pair the current question asks, recorded when the
-   * learner does not know it. Returns null when there is no current question,
-   * which the two call sites already guard against by other means.
+   * The grade of the current question. Returns null when there is no current
+   * question, which every call site already guards against by other means.
    */
-  const currentFailure = (state: TestState): DirectionFailure | null => {
+  const currentGrade = (state: TestState, result: DirectionResult): DirectionGrade | null => {
     if (!state.currentPair) return null;
     const word = state.testSet[parseInt(state.currentPair.index)];
     if (!word) return null;
-    return { wordId: word.id, direction: testLogic.directionOf(state.currentPair) };
+    return {
+      wordId: word.id,
+      direction: testLogic.directionOf(state.currentPair),
+      result,
+      toneErrors: state.toneErrorCount,
+    };
   };
 
   // --- Score sending ---
@@ -194,132 +209,164 @@ export const useTestEngine = (props: Props) => {
 
   // --- Test flow ---
 
-  const onFinishTest = useCallback((): void => {
-    const current = getState();
-    const answerInput = document.getElementById('answer-input');
-
-    if (answerInput !== null) {
-      (answerInput as HTMLInputElement).blur();
-    }
-
-    // The directions each word failed, by word id. A word that the learner knew
-    // in every direction has no entry.
-    const failedByWord = new Map<number, Set<Direction>>();
-    for (const { wordId, direction } of current.idkList) {
-      const failed = failedByWord.get(wordId);
-      if (failed) {
-        failed.add(direction);
-      } else {
-        failedByWord.set(wordId, new Set([direction]));
-      }
-    }
-
-    const wordScores: WordScore[] = [];
-    const sendResults: WordDirectionResults[] = [];
-    const sentenceWords: import('../../types/models').Word[] = [];
-
-    current.testSet.forEach((word) => {
-      const failed = failedByWord.get(word.id);
-
-      // The sentence stages still gate on the word as a whole: they are a
-      // reward for a clean run, and issue #339 revisits what should gate them.
-      if (!failed && (isNewWord(word) || props.practiceMode || props.sentenceStagesForAllWords)) {
-        sentenceWords.push(word);
-      }
-
-      const directions: Partial<Record<Direction, DirectionResult>> = {};
-      for (const direction of current.askedDirections) {
-        const result: DirectionResult = failed?.has(direction) ? 'fail' : 'pass';
-        directions[direction] = result;
-        // One summary row per direction the session asked.
-        wordScores.push({ char: word[current.charSet], direction, result });
-      }
-
-      sendResults.push({ word_id: word.id, directions });
-    });
-
-    if (!props.isDemo && !props.practiceMode) {
-      onSendResults(sendResults);
-    }
-
-    if (sentenceWords.length === 0 || props.isDemo) {
-      setStateMerged({
-        testFinished: true,
-        scoreList: wordScores,
-        sentenceWords,
-        sentenceCheckStatus: props.isDemo && sentenceWords.length > 0 ? 'available' : 'idle',
-      });
-      if (!props.isDemo) {
-        props.onVocabComplete?.(wordScores);
-      } else if (sentenceWords.length > 0 && !props.finalStage) {
-        setTimeout(() => {
-          props.startSentenceRead?.(sentenceWords, wordScores);
-        }, 1000);
-      }
-    } else {
-      setStateMerged({
-        testFinished: true,
-        scoreList: wordScores,
-        sentenceWords,
-        sentenceCheckStatus: 'pending',
-      });
-
-      Promise.all(
-        sentenceWords.map((w) =>
-          checkSentenceAvailability(w.simp, current.charSet)
-            .then((available) => (available ? w : null))
-            .catch((error) => {
-              reportError(error, {
-                feature: 'sentence-availability',
-                context: { simp: w.simp },
-              });
-              return null;
-            }),
-        ),
-      ).then((results) => {
-        const available = results.filter((w): w is import('../../types/models').Word => w !== null);
-        if (available.length > 0 && !props.finalStage) {
-          setStateMerged({
-            sentenceWords: available,
-            sentenceCheckStatus: 'available',
-          });
-          props.startSentenceRead?.(available, wordScores);
-        } else {
-          setStateMerged({
-            sentenceWords: available,
-            sentenceCheckStatus: 'unavailable',
-          });
-          props.onVocabComplete?.(wordScores);
-        }
-      });
-    }
-  }, [
-    getState,
-    onSendResults,
-    props.isDemo,
-    props.practiceMode,
-    props.finalStage,
-    props.onVocabComplete,
-    props.startSentenceRead,
-    setStateMerged,
-  ]);
-
-  const onCorrectAnswer = useCallback(
-    (usedSpeech?: boolean): void => {
+  /**
+   * Close the session and submit what it graded.
+   *
+   * `lastGrade` is the grade of the question that emptied the queue. A grade is
+   * written with setStateMerged, and `getState` reads a ref that React updates
+   * after the render, so the last one is not in state yet when a caller
+   * finishes in the same tick. A caller that already waited passes it again,
+   * and the identity check below drops the duplicate.
+   */
+  const onFinishTest = useCallback(
+    (lastGrade?: DirectionGrade | null): void => {
       const current = getState();
-      let resultString = 'Correct';
+      const gradeList =
+        lastGrade && !current.gradeList.includes(lastGrade)
+          ? current.gradeList.concat(lastGrade)
+          : current.gradeList;
+      const answerInput = document.getElementById('answer-input');
 
-      if (current.answerCategory === 'pinyin' && usedSpeech) {
-        resultString = `"${current.answer}" is correct!`;
+      if (answerInput !== null) {
+        (answerInput as HTMLInputElement).blur();
       }
 
-      setStateMerged({
-        result: resultString,
+      // The grades of each word, by word id. A word the session did not reach —
+      // the queue can only run out at the end, so this is the empty case — has no
+      // entry, and nothing is written for it.
+      const gradesByWord = new Map<number, DirectionGrade[]>();
+      for (const grade of gradeList) {
+        const graded = gradesByWord.get(grade.wordId);
+        if (graded) graded.push(grade);
+        else gradesByWord.set(grade.wordId, [grade]);
+      }
+
+      const wordScores: WordScore[] = [];
+      const sendResults: WordDirectionResults[] = [];
+      const sentenceWords: import('../../types/models').Word[] = [];
+
+      current.testSet.forEach((word) => {
+        const graded = gradesByWord.get(word.id) ?? [];
+
+        // The sentence stages still gate on the word as a whole, and only a fail
+        // blocks them: they are a reward for a clean run, and issue #339 revisits
+        // what should gate them.
+        const failed = graded.some((grade) => grade.result === 'fail');
+        if (!failed && (isNewWord(word) || props.practiceMode || props.sentenceStagesForAllWords)) {
+          sentenceWords.push(word);
+        }
+
+        const directions: Partial<Record<Direction, DirectionResult>> = {};
+        const toneErrors: Partial<Record<Direction, number>> = {};
+        for (const grade of graded) {
+          directions[grade.direction] = grade.result;
+          if (grade.toneErrors > 0) toneErrors[grade.direction] = grade.toneErrors;
+          // One summary row per question, which is one direction of one word.
+          wordScores.push({
+            char: word[current.charSet],
+            direction: grade.direction,
+            result: grade.result,
+          });
+        }
+
+        if (graded.length === 0) return;
+        sendResults.push({ word_id: word.id, directions, toneErrors });
+      });
+
+      if (!props.isDemo && !props.practiceMode) {
+        onSendResults(sendResults);
+      }
+
+      if (sentenceWords.length === 0 || props.isDemo) {
+        setStateMerged({
+          testFinished: true,
+          scoreList: wordScores,
+          sentenceWords,
+          sentenceCheckStatus: props.isDemo && sentenceWords.length > 0 ? 'available' : 'idle',
+        });
+        if (!props.isDemo) {
+          props.onVocabComplete?.(wordScores);
+        } else if (sentenceWords.length > 0 && !props.finalStage) {
+          setTimeout(() => {
+            props.startSentenceRead?.(sentenceWords, wordScores);
+          }, 1000);
+        }
+      } else {
+        setStateMerged({
+          testFinished: true,
+          scoreList: wordScores,
+          sentenceWords,
+          sentenceCheckStatus: 'pending',
+        });
+
+        Promise.all(
+          sentenceWords.map((w) =>
+            checkSentenceAvailability(w.simp, current.charSet)
+              .then((available) => (available ? w : null))
+              .catch((error) => {
+                reportError(error, {
+                  feature: 'sentence-availability',
+                  context: { simp: w.simp },
+                });
+                return null;
+              }),
+          ),
+        ).then((results) => {
+          const available = results.filter(
+            (w): w is import('../../types/models').Word => w !== null,
+          );
+          if (available.length > 0 && !props.finalStage) {
+            setStateMerged({
+              sentenceWords: available,
+              sentenceCheckStatus: 'available',
+            });
+            props.startSentenceRead?.(available, wordScores);
+          } else {
+            setStateMerged({
+              sentenceWords: available,
+              sentenceCheckStatus: 'unavailable',
+            });
+            props.onVocabComplete?.(wordScores);
+          }
+        });
+      }
+    },
+    [
+      getState,
+      onSendResults,
+      props.isDemo,
+      props.practiceMode,
+      props.finalStage,
+      props.onVocabComplete,
+      props.startSentenceRead,
+      setStateMerged,
+    ],
+  );
+
+  /**
+   * End the current question with a grade and move to the next one.
+   *
+   * `grade` is what the learner reported in flashcard mode. Every other answer
+   * mode reads the cap the question carries, which is `pass` until a wrong
+   * attempt, five misses on one stroke, or the stroke outline drops it.
+   */
+  const onCorrectAnswer = useCallback(
+    (grade?: DirectionResult): void => {
+      const current = getState();
+      const result = grade ?? current.gradeCap;
+      const recorded = currentGrade(current, result);
+
+      setStateMerged((prevState) => ({
+        // A typed answer that follows a wrong one is still correct, and the
+        // feedback line says so. The amber marker beside the question is what
+        // reports the lapse. Only the flashcard button reports itself here.
+        result: grade === 'lapse' ? 'Nearly' : 'Correct',
         idkDisabled: true,
         submitDisabled: true,
         // Flashcard grading: mark the button pressed however it was triggered.
-        yesClicked: current.showAnswer,
-      });
+        gradeClicked: prevState.showAnswer ? result : null,
+        gradeList: recorded ? prevState.gradeList.concat(recorded) : prevState.gradeList,
+      }));
       if (current.useSoundEffects) {
         beep.play();
       }
@@ -345,15 +392,22 @@ export const useTestEngine = (props: Props) => {
             idkDisabled: false,
             submitDisabled: false,
             showAnswer: false,
+            gradeCap: 'pass',
+            toneErrorCount: 0,
           }));
         }, 1000);
       } else {
-        onFinishTest();
+        onFinishTest(recorded);
         setStateMerged({ result: 'Finished!' });
       }
     },
     [getState, setStateMerged, onFinishTest],
   );
+
+  /** The flashcard grade for a question the learner nearly knew. */
+  const onNearlyKnew = useCallback((): void => {
+    onCorrectAnswer('lapse');
+  }, [onCorrectAnswer]);
 
   const checkAnswer = useCallback(
     (cleanInput: string): boolean => {
@@ -378,18 +432,20 @@ export const useTestEngine = (props: Props) => {
     [getState],
   );
 
-  // Shared submission path for typed and spoken answers. On a wrong answer the
-  // input is left untouched so the user can edit and resubmit it.
+  // The submission path for every attempt the learner sends. On a wrong answer
+  // the input is left untouched so the user can edit and resubmit it, and the
+  // question is capped at a lapse however many attempts follow.
   const submitAnswer = useCallback(
-    (input: string, usedSpeech = false): void => {
+    (input: string): void => {
       const current = getState();
       if (checkAnswer(input)) {
-        onCorrectAnswer(usedSpeech);
+        onCorrectAnswer();
       } else {
         if (current.useSoundEffects) {
           fail.play();
         }
         let resultString = 'Try again';
+        let toneError = false;
 
         if (current.answerCategory === 'pinyin' && typeof current.answer === 'string') {
           const cleanAnswer = current.answer.replace(/ /g, '').toLowerCase();
@@ -397,10 +453,16 @@ export const useTestEngine = (props: Props) => {
 
           if (testLogic.toneChecker(cleanInput, cleanAnswer)) {
             resultString = 'Incorrect tones';
+            toneError = true;
           }
         }
 
-        setStateMerged({ result: resultString, showHint: false });
+        setStateMerged((prevState) => ({
+          result: resultString,
+          showHint: false,
+          gradeCap: 'lapse',
+          toneErrorCount: prevState.toneErrorCount + (toneError ? 1 : 0),
+        }));
         if (
           current.useAutoRecord &&
           !current.pauseAutoRecord &&
@@ -420,7 +482,14 @@ export const useTestEngine = (props: Props) => {
     submitAnswer(getState().answerInput);
   }, [getState, submitAnswer]);
 
-  const submitSpeech = useCallback(
+  /**
+   * Put a transcript in the answer input, and send nothing.
+   *
+   * The transcript is a measure of the recognizer, so it is not an attempt. The
+   * learner reads it and sends it with the Submit button or the Enter key. See
+   * docs/adr/0007-grade-the-first-attempt.md.
+   */
+  const applySpeech = useCallback(
     (speech: string): void => {
       const current = getState();
       const numToPinMap = [
@@ -452,30 +521,29 @@ export const useTestEngine = (props: Props) => {
         submission = speech;
       }
 
-      // Put the transcript in the input so a wrong answer can be edited there
-      setStateMerged({ answerInput: submission });
-
-      // Chinese speech recognition returns hanzi; an exact match on the target
-      // word is correct even if its derived pinyin reading differs
-      if (speech === current.chosenCharacter) {
-        onCorrectAnswer(true);
-        return;
-      }
-
-      submitAnswer(submission, true);
+      setStateMerged({ answerInput: submission, result: '' });
     },
-    [getState, onCorrectAnswer, setStateMerged, submitAnswer],
+    [getState, setStateMerged],
   );
 
   useEffect(() => {
-    submitSpeechRef.current = submitSpeech;
-  }, [submitSpeech]);
+    applySpeechRef.current = applySpeech;
+  }, [applySpeech]);
 
   // --- Hanzi Writer ---
 
   const quizWriter = useCallback(
     (writer: HanziWriterInstance, char: string, index: number): void => {
       writer.quiz({
+        // The outline appears after this many misses on one stroke, so this is
+        // the point where the app helps and the question stops being a pass.
+        // A word of more than one character keeps the cap across its characters,
+        // which gives the word the worst grade of them.
+        onMistake: (strokeData) => {
+          if (strokeData.mistakesOnStroke >= missesBeforeHint) {
+            setStateMerged({ gradeCap: 'lapse' });
+          }
+        },
         onComplete: () => {
           index++;
           if (index < char.length) {
@@ -494,7 +562,7 @@ export const useTestEngine = (props: Props) => {
         },
       });
     },
-    [onCorrectAnswer, setStateMerged],
+    [missesBeforeHint, onCorrectAnswer, setStateMerged],
   );
 
   const updateHanziWriterQuiz = (
@@ -510,11 +578,6 @@ export const useTestEngine = (props: Props) => {
     (char: string): void => {
       const index = 0;
       const flashChar = false;
-      let numBeforeHint = 5;
-
-      if (props.isDemo) {
-        numBeforeHint = 1;
-      }
 
       clearCharacterTarget();
 
@@ -524,7 +587,7 @@ export const useTestEngine = (props: Props) => {
         padding: 20,
         showOutline: false,
         showCharacter: flashChar,
-        showHintAfterMisses: numBeforeHint,
+        showHintAfterMisses: missesBeforeHint,
         delayBetweenStrokes: 10,
         strokeAnimationSpeed: 1,
         outlineColor: '#555',
@@ -533,7 +596,7 @@ export const useTestEngine = (props: Props) => {
       setStateMerged({ writer });
       quizWriter(writer, char, index);
     },
-    [props.isDemo, quizWriter, setStateMerged],
+    [missesBeforeHint, quizWriter, setStateMerged],
   );
 
   const updateHanziWriterAnimate = (
@@ -553,21 +616,20 @@ export const useTestEngine = (props: Props) => {
           updateHanziWriterAnimate(writer, char, index);
         } else {
           clearCharacterTarget();
-          setStateMerged((prevState) => {
-            const failure = currentFailure(prevState);
-            return {
-              idkList: failure ? prevState.idkList.concat(failure) : prevState.idkList,
-            };
-          });
-
           const latest = getState();
+          // The reveal ran, so the question is a fail whatever the cap holds.
+          const grade = currentGrade(latest, 'fail');
+          setStateMerged((prevState) => ({
+            gradeList: grade ? prevState.gradeList.concat(grade) : prevState.gradeList,
+          }));
+
           // A revealed direction is answered, so it leaves the queue: the queue
           // is read in order now, and leaving it in would ask it forever.
           const remainingQueue = latest.queue.filter((pair) => pair !== latest.currentPair);
           setStateMerged({ queue: remainingQueue });
 
           if (remainingQueue.length === 0) {
-            onFinishTest();
+            onFinishTest(grade);
             setStateMerged({ result: 'Finished!' });
             return;
           }
@@ -587,6 +649,8 @@ export const useTestEngine = (props: Props) => {
             // The question just left the queue, so it cannot be the next one.
             redoChar: false,
             qNum: prevState.qNum + 1,
+            gradeCap: 'pass',
+            toneErrorCount: 0,
           }));
         }
       });
@@ -623,20 +687,19 @@ export const useTestEngine = (props: Props) => {
       displayAnswer = displayAnswer.join(' / ');
     }
 
-    setStateMerged((prevState) => {
-      const failure = currentFailure(prevState);
+    const grade = currentGrade(current, 'fail');
+
+    setStateMerged((prevState) => ({
+      gradeList: grade ? prevState.gradeList.concat(grade) : prevState.gradeList,
+      idkDisabled: true,
+      submitDisabled: true,
       // In flashcard mode the answer is already on screen, so the feedback line
       // reports the grade instead of repeating the reveal text unchanged.
-      return {
-        idkList: failure ? prevState.idkList.concat(failure) : prevState.idkList,
-        idkDisabled: true,
-        submitDisabled: true,
-        result: prevState.showAnswer
-          ? `Not known — answer was: '${displayAnswer}'`
-          : `Answer was: '${displayAnswer}'`,
-        noClicked: prevState.showAnswer,
-      };
-    });
+      result: prevState.showAnswer
+        ? `Not known — answer was: '${displayAnswer}'`
+        : `Answer was: '${displayAnswer}'`,
+      gradeClicked: prevState.showAnswer ? 'fail' : null,
+    }));
 
     // As above: the direction was revealed, so it leaves the queue.
     const remainingQueue = current.queue.filter((pair) => pair !== current.currentPair);
@@ -645,7 +708,7 @@ export const useTestEngine = (props: Props) => {
     if (remainingQueue.length === 0) {
       // Let the reveal stand for a moment before the summary replaces it.
       setTimeout(() => {
-        onFinishTest();
+        onFinishTest(grade);
         setStateMerged({ result: 'Finished!' });
       }, 2000);
       return;
@@ -669,6 +732,8 @@ export const useTestEngine = (props: Props) => {
         showHint: false,
         hintLoading: false,
         showAnswer: false,
+        gradeCap: 'pass',
+        toneErrorCount: 0,
       }));
     }, 2000);
   }, [getState, onFinishTest, onIdkChar, setStateMerged]);
@@ -749,6 +814,9 @@ export const useTestEngine = (props: Props) => {
     } else if (current.answerCategory === 'meaning' && current.chosenCharacter) {
       showSentenceHint(current.chosenCharacter);
     } else if (current.answerCategory === 'character' && current.writer) {
+      // The one aid that is the answer, so it caps the question at a lapse. The
+      // other aids identify the question the learner is asked, and are free.
+      setStateMerged({ gradeCap: 'lapse' });
       current.writer.showOutline();
       setTimeout(() => {
         current.writer!.hideOutline();
@@ -804,7 +872,6 @@ export const useTestEngine = (props: Props) => {
           testSet: plan.words,
           queue,
           initialQueueLength: 0,
-          askedDirections: [],
           scoreList: [],
           testFinished: true,
         });
@@ -822,7 +889,6 @@ export const useTestEngine = (props: Props) => {
         questionCategory: initialVals.questionCategory,
         chosenCharacter: initialVals.chosenCharacter,
         initialQueueLength: queue.length,
-        askedDirections: testLogic.directionsOf(queue),
         showErrorMessage: false,
         qNum: prevState.qNum + 1,
       }));
@@ -923,7 +989,13 @@ export const useTestEngine = (props: Props) => {
 
       if (event.key === 'ArrowUp') {
         if (current.showAnswer && !current.idkDisabled) {
-          onCorrectAnswer();
+          onCorrectAnswer('pass');
+        }
+      }
+
+      if (event.key === 'ArrowRight') {
+        if (current.showAnswer && !current.idkDisabled) {
+          onNearlyKnew();
         }
       }
 
@@ -988,6 +1060,7 @@ export const useTestEngine = (props: Props) => {
       onHomeClicked,
       onIDontKnow,
       onListen,
+      onNearlyKnew,
       onShowAnswer,
       onSpeak,
       onToggleShowPinyin,
@@ -1027,8 +1100,7 @@ export const useTestEngine = (props: Props) => {
 
     ttsService.stopAll();
     setStateMerged({
-      yesClicked: false,
-      noClicked: false,
+      gradeClicked: null,
       showQuestionPinyin: false,
       pauseAutoRecord: false,
     });
@@ -1082,6 +1154,7 @@ export const useTestEngine = (props: Props) => {
     onListen,
     onSpeak,
     onCorrectAnswer,
+    onNearlyKnew,
     onSubmitAnswer,
     onIDontKnow,
     onHint,
