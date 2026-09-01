@@ -39,31 +39,31 @@ still hold them:
 | `qaCombinations` | `DIRECTIONS`                                      |
 | "QA combination" | Direction                                         |
 
-## Interval and ease
+## Stability, difficulty and interval
+
+FSRS schedules the reviews. It holds two numbers for the memory of one
+direction. The **stability** is the number of days after which the learner
+recalls the answer with a probability of 0.9. The **difficulty**, from 1 to 10,
+is how much one review moves the stability.
 
 The **interval** is the number of days between one review of a direction and the
-next. The **ease** is the multiplier that the interval takes when the learner
-passes. The ease starts at 2.5 and stays between 1.3 and 3.0.
+next. It is the day on which the predicted recall probability falls to the
+**target retention**, which is 0.9 for every learner.
 
 An interval of 0 days is a direction that the learner has never answered
 correctly, or one that a failure reset. The schedule asks it again the next day.
-
-The **delay** is the number of days that a review ran later than the schedule
-asked for. A pass takes half of the delay as credit, because a late correct
-answer shows a memory that is more stable than the schedule expected.
-
-| Grade   | Interval                       | Ease   |
-| ------- | ------------------------------ | ------ |
-| `pass`  | (interval + delay / 2) × ease  | + 0    |
-| `lapse` | interval × 0.5, at least 1 day | − 0.15 |
-| `fail`  | 0                              | − 0.2  |
 
 The maximum interval is 365 days. The due date takes a fuzz of up to 5% of the
 interval, so that the words a learner adds on one day do not come back on one
 day for ever. An interval of less than 3 days takes no fuzz.
 
+The **ease** was the multiplier of the calculation that FSRS replaced. It is
+read and not written: a direction that holds an ease seeds its difficulty from
+it. The interval also seeds the stability, because both are the number of days
+at which recall is 0.9.
+
 The calculation is in `utils/scheduling.ts`, and `finishTest` holds the write.
-See [docs/adr/0008-multiplicative-intervals.md](docs/adr/0008-multiplicative-intervals.md).
+See [docs/adr/0009-fsrs.md](docs/adr/0009-fsrs.md).
 
 ## Bank and level
 
@@ -93,8 +93,8 @@ the lowest bank and the earliest due date across the five directions. They exist
 because Firestore cannot range-query five map fields. Every write of a direction
 also writes both, in the same batch.
 
-The `bank` of one direction is derived too. The grade moves the interval, and
-the interval gives the bank.
+The `bank` of one direction is derived too. The grade moves the memory, the
+memory gives the interval, and the interval gives the bank.
 
 ## Session, queue and pair
 
@@ -146,18 +146,24 @@ stages carried the same name before, and it is **"Sentences"** now.
 A **grade** is how one question went. The grade comes from the **first attempt**
 at that question, and one question gets one grade. There are three:
 
-| Grade   | The learner                                                      | Interval                       |
-| ------- | ---------------------------------------------------------------- | ------------------------------ |
-| `pass`  | answered correctly on the first attempt                          | (interval + delay / 2) × ease  |
-| `lapse` | answered wrongly first, then answered correctly without a reveal | interval × 0.5, at least 1 day |
-| `fail`  | selected "I don't know", or the handwriting reveal ran           | 0                              |
+| Grade   | The learner                                                      | Rating | Interval           |
+| ------- | ---------------------------------------------------------------- | ------ | ------------------ |
+| `pass`  | answered correctly on the first attempt                          | Good   | the day FSRS gives |
+| `lapse` | answered wrongly first, then answered correctly without a reveal | Again  | the day FSRS gives |
+| `fail`  | selected "I don't know", or the handwriting reveal ran           | Again  | 0, so the next day |
+
+The rating is what the app sends to FSRS. A lapse did not retrieve the answer on
+the graded attempt, so FSRS reads it as Again. A lapse and a failure give the
+same memory state, and the due date separates them. FSRS has a fourth rating,
+Easy, and this app has no button for it. See
+[docs/adr/0009-fsrs.md](docs/adr/0009-fsrs.md).
 
 The retries stay. A wrong answer gives "Try again", and the learner can answer
 again as many times as they want. The retries give feedback and learning value.
 They do not change the grade of the question.
 
 `fail` keeps the meaning it always had: the learner did not retrieve the answer.
-`lapse` is the new middle grade for a retrieval that succeeded late. See
+`lapse` is the middle grade for a retrieval that succeeded late. See
 [docs/adr/0007-grade-the-first-attempt.md](docs/adr/0007-grade-the-first-attempt.md).
 
 The grade of a question comes from what the learner did, and each answer mode
