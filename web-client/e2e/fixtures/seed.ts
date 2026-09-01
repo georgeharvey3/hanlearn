@@ -49,7 +49,7 @@ export async function seedTestUser(): Promise<void> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer owner',
+        Authorization: 'Bearer owner',
       },
       body: JSON.stringify({
         users: [
@@ -69,7 +69,7 @@ export async function seedTestUser(): Promise<void> {
   // Create user document in Firestore (use Bearer owner to bypass security rules)
   await fetch(emulatorFirestoreUrl(`users/${TEST_USER.uid}?documentId=${TEST_USER.uid}`), {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer owner' },
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
     body: JSON.stringify({
       fields: {
         email: { stringValue: TEST_USER.email },
@@ -89,6 +89,14 @@ export interface TestWord {
   bank?: number;
   dueDate?: Date;
   listId?: string;
+  /**
+   * The interval and the last review of every direction. A word that gives them
+   * is seeded with a directions map, as a session writes it. A word that gives
+   * neither is seeded with a bank and a due date alone, as a document written
+   * before the directions map holds them.
+   */
+  interval?: number;
+  lastReview?: Date;
 }
 
 /**
@@ -103,19 +111,17 @@ export const TEST_WORDS: TestWord[] = [
 /**
  * Seed words into the Firestore emulator for the test user.
  */
-export async function seedWords(
-  userId: string,
-  words: TestWord[],
-): Promise<void> {
+export async function seedWords(userId: string, words: TestWord[]): Promise<void> {
   for (const word of words) {
     const dueDate = word.dueDate || new Date();
     const bank = word.bank || 1;
     const listId = word.listId || 'default';
+    const reviewed = word.interval !== undefined || word.lastReview !== undefined;
 
     const url = emulatorFirestoreUrl(`users/${userId}/userWords/${word.id}`);
     const res = await fetch(url, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer owner' },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
       body: JSON.stringify({
         fields: {
           wordId: { stringValue: word.id.toString() },
@@ -134,6 +140,32 @@ export async function seedWords(
           dueDate: { timestampValue: dueDate.toISOString() },
           addedAt: { timestampValue: new Date().toISOString() },
           listId: { stringValue: listId },
+          ...(reviewed
+            ? {
+                directions: {
+                  mapValue: {
+                    fields: Object.fromEntries(
+                      ['MC', 'MP', 'PM', 'PC', 'CM'].map((direction) => [
+                        direction,
+                        {
+                          mapValue: {
+                            fields: {
+                              bank: { integerValue: bank.toString() },
+                              dueDate: { timestampValue: dueDate.toISOString() },
+                              interval: { integerValue: (word.interval ?? 0).toString() },
+                              ease: { doubleValue: 2.5 },
+                              ...(word.lastReview
+                                ? { lastReview: { timestampValue: word.lastReview.toISOString() } }
+                                : {}),
+                            },
+                          },
+                        },
+                      ]),
+                    ),
+                  },
+                },
+              }
+            : {}),
         },
       }),
     });
@@ -153,21 +185,25 @@ export async function readWordFromFirestore(
   level: number;
   dueDate: string;
   banks: Record<string, number>;
+  intervals: Record<string, number>;
   toneErrors: Record<string, number>;
 } | null> {
   const url = emulatorFirestoreUrl(`users/${userId}/userWords/${wordId}`);
-  const res = await fetch(url, { headers: { 'Authorization': 'Bearer owner' } });
+  const res = await fetch(url, { headers: { Authorization: 'Bearer owner' } });
   if (!res.ok) return null;
   const data = await res.json();
 
-  // The bank and the tone errors of each direction. A document the session has
-  // not written yet holds no directions map, and both records are then empty.
+  // The bank, the interval and the tone errors of each direction. A document the
+  // session has not written yet holds no directions map, and the records are
+  // then empty. A direction that no session asked holds no interval.
   const banks: Record<string, number> = {};
+  const intervals: Record<string, number> = {};
   const toneErrors: Record<string, number> = {};
   const stored = data.fields.directions?.mapValue?.fields ?? {};
   for (const [direction, entry] of Object.entries<any>(stored)) {
     const fields = entry.mapValue?.fields ?? {};
     if (fields.bank) banks[direction] = parseInt(fields.bank.integerValue, 10);
+    if (fields.interval) intervals[direction] = parseInt(fields.interval.integerValue, 10);
     if (fields.toneErrors) {
       toneErrors[direction] = parseInt(fields.toneErrors.integerValue, 10);
     }
@@ -177,6 +213,7 @@ export async function readWordFromFirestore(
     level: parseInt(data.fields.bank.integerValue, 10),
     dueDate: data.fields.dueDate.timestampValue,
     banks,
+    intervals,
     toneErrors,
   };
 }
@@ -202,14 +239,20 @@ export async function loginViaUI(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Log In' }).click();
 
   // Wait for authenticated state — nav should show Dashboard/Add Words links
-  await page.getByText(/Dashboard|Add Words/i).first().waitFor({ timeout: 10000 });
+  await page
+    .getByText(/Dashboard|Add Words/i)
+    .first()
+    .waitFor({ timeout: 10000 });
 }
 
 /**
  * Set localStorage settings to simplify test sessions.
  * Disables sentence stages and speech features for predictable E2E testing.
  */
-export async function configureTestSettings(page: Page, overrides: Record<string, string> = {}): Promise<void> {
+export async function configureTestSettings(
+  page: Page,
+  overrides: Record<string, string> = {},
+): Promise<void> {
   await page.addInitScript((settings) => {
     // Disable speech features (Playwright Chromium doesn't support Web Speech API)
     localStorage.setItem('useSound', 'false');

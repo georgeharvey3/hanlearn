@@ -41,7 +41,7 @@ test.describe('The grade of the first attempt', () => {
     return testPage;
   }
 
-  test('a lapse demotes the word by one bank', async ({ page }) => {
+  test('a lapse halves the interval of the direction it asked', async ({ page }) => {
     const word: TestWord = {
       id: 8001,
       simp: '蓝',
@@ -58,16 +58,18 @@ test.describe('The grade of the first attempt', () => {
 
     await expect(page.getByText('Nearly')).toBeVisible();
 
-    // MP drops from 3 to 2, and the other four stay at 3. A fail would have
-    // reset MP to 1.
+    // MP holds the seven days of bank 3, and the lapse halves them to four.
+    // Bank 2 is the band of a four day interval. A fail would have reset the
+    // interval to 0 and the bank to 1. The other four directions stay at 3.
     const wordData = await readWordFromFirestore(TEST_USER.uid, word.id);
     expect(wordData).not.toBeNull();
+    expect(wordData!.intervals.MP).toBe(4);
     expect(wordData!.banks.MP).toBe(2);
     expect(wordData!.banks.CM).toBe(3);
     expect(wordData!.level).toBe(2);
   });
 
-  test('a pass advances the word by one bank', async ({ page }) => {
+  test('a pass multiplies the interval of the direction it asked', async ({ page }) => {
     const word: TestWord = {
       id: 8002,
       simp: '绿',
@@ -84,10 +86,38 @@ test.describe('The grade of the first attempt', () => {
 
     await expect(page.getByText('Known')).toBeVisible();
 
-    // MP rises from 3 to 4, and the other four stay at 3.
+    // MP holds the seven days of bank 3, and the pass multiplies them by the
+    // starting ease of 2.5. The other four directions stay at 3.
     const wordData = await readWordFromFirestore(TEST_USER.uid, word.id);
     expect(wordData).not.toBeNull();
-    expect(wordData!.banks.MP).toBe(4);
+    expect(wordData!.intervals.MP).toBe(18);
+    expect(wordData!.banks.MP).toBe(3);
     expect(wordData!.banks.CM).toBe(3);
+  });
+
+  test('a late pass takes half of the delay as credit', async ({ page }) => {
+    const day = 86400000;
+    const word: TestWord = {
+      id: 8003,
+      simp: '红',
+      trad: '紅',
+      pinyin: 'hong2',
+      meaning: 'red',
+      bank: 3,
+      interval: 10,
+      lastReview: new Date(Date.now() - 30 * day),
+      dueDate: new Date(Date.now() - 20 * day),
+    };
+
+    const testPage = await startSession(page, word);
+    await testPage.gradeFlashcard('pass');
+    await testPage.waitForSummary();
+
+    // The schedule asked for 10 days and the learner answered on day 30. The
+    // delay is 20 days, and half of it is credit: (10 + 10) * 2.5.
+    const wordData = await readWordFromFirestore(TEST_USER.uid, word.id);
+    expect(wordData).not.toBeNull();
+    expect(wordData!.intervals.MP).toBe(50);
+    expect(wordData!.banks.MP).toBe(4);
   });
 });
