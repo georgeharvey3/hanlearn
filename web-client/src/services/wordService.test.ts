@@ -84,12 +84,17 @@ import {
 import { lookupCharacter, lookupCharacterByTrad } from './dictionaryService';
 import { DIRECTIONS, DirectionResult } from '../types/models';
 
-// Level intervals defined in wordService (duplicated here for assertion purposes)
-const LEVEL_INTERVALS: Record<number, number> = { 1: 1, 2: 3, 3: 7, 4: 30, 5: 60 };
+/** The interval in days that each bank seeds, for a document without one. */
+const SEED_INTERVALS: Record<number, number> = { 1: 0, 2: 3, 3: 7, 4: 30, 5: 60 };
 
 /** A stored direction record, as Firestore holds it. */
-function storedDirection(bank: number, date: Date) {
-  return { bank, dueDate: { toDate: () => date } };
+function storedDirection(bank: number, date: Date, extra: object = {}) {
+  return { bank, dueDate: { toDate: () => date }, ...extra };
+}
+
+/** Days between the date of the session and a due date the session wrote. */
+function daysFrom(now: Date, dueDate: { toDate: () => Date }) {
+  return Math.round((dueDate.toDate().getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
 }
 
 /** All five directions at the same bank and due date. */
@@ -135,17 +140,18 @@ describe('finishTest — per-direction scheduling', () => {
 
   // ─── The case in issue #328 ────────────────────────────────────────────────
 
-  it('a failure in one direction does not change the bank of the other four', async () => {
+  it('a failure in one direction does not change the interval of the other four', async () => {
     mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
 
     await finishTest('user-1', [{ word_id: 1, directions: { ...allAsked('pass'), CM: 'fail' } }]);
 
     const update = mockBatchUpdate.mock.calls[0][1];
-    expect(update.directions.CM.bank).toBe(1);
-    expect(update.directions.MC.bank).toBe(4);
-    expect(update.directions.MP.bank).toBe(4);
-    expect(update.directions.PM.bank).toBe(4);
-    expect(update.directions.PC.bank).toBe(4);
+    // The four that passed grow from the seven days of bank 3 to 7 * 2.5.
+    expect(update.directions.CM.interval).toBe(0);
+    expect(update.directions.MC.interval).toBe(18);
+    expect(update.directions.MP.interval).toBe(18);
+    expect(update.directions.PM.interval).toBe(18);
+    expect(update.directions.PC.interval).toBe(18);
   });
 
   it('leaves a direction the session did not ask completely untouched', async () => {
@@ -166,12 +172,23 @@ describe('finishTest — per-direction scheduling', () => {
 
   // ─── Per-direction bank movement ───────────────────────────────────────────
 
-  it('advances an asked direction by one bank on a pass', async () => {
+  it('advances an asked direction out of bank 1 on its first pass', async () => {
     mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', true, allDirections(1)));
 
     await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
 
-    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.bank).toBe(2);
+    const update = mockBatchUpdate.mock.calls[0][1];
+    expect(update.directions.MC.interval).toBe(1);
+    expect(update.directions.MC.bank).toBe(2);
+  });
+
+  it('keeps a direction in its band when one pass does not leave it', async () => {
+    // Bank 3 covers 7 to 29 days, and one pass from 7 days reaches 18.
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.bank).toBe(3);
   });
 
   it('does not advance a direction beyond bank 5', async () => {
@@ -182,12 +199,27 @@ describe('finishTest — per-direction scheduling', () => {
     expect(mockBatchUpdate.mock.calls[0][1].directions.MC.bank).toBe(5);
   });
 
-  it('demotes a direction by one bank on a lapse', async () => {
+  it('does not schedule a direction past one year', async () => {
+    mockGetDoc.mockResolvedValue(
+      makeFakeDoc(5, '你好', true, {
+        ...allDirections(5),
+        MC: storedDirection(5, new Date(2026, 0, 1), { interval: 300, ease: 2.5 }),
+      }),
+    );
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.interval).toBe(365);
+  });
+
+  it('halves the interval of a direction on a lapse', async () => {
     mockGetDoc.mockResolvedValue(makeFakeDoc(4, '你好', true, allDirections(4)));
 
     await finishTest('user-1', [{ word_id: 1, directions: { MC: 'lapse' } }]);
 
-    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.bank).toBe(3);
+    const update = mockBatchUpdate.mock.calls[0][1];
+    expect(update.directions.MC.interval).toBe(15);
+    expect(update.directions.MC.bank).toBe(3);
   });
 
   it('does not demote a direction below bank 1 on a lapse', async () => {
@@ -203,26 +235,100 @@ describe('finishTest — per-direction scheduling', () => {
 
     await finishTest('user-1', [{ word_id: 1, directions: { PC: 'fail' } }]);
 
-    expect(mockBatchUpdate.mock.calls[0][1].directions.PC.bank).toBe(1);
+    const update = mockBatchUpdate.mock.calls[0][1];
+    expect(update.directions.PC.interval).toBe(0);
+    expect(update.directions.PC.bank).toBe(1);
   });
 
-  it('schedules each direction from the interval for its own new bank', async () => {
+  it('drops the ease of a direction that lapses', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(4, '你好', true, allDirections(4)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'lapse' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.ease).toBeCloseTo(2.35);
+  });
+
+  it('holds the ease of a direction that passes', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(4, '你好', true, allDirections(4)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.ease).toBe(2.5);
+  });
+
+  // ─── The elapsed days ──────────────────────────────────────────────────────
+
+  it('gives a late correct answer half of the delay as credit', async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 1, 27, 12, 0, 0));
+    const now = new Date(2026, 1, 27, 12, 0, 0);
+    vi.setSystemTime(now);
 
-    mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', true, allDirections(1)));
+    // 30 days asked, 60 days elapsed: the next interval is (30 + 15) * 2.5.
+    const lastReview = new Date(2025, 11, 29, 12, 0, 0);
+    mockGetDoc.mockResolvedValue(
+      makeFakeDoc(4, '你好', true, {
+        ...allDirections(4),
+        MC: storedDirection(4, new Date(2026, 0, 28), {
+          interval: 30,
+          ease: 2.5,
+          lastReview: { toDate: () => lastReview },
+        }),
+      }),
+    );
 
-    // MC passes to bank 2 (3 days); CM fails to bank 1 (1 day).
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.interval).toBe(113);
+
+    vi.useRealTimers();
+  });
+
+  it('gives a direction with no last review no delay credit', async () => {
+    mockGetDoc.mockResolvedValue(
+      makeFakeDoc(4, '你好', true, {
+        ...allDirections(4),
+        MC: storedDirection(4, new Date(2020, 0, 1), { interval: 30, ease: 2.5 }),
+      }),
+    );
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    // The due date is years old, and the interval still grows by the ease alone.
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.interval).toBe(75);
+  });
+
+  it('writes the date of the session as the last review of every direction it asked', async () => {
+    vi.useFakeTimers();
+    const now = new Date(2026, 1, 27, 12, 0, 0);
+    vi.setSystemTime(now);
+
+    mockGetDoc.mockResolvedValue(makeFakeDoc(2, '你好', true, allDirections(2)));
+
     await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass', CM: 'fail' } }]);
 
     const update = mockBatchUpdate.mock.calls[0][1];
-    const expectedPass = new Date(2026, 1, 27, 12, 0, 0);
-    expectedPass.setDate(expectedPass.getDate() + LEVEL_INTERVALS[2]);
-    const expectedFail = new Date(2026, 1, 27, 12, 0, 0);
-    expectedFail.setDate(expectedFail.getDate() + LEVEL_INTERVALS[1]);
+    expect(update.directions.MC.lastReview.toDate()).toEqual(now);
+    expect(update.directions.CM.lastReview.toDate()).toEqual(now);
+    expect(update.directions.MP.lastReview).toBeUndefined();
 
-    expect(update.directions.MC.dueDate.toDate().getDate()).toBe(expectedPass.getDate());
-    expect(update.directions.CM.dueDate.toDate().getDate()).toBe(expectedFail.getDate());
+    vi.useRealTimers();
+  });
+
+  it('schedules each direction from the interval it moved to', async () => {
+    vi.useFakeTimers();
+    const now = new Date(2026, 1, 27, 12, 0, 0);
+    vi.setSystemTime(now);
+
+    mockGetDoc.mockResolvedValue(makeFakeDoc(2, '你好', true, allDirections(2)));
+
+    // MC passes from three days to eight; CM fails and comes back the next day.
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass', CM: 'fail' } }]);
+
+    const update = mockBatchUpdate.mock.calls[0][1];
+    // The fuzz spreads an interval of eight days by one day either way.
+    expect(daysFrom(now, update.directions.MC.dueDate)).toBeGreaterThanOrEqual(7);
+    expect(daysFrom(now, update.directions.MC.dueDate)).toBeLessThanOrEqual(9);
+    expect(daysFrom(now, update.directions.CM.dueDate)).toBe(1);
 
     vi.useRealTimers();
   });
@@ -240,18 +346,16 @@ describe('finishTest — per-direction scheduling', () => {
 
   it('writes the earliest due date across the directions to the derived field', async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 1, 27, 12, 0, 0));
+    const now = new Date(2026, 1, 27, 12, 0, 0);
+    vi.setSystemTime(now);
 
     mockGetDoc.mockResolvedValue(makeFakeDoc(4, '你好', true, allDirections(4)));
 
-    // The four pass to bank 5 (60 days); handwriting fails to bank 1 (1 day),
-    // which is then the earliest of the five.
+    // The four pass from 30 days to 75; handwriting fails and comes back the
+    // next day, which is then the earliest of the five.
     await finishTest('user-1', [{ word_id: 1, directions: { ...allAsked('pass'), CM: 'fail' } }]);
 
-    const update = mockBatchUpdate.mock.calls[0][1];
-    const expected = new Date(2026, 1, 27, 12, 0, 0);
-    expected.setDate(expected.getDate() + LEVEL_INTERVALS[1]);
-    expect(update.dueDate.toDate().getDate()).toBe(expected.getDate());
+    expect(daysFrom(now, mockBatchUpdate.mock.calls[0][1].dueDate)).toBe(1);
 
     vi.useRealTimers();
   });
@@ -282,6 +386,18 @@ describe('finishTest — per-direction scheduling', () => {
     expect(update.directions.MC.bank).toBe(3); // asked, advanced from the old bank
     expect(update.directions.CM.bank).toBe(2); // untouched, derived from the old bank
     expect(Object.keys(update.directions).sort()).toEqual([...DIRECTIONS].sort());
+  });
+
+  it('seeds the interval of a direction that holds a bank and no interval', async () => {
+    // Bank 3 is seven days in the table that the interval replaces, and one
+    // pass multiplies it by the starting ease.
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    const update = mockBatchUpdate.mock.calls[0][1];
+    expect(update.directions.MC.interval).toBe(Math.round(SEED_INTERVALS[3] * 2.5));
+    expect(update.directions.MC.ease).toBe(2.5);
   });
 
   // ─── Tone errors ──────────────────────────────────────────────────────────

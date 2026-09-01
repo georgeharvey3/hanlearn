@@ -18,7 +18,6 @@ import { db } from '../firebase/config';
 import {
   DIRECTIONS,
   Direction,
-  DirectionResult,
   DirectionState,
   DirectionStates,
   Word,
@@ -26,6 +25,14 @@ import {
   WordList,
 } from '../types/models';
 import { fillDirections } from '../utils/directions';
+import {
+  bankOf,
+  dueDateFrom,
+  elapsedDays,
+  nextSchedule,
+  seedInterval,
+  STARTING_EASE,
+} from '../utils/scheduling';
 import {
   searchWord as searchDictionary,
   lookupCharacter,
@@ -37,18 +44,24 @@ import {
   customWordMeaningSchema,
 } from '../validation/schemas';
 
-// Spaced repetition intervals in days for each level
-const LEVEL_INTERVALS: Record<number, number> = {
-  1: 1,
-  2: 3,
-  3: 7,
-  4: 30,
-  5: 60,
-};
-
 interface StoredDirectionState {
+  /**
+   * Derived from the interval. It stays in the document because the read path,
+   * the dashboard and `isNewWord` all read a bank, and because a document
+   * written before the interval existed holds nothing else to schedule from.
+   */
   bank: number;
   dueDate: Timestamp;
+  /**
+   * Days between one review of this direction and the next. Absent reads as the
+   * interval of the bank, so a document written before the field existed keeps
+   * the schedule it had and needs no migration.
+   */
+  interval?: number;
+  /** The multiplier the next interval takes. Absent reads as the starting ease. */
+  ease?: number;
+  /** When this direction was last reviewed. Absent gives a review no delay credit. */
+  lastReview?: Timestamp;
   /**
    * How many tone errors this direction has collected, over every session that
    * asked it. Absent reads as 0, so a document written before the counter
@@ -380,27 +393,33 @@ export const updateWordMeaning = async (
 };
 
 /**
- * The bank a direction moves to, from the bank it holds and the grade it got.
+ * The scheduling state a direction holds, with the fields a document written
+ * before the interval existed does not carry.
  *
- * A `lapse` demotes one bank rather than resetting, so a learner who knows a
- * word but answers it wrongly on the first attempt loses one bank and not four.
- * See docs/adr/0007-grade-the-first-attempt.md.
+ * The interval comes from the bank, and the ease from the constant, so a
+ * direction that has never been scheduled by this calculation keeps the
+ * schedule that the fixed table gave it.
  */
-function nextBank(current: number, result: DirectionResult): number {
-  if (result === 'pass') return Math.min(current + 1, 5);
-  if (result === 'lapse') return Math.max(current - 1, 1);
-  return 1;
+function currentSchedule(state: StoredDirectionState): { interval: number; ease: number } {
+  return {
+    interval: state.interval ?? seedInterval(state.bank),
+    ease: state.ease ?? STARTING_EASE,
+  };
 }
 
 /**
  * Submit the results of a session and reschedule the directions it asked.
  *
- * Each direction carries its own bank and due date, so a failure in one leaves
- * the other four untouched. A direction the session did not ask is absent from
- * the payload and keeps the state it already holds.
+ * Each direction carries its own interval, ease and due date, so a failure in
+ * one leaves the other four untouched. A direction the session did not ask is
+ * absent from the payload and keeps the state it already holds.
+ *
+ * The grade multiplies the interval that the direction holds, and the elapsed
+ * days give a correct late answer more credit than the schedule asked for. See
+ * docs/adr/0008-multiplicative-intervals.md.
  *
  * The tone errors of a direction are added to the count it already holds, in
- * the same batch that writes the bank.
+ * the same batch that writes the interval.
  *
  * Returns the new derived due date of each word, keyed by its simplified form.
  */
@@ -410,6 +429,9 @@ export const finishTest = async (
 ): Promise<Record<string, string>> => {
   const newDates: Record<string, string> = {};
   const batch = writeBatch(db);
+  // One clock for the whole session, so every direction of every word measures
+  // its elapsed days and its next due date from the same instant.
+  const now = new Date();
 
   for (const { word_id, directions, toneErrors } of results) {
     const wordRef = doc(db, 'users', userId, 'userWords', word_id.toString());
@@ -426,16 +448,20 @@ export const finishTest = async (
       if (!result) continue;
 
       const current = updated[direction];
-      const bank = nextBank(current.bank, result);
-
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + LEVEL_INTERVALS[bank]);
+      const schedule = currentSchedule(current);
+      const elapsed = elapsedDays(current.lastReview?.toDate(), now, schedule.interval);
+      const next = nextSchedule(schedule, result, elapsed);
 
       const collected = (current.toneErrors ?? 0) + (toneErrors?.[direction] ?? 0);
 
       updated[direction] = {
-        bank,
-        dueDate: Timestamp.fromDate(dueDate),
+        // The bank is derived from the interval, and it is written in the same
+        // object, so the two never disagree.
+        bank: bankOf(next.interval),
+        dueDate: Timestamp.fromDate(dueDateFrom(next.interval, now)),
+        interval: next.interval,
+        ease: next.ease,
+        lastReview: Timestamp.fromDate(now),
         // A direction that has never collected a tone error stays without the
         // field, so a session of correct tones writes nothing new.
         ...(collected > 0 ? { toneErrors: collected } : {}),
