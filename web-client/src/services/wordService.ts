@@ -25,14 +25,7 @@ import {
   WordList,
 } from '../types/models';
 import { fillDirections } from '../utils/directions';
-import {
-  bankOf,
-  dueDateFrom,
-  elapsedDays,
-  nextSchedule,
-  seedInterval,
-  STARTING_EASE,
-} from '../utils/scheduling';
+import { bankOf, currentMemory, dueDateFrom, elapsedDays, nextMemory } from '../utils/scheduling';
 import {
   searchWord as searchDictionary,
   lookupCharacter,
@@ -53,12 +46,22 @@ interface StoredDirectionState {
   bank: number;
   dueDate: Timestamp;
   /**
+   * The days after which the recall probability of this direction is 0.9.
+   * Absent reads as the interval, which measures the same thing.
+   */
+  stability?: number;
+  /** How much one review moves the stability, from 1 to 10. Absent reads from the ease. */
+  difficulty?: number;
+  /**
    * Days between one review of this direction and the next. Absent reads as the
    * interval of the bank, so a document written before the field existed keeps
    * the schedule it had and needs no migration.
    */
   interval?: number;
-  /** The multiplier the next interval takes. Absent reads as the starting ease. */
+  /**
+   * The multiplier of the calculation that FSRS replaced. It is read and not
+   * written: a direction that holds an ease seeds its difficulty from it.
+   */
   ease?: number;
   /** When this direction was last reviewed. Absent gives a review no delay credit. */
   lastReview?: Timestamp;
@@ -393,30 +396,15 @@ export const updateWordMeaning = async (
 };
 
 /**
- * The scheduling state a direction holds, with the fields a document written
- * before the interval existed does not carry.
- *
- * The interval comes from the bank, and the ease from the constant, so a
- * direction that has never been scheduled by this calculation keeps the
- * schedule that the fixed table gave it.
- */
-function currentSchedule(state: StoredDirectionState): { interval: number; ease: number } {
-  return {
-    interval: state.interval ?? seedInterval(state.bank),
-    ease: state.ease ?? STARTING_EASE,
-  };
-}
-
-/**
  * Submit the results of a session and reschedule the directions it asked.
  *
- * Each direction carries its own interval, ease and due date, so a failure in
- * one leaves the other four untouched. A direction the session did not ask is
+ * Each direction carries its own memory state and due date, so a failure in one
+ * leaves the other four untouched. A direction the session did not ask is
  * absent from the payload and keeps the state it already holds.
  *
- * The grade multiplies the interval that the direction holds, and the elapsed
- * days give a correct late answer more credit than the schedule asked for. See
- * docs/adr/0008-multiplicative-intervals.md.
+ * FSRS reads the stability, the difficulty and the days since the last review,
+ * and it gives the day on which the recall probability falls to the target
+ * retention. See docs/adr/0009-fsrs.md.
  *
  * The tone errors of a direction are added to the count it already holds, in
  * the same batch that writes the interval.
@@ -448,9 +436,9 @@ export const finishTest = async (
       if (!result) continue;
 
       const current = updated[direction];
-      const schedule = currentSchedule(current);
-      const elapsed = elapsedDays(current.lastReview?.toDate(), now, schedule.interval);
-      const next = nextSchedule(schedule, result, elapsed);
+      const memory = currentMemory(current);
+      const elapsed = elapsedDays(current.lastReview?.toDate(), now, memory.interval);
+      const next = nextMemory(memory, result, elapsed, now);
 
       const collected = (current.toneErrors ?? 0) + (toneErrors?.[direction] ?? 0);
 
@@ -459,8 +447,9 @@ export const finishTest = async (
         // object, so the two never disagree.
         bank: bankOf(next.interval),
         dueDate: Timestamp.fromDate(dueDateFrom(next.interval, now)),
+        stability: next.stability,
+        difficulty: next.difficulty,
         interval: next.interval,
-        ease: next.ease,
         lastReview: Timestamp.fromDate(now),
         // A direction that has never collected a tone error stays without the
         // field, so a session of correct tones writes nothing new.

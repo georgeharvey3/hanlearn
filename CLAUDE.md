@@ -101,7 +101,11 @@ users/{userId}/
   │   ├── level: 1-5             # Derived: lowest bank across directions (stored as `bank`)
   │   ├── dueDate: Timestamp     # Derived: earliest dueDate across directions
   │   ├── directions: {          # Per-direction scheduling state (see ADR 0002)
-  │   │     MC | MP | PM | PC | CM: { bank: 1-5, dueDate: Timestamp }
+  │   │     MC | MP | PM | PC | CM: {
+  │   │       bank: 1-5, dueDate: Timestamp,
+  │   │       stability: number, difficulty: 1-10, interval: number,
+  │   │       lastReview: Timestamp, toneErrors?: number
+  │   │     }
   │   │   }
   │   └── listId?: string        # Optional word list membership
   └── testCompletions/{dateId}   # Streak tracking (dateId = YYYY-MM-DD)
@@ -137,11 +141,12 @@ The CC-CEDICT dictionary (~124K entries) is served as static JSON at `/dictionar
 
 The calculation is in [web-client/src/utils/scheduling.ts](web-client/src/utils/scheduling.ts), and `finishTest` in [web-client/src/services/wordService.ts](web-client/src/services/wordService.ts) holds the Firestore write:
 
-- Each direction carries an **interval** in days, an **ease** (2.5 at the start, held between 1.3 and 3.0), and the date of its **last review**
-- `pass` multiplies the interval by the ease; `lapse` halves it; `fail` resets it to 0, which asks the direction again the next day
-- The interval grows from the elapsed days since the last review, so a late correct answer takes half of the delay as credit
+- The scheduler is **FSRS** (`ts-fsrs`), with a target retention of 0.9, no learning steps, and the FSRS-6 default weights
+- Each direction carries a **stability** (days at which recall is 0.9), a **difficulty** (1 to 10), an **interval** in days, and the date of its **last review**
+- `pass` sends the Good rating; `lapse` and `fail` both send Again, and a `fail` also resets the interval to 0, which asks the direction again the next day
+- FSRS reads the elapsed days since the last review, so a late correct answer gives a longer interval
 - The maximum interval is 365 days, and the due date takes a fuzz of up to 5%
-- **5 levels** are bands of the interval: 1 (0 days), 2 (1-6), 3 (7-29), 4 (30-59), 5 (60+). See [docs/adr/0008-multiplicative-intervals.md](docs/adr/0008-multiplicative-intervals.md)
+- **5 levels** are bands of the interval: 1 (0 days), 2 (1-6), 3 (7-29), 4 (30-59), 5 (60+). See [docs/adr/0009-fsrs.md](docs/adr/0009-fsrs.md)
 - Each word carries its own level and due date **per direction** (`MC`, `MP`, `PM`, `PC`, `CM`); the top-level `bank`/`dueDate` are derived so Firestore can still range-query them. See [docs/adr/0002-direction-level-scheduling.md](docs/adr/0002-direction-level-scheduling.md)
 
 ## Firebase Emulators

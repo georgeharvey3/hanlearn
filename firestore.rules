@@ -8,12 +8,25 @@ service cloud.firestore {
       return ['MC', 'MP', 'PM', 'PC', 'CM'];
     }
 
+    // The bank and the due date are always present. The memory state that FSRS
+    // reads is optional, because a direction that no session has asked since
+    // the release does not carry it. `interval` and `ease` are the fields of
+    // the calculations that FSRS replaced, and a document keeps them until its
+    // next review. See docs/adr/0009-fsrs.md.
     function validDirection(d) {
-      return d.keys().hasOnly(['bank', 'dueDate'])
+      return d.keys().hasOnly([
+          'bank', 'dueDate', 'stability', 'difficulty',
+          'interval', 'ease', 'lastReview', 'toneErrors'
+        ])
         && d.bank is int
         && d.bank >= 1
         && d.bank <= 5
-        && d.dueDate is timestamp;
+        && d.dueDate is timestamp
+        && (!('stability' in d.keys()) || (d.stability is number && d.stability >= 0))
+        && (!('difficulty' in d.keys()) || (d.difficulty is number && d.difficulty >= 1 && d.difficulty <= 10))
+        && (!('interval' in d.keys()) || (d.interval is int && d.interval >= 0 && d.interval <= 365))
+        && (!('lastReview' in d.keys()) || d.lastReview is timestamp)
+        && (!('toneErrors' in d.keys()) || (d.toneErrors is int && d.toneErrors >= 0));
     }
 
     function validDirections(dirs) {

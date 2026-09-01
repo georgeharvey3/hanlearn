@@ -146,12 +146,12 @@ describe('finishTest — per-direction scheduling', () => {
     await finishTest('user-1', [{ word_id: 1, directions: { ...allAsked('pass'), CM: 'fail' } }]);
 
     const update = mockBatchUpdate.mock.calls[0][1];
-    // The four that passed grow from the seven days of bank 3 to 7 * 2.5.
+    // The four that passed grow from the seven days of bank 3; handwriting
+    // fails and comes back the next day.
     expect(update.directions.CM.interval).toBe(0);
-    expect(update.directions.MC.interval).toBe(18);
-    expect(update.directions.MP.interval).toBe(18);
-    expect(update.directions.PM.interval).toBe(18);
-    expect(update.directions.PC.interval).toBe(18);
+    for (const direction of ['MC', 'MP', 'PM', 'PC']) {
+      expect(update.directions[direction].interval).toBeGreaterThan(SEED_INTERVALS[3]);
+    }
   });
 
   it('leaves a direction the session did not ask completely untouched', async () => {
@@ -178,12 +178,12 @@ describe('finishTest — per-direction scheduling', () => {
     await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
 
     const update = mockBatchUpdate.mock.calls[0][1];
-    expect(update.directions.MC.interval).toBe(1);
+    expect(update.directions.MC.interval).toBe(3);
     expect(update.directions.MC.bank).toBe(2);
   });
 
   it('keeps a direction in its band when one pass does not leave it', async () => {
-    // Bank 3 covers 7 to 29 days, and one pass from 7 days reaches 18.
+    // Bank 3 covers 7 to 29 days, and one pass from 7 days reaches 27.
     mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
 
     await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
@@ -212,22 +212,27 @@ describe('finishTest — per-direction scheduling', () => {
     expect(mockBatchUpdate.mock.calls[0][1].directions.MC.interval).toBe(365);
   });
 
-  it('halves the interval of a direction on a lapse', async () => {
+  it('cuts the interval of a direction on a lapse', async () => {
+    // A lapse did not retrieve the answer, so the schedule asks the direction
+    // again within days.
     mockGetDoc.mockResolvedValue(makeFakeDoc(4, '你好', true, allDirections(4)));
 
     await finishTest('user-1', [{ word_id: 1, directions: { MC: 'lapse' } }]);
 
     const update = mockBatchUpdate.mock.calls[0][1];
-    expect(update.directions.MC.interval).toBe(15);
-    expect(update.directions.MC.bank).toBe(3);
+    expect(update.directions.MC.interval).toBeGreaterThanOrEqual(1);
+    expect(update.directions.MC.interval).toBeLessThan(SEED_INTERVALS[4]);
   });
 
-  it('does not demote a direction below bank 1 on a lapse', async () => {
+  it('moves a direction that lapses on its first question off bank 1', async () => {
+    // The learner did answer, after one wrong attempt, so the direction is no
+    // longer one that has never been answered correctly.
     mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', true, allDirections(1)));
 
     await finishTest('user-1', [{ word_id: 1, directions: { MC: 'lapse' } }]);
 
-    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.bank).toBe(1);
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.interval).toBe(1);
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.bank).toBe(2);
   });
 
   it('resets a direction to bank 1 on a failure, from any bank', async () => {
@@ -240,30 +245,49 @@ describe('finishTest — per-direction scheduling', () => {
     expect(update.directions.PC.bank).toBe(1);
   });
 
-  it('drops the ease of a direction that lapses', async () => {
+  it('raises the difficulty of a direction that lapses', async () => {
     mockGetDoc.mockResolvedValue(makeFakeDoc(4, '你好', true, allDirections(4)));
 
     await finishTest('user-1', [{ word_id: 1, directions: { MC: 'lapse' } }]);
 
-    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.ease).toBeCloseTo(2.35);
+    const update = mockBatchUpdate.mock.calls[0][1];
+    // The seed difficulty of the starting ease is about 3.6.
+    expect(update.directions.MC.difficulty).toBeGreaterThan(4);
+    expect(update.directions.MC.stability).toBeLessThan(SEED_INTERVALS[4]);
   });
 
-  it('holds the ease of a direction that passes', async () => {
+  it('grows the stability of a direction that passes', async () => {
     mockGetDoc.mockResolvedValue(makeFakeDoc(4, '你好', true, allDirections(4)));
 
     await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
 
-    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.ease).toBe(2.5);
+    const update = mockBatchUpdate.mock.calls[0][1];
+    expect(update.directions.MC.stability).toBeGreaterThan(SEED_INTERVALS[4]);
+    expect(update.directions.MC.difficulty).toBeCloseTo(3.65, 1);
+  });
+
+  it('stops writing the ease, which FSRS replaces', async () => {
+    mockGetDoc.mockResolvedValue(
+      makeFakeDoc(4, '你好', true, {
+        ...allDirections(4),
+        MC: storedDirection(4, new Date(2026, 0, 1), { interval: 30, ease: 2.5 }),
+      }),
+    );
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC).not.toHaveProperty('ease');
   });
 
   // ─── The elapsed days ──────────────────────────────────────────────────────
 
-  it('gives a late correct answer half of the delay as credit', async () => {
+  it('gives a late correct answer a longer interval than one on time', async () => {
     vi.useFakeTimers();
     const now = new Date(2026, 1, 27, 12, 0, 0);
     vi.setSystemTime(now);
 
-    // 30 days asked, 60 days elapsed: the next interval is (30 + 15) * 2.5.
+    // 30 days asked, 60 days elapsed. The memory held for twice as long as the
+    // schedule expected, and FSRS reads that as a more stable memory.
     const lastReview = new Date(2025, 11, 29, 12, 0, 0);
     mockGetDoc.mockResolvedValue(
       makeFakeDoc(4, '你好', true, {
@@ -278,7 +302,23 @@ describe('finishTest — per-direction scheduling', () => {
 
     await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
 
-    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.interval).toBe(113);
+    const late = mockBatchUpdate.mock.calls[0][1].directions.MC.interval;
+
+    mockBatchUpdate.mockClear();
+    mockGetDoc.mockResolvedValue(
+      makeFakeDoc(4, '你好', true, {
+        ...allDirections(4),
+        MC: storedDirection(4, new Date(2026, 1, 27), {
+          interval: 30,
+          ease: 2.5,
+          lastReview: { toDate: () => new Date(2026, 0, 28, 12, 0, 0) },
+        }),
+      }),
+    );
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(late).toBeGreaterThan(mockBatchUpdate.mock.calls[0][1].directions.MC.interval);
 
     vi.useRealTimers();
   });
@@ -293,8 +333,8 @@ describe('finishTest — per-direction scheduling', () => {
 
     await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
 
-    // The due date is years old, and the interval still grows by the ease alone.
-    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.interval).toBe(75);
+    // The due date is years old, and the review still counts as on time.
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.interval).toBe(97);
   });
 
   it('writes the date of the session as the last review of every direction it asked', async () => {
@@ -321,13 +361,13 @@ describe('finishTest — per-direction scheduling', () => {
 
     mockGetDoc.mockResolvedValue(makeFakeDoc(2, '你好', true, allDirections(2)));
 
-    // MC passes from three days to eight; CM fails and comes back the next day.
+    // MC passes from three days to 13; CM fails and comes back the next day.
     await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass', CM: 'fail' } }]);
 
     const update = mockBatchUpdate.mock.calls[0][1];
-    // The fuzz spreads an interval of eight days by one day either way.
-    expect(daysFrom(now, update.directions.MC.dueDate)).toBeGreaterThanOrEqual(7);
-    expect(daysFrom(now, update.directions.MC.dueDate)).toBeLessThanOrEqual(9);
+    // The fuzz spreads an interval of 13 days by one day either way.
+    expect(daysFrom(now, update.directions.MC.dueDate)).toBeGreaterThanOrEqual(12);
+    expect(daysFrom(now, update.directions.MC.dueDate)).toBeLessThanOrEqual(14);
     expect(daysFrom(now, update.directions.CM.dueDate)).toBe(1);
 
     vi.useRealTimers();
@@ -351,7 +391,7 @@ describe('finishTest — per-direction scheduling', () => {
 
     mockGetDoc.mockResolvedValue(makeFakeDoc(4, '你好', true, allDirections(4)));
 
-    // The four pass from 30 days to 75; handwriting fails and comes back the
+    // The four pass from 30 days to 97; handwriting fails and comes back the
     // next day, which is then the earliest of the five.
     await finishTest('user-1', [{ word_id: 1, directions: { ...allAsked('pass'), CM: 'fail' } }]);
 
@@ -388,16 +428,30 @@ describe('finishTest — per-direction scheduling', () => {
     expect(Object.keys(update.directions).sort()).toEqual([...DIRECTIONS].sort());
   });
 
-  it('seeds the interval of a direction that holds a bank and no interval', async () => {
-    // Bank 3 is seven days in the table that the interval replaces, and one
-    // pass multiplies it by the starting ease.
+  it('seeds the memory of a direction that holds a bank and no interval', async () => {
+    // Bank 3 is seven days in the table that the interval replaced, and the
+    // stability of a seven day interval is seven days.
     mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
 
     await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
 
     const update = mockBatchUpdate.mock.calls[0][1];
-    expect(update.directions.MC.interval).toBe(Math.round(SEED_INTERVALS[3] * 2.5));
-    expect(update.directions.MC.ease).toBe(2.5);
+    expect(update.directions.MC.interval).toBe(27);
+    expect(update.directions.MC.stability).toBeGreaterThan(SEED_INTERVALS[3]);
+  });
+
+  it('seeds the memory of a direction that holds an interval and an ease', async () => {
+    mockGetDoc.mockResolvedValue(
+      makeFakeDoc(4, '你好', true, {
+        ...allDirections(4),
+        // The same seven days, written by the calculation that FSRS replaced.
+        MC: storedDirection(3, new Date(2026, 0, 1), { interval: 7, ease: 2.5 }),
+      }),
+    );
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.interval).toBe(27);
   });
 
   // ─── Tone errors ──────────────────────────────────────────────────────────
