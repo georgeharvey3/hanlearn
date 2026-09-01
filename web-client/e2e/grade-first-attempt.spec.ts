@@ -41,7 +41,7 @@ test.describe('The grade of the first attempt', () => {
     return testPage;
   }
 
-  test('a lapse halves the interval of the direction it asked', async ({ page }) => {
+  test('a lapse cuts the interval of the direction it asked', async ({ page }) => {
     const word: TestWord = {
       id: 8001,
       simp: '蓝',
@@ -58,18 +58,19 @@ test.describe('The grade of the first attempt', () => {
 
     await expect(page.getByText('Nearly')).toBeVisible();
 
-    // MP holds the seven days of bank 3, and the lapse halves them to four.
-    // Bank 2 is the band of a four day interval. A fail would have reset the
-    // interval to 0 and the bank to 1. The other four directions stay at 3.
+    // MP holds the seven days of bank 3. The lapse did not retrieve the answer,
+    // so FSRS cuts the memory back and the direction comes back in one day.
+    // A fail would have reset the interval to 0 and the bank to 1. The other
+    // four directions stay at 3.
     const wordData = await readWordFromFirestore(TEST_USER.uid, word.id);
     expect(wordData).not.toBeNull();
-    expect(wordData!.intervals.MP).toBe(4);
+    expect(wordData!.intervals.MP).toBe(1);
     expect(wordData!.banks.MP).toBe(2);
     expect(wordData!.banks.CM).toBe(3);
     expect(wordData!.level).toBe(2);
   });
 
-  test('a pass multiplies the interval of the direction it asked', async ({ page }) => {
+  test('a pass grows the interval of the direction it asked', async ({ page }) => {
     const word: TestWord = {
       id: 8002,
       simp: '绿',
@@ -86,16 +87,17 @@ test.describe('The grade of the first attempt', () => {
 
     await expect(page.getByText('Known')).toBeVisible();
 
-    // MP holds the seven days of bank 3, and the pass multiplies them by the
-    // starting ease of 2.5. The other four directions stay at 3.
+    // MP holds the seven days of bank 3, and the stability of a seven day
+    // interval is seven days. FSRS gives the pass 27 days. The other four
+    // directions stay at 3.
     const wordData = await readWordFromFirestore(TEST_USER.uid, word.id);
     expect(wordData).not.toBeNull();
-    expect(wordData!.intervals.MP).toBe(18);
+    expect(wordData!.intervals.MP).toBe(27);
     expect(wordData!.banks.MP).toBe(3);
     expect(wordData!.banks.CM).toBe(3);
   });
 
-  test('a late pass takes half of the delay as credit', async ({ page }) => {
+  test('a late pass takes the delay as evidence of a stable memory', async ({ page }) => {
     const day = 86400000;
     const word: TestWord = {
       id: 8003,
@@ -114,10 +116,11 @@ test.describe('The grade of the first attempt', () => {
     await testPage.waitForSummary();
 
     // The schedule asked for 10 days and the learner answered on day 30. The
-    // delay is 20 days, and half of it is credit: (10 + 10) * 2.5.
+    // memory held for three times as long as the schedule expected, so FSRS
+    // gives 63 days and not the 27 that a review on time would give.
     const wordData = await readWordFromFirestore(TEST_USER.uid, word.id);
     expect(wordData).not.toBeNull();
-    expect(wordData!.intervals.MP).toBe(50);
-    expect(wordData!.banks.MP).toBe(4);
+    expect(wordData!.intervals.MP).toBe(63);
+    expect(wordData!.banks.MP).toBe(5);
   });
 });

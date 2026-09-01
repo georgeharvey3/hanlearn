@@ -1,119 +1,193 @@
 import { describe, it, expect } from 'vitest';
+import { DirectionResult } from '../types/models';
 import {
+  MAX_DIFFICULTY,
   MAX_INTERVAL_DAYS,
+  MIN_DIFFICULTY,
   MIN_EASE,
+  MAX_EASE,
   STARTING_EASE,
   bankOf,
+  currentMemory,
+  difficultyFromEase,
   dueDateFrom,
   elapsedDays,
   fuzzInterval,
-  nextSchedule,
+  nextMemory,
   seedInterval,
+  type Memory,
 } from './scheduling';
 
-const start = { interval: 0, ease: STARTING_EASE };
+const now = new Date(2026, 5, 20, 12, 0, 0);
 
-/** A review that ran on the day the schedule asked for. */
-function onTime(schedule: { interval: number; ease: number }) {
-  return schedule.interval;
+/** A direction that no session has ever passed. */
+const fresh: Memory = { stability: 0, difficulty: 0, interval: 0 };
+
+/** A direction that the schedule asks every 30 days. */
+const learned: Memory = { stability: 30, difficulty: 5, interval: 30 };
+
+/** The result of a review that ran on the day the schedule asked for. */
+function onTime(memory: Memory, grade: DirectionResult): Memory {
+  return nextMemory(memory, grade, memory.interval, now);
 }
 
-describe('nextSchedule — a pass', () => {
-  it('moves a direction that has never been passed to one day', () => {
-    expect(nextSchedule(start, 'pass', onTime(start)).interval).toBe(1);
+describe('nextMemory — a pass', () => {
+  it('gives a direction that has never been passed its first interval', () => {
+    expect(onTime(fresh, 'pass').interval).toBe(3);
   });
 
-  it('multiplies the interval by the ease', () => {
-    const schedule = { interval: 10, ease: 2.5 };
-    expect(nextSchedule(schedule, 'pass', onTime(schedule)).interval).toBe(25);
+  it('grows the interval of a direction that is already learned', () => {
+    expect(onTime(learned, 'pass').interval).toBeGreaterThan(learned.interval);
   });
 
-  it('adds at least one day, so no interval stands still', () => {
-    // A low ease would otherwise leave a one day interval at one day.
-    const schedule = { interval: 1, ease: MIN_EASE };
-    expect(nextSchedule(schedule, 'pass', onTime(schedule)).interval).toBe(2);
+  it('grows the stability with the interval', () => {
+    const next = onTime(learned, 'pass');
+    expect(next.stability).toBeGreaterThan(learned.stability);
   });
 
-  it('holds the ease', () => {
-    const schedule = { interval: 10, ease: 2.5 };
-    expect(nextSchedule(schedule, 'pass', onTime(schedule)).ease).toBe(2.5);
+  it('gives a late review a longer interval than a review on time', () => {
+    const late = nextMemory(learned, 'pass', 60, now);
+    expect(late.interval).toBeGreaterThan(onTime(learned, 'pass').interval);
   });
 
-  it('gives a late review half of the delay as credit', () => {
-    // 30 days asked, 60 days elapsed: (30 + 15) * 2.5.
-    const schedule = { interval: 30, ease: 2.5 };
-    expect(nextSchedule(schedule, 'pass', 60).interval).toBe(113);
-  });
-
-  it('gives an early review no credit and no penalty', () => {
-    const schedule = { interval: 30, ease: 2.5 };
-    expect(nextSchedule(schedule, 'pass', 12).interval).toBe(75);
+  it('gives an early review a shorter interval than a review on time', () => {
+    const early = nextMemory(learned, 'pass', 10, now);
+    expect(early.interval).toBeLessThan(onTime(learned, 'pass').interval);
   });
 
   it('caps the interval at one year', () => {
-    const schedule = { interval: 300, ease: 2.5 };
-    expect(nextSchedule(schedule, 'pass', onTime(schedule)).interval).toBe(MAX_INTERVAL_DAYS);
+    const stable: Memory = { stability: 900, difficulty: 5, interval: 365 };
+    expect(onTime(stable, 'pass').interval).toBe(MAX_INTERVAL_DAYS);
   });
 
-  it('reaches the cap in eight reviews from a new direction', () => {
-    let schedule = start;
-    const intervals: number[] = [];
-    for (let i = 0; i < 8; i++) {
-      schedule = nextSchedule(schedule, 'pass', onTime(schedule));
-      intervals.push(schedule.interval);
-    }
-    expect(intervals).toEqual([1, 3, 8, 20, 50, 125, 313, 365]);
+  it('holds a hard direction back', () => {
+    const easy: Memory = { ...learned, difficulty: MIN_DIFFICULTY };
+    const hard: Memory = { ...learned, difficulty: MAX_DIFFICULTY };
+    expect(onTime(hard, 'pass').interval).toBeLessThan(onTime(easy, 'pass').interval);
   });
 });
 
-describe('nextSchedule — a lapse', () => {
-  it('halves the interval', () => {
-    const schedule = { interval: 50, ease: 2.5 };
-    expect(nextSchedule(schedule, 'lapse', onTime(schedule)).interval).toBe(25);
+describe('nextMemory — a lapse', () => {
+  it('keeps the direction in the schedule', () => {
+    expect(onTime(learned, 'lapse').interval).toBeGreaterThanOrEqual(1);
   });
 
-  it('keeps at least one day of a direction that was passed once', () => {
-    const schedule = { interval: 1, ease: 2.5 };
-    expect(nextSchedule(schedule, 'lapse', onTime(schedule)).interval).toBe(1);
+  it('cuts the interval far below a pass from the same state', () => {
+    expect(onTime(learned, 'lapse').interval).toBeLessThan(learned.interval);
   });
 
-  it('leaves a direction that has never been passed at zero', () => {
-    expect(nextSchedule(start, 'lapse', 0).interval).toBe(0);
+  it('drops the stability', () => {
+    expect(onTime(learned, 'lapse').stability).toBeLessThan(learned.stability);
   });
 
-  it('drops the ease by 0.15', () => {
-    const schedule = { interval: 50, ease: 2.5 };
-    expect(nextSchedule(schedule, 'lapse', onTime(schedule)).ease).toBeCloseTo(2.35);
+  it('raises the difficulty', () => {
+    expect(onTime(learned, 'lapse').difficulty).toBeGreaterThan(learned.difficulty);
   });
 
-  it('takes no delay credit from a late review', () => {
-    const schedule = { interval: 30, ease: 2.5 };
-    expect(nextSchedule(schedule, 'lapse', 300).interval).toBe(15);
-  });
-});
-
-describe('nextSchedule — a failure', () => {
-  it('resets the interval to zero from any interval', () => {
-    const schedule = { interval: 365, ease: 2.5 };
-    expect(nextSchedule(schedule, 'fail', onTime(schedule)).interval).toBe(0);
+  it('gives the same memory as a failure, because neither retrieved the answer', () => {
+    const lapse = onTime(learned, 'lapse');
+    const fail = onTime(learned, 'fail');
+    expect(lapse.stability).toBe(fail.stability);
+    expect(lapse.difficulty).toBe(fail.difficulty);
   });
 
-  it('drops the ease by 0.2', () => {
-    const schedule = { interval: 50, ease: 2.5 };
-    expect(nextSchedule(schedule, 'fail', onTime(schedule)).ease).toBeCloseTo(2.3);
+  it('comes back later than a failure, which comes back the next day', () => {
+    expect(onTime(learned, 'lapse').interval).toBeGreaterThan(onTime(learned, 'fail').interval);
   });
 });
 
-describe('nextSchedule — the ease range', () => {
-  it('does not fall below the minimum', () => {
-    let schedule = { interval: 10, ease: 1.4 };
-    for (let i = 0; i < 5; i++) schedule = nextSchedule(schedule, 'fail', 10);
-    expect(schedule.ease).toBe(MIN_EASE);
+describe('nextMemory — a failure', () => {
+  it('resets the interval to zero from any state', () => {
+    expect(onTime(fresh, 'fail').interval).toBe(0);
+    expect(onTime(learned, 'fail').interval).toBe(0);
+    expect(
+      nextMemory({ stability: 900, difficulty: 2, interval: 365 }, 'fail', 365, now).interval,
+    ).toBe(0);
   });
 
+  it('drops the stability', () => {
+    expect(onTime(learned, 'fail').stability).toBeLessThan(learned.stability);
+  });
+
+  it('keeps a stability, so the next pass starts from the memory and not from zero', () => {
+    expect(onTime(learned, 'fail').stability).toBeGreaterThan(0);
+  });
+
+  it('raises the difficulty', () => {
+    expect(onTime(learned, 'fail').difficulty).toBeGreaterThan(learned.difficulty);
+  });
+});
+
+describe('nextMemory — the difficulty range', () => {
   it('does not rise above the maximum', () => {
-    const schedule = { interval: 10, ease: 3.0 };
-    expect(nextSchedule(schedule, 'pass', 10).ease).toBe(3.0);
+    let memory = learned;
+    for (let i = 0; i < 20; i += 1) memory = onTime(memory, 'fail');
+    expect(memory.difficulty).toBeLessThanOrEqual(MAX_DIFFICULTY);
+  });
+
+  it('does not fall below the minimum', () => {
+    let memory = learned;
+    for (let i = 0; i < 20; i += 1) memory = onTime(memory, 'pass');
+    expect(memory.difficulty).toBeGreaterThanOrEqual(MIN_DIFFICULTY);
+  });
+});
+
+describe('difficultyFromEase', () => {
+  it('gives the starting ease a difficulty near the middle', () => {
+    expect(difficultyFromEase(STARTING_EASE)).toBeCloseTo(3.65, 2);
+  });
+
+  it('gives the lowest ease the highest difficulty', () => {
+    expect(difficultyFromEase(MIN_EASE)).toBe(MAX_DIFFICULTY);
+  });
+
+  it('gives the highest ease the lowest difficulty', () => {
+    expect(difficultyFromEase(MAX_EASE)).toBe(MIN_DIFFICULTY);
+  });
+
+  it('clamps an ease from outside the range', () => {
+    expect(difficultyFromEase(0.5)).toBe(MAX_DIFFICULTY);
+    expect(difficultyFromEase(5)).toBe(MIN_DIFFICULTY);
+  });
+});
+
+describe('currentMemory', () => {
+  it('reads the memory that FSRS wrote', () => {
+    expect(currentMemory({ bank: 4, stability: 42, difficulty: 6, interval: 40 })).toEqual({
+      stability: 42,
+      difficulty: 6,
+      interval: 40,
+    });
+  });
+
+  it('seeds the stability of a direction that holds an interval', () => {
+    // The interval and the stability are both the days at which recall is 0.9,
+    // so the schedule of the direction does not move.
+    const memory = currentMemory({ bank: 4, interval: 30, ease: STARTING_EASE });
+    expect(memory.stability).toBe(30);
+    expect(memory.interval).toBe(30);
+  });
+
+  it('seeds the difficulty of a direction that holds an ease', () => {
+    expect(currentMemory({ bank: 4, interval: 30, ease: MIN_EASE }).difficulty).toBe(
+      MAX_DIFFICULTY,
+    );
+  });
+
+  it('seeds the interval of a direction that holds only a bank', () => {
+    expect(currentMemory({ bank: 3 }).interval).toBe(seedInterval(3));
+    expect(currentMemory({ bank: 3 }).stability).toBe(seedInterval(3));
+  });
+
+  it('leaves a direction at bank 1 with no memory, so FSRS treats it as new', () => {
+    // FSRS rejects one half of a memory state, so a stability of 0 carries no
+    // difficulty either.
+    expect(currentMemory({ bank: 1 })).toEqual({ stability: 0, difficulty: 0, interval: 0 });
+    expect(currentMemory({ bank: 1, ease: STARTING_EASE, interval: 0 })).toEqual({
+      stability: 0,
+      difficulty: 0,
+      interval: 0,
+    });
   });
 });
 
