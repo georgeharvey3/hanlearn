@@ -11,6 +11,7 @@ HanLearn is a Chinese language learning application with spaced repetition for v
 ## Development Commands
 
 ### Full Development Environment
+
 ```bash
 npm run dev              # Start Firebase emulators + Vite dev server
 npm run dev:client       # Just Vite dev server (localhost:3000)
@@ -18,6 +19,7 @@ npm run emulators        # Just Firebase emulators
 ```
 
 ### Build & Deploy
+
 ```bash
 npm run build            # Build dictionary + frontend
 npm run build:dict       # Build static dictionary JSON from CC-CEDICT
@@ -27,6 +29,7 @@ npm run deploy:all       # Build and deploy everything (hosting, functions, rule
 ```
 
 ### Frontend (web-client/)
+
 ```bash
 cd web-client
 npm install
@@ -36,6 +39,7 @@ npm run build            # Production build to dist/
 ```
 
 ### Cloud Functions (functions/)
+
 ```bash
 cd functions
 npm install
@@ -56,6 +60,7 @@ The frontend uses **Vite**, **TypeScript**, and **Redux with thunks**:
 #### State Management
 
 Redux state structure in [web-client/src/types/store.ts](web-client/src/types/store.ts):
+
 - `addWords` - User's word list and loading state
 - `auth` - Firebase user ID, loading, initialization status
 - `settings` - Speech synthesis/recognition availability and voice selection
@@ -116,6 +121,7 @@ Security rules in [firestore.rules](firestore.rules): users can only access thei
 #### Cloud Functions
 
 [functions/src/index.ts](functions/src/index.ts) - Callable functions for server-side operations:
+
 - `getDailyChengyu` - Rotates through chengyus daily
 - `lookupChengyuChar` - Character details for chengyu quiz
 
@@ -129,15 +135,19 @@ The CC-CEDICT dictionary (~124K entries) is served as static JSON at `/dictionar
 
 ### Spaced Repetition Algorithm
 
-In [web-client/src/services/wordService.ts](web-client/src/services/wordService.ts):
-- **5 levels** with intervals: 1, 3, 7, 30, 60 days
-- Score of 4 advances level; score < 4 resets to level 1
-- Due date calculated from level + current date
+The calculation is in [web-client/src/utils/scheduling.ts](web-client/src/utils/scheduling.ts), and `finishTest` in [web-client/src/services/wordService.ts](web-client/src/services/wordService.ts) holds the Firestore write:
+
+- Each direction carries an **interval** in days, an **ease** (2.5 at the start, held between 1.3 and 3.0), and the date of its **last review**
+- `pass` multiplies the interval by the ease; `lapse` halves it; `fail` resets it to 0, which asks the direction again the next day
+- The interval grows from the elapsed days since the last review, so a late correct answer takes half of the delay as credit
+- The maximum interval is 365 days, and the due date takes a fuzz of up to 5%
+- **5 levels** are bands of the interval: 1 (0 days), 2 (1-6), 3 (7-29), 4 (30-59), 5 (60+). See [docs/adr/0008-multiplicative-intervals.md](docs/adr/0008-multiplicative-intervals.md)
 - Each word carries its own level and due date **per direction** (`MC`, `MP`, `PM`, `PC`, `CM`); the top-level `bank`/`dueDate` are derived so Firestore can still range-query them. See [docs/adr/0002-direction-level-scheduling.md](docs/adr/0002-direction-level-scheduling.md)
 
 ## Firebase Emulators
 
 Development uses local emulators (configured in [firebase.json](firebase.json)):
+
 - Auth: localhost:9099
 - Firestore: localhost:8082
 - Functions: localhost:5001
@@ -173,38 +183,45 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 ## Prioritised Roadmap
 
 ### Now (current focus)
+
 - Autonomous development workflow: testing infrastructure, CI/CD, PR-based review
 
 ### Next
+
 - Improve spaced repetition: show due-date countdown, allow manual level adjustment
 - Dashboard improvements: streak and level distribution are implemented; progress charts still TODO
 - Better chengyu UX: example sentences added; stroke order hints still TODO
 
 ### Later
+
 - Offline support via service worker + IndexedDB caching
 - React Router v6 migration
 - Redux hooks migration
 - Sentence mining: save sentences alongside words
 
 ### Deferred / Won't do soon
+
 - Mobile native app (web app is sufficient for now)
 - Social/multiplayer features
 
 ## Testing Conventions
 
 ### Unit / Integration Tests (Vitest + React Testing Library)
+
 - Test files live alongside source: `ComponentName.test.tsx`
 - Use `src/test/utils.tsx` for render helpers that wrap with Redux store and Router
 - Firebase calls should be mocked at the service layer (not at the Firebase SDK level)
 - Test scripts: `npm test` (watch), `npm run test:run` (CI, single run), `npm run test:coverage`
 
 ### End-to-End Tests (Playwright)
+
 - Tests live in `web-client/e2e/`
 - Always use Firebase emulators — never hit production
 - Seed test users via `web-client/e2e/fixtures/seed.ts` before each test
 - Test script: `npm run test:e2e`
 
 ### Firebase Emulators for Tests
+
 - Start emulators before e2e tests: `npm run emulators` from repo root
 - Emulator data is ephemeral — tests must seed their own data
 
