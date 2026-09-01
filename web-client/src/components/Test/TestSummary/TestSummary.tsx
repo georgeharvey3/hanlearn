@@ -7,8 +7,12 @@ import HomeIcon from '@mui/icons-material/Home';
 import { DirectionResult, WordScore } from '../../../types/models';
 import { DIRECTION_LABELS } from '../../../utils/directions';
 
-const resultConfig: Record<DirectionResult, { color: 'success' | 'error'; label: string }> = {
+const resultConfig: Record<
+  DirectionResult,
+  { color: 'success' | 'warning' | 'error'; label: string }
+> = {
   pass: { color: 'success', label: 'Known' },
+  lapse: { color: 'warning', label: 'Nearly' },
   fail: { color: 'error', label: 'Not known' },
 };
 
@@ -22,6 +26,8 @@ const TestSummary: React.FC<TestSummaryProps> = ({ history, scores }) => {
   };
 
   // One row is one question, so the counts are per direction, not per word.
+  // A lapse is not counted correct: it did not succeed on the attempt that
+  // carries the grade. See docs/adr/0007-grade-the-first-attempt.md.
   const total = scores?.length ?? 0;
   const correct = scores?.filter((s) => s.result === 'pass').length ?? 0;
   const wordCount = new Set(scores?.map((s) => s.char)).size;

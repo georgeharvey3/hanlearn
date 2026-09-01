@@ -86,6 +86,15 @@ describe('TestSummary — session accuracy', () => {
     expect(screen.getByTestId('session-accuracy')).toHaveTextContent('2 / 2 correct (100%)');
   });
 
+  it('does not count a lapse as correct', () => {
+    const scores: WordScore[] = [
+      { char: '一', direction: 'MC', result: 'pass' },
+      { char: '二', direction: 'MC', result: 'lapse' },
+    ];
+    renderWithProviders(<TestSummary scores={scores} />);
+    expect(screen.getByTestId('session-accuracy')).toHaveTextContent('1 / 2 correct (50%)');
+  });
+
   it('shows 0% when every direction failed', () => {
     const scores: WordScore[] = [
       { char: '一', direction: 'MC', result: 'fail' },
@@ -124,6 +133,18 @@ describe('TestSummary — one row per direction', () => {
     renderWithProviders(<TestSummary scores={allScores} />);
     expect(screen.getAllByText('Known')).toHaveLength(4);
     expect(screen.getAllByText('Not known')).toHaveLength(1);
+  });
+
+  it('names a lapse "Nearly" and keeps it apart from the other two grades', () => {
+    const scores: WordScore[] = [
+      { char: '一', direction: 'MC', result: 'pass' },
+      { char: '二', direction: 'MC', result: 'lapse' },
+      { char: '三', direction: 'MC', result: 'fail' },
+    ];
+    renderWithProviders(<TestSummary scores={scores} />);
+    expect(screen.getByText('Known')).toBeInTheDocument();
+    expect(screen.getByText('Nearly')).toBeInTheDocument();
+    expect(screen.getByText('Not known')).toBeInTheDocument();
   });
 
   it('keeps two words with the same direction apart', () => {

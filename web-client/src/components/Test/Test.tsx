@@ -35,7 +35,7 @@ export const connector = connect(mapStateToProps, mapDispatchToProps);
 
 export function getResultColor(result: string, showAnswer: boolean): string {
   if (result === 'Correct' || result === 'Finished!') return 'success.main';
-  if (result === 'Incorrect tones') return 'warning.main';
+  if (result === 'Incorrect tones' || result === 'Nearly') return 'warning.main';
   if (
     (result.startsWith('Answer was') && !showAnswer) ||
     result.startsWith('Try') ||
@@ -55,6 +55,8 @@ const Test: React.FC<Props> = (props) => {
     onListen,
     onSpeak,
     onCorrectAnswer,
+    onNearlyKnew,
+    onSubmitAnswer,
     onIDontKnow,
     onHint,
     onShowAnswer,
@@ -138,6 +140,7 @@ const Test: React.FC<Props> = (props) => {
           <Paper
             elevation={0}
             sx={{
+              position: 'relative',
               width: '90%',
               bgcolor: 'background.paper',
               border: '1px solid',
@@ -154,6 +157,22 @@ const Test: React.FC<Props> = (props) => {
               '& h2': { overflowWrap: 'normal', fontWeight: 500, fontSize: '1.8rem', m: 0 },
             }}
           >
+            {state.gradeCap === 'lapse' && (
+              <Box
+                role="img"
+                data-testid="lapse-marker"
+                aria-label="Nearly: this question no longer counts as known"
+                sx={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  bgcolor: 'warning.main',
+                }}
+              />
+            )}
             <QuestionDisplay
               questionCategory={state.questionCategory}
               question={state.question}
@@ -196,7 +215,9 @@ const Test: React.FC<Props> = (props) => {
               onListen={onListen}
               onShowAnswer={onShowAnswer}
               onCorrectAnswer={onCorrectAnswer}
+              onNearlyKnew={onNearlyKnew}
               onIDontKnow={onIDontKnow}
+              onSubmitAnswer={onSubmitAnswer}
               setStateMerged={setStateMerged}
             />
           </Box>

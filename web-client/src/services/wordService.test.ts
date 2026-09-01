@@ -82,7 +82,7 @@ import {
   addCustomWord,
 } from './wordService';
 import { lookupCharacter, lookupCharacterByTrad } from './dictionaryService';
-import { DIRECTIONS } from '../types/models';
+import { DIRECTIONS, DirectionResult } from '../types/models';
 
 // Level intervals defined in wordService (duplicated here for assertion purposes)
 const LEVEL_INTERVALS: Record<number, number> = { 1: 1, 2: 3, 3: 7, 4: 30, 5: 60 };
@@ -115,9 +115,9 @@ function makeFakeDoc(bank: number, simp: string, exists = true, directions?: obj
   };
 }
 
-/** Ask every direction with the same outcome, as a session does today. */
-function allAsked(result: 'pass' | 'fail') {
-  return DIRECTIONS.reduce<Record<string, 'pass' | 'fail'>>((acc, direction) => {
+/** Ask every direction with the same grade. */
+function allAsked(result: DirectionResult) {
+  return DIRECTIONS.reduce<Record<string, DirectionResult>>((acc, direction) => {
     acc[direction] = result;
     return acc;
   }, {});
@@ -180,6 +180,22 @@ describe('finishTest — per-direction scheduling', () => {
     await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
 
     expect(mockBatchUpdate.mock.calls[0][1].directions.MC.bank).toBe(5);
+  });
+
+  it('demotes a direction by one bank on a lapse', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(4, '你好', true, allDirections(4)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'lapse' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.bank).toBe(3);
+  });
+
+  it('does not demote a direction below bank 1 on a lapse', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', true, allDirections(1)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'lapse' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.bank).toBe(1);
   });
 
   it('resets a direction to bank 1 on a failure, from any bank', async () => {
@@ -266,6 +282,54 @@ describe('finishTest — per-direction scheduling', () => {
     expect(update.directions.MC.bank).toBe(3); // asked, advanced from the old bank
     expect(update.directions.CM.bank).toBe(2); // untouched, derived from the old bank
     expect(Object.keys(update.directions).sort()).toEqual([...DIRECTIONS].sort());
+  });
+
+  // ─── Tone errors ──────────────────────────────────────────────────────────
+
+  it('writes the tone errors of a direction the session collected them in', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(2, '你好', true, allDirections(2)));
+
+    await finishTest('user-1', [
+      { word_id: 1, directions: { PM: 'lapse' }, toneErrors: { PM: 3 } },
+    ]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.PM.toneErrors).toBe(3);
+  });
+
+  it('adds the tone errors of the session to the count the direction holds', async () => {
+    mockGetDoc.mockResolvedValue(
+      makeFakeDoc(2, '你好', true, {
+        ...allDirections(2),
+        PM: { bank: 2, dueDate: { toDate: () => new Date(2026, 0, 1) }, toneErrors: 4 },
+      }),
+    );
+
+    await finishTest('user-1', [
+      { word_id: 1, directions: { PM: 'lapse' }, toneErrors: { PM: 2 } },
+    ]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.PM.toneErrors).toBe(6);
+  });
+
+  it('leaves the counter off a direction that has never collected a tone error', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(2, '你好', true, allDirections(2)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC).not.toHaveProperty('toneErrors');
+  });
+
+  it('keeps the tone errors of a direction the session did not ask', async () => {
+    mockGetDoc.mockResolvedValue(
+      makeFakeDoc(2, '你好', true, {
+        ...allDirections(2),
+        PM: { bank: 2, dueDate: { toDate: () => new Date(2026, 0, 1) }, toneErrors: 7 },
+      }),
+    );
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.PM.toneErrors).toBe(7);
   });
 
   // ─── Batch behavior and the return value ───────────────────────────────────

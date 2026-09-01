@@ -9,6 +9,10 @@ export const colors = {
   text: '#2d2d2d',
   error: '#cc0000',
   success: '#00A86B',
+  // The amber of a lapse, and of the "Incorrect tones" feedback line. It is the
+  // value MUI gave `warning.main` by default, named here so that a component
+  // that reads `colors` and one that reads the palette agree.
+  warning: '#ed6c02',
   divider: '#e0e0e0',
 } as const;
 
@@ -22,6 +26,7 @@ const theme = createTheme({
     secondary: { main: colors.white },
     error: { main: colors.error },
     success: { main: colors.success },
+    warning: { main: colors.warning },
     text: { primary: colors.text },
     divider: colors.divider,
     background: {

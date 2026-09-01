@@ -47,10 +47,18 @@ interface HanziWriterInstance {
   setCharacter(char: string): Promise<void>;
 }
 
+interface QuizStrokeData {
+  character: string;
+  strokeNum: number;
+  mistakesOnStroke: number;
+  totalMistakes: number;
+  strokesRemaining: number;
+}
+
 interface QuizOptions {
   onComplete?: (summaryData: { totalMistakes: number }) => void;
-  onCorrectStroke?: (strokeData: object) => void;
-  onMistake?: (strokeData: object) => void;
+  onCorrectStroke?: (strokeData: QuizStrokeData) => void;
+  onMistake?: (strokeData: QuizStrokeData) => void;
 }
 
 // Asset imports

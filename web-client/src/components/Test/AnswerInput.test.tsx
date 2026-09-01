@@ -25,8 +25,7 @@ import { TestState } from './types';
 const baseState = {
   answerInput: '',
   showAnswer: false,
-  yesClicked: false,
-  noClicked: false,
+  gradeClicked: null,
   useSound: false,
   useSoundEffects: false,
   pinyinQuizType: 'input',
@@ -52,7 +51,9 @@ function makeProps(stateOverrides: Partial<TestState> = {}, speechAvailable = fa
     onListen: vi.fn(),
     onShowAnswer: vi.fn(),
     onCorrectAnswer: vi.fn(),
+    onNearlyKnew: vi.fn(),
     onIDontKnow: vi.fn(),
+    onSubmitAnswer: vi.fn(),
     setStateMerged: vi.fn() as any,
   };
 }
@@ -109,15 +110,51 @@ describe('AnswerInput — input mode without speech recognition', () => {
     fireEvent.change(screen.getByLabelText(/enter your answer/i), { target: { value: 'ni3' } });
     expect(props.onInputChanged).toHaveBeenCalled();
   });
+
+  it('renders a Submit button beside the input when speech is unavailable', () => {
+    renderAnswerInput({ answerCategory: 'meaning', meaningQuizType: 'input', answerInput: 'hi' });
+    expect(screen.getByRole('button', { name: /submit/i })).toBeEnabled();
+  });
+
+  it('sends the answer when Submit is pressed', () => {
+    const props = renderAnswerInput({
+      answerCategory: 'meaning',
+      meaningQuizType: 'input',
+      answerInput: 'hi',
+    });
+    fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+    expect(props.onSubmitAnswer).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables Submit while the input is empty', () => {
+    renderAnswerInput({ answerCategory: 'meaning', meaningQuizType: 'input', answerInput: '' });
+    expect(screen.getByRole('button', { name: /submit/i })).toBeDisabled();
+  });
+
+  it('disables Submit once the question is graded', () => {
+    renderAnswerInput({
+      answerCategory: 'meaning',
+      meaningQuizType: 'input',
+      answerInput: 'hi',
+      submitDisabled: true,
+    });
+    expect(screen.getByRole('button', { name: /submit/i })).toBeDisabled();
+  });
+
+  it('shows no Submit button in flashcard mode', () => {
+    renderAnswerInput({ answerCategory: 'meaning', meaningQuizType: 'flashcard' });
+    expect(screen.queryByRole('button', { name: /submit/i })).not.toBeInTheDocument();
+  });
 });
 
 // ── input mode with speech support ───────────────────────────────────────────
 
 describe('AnswerInput — input mode with speech recognition', () => {
-  it('renders the text input and the mic side by side for pinyin answers', () => {
+  it('renders the text input, the mic and Submit side by side for pinyin answers', () => {
     renderAnswerInput({ answerCategory: 'pinyin', pinyinQuizType: 'input' }, true);
     expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/record speech/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /submit/i })).toBeInTheDocument();
   });
 
   it('renders the text input and the mic side by side for meaning answers', () => {
@@ -208,35 +245,51 @@ describe('AnswerInput — flashcard mode (show-answer flow)', () => {
     expect(props.onCorrectAnswer).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps both buttons at full strength before a grade', () => {
+  it('keeps all three buttons at full strength before a grade', () => {
     renderAnswerInput({
       answerCategory: 'meaning',
       meaningQuizType: 'flashcard',
       showAnswer: true,
     });
     expect(screen.getByLabelText(/i knew this/i)).toHaveStyle({ opacity: '1' });
+    expect(screen.getByLabelText(/i nearly knew this/i)).toHaveStyle({ opacity: '1' });
     expect(screen.getByLabelText(/i didn't know this/i)).toHaveStyle({ opacity: '1' });
   });
 
-  it('rings the like button and fades the dislike button after a known grade', () => {
+  it('rings the like button and fades the other two after a known grade', () => {
     renderAnswerInput({
       answerCategory: 'meaning',
       meaningQuizType: 'flashcard',
       showAnswer: true,
-      yesClicked: true,
+      gradeClicked: 'pass',
     });
     const like = screen.getByLabelText(/i knew this/i);
     expect(like).toHaveStyle({ opacity: '1' });
     expect(like.style.boxShadow).toContain('3px');
+    expect(screen.getByLabelText(/i nearly knew this/i)).toHaveStyle({ opacity: '0.3' });
     expect(screen.getByLabelText(/i didn't know this/i)).toHaveStyle({ opacity: '0.3' });
   });
 
-  it('rings the dislike button and fades the like button after a not-known grade', () => {
+  it('rings the nearly button and fades the other two after a lapse grade', () => {
     renderAnswerInput({
       answerCategory: 'meaning',
       meaningQuizType: 'flashcard',
       showAnswer: true,
-      noClicked: true,
+      gradeClicked: 'lapse',
+    });
+    const nearly = screen.getByLabelText(/i nearly knew this/i);
+    expect(nearly).toHaveStyle({ opacity: '1' });
+    expect(nearly.style.boxShadow).toContain('3px');
+    expect(screen.getByLabelText(/i knew this/i)).toHaveStyle({ opacity: '0.3' });
+    expect(screen.getByLabelText(/i didn't know this/i)).toHaveStyle({ opacity: '0.3' });
+  });
+
+  it('rings the dislike button and fades the other two after a not-known grade', () => {
+    renderAnswerInput({
+      answerCategory: 'meaning',
+      meaningQuizType: 'flashcard',
+      showAnswer: true,
+      gradeClicked: 'fail',
     });
     const dislike = screen.getByLabelText(/i didn't know this/i);
     expect(dislike).toHaveStyle({ opacity: '1' });
@@ -244,12 +297,32 @@ describe('AnswerInput — flashcard mode (show-answer flow)', () => {
     expect(screen.getByLabelText(/i knew this/i)).toHaveStyle({ opacity: '0.3' });
   });
 
+  it('grades a pass with no argument, so the click event is not read as a grade', () => {
+    const props = renderAnswerInput({
+      answerCategory: 'meaning',
+      meaningQuizType: 'flashcard',
+      showAnswer: true,
+    });
+    fireEvent.click(screen.getByLabelText(/i knew this/i));
+    expect(props.onCorrectAnswer).toHaveBeenCalledWith();
+  });
+
+  it('calls onNearlyKnew when the nearly button is clicked', () => {
+    const props = renderAnswerInput({
+      answerCategory: 'meaning',
+      meaningQuizType: 'flashcard',
+      showAnswer: true,
+    });
+    fireEvent.click(screen.getByLabelText(/i nearly knew this/i));
+    expect(props.onNearlyKnew).toHaveBeenCalledTimes(1);
+  });
+
   it('stops further presses once the answer is graded', () => {
     renderAnswerInput({
       answerCategory: 'meaning',
       meaningQuizType: 'flashcard',
       showAnswer: true,
-      yesClicked: true,
+      gradeClicked: 'pass',
     });
     expect(screen.getByLabelText(/i knew this/i).parentElement).toHaveStyle({
       pointerEvents: 'none',
