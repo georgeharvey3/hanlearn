@@ -28,11 +28,16 @@ export type Direction = (typeof DIRECTIONS)[number];
  * after learning it. It reads as 0 when absent, and a direction that has
  * collected enough of them is a leech. See
  * docs/adr/0010-partial-demotion-and-leeches.md.
+ * `interval` is the days the schedule put between this direction's last review
+ * and its next. It is absent on a direction no session has asked since FSRS
+ * arrived, and the retention metrics read it to measure how far the intervals
+ * of mature directions have climbed.
  */
 export interface DirectionState {
   level: number;
   dueDate: string;
   lapses?: number;
+  interval?: number;
 }
 
 export type DirectionStates = Record<Direction, DirectionState>;

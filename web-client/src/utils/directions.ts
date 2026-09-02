@@ -46,6 +46,9 @@ export function fillDirections(
       // A direction that has never lost a retrieval carries no count, and the
       // fallback has none to give, so both read as none.
       ...(typeof entry?.lapses === 'number' ? { lapses: entry.lapses } : {}),
+      // The same for the interval: a direction no session has asked since FSRS
+      // arrived carries none, and the bank is all there is to read it from.
+      ...(typeof entry?.interval === 'number' ? { interval: entry.interval } : {}),
     };
     return acc;
   }, {} as DirectionStates);
