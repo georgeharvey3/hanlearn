@@ -73,6 +73,8 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 - [web-client/src/services/dictionaryService.ts](web-client/src/services/dictionaryService.ts) - Static dictionary loading and search (lazy-loaded, indexed in-memory)
 - [web-client/src/services/streakService.ts](web-client/src/services/streakService.ts) - Read/write `testCompletions` subcollection; calculates streak from completion dates
 - [web-client/src/services/dashboardService.ts](web-client/src/services/dashboardService.ts) - Aggregates stats (due count, streak, level distribution) for the Dashboard
+- [web-client/src/services/retentionService.ts](web-client/src/services/retentionService.ts) - Read/write the `reviewStats` daily rollup; the session's write joins the `finishTest` batch
+- [web-client/src/services/statsService.ts](web-client/src/services/statsService.ts) - Assembles the scheduler metrics for the `/stats` page
 - [web-client/src/services/sentenceService.ts](web-client/src/services/sentenceService.ts) - Firebase AI Logic: generates and caches example sentences in `sentenceCache`
 - [web-client/src/services/chengyuSentenceService.ts](web-client/src/services/chengyuSentenceService.ts) - Generates example sentences for chengyu display
 - [web-client/src/services/decompositionService.ts](web-client/src/services/decompositionService.ts) - Calls cloud function to decompose characters into radicals/components
@@ -108,9 +110,18 @@ users/{userId}/
   │   │     }
   │   │   }
   │   └── listId?: string        # Optional word list membership
-  └── testCompletions/{dateId}   # Streak tracking (dateId = YYYY-MM-DD)
-      ├── testsCount: number
-      └── completedAt: Timestamp
+  ├── testCompletions/{dateId}   # Streak tracking (dateId = YYYY-MM-DD)
+  │   ├── testsCount: number
+  │   └── completedAt: Timestamp
+  └── reviewStats/{dateId}       # Scheduler measurement (dateId = YYYY-MM-DD)
+      ├── date: string           # Same value as the doc id, so the range query needs no index
+      ├── updatedAt: Timestamp
+      └── directions: {          # Counters per direction, written as increments
+            MC | MP | PM | PC | CM: {
+              attempts, reviews, reviewPasses,
+              promoted, held, demoted: number
+            }
+          }
 
 words/{wordId}                   # Read-only shared dictionary (admin-managed)
 chengyus/{chengyuId}             # Read-only (admin-managed)
@@ -148,6 +159,7 @@ The calculation is in [web-client/src/utils/scheduling.ts](web-client/src/utils/
 - FSRS reads the elapsed days since the last review, so a late correct answer gives a longer interval
 - The maximum interval is 365 days, and the due date takes a fuzz of up to 5%
 - **5 levels** are bands of the interval: 1 (0 days), 2 (1-6), 3 (7-29), 4 (30-59), 5 (60+). See [docs/adr/0009-fsrs.md](docs/adr/0009-fsrs.md)
+- The scheduler is **measured** by a daily rollup in `reviewStats`, which the `/stats` page reads: true retention, promotion and stall rate per direction, median mature interval, and the review load ahead. The counting rules are pure, in [web-client/src/utils/retention.ts](web-client/src/utils/retention.ts). See [docs/adr/0013-retention-metrics.md](docs/adr/0013-retention-metrics.md)
 - Each word carries its own level and due date **per direction** (`MC`, `MP`, `PM`, `PC`, `CM`); the top-level `bank`/`dueDate` are derived so Firestore can still range-query them. See [docs/adr/0002-direction-level-scheduling.md](docs/adr/0002-direction-level-scheduling.md)
 
 ## Firebase Emulators
@@ -218,6 +230,12 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 - Use `src/test/utils.tsx` for render helpers that wrap with Redux store and Router
 - Firebase calls should be mocked at the service layer (not at the Firebase SDK level)
 - Test scripts: `npm test` (watch), `npm run test:run` (CI, single run), `npm run test:coverage`
+
+### Firestore Rules Tests (Vitest + the Firestore emulator)
+
+- Tests live in `tests/rules/`, run from the repo root, and read `firestore.rules` as the repository has it
+- `npm run test:rules` — `firebase emulators:exec` starts and stops the Firestore emulator around the suite, so it needs Java
+- Every case writes the shape the app actually writes. A rule that allows a shape no caller sends proves nothing, and a field missing from the rules is how ADR 0010's `lapses` silently broke every reschedule after a lapse
 
 ### End-to-End Tests (Playwright)
 

@@ -38,6 +38,8 @@ import {
   lookupCharacter,
   lookupCharacterByTrad,
 } from './dictionaryService';
+import { addSessionToBatch } from './retentionService';
+import type { ReviewOutcome } from '../utils/retention';
 import {
   amendedMeaningSchema,
   customWordTextSchema,
@@ -121,6 +123,7 @@ function readDirections(data: UserWordDocument): DirectionStates {
       level: entry.bank,
       dueDate: entry.dueDate ? formatDate(entry.dueDate.toDate()) : undefined,
       lapses: entry.lapses,
+      interval: entry.interval,
     };
   }
   return fillDirections(stored, data.bank, formatDate(data.dueDate.toDate()));
@@ -436,6 +439,10 @@ export const finishTest = async (
   // One clock for the whole session, so every direction of every word measures
   // its elapsed days and its next due date from the same instant.
   const now = new Date();
+  // What each graded question did, for the daily rollup the retention metrics
+  // read. It is collected here because this is the only place that sees both
+  // the state a direction held and the state the grade moved it to.
+  const outcomes: ReviewOutcome[] = [];
 
   for (const { word_id, directions, toneErrors } of results) {
     const wordRef = doc(db, 'users', userId, 'userWords', word_id.toString());
@@ -458,11 +465,22 @@ export const finishTest = async (
 
       const collected = (current.toneErrors ?? 0) + (toneErrors?.[direction] ?? 0);
       const lapses = nextLapses(current.lapses ?? 0, memory, result);
+      const bank = bankOf(next.interval);
+
+      outcomes.push({
+        direction,
+        result,
+        // A direction with no stability has never been recalled, so this
+        // question formed the memory rather than testing it.
+        learned: memory.stability > 0,
+        bankBefore: current.bank,
+        bankAfter: bank,
+      });
 
       updated[direction] = {
         // The bank is derived from the interval, and it is written in the same
         // object, so the two never disagree.
-        bank: bankOf(next.interval),
+        bank,
         dueDate: Timestamp.fromDate(dueDateFrom(next.interval, now)),
         stability: next.stability,
         difficulty: next.difficulty,
@@ -488,6 +506,10 @@ export const finishTest = async (
 
     newDates[data.wordData.simp] = formatDate(derivedDueDate.toDate());
   }
+
+  // In the same batch as the reschedules: the session records what it measured
+  // and what it scheduled together, or neither.
+  addSessionToBatch(batch, userId, outcomes, now);
 
   await batch.commit();
   return newDates;

@@ -7,8 +7,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // vi.hoisted ensures these vars are available when vi.mock factories run (hoisted to top)
 const {
   mockBatchUpdate,
+  mockBatchSet,
   mockBatchCommit,
   mockWriteBatch,
+  mockIncrement,
   mockGetDoc,
   mockGetDocs,
   mockDoc,
@@ -23,15 +25,19 @@ const {
   mockTimestampNow,
 } = vi.hoisted(() => {
   const mockBatchUpdate = vi.fn();
+  const mockBatchSet = vi.fn();
   const mockBatchCommit = vi.fn().mockResolvedValue(undefined);
   const mockWriteBatch = vi.fn(() => ({
     update: mockBatchUpdate,
+    set: mockBatchSet,
     commit: mockBatchCommit,
   }));
   return {
     mockBatchUpdate,
+    mockBatchSet,
     mockBatchCommit,
     mockWriteBatch,
+    mockIncrement: vi.fn((n: number) => ({ __increment: n })),
     mockGetDoc: vi.fn(),
     mockGetDocs: vi.fn(),
     mockDoc: vi.fn((_db: unknown, ...path: string[]) => ({ path: path.join('/') })),
@@ -58,6 +64,7 @@ vi.mock('firebase/firestore', () => ({
   query: mockQuery,
   where: mockWhere,
   orderBy: mockOrderBy,
+  increment: mockIncrement,
   Timestamp: {
     fromDate: mockTimestampFromDate,
     now: mockTimestampNow,
@@ -134,6 +141,7 @@ describe('finishTest — per-direction scheduling', () => {
     mockBatchCommit.mockResolvedValue(undefined);
     mockWriteBatch.mockReturnValue({
       update: mockBatchUpdate,
+      set: mockBatchSet,
       commit: mockBatchCommit,
     });
   });
@@ -656,6 +664,125 @@ describe('finishTest — per-direction scheduling', () => {
     for (const direction of DIRECTIONS) {
       expect(update.directions[direction].bank).toBe(2);
     }
+  });
+});
+
+describe('finishTest — the review counts it records', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockBatchCommit.mockResolvedValue(undefined);
+    mockWriteBatch.mockReturnValue({
+      update: mockBatchUpdate,
+      set: mockBatchSet,
+      commit: mockBatchCommit,
+    });
+  });
+
+  /** The rollup document the session wrote, as a plain object of counts. */
+  function rollup() {
+    const [, data] = mockBatchSet.mock.calls[0];
+    const directions: Record<string, Record<string, number>> = {};
+    for (const [direction, counters] of Object.entries(
+      data.directions as Record<string, Record<string, { __increment: number }>>,
+    )) {
+      directions[direction] = Object.fromEntries(
+        Object.entries(counters).map(([field, value]) => [field, value.__increment]),
+      );
+    }
+    return directions;
+  }
+
+  it('writes the rollup in the same batch as the reschedules', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: allAsked('pass') }]);
+
+    expect(mockBatchSet).toHaveBeenCalledTimes(1);
+    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+    expect(mockBatchSet.mock.calls[0][0].path).toContain('users/user-1/reviewStats/');
+    expect(mockBatchSet.mock.calls[0][2]).toEqual({ merge: true });
+  });
+
+  it('counts a correct first attempt on a learned direction as a review pass', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(rollup().MC).toMatchObject({ attempts: 1, reviews: 1, reviewPasses: 1 });
+  });
+
+  it('does not count a first meeting as a review', async () => {
+    // Bank 1 seeds an interval of 0, so the direction has never been recalled.
+    mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', true, allDirections(1)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(rollup().MC.attempts).toBe(1);
+    expect(rollup().MC.reviews).toBeUndefined();
+  });
+
+  it('counts a wrong first attempt as a review that did not pass', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'lapse' } }]);
+
+    expect(rollup().MC).toMatchObject({ attempts: 1, reviews: 1 });
+    expect(rollup().MC.reviewPasses).toBeUndefined();
+  });
+
+  it('records a pass that lengthened the interval inside its bank as held', async () => {
+    // A pass at bank 3 grows the interval, but bank 3 runs from 7 to 29 days,
+    // so the direction has not moved up a band and the promotion rate must not
+    // claim that it did.
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(rollup().MC.held).toBe(1);
+    expect(rollup().MC.promoted).toBeUndefined();
+  });
+
+  it('records a pass that crossed into the next bank as a promotion', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', true, allDirections(1)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(rollup().MC.promoted).toBe(1);
+  });
+
+  it('records a failure that reset the interval as a demotion', async () => {
+    // A failure takes the interval to 0, which is bank 1.
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { CM: 'fail' } }]);
+
+    expect(rollup().CM.demoted).toBe(1);
+  });
+
+  it('leaves out a direction the session did not ask', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(Object.keys(rollup())).toEqual(['MC']);
+  });
+
+  it('adds up the questions of every word in the session', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+
+    await finishTest('user-1', [
+      { word_id: 1, directions: { MC: 'pass' } },
+      { word_id: 2, directions: { MC: 'pass' } },
+      { word_id: 3, directions: { MC: 'fail' } },
+    ]);
+
+    expect(rollup().MC).toMatchObject({ attempts: 3, reviews: 3, reviewPasses: 2 });
+  });
+
+  it('writes no rollup when the session graded nothing', async () => {
+    await finishTest('user-1', []);
+
+    expect(mockBatchSet).not.toHaveBeenCalled();
   });
 });
 

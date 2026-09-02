@@ -38,6 +38,7 @@ const NavigationItems: React.FC<Props> = (props) => {
         { to: '/', label: 'Dashboard' },
         { to: '/add-words', label: 'Add' },
         { to: '/test-words', label: 'Test' },
+        { to: '/stats', label: 'Stats' },
         { to: '/settings', label: 'Settings' },
       ];
 
@@ -194,6 +195,9 @@ const NavigationItems: React.FC<Props> = (props) => {
         </NavigationItem>
         <NavigationItem link="/test-words" textColor={props.textColor}>
           Test
+        </NavigationItem>
+        <NavigationItem link="/stats" textColor={props.textColor}>
+          Stats
         </NavigationItem>
         <Dropdown textColor={props.textColor} />
         <Button onClick={() => props.onLogout()} sx={{ color: props.textColor, mx: 1 }}>
