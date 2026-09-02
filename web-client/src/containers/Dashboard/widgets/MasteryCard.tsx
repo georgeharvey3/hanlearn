@@ -29,7 +29,14 @@ const MasteryCard: React.FC<MasteryCardProps> = ({ masteredCount, totalWords }) 
           value={percentage}
           size={80}
           thickness={4}
+          // A gauge of a known range, not work in progress. The role also keeps
+          // the ring clear of the tests that wait for the page's spinner, which
+          // is the progressbar on this screen.
+          role="meter"
           aria-label={`Mastery: ${percentage}%`}
+          aria-valuenow={percentage}
+          aria-valuemin={0}
+          aria-valuemax={100}
           sx={{ color: colors.primaryDark }}
         />
         <Box

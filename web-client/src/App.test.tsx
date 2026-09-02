@@ -21,6 +21,7 @@ vi.mock('./services/dashboardService', () => ({
     dueWords: 0,
     streak: 0,
     levelDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+    directionDistribution: {},
     masteredCount: 0,
   }),
 }));

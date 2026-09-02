@@ -36,6 +36,13 @@ const sampleStats = {
   dueWords: 12,
   streak: 5,
   levelDistribution: { 1: 10, 2: 10, 3: 10, 4: 10, 5: 10 },
+  directionDistribution: {
+    MC: { 1: 5, 2: 5, 3: 10, 4: 10, 5: 20 },
+    MP: { 1: 5, 2: 10, 3: 10, 4: 10, 5: 15 },
+    PM: { 1: 10, 2: 10, 3: 15, 4: 5, 5: 10 },
+    PC: { 1: 10, 2: 10, 3: 15, 4: 5, 5: 10 },
+    CM: { 1: 40, 2: 5, 3: 5, 4: 0, 5: 0 },
+  },
   masteredCount: 10,
   estimatedStudyTime: '~10 min',
   weeklyStats: { sessions: 4, wordsReviewed: 38 },
@@ -299,5 +306,31 @@ describe('Dashboard container', () => {
     });
     await waitFor(() => expect(screen.getByText('Dashboard')).toBeInTheDocument());
     expect(screen.queryByText(/min/)).not.toBeInTheDocument();
+  });
+
+  it('shows the strength of each direction, not just one level per word', async () => {
+    mockGetDashboardStats.mockResolvedValue(sampleStats);
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(authenticatedState()),
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: 'Strength by question type' })).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByLabelText(
+        'Meaning → Character: 40 New, 5 Learning, 5 Familiar, 0 Known, 0 Mastered',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('shows mastery over the whole word list alongside the breakdown', async () => {
+    mockGetDashboardStats.mockResolvedValue(sampleStats);
+    renderWithProviders(<Dashboard />, {
+      store: createTestStore(authenticatedState()),
+    });
+
+    await waitFor(() => expect(screen.getByText('Mastery')).toBeInTheDocument());
+    expect(screen.getByText('10 of 50 mastered')).toBeInTheDocument();
   });
 });
