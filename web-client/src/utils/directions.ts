@@ -1,4 +1,5 @@
 import { DIRECTIONS, Direction, DirectionState, DirectionStates, Word } from '../types/models';
+import { isLeech } from './scheduling';
 
 /**
  * Helpers for the per-direction scheduling state of a word.
@@ -42,6 +43,9 @@ export function fillDirections(
     acc[direction] = {
       level: typeof entry?.level === 'number' ? entry.level : level,
       dueDate: typeof entry?.dueDate === 'string' && entry.dueDate ? entry.dueDate : dueDate,
+      // A direction that has never lost a retrieval carries no count, and the
+      // fallback has none to give, so both read as none.
+      ...(typeof entry?.lapses === 'number' ? { lapses: entry.lapses } : {}),
     };
     return acc;
   }, {} as DirectionStates);
@@ -58,6 +62,19 @@ export function isNewWord(word: Pick<Word, 'level' | 'directions'>): boolean {
   const directions = word.directions;
   if (!directions) return word.level === 1;
   return DIRECTIONS.every((direction) => directions[direction].level === 1);
+}
+
+/**
+ * The directions of a word that are leeches: the ones the learner has failed to
+ * recall enough times that the schedule is not fixing them on its own.
+ *
+ * The order is the order of `DIRECTIONS`. A word built without scheduling state
+ * has none. See docs/adr/0010-partial-demotion-and-leeches.md.
+ */
+export function leechDirections(word: Pick<Word, 'directions'>): Direction[] {
+  const directions = word.directions;
+  if (!directions) return [];
+  return DIRECTIONS.filter((direction) => isLeech(directions[direction]?.lapses));
 }
 
 /**

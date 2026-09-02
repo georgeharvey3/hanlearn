@@ -104,7 +104,7 @@ users/{userId}/
   │   │     MC | MP | PM | PC | CM: {
   │   │       bank: 1-5, dueDate: Timestamp,
   │   │       stability: number, difficulty: 1-10, interval: number,
-  │   │       lastReview: Timestamp, toneErrors?: number
+  │   │       lastReview: Timestamp, toneErrors?: number, lapses?: number
   │   │     }
   │   │   }
   │   └── listId?: string        # Optional word list membership
@@ -144,6 +144,7 @@ The calculation is in [web-client/src/utils/scheduling.ts](web-client/src/utils/
 - The scheduler is **FSRS** (`ts-fsrs`), with a target retention of 0.9, no learning steps, and the FSRS-6 default weights
 - Each direction carries a **stability** (days at which recall is 0.9), a **difficulty** (1 to 10), an **interval** in days, and the date of its **last review**
 - `pass` sends the Good rating; `lapse` and `fail` both send Again, and a `fail` also resets the interval to 0, which asks the direction again the next day
+- A failed retrieval **demotes** a direction and never resets it: the stability after it never exceeds the stability before it, and a `lapse` comes back in 1 to 3 days. Each direction counts its lapses, and one with 8 or more is a **leech**, flagged in the word list. See [docs/adr/0010-partial-demotion-and-leeches.md](docs/adr/0010-partial-demotion-and-leeches.md)
 - FSRS reads the elapsed days since the last review, so a late correct answer gives a longer interval
 - The maximum interval is 365 days, and the due date takes a fuzz of up to 5%
 - **5 levels** are bands of the interval: 1 (0 days), 2 (1-6), 3 (7-29), 4 (30-59), 5 (60+). See [docs/adr/0009-fsrs.md](docs/adr/0009-fsrs.md)

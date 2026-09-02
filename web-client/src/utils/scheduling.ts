@@ -15,15 +15,21 @@ import { DirectionResult } from '../types/models';
  * FSRS reads that as Again. Hard means a retrieval that succeeded, and it grows
  * the interval. Easy has no button in this app.
  *
- * | Grade   | Rating | Interval           |
- * | ------- | ------ | ------------------ |
- * | `pass`  | Good   | the day FSRS gives |
- * | `lapse` | Again  | the day FSRS gives |
- * | `fail`  | Again  | 0, so the next day |
+ * | Grade   | Rating | Interval                          |
+ * | ------- | ------ | --------------------------------- |
+ * | `pass`  | Good   | the day FSRS gives                |
+ * | `lapse` | Again  | the day FSRS gives, capped at 3   |
+ * | `fail`  | Again  | 0, so the next day                |
  *
  * A lapse and a failure give the same memory state, and the due date separates
  * them. A learner who did not retrieve the answer at all sees the direction the
  * next day. See docs/adr/0009-fsrs.md.
+ *
+ * A failed retrieval demotes a direction rather than resetting it. The
+ * stability it keeps is never more than the stability it held, and the first
+ * interval after it is one to three days. The direction also counts the failed
+ * retrievals it has collected, and a direction that has collected enough of
+ * them is a leech. See docs/adr/0010-partial-demotion-and-leeches.md.
  *
  * Every function here is pure. `finishTest` in `wordService.ts` holds the
  * Firestore write.
@@ -34,6 +40,29 @@ export const TARGET_RETENTION = 0.9;
 
 /** The longest interval the schedule gives. */
 export const MAX_INTERVAL_DAYS = 365;
+
+/**
+ * The longest interval a lapse may give.
+ *
+ * SuperMemo reports that the first interval after a lapse is typically one to
+ * four days, whatever the interval the item held before it. FSRS reaches that
+ * range on its own for most directions, and it gives four or five days to a
+ * direction with a very high stability. The cap holds the whole range to one to
+ * three days, so that a word the learner has just got wrong comes back inside
+ * the week. A failure is not capped here: it takes an interval of 0 instead,
+ * which is the next day.
+ */
+export const MAX_POST_LAPSE_INTERVAL_DAYS = 3;
+
+/**
+ * How many failed retrievals one direction may collect before it is a leech.
+ *
+ * Eight is the default of Anki, and it counts the same event: a review of a
+ * direction that the learner had already learned and did not recall. A
+ * direction below the threshold is an ordinary direction that the schedule is
+ * still working on.
+ */
+export const LEECH_THRESHOLD = 8;
 
 /**
  * The ease of the calculation that FSRS replaces, and the range it stayed in.
@@ -193,12 +222,24 @@ export function elapsedDays(lastReview: Date | undefined, now: Date, interval: n
 }
 
 /**
+ * Whether a grade is a failed retrieval, that is, one that FSRS reads as Again.
+ */
+export function isFailedRetrieval(grade: DirectionResult): boolean {
+  return RATINGS[grade] === Rating.Again;
+}
+
+/**
  * The memory state a direction moves to.
  *
  * FSRS reads the state the direction holds, the grade, and the days that passed
  * since the last review. A review that ran late is evidence of a memory that is
  * more stable than the schedule expected, and the model takes that evidence
  * itself.
+ *
+ * A failed retrieval demotes the direction and never resets it. The stability
+ * it keeps is what FSRS gives, held to no more than the stability it already
+ * held, so the evidence the direction collected is cut and not discarded. A
+ * lapse then comes back within three days, and a failure the next day.
  *
  * A failure gives an interval of 0, so the schedule asks the direction again
  * the next day. The stability and the difficulty that the failure produced are
@@ -213,12 +254,66 @@ export function nextMemory(
   const next = scheduler.next(toCard(memory, elapsed, now), now, RATINGS[grade]).card;
 
   return {
-    stability: next.stability,
+    stability: postLapseStability(memory, grade, next.stability),
     difficulty: next.difficulty,
-    // A failure gives an interval of 0, which the due date reads as the next
-    // day. Every other grade takes the day that FSRS gives.
-    interval: grade === 'fail' ? 0 : clampInterval(next.scheduled_days),
+    interval: nextInterval(grade, next.scheduled_days),
   };
+}
+
+/**
+ * The stability a direction keeps, with the demotion rule applied.
+ *
+ * A failed retrieval must never leave a direction more stable than it was. The
+ * FSRS-6 formula for the stability after a lapse already holds to this, and the
+ * clamp states the rule that the schedule depends on rather than inheriting it
+ * from the weights of a library that the app does not own.
+ *
+ * A direction that has never been passed holds no stability to demote, and the
+ * failed attempt gives it its first one.
+ */
+function postLapseStability(memory: Memory, grade: DirectionResult, stability: number): number {
+  if (!isFailedRetrieval(grade) || memory.stability <= 0) return stability;
+  return Math.min(stability, memory.stability);
+}
+
+/**
+ * The interval a grade gives, from the day FSRS names.
+ *
+ * A failure gives 0, which the due date reads as the next day. A lapse takes
+ * the day FSRS names, capped at three days, so that a direction the learner has
+ * just failed to recall comes back within the week whatever it held before. A
+ * pass takes the day FSRS names.
+ */
+function nextInterval(grade: DirectionResult, scheduledDays: number): number {
+  if (grade === 'fail') return 0;
+  const interval = clampInterval(scheduledDays);
+  if (grade === 'lapse') return Math.min(interval, MAX_POST_LAPSE_INTERVAL_DAYS);
+  return interval;
+}
+
+/**
+ * The failed retrieval count a direction moves to.
+ *
+ * A lapse and a failure both mean that the learner did not recall the answer,
+ * so both count. A direction that has never been passed holds no memory to
+ * lose, and a failure on it is the learner meeting the word rather than
+ * forgetting it, so it does not count. This is the same event that Anki counts
+ * as a lapse: an Again on a card that has already graduated.
+ */
+export function nextLapses(lapses: number, memory: Memory, grade: DirectionResult): number {
+  if (!isFailedRetrieval(grade) || memory.stability <= 0) return lapses;
+  return lapses + 1;
+}
+
+/**
+ * Whether a direction has collected enough failed retrievals to be a leech.
+ *
+ * A leech is a direction the schedule is not fixing on its own. The app flags
+ * it and keeps asking it: suspending it would hide a word the learner asked to
+ * learn, and the learner is the one who decides what to do about it.
+ */
+export function isLeech(lapses: number | undefined): boolean {
+  return (lapses ?? 0) >= LEECH_THRESHOLD;
 }
 
 /**

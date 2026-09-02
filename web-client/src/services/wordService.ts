@@ -25,7 +25,14 @@ import {
   WordList,
 } from '../types/models';
 import { fillDirections } from '../utils/directions';
-import { bankOf, currentMemory, dueDateFrom, elapsedDays, nextMemory } from '../utils/scheduling';
+import {
+  bankOf,
+  currentMemory,
+  dueDateFrom,
+  elapsedDays,
+  nextLapses,
+  nextMemory,
+} from '../utils/scheduling';
 import {
   searchWord as searchDictionary,
   lookupCharacter,
@@ -71,6 +78,12 @@ interface StoredDirectionState {
    * existed needs no migration.
    */
   toneErrors?: number;
+  /**
+   * How many times the learner has failed to recall this direction after
+   * learning it. Absent reads as 0, so a document written before the counter
+   * existed needs no migration, and it starts counting from its next failure.
+   */
+  lapses?: number;
 }
 
 interface UserWordDocument {
@@ -107,6 +120,7 @@ function readDirections(data: UserWordDocument): DirectionStates {
     stored[direction] = {
       level: entry.bank,
       dueDate: entry.dueDate ? formatDate(entry.dueDate.toDate()) : undefined,
+      lapses: entry.lapses,
     };
   }
   return fillDirections(stored, data.bank, formatDate(data.dueDate.toDate()));
@@ -407,7 +421,9 @@ export const updateWordMeaning = async (
  * retention. See docs/adr/0009-fsrs.md.
  *
  * The tone errors of a direction are added to the count it already holds, in
- * the same batch that writes the interval.
+ * the same batch that writes the interval, and so are the failed retrievals
+ * that the leech rule counts. See
+ * docs/adr/0010-partial-demotion-and-leeches.md.
  *
  * Returns the new derived due date of each word, keyed by its simplified form.
  */
@@ -441,6 +457,7 @@ export const finishTest = async (
       const next = nextMemory(memory, result, elapsed, now);
 
       const collected = (current.toneErrors ?? 0) + (toneErrors?.[direction] ?? 0);
+      const lapses = nextLapses(current.lapses ?? 0, memory, result);
 
       updated[direction] = {
         // The bank is derived from the interval, and it is written in the same
@@ -454,6 +471,8 @@ export const finishTest = async (
         // A direction that has never collected a tone error stays without the
         // field, so a session of correct tones writes nothing new.
         ...(collected > 0 ? { toneErrors: collected } : {}),
+        // The same for the failed retrievals, which the leech rule counts.
+        ...(lapses > 0 ? { lapses } : {}),
       };
     }
 

@@ -502,6 +502,108 @@ describe('finishTest — per-direction scheduling', () => {
     expect(mockBatchUpdate.mock.calls[0][1].directions.PM.toneErrors).toBe(7);
   });
 
+  // ─── The demotion and the leech counter ───────────────────────────────────
+
+  it('demotes a lapsed direction rather than resetting it', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(5, '你好', true, allDirections(5)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'lapse' } }]);
+
+    const update = mockBatchUpdate.mock.calls[0][1];
+    // Some of the 60 days the direction had survives, and the schedule asks it
+    // again within three days.
+    expect(update.directions.MC.stability).toBeGreaterThan(0);
+    expect(update.directions.MC.stability).toBeLessThan(SEED_INTERVALS[5]);
+    expect(update.directions.MC.interval).toBeLessThanOrEqual(3);
+  });
+
+  it('asks a lapsed direction again within three days, even from a year', async () => {
+    mockGetDoc.mockResolvedValue(
+      makeFakeDoc(5, '你好', true, {
+        ...allDirections(5),
+        MC: storedDirection(5, new Date(2026, 0, 1), {
+          stability: 400,
+          difficulty: 2,
+          interval: 365,
+        }),
+      }),
+    );
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'lapse' } }]);
+
+    const update = mockBatchUpdate.mock.calls[0][1];
+    expect(update.directions.MC.interval).toBe(3);
+    expect(update.directions.MC.stability).toBeLessThanOrEqual(400);
+  });
+
+  it('counts a lapse and a failure on a direction that was learned', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(4, '你好', true, allDirections(4)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'lapse', PC: 'fail' } }]);
+
+    const update = mockBatchUpdate.mock.calls[0][1];
+    expect(update.directions.MC.lapses).toBe(1);
+    expect(update.directions.PC.lapses).toBe(1);
+  });
+
+  it('adds the failed retrievals of the session to the count the direction holds', async () => {
+    mockGetDoc.mockResolvedValue(
+      makeFakeDoc(4, '你好', true, {
+        ...allDirections(4),
+        MC: storedDirection(4, new Date(2026, 0, 1), { lapses: 6 }),
+      }),
+    );
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'fail' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.lapses).toBe(7);
+  });
+
+  it('does not count a failure on a direction that has never been passed', async () => {
+    // A word the learner has just met is not a word they have forgotten.
+    mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', true, allDirections(1)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'fail' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC).not.toHaveProperty('lapses');
+  });
+
+  it('leaves the counter off a direction that passes', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(4, '你好', true, allDirections(4)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC).not.toHaveProperty('lapses');
+  });
+
+  it('keeps the count of a direction that passes after collecting failures', async () => {
+    // A pass does not clear the record: a leech stays flagged until the learner
+    // does something about it.
+    mockGetDoc.mockResolvedValue(
+      makeFakeDoc(4, '你好', true, {
+        ...allDirections(4),
+        MC: storedDirection(4, new Date(2026, 0, 1), { lapses: 8 }),
+      }),
+    );
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.MC.lapses).toBe(8);
+  });
+
+  it('keeps the count of a direction the session did not ask', async () => {
+    mockGetDoc.mockResolvedValue(
+      makeFakeDoc(2, '你好', true, {
+        ...allDirections(2),
+        PM: storedDirection(2, new Date(2026, 0, 1), { lapses: 9 }),
+      }),
+    );
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(mockBatchUpdate.mock.calls[0][1].directions.PM.lapses).toBe(9);
+  });
+
   // ─── Batch behavior and the return value ───────────────────────────────────
 
   it('skips words whose Firestore document does not exist', async () => {
