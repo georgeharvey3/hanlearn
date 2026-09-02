@@ -53,6 +53,11 @@ next. It is the day on which the predicted recall probability falls to the
 An interval of 0 days is a direction that the learner has never answered
 correctly, or one that a failure reset. The schedule asks it again the next day.
 
+A failed retrieval **demotes** a direction and never resets it: the stability it
+keeps is never more than the stability it held. The first interval after a lapse
+is one to three days, and after a failure it is the next day. See
+[docs/adr/0010-partial-demotion-and-leeches.md](docs/adr/0010-partial-demotion-and-leeches.md).
+
 The maximum interval is 365 days. The due date takes a fuzz of up to 5% of the
 interval, so that the words a learner adds on one day do not come back on one
 day for ever. An interval of less than 3 days takes no fuzz.
@@ -64,6 +69,22 @@ at which recall is 0.9.
 
 The calculation is in `utils/scheduling.ts`, and `finishTest` holds the write.
 See [docs/adr/0009-fsrs.md](docs/adr/0009-fsrs.md).
+
+## Lapse count and leech
+
+Each direction counts the retrievals it has lost, in a `lapses` field. A `lapse`
+and a `fail` both count, because both mean the learner did not recall the
+answer. A failure on a direction that has never been passed does not count: the
+learner has not forgotten a word they have never recalled.
+
+A **leech** is a direction with 8 or more lapses. It is a direction the schedule
+is not fixing on its own. The app **flags** a leech and does not suspend it: the
+direction stays in the queue, and the word list shows a "Hard to recall" chip
+naming each direction that has reached the threshold. The count is never
+cleared, so a pass does not remove the flag.
+
+The counter is separate from the **tone errors**, which count incorrect tones on
+pinyin answers and say nothing about whether the learner recalled the word.
 
 ## Bank and level
 
@@ -146,11 +167,11 @@ stages carried the same name before, and it is **"Sentences"** now.
 A **grade** is how one question went. The grade comes from the **first attempt**
 at that question, and one question gets one grade. There are three:
 
-| Grade   | The learner                                                      | Rating | Interval           |
-| ------- | ---------------------------------------------------------------- | ------ | ------------------ |
-| `pass`  | answered correctly on the first attempt                          | Good   | the day FSRS gives |
-| `lapse` | answered wrongly first, then answered correctly without a reveal | Again  | the day FSRS gives |
-| `fail`  | selected "I don't know", or the handwriting reveal ran           | Again  | 0, so the next day |
+| Grade   | The learner                                                      | Rating | Interval                        |
+| ------- | ---------------------------------------------------------------- | ------ | ------------------------------- |
+| `pass`  | answered correctly on the first attempt                          | Good   | the day FSRS gives              |
+| `lapse` | answered wrongly first, then answered correctly without a reveal | Again  | the day FSRS gives, capped at 3 |
+| `fail`  | selected "I don't know", or the handwriting reveal ran           | Again  | 0, so the next day              |
 
 The rating is what the app sends to FSRS. A lapse did not retrieve the answer on
 the graded attempt, so FSRS reads it as Again. A lapse and a failure give the

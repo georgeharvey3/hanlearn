@@ -2,8 +2,9 @@
  * Tests for the per-direction scheduling helpers.
  */
 import { describe, it, expect } from 'vitest';
-import { makeDirections, fillDirections, isNewWord } from './directions';
+import { makeDirections, fillDirections, isNewWord, leechDirections } from './directions';
 import { DIRECTIONS } from '../types/models';
+import { LEECH_THRESHOLD } from './scheduling';
 
 describe('makeDirections', () => {
   it('returns all five directions at the given level and due date', () => {
@@ -76,5 +77,35 @@ describe('isNewWord', () => {
   it('falls back to the top-level level for a word with no directions', () => {
     expect(isNewWord(word(1))).toBe(true);
     expect(isNewWord(word(2))).toBe(false);
+  });
+});
+
+describe('leechDirections', () => {
+  const word = (directions?: Record<string, { level: number; dueDate: string; lapses?: number }>) =>
+    ({ directions }) as Parameters<typeof leechDirections>[0];
+
+  it('is empty for a word whose directions have lost no retrievals', () => {
+    expect(leechDirections(word(makeDirections(3, '2026/03/05')))).toEqual([]);
+  });
+
+  it('is empty for a word with no scheduling state at all', () => {
+    expect(leechDirections(word())).toEqual([]);
+  });
+
+  it('leaves out a direction that is still below the threshold', () => {
+    const directions = {
+      ...makeDirections(2, '2026/03/05'),
+      MC: { level: 2, dueDate: '2026/03/05', lapses: LEECH_THRESHOLD - 1 },
+    };
+    expect(leechDirections(word(directions))).toEqual([]);
+  });
+
+  it('names each direction that has reached the threshold, in DIRECTIONS order', () => {
+    const directions = {
+      ...makeDirections(2, '2026/03/05'),
+      CM: { level: 2, dueDate: '2026/03/05', lapses: LEECH_THRESHOLD },
+      MC: { level: 2, dueDate: '2026/03/05', lapses: LEECH_THRESHOLD + 4 },
+    };
+    expect(leechDirections(word(directions))).toEqual(['MC', 'CM']);
   });
 });

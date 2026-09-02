@@ -24,10 +24,15 @@ export type Direction = (typeof DIRECTIONS)[number];
  * `level` is the spaced repetition level, 1 to 5. Firestore stores it as `bank`,
  * the same duplicate name the top-level field carries.
  * `dueDate` is a YYYY/MM/DD string, the format `Word.due_date` uses.
+ * `lapses` is how many times the learner has failed to recall this direction
+ * after learning it. It reads as 0 when absent, and a direction that has
+ * collected enough of them is a leech. See
+ * docs/adr/0010-partial-demotion-and-leeches.md.
  */
 export interface DirectionState {
   level: number;
   dueDate: string;
+  lapses?: number;
 }
 
 export type DirectionStates = Record<Direction, DirectionState>;

@@ -3,6 +3,8 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import WordCard from './WordCard';
 import * as ttsService from '../../services/ttsService';
 import { Word, WordList } from '../../types/models';
+import { makeDirections } from '../../utils/directions';
+import { LEECH_THRESHOLD } from '../../utils/scheduling';
 
 vi.mock('../../services/ttsService', () => ({
   speak: vi.fn(),
@@ -157,5 +159,46 @@ describe('WordCard', () => {
     fireEvent.click(screen.getByRole('button', { name: /move to travel/i }));
 
     expect(onMoveWord).toHaveBeenCalledWith(7, 'list-b', '朋友');
+  });
+});
+
+describe('WordCard — the leech flag', () => {
+  const props = {
+    charSet: 'simp' as const,
+    lists: defaultLists,
+    onDeleteWord: vi.fn(),
+    onPostMeaningUpdate: vi.fn(),
+    onMoveWord: vi.fn(),
+  };
+
+  /** A word whose named directions have collected enough failures to be leeches. */
+  function withLeeches(...directions: string[]): Word {
+    const state = makeDirections(2, '2026/03/05');
+    for (const direction of directions) {
+      state[direction as keyof typeof state].lapses = LEECH_THRESHOLD;
+    }
+    return makeWord({ directions: state });
+  }
+
+  it('says nothing about a word whose directions are all below the threshold', () => {
+    render(
+      <WordCard word={makeWord({ directions: makeDirections(2, '2026/03/05') })} {...props} />,
+    );
+
+    expect(screen.queryByText(/hard to recall/i)).not.toBeInTheDocument();
+  });
+
+  it('names the direction the learner keeps failing to recall', () => {
+    render(<WordCard word={withLeeches('CM')} {...props} />);
+
+    expect(screen.getByText('Hard to recall: Meaning → Character')).toBeInTheDocument();
+  });
+
+  it('names every direction that has reached the threshold', () => {
+    render(<WordCard word={withLeeches('MC', 'PC')} {...props} />);
+
+    expect(
+      screen.getByText('Hard to recall: Character → Meaning, Character → Pinyin'),
+    ).toBeInTheDocument();
   });
 });

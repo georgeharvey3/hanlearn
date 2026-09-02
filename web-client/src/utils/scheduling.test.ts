@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { DirectionResult } from '../types/models';
 import {
+  LEECH_THRESHOLD,
   MAX_DIFFICULTY,
   MAX_INTERVAL_DAYS,
+  MAX_POST_LAPSE_INTERVAL_DAYS,
   MIN_DIFFICULTY,
   MIN_EASE,
   MAX_EASE,
@@ -13,6 +15,8 @@ import {
   dueDateFrom,
   elapsedDays,
   fuzzInterval,
+  isLeech,
+  nextLapses,
   nextMemory,
   seedInterval,
   type Memory,
@@ -115,6 +119,94 @@ describe('nextMemory — a failure', () => {
 
   it('raises the difficulty', () => {
     expect(onTime(learned, 'fail').difficulty).toBeGreaterThan(learned.difficulty);
+  });
+});
+
+describe('nextMemory — the demotion of a failed retrieval', () => {
+  // The whole range of memories a direction can hold when it loses one, from
+  // the first day it was learned to a year of stability.
+  const memories: Memory[] = [
+    { stability: 0.5, difficulty: 9, interval: 1 },
+    { stability: 3, difficulty: 5, interval: 3 },
+    { stability: 30, difficulty: 5, interval: 30 },
+    { stability: 400, difficulty: 2, interval: 365 },
+  ];
+  // On time, a year late, and answered the day it was scheduled.
+  const delays = [0, 1, 30, 365];
+
+  it('never leaves a direction more stable than it was', () => {
+    for (const memory of memories) {
+      for (const elapsed of delays) {
+        for (const grade of ['lapse', 'fail'] as const) {
+          expect(nextMemory(memory, grade, elapsed, now).stability).toBeLessThanOrEqual(
+            memory.stability,
+          );
+        }
+      }
+    }
+  });
+
+  it('keeps some of the stability the direction had, rather than resetting it', () => {
+    for (const memory of memories) {
+      expect(onTime(memory, 'lapse').stability).toBeGreaterThan(0);
+    }
+  });
+
+  it('gives a direction that has never been passed its first stability', () => {
+    // There is nothing to demote here: the failed attempt is the learner
+    // meeting the word, so FSRS seeds the memory rather than cutting it.
+    expect(onTime(fresh, 'lapse').stability).toBeGreaterThan(0);
+    expect(onTime(fresh, 'fail').stability).toBeGreaterThan(0);
+  });
+
+  it('asks a lapsed direction again within three days, from any interval', () => {
+    for (const memory of memories) {
+      for (const elapsed of delays) {
+        const interval = nextMemory(memory, 'lapse', elapsed, now).interval;
+        expect(interval).toBeGreaterThanOrEqual(1);
+        expect(interval).toBeLessThanOrEqual(MAX_POST_LAPSE_INTERVAL_DAYS);
+      }
+    }
+  });
+
+  it('caps the interval of a direction that FSRS would give more than three days', () => {
+    // A very stable direction lapses to four or five days on the FSRS curve.
+    const veryStable: Memory = { stability: 400, difficulty: 2, interval: 365 };
+    expect(onTime(veryStable, 'lapse').interval).toBe(MAX_POST_LAPSE_INTERVAL_DAYS);
+  });
+
+  it('does not cap a pass', () => {
+    expect(onTime(learned, 'pass').interval).toBeGreaterThan(MAX_POST_LAPSE_INTERVAL_DAYS);
+  });
+});
+
+describe('nextLapses', () => {
+  it('counts a lapse and a failure on a direction that was learned', () => {
+    expect(nextLapses(0, learned, 'lapse')).toBe(1);
+    expect(nextLapses(3, learned, 'fail')).toBe(4);
+  });
+
+  it('does not count a pass', () => {
+    expect(nextLapses(3, learned, 'pass')).toBe(3);
+  });
+
+  it('does not count a failure on a direction that was never learned', () => {
+    // The learner has not forgotten a word they have never recalled.
+    expect(nextLapses(0, fresh, 'fail')).toBe(0);
+    expect(nextLapses(0, fresh, 'lapse')).toBe(0);
+  });
+});
+
+describe('isLeech', () => {
+  it('is false for a direction that has never lost a retrieval', () => {
+    expect(isLeech(undefined)).toBe(false);
+    expect(isLeech(0)).toBe(false);
+  });
+
+  it('is false below the threshold and true at it', () => {
+    expect(isLeech(LEECH_THRESHOLD - 1)).toBe(false);
+    expect(isLeech(LEECH_THRESHOLD)).toBe(true);
+    expect(isLeech(LEECH_THRESHOLD + 5)).toBe(true);
   });
 });
 
