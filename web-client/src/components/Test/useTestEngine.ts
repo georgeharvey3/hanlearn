@@ -35,6 +35,20 @@ const answerQuizType = (state: TestState): QuizType | null => {
 };
 
 /**
+ * The characters to offer a component breakdown for once a question is graded.
+ *
+ * Only a question that puts the character on screen has components worth
+ * showing, so `MP` and `PM` — pinyin and meaning alone — get none. A `pass`
+ * gets none either: the breakdown is the aid for a direction the learner has
+ * just lost, which is what issue #335 asks for.
+ */
+const componentsToReview = (state: TestState, result: DirectionResult): string[] => {
+  if (result === 'pass') return [];
+  if (state.answerCategory !== 'character' && state.questionCategory !== 'character') return [];
+  return Array.from(state.chosenCharacter ?? '');
+};
+
+/**
  * Clear the HanziWriter mount point.
  *
  * The three call sites used to swallow the error here, which hid a broken
@@ -68,6 +82,34 @@ export const useTestEngine = (props: Props) => {
   }, []);
 
   const getState = useCallback(() => stateRef.current, []);
+
+  // The step that moves the session on from a graded question, while the
+  // component review holds it. It is a ref rather than state because Continue
+  // must run exactly the step the grade decided, not one rebuilt from state.
+  const pendingAdvanceRef = useRef<(() => void) | null>(null);
+
+  /**
+   * Run the step that ends a question, or hold it for the component review.
+   *
+   * `chars` empty is the ordinary path: the step runs after `delay`, or at once
+   * when the delay is 0. A missed character question hands its characters here
+   * instead, and the step then waits for Continue. See issue #335.
+   */
+  const holdOrAdvance = useCallback(
+    (chars: string[], advance: () => void, delay: number): void => {
+      if (chars.length === 0) {
+        if (delay > 0) {
+          setTimeout(advance, delay);
+        } else {
+          advance();
+        }
+        return;
+      }
+      pendingAdvanceRef.current = advance;
+      setStateMerged({ componentReviewChars: chars, showComponents: false });
+    },
+    [setStateMerged],
+  );
 
   const setInteraction = useCallback((): void => {
     setStateMerged({ interaction: true });
@@ -397,32 +439,46 @@ export const useTestEngine = (props: Props) => {
       if (pairIndex !== -1) {
         setStateMerged({ queue: remainingQueue });
       }
+      // A question the learner missed offers its components before the session
+      // moves on, so the reveal waits for Continue rather than a timer.
+      const review = componentsToReview(current, result);
+
       if (remainingQueue.length !== 0) {
         const newQuestion = testLogic.assignQA(current.testSet, remainingQueue, current.charSet);
-        setTimeout(() => {
-          setStateMerged((prevState) => ({
-            currentPair: newQuestion.pair,
-            answer: newQuestion.answer,
-            answerCategory: newQuestion.answerCategory,
-            question: newQuestion.question,
-            questionCategory: newQuestion.questionCategory,
-            chosenCharacter: newQuestion.chosenCharacter,
-            result: '',
-            answerInput: '',
-            qNum: prevState.qNum + 1,
-            idkDisabled: false,
-            submitDisabled: false,
-            showAnswer: false,
-            gradeCap: 'pass',
-            toneErrorCount: 0,
-          }));
-        }, 1000);
+        holdOrAdvance(
+          review,
+          () => {
+            setStateMerged((prevState) => ({
+              currentPair: newQuestion.pair,
+              answer: newQuestion.answer,
+              answerCategory: newQuestion.answerCategory,
+              question: newQuestion.question,
+              questionCategory: newQuestion.questionCategory,
+              chosenCharacter: newQuestion.chosenCharacter,
+              result: '',
+              answerInput: '',
+              qNum: prevState.qNum + 1,
+              idkDisabled: false,
+              submitDisabled: false,
+              showAnswer: false,
+              gradeCap: 'pass',
+              toneErrorCount: 0,
+            }));
+          },
+          1000,
+        );
       } else {
-        onFinishTest(recorded);
-        setStateMerged({ result: 'Finished!' });
+        holdOrAdvance(
+          review,
+          () => {
+            onFinishTest(recorded);
+            setStateMerged({ result: 'Finished!' });
+          },
+          0,
+        );
       }
     },
-    [getState, setStateMerged, onFinishTest],
+    [getState, holdOrAdvance, setStateMerged, onFinishTest],
   );
 
   /** The flashcard grade for a question the learner nearly knew. */
@@ -649,34 +705,50 @@ export const useTestEngine = (props: Props) => {
           const remainingQueue = latest.queue.filter((pair) => pair !== latest.currentPair);
           setStateMerged({ queue: remainingQueue });
 
+          // The reveal is a fail of a character the learner was writing, so the
+          // components are offered before the next question.
+          const review = componentsToReview(latest, 'fail');
+
           if (remainingQueue.length === 0) {
-            onFinishTest(grade);
-            setStateMerged({ result: 'Finished!' });
+            holdOrAdvance(
+              review,
+              () => {
+                onFinishTest(grade);
+                setStateMerged({ result: 'Finished!' });
+              },
+              0,
+            );
             return;
           }
 
           const newQuestion = testLogic.assignQA(latest.testSet, remainingQueue, latest.charSet);
 
-          setStateMerged((prevState) => ({
-            currentPair: newQuestion.pair,
-            answer: newQuestion.answer,
-            answerCategory: newQuestion.answerCategory,
-            question: newQuestion.question,
-            questionCategory: newQuestion.questionCategory,
-            chosenCharacter: newQuestion.chosenCharacter,
-            idkDisabled: false,
-            result: '',
-            answerInput: '',
-            // The question just left the queue, so it cannot be the next one.
-            redoChar: false,
-            qNum: prevState.qNum + 1,
-            gradeCap: 'pass',
-            toneErrorCount: 0,
-          }));
+          holdOrAdvance(
+            review,
+            () => {
+              setStateMerged((prevState) => ({
+                currentPair: newQuestion.pair,
+                answer: newQuestion.answer,
+                answerCategory: newQuestion.answerCategory,
+                question: newQuestion.question,
+                questionCategory: newQuestion.questionCategory,
+                chosenCharacter: newQuestion.chosenCharacter,
+                idkDisabled: false,
+                result: '',
+                answerInput: '',
+                // The question just left the queue, so it cannot be the next one.
+                redoChar: false,
+                qNum: prevState.qNum + 1,
+                gradeCap: 'pass',
+                toneErrorCount: 0,
+              }));
+            },
+            0,
+          );
         }
       });
     },
-    [getState, onFinishTest, setStateMerged],
+    [getState, holdOrAdvance, onFinishTest, setStateMerged],
   );
 
   const onIdkChar = useCallback(
@@ -726,38 +798,50 @@ export const useTestEngine = (props: Props) => {
     const remainingQueue = current.queue.filter((pair) => pair !== current.currentPair);
     setStateMerged({ queue: remainingQueue });
 
+    // The question was revealed, so it is a fail: a character question offers
+    // its components and waits for Continue instead of the timer below.
+    const review = componentsToReview(current, 'fail');
+
     if (remainingQueue.length === 0) {
       // Let the reveal stand for a moment before the summary replaces it.
-      setTimeout(() => {
-        onFinishTest(grade);
-        setStateMerged({ result: 'Finished!' });
-      }, 2000);
+      holdOrAdvance(
+        review,
+        () => {
+          onFinishTest(grade);
+          setStateMerged({ result: 'Finished!' });
+        },
+        2000,
+      );
       return;
     }
 
     const newQuestion = testLogic.assignQA(current.testSet, remainingQueue, current.charSet);
 
-    setTimeout(() => {
-      setStateMerged((prevState) => ({
-        currentPair: newQuestion.pair,
-        answer: newQuestion.answer,
-        answerCategory: newQuestion.answerCategory,
-        question: newQuestion.question,
-        questionCategory: newQuestion.questionCategory,
-        chosenCharacter: newQuestion.chosenCharacter,
-        idkDisabled: false,
-        result: '',
-        answerInput: '',
-        qNum: prevState.qNum + 1,
-        submitDisabled: false,
-        showHint: false,
-        hintLoading: false,
-        showAnswer: false,
-        gradeCap: 'pass',
-        toneErrorCount: 0,
-      }));
-    }, 2000);
-  }, [getState, onFinishTest, onIdkChar, setStateMerged]);
+    holdOrAdvance(
+      review,
+      () => {
+        setStateMerged((prevState) => ({
+          currentPair: newQuestion.pair,
+          answer: newQuestion.answer,
+          answerCategory: newQuestion.answerCategory,
+          question: newQuestion.question,
+          questionCategory: newQuestion.questionCategory,
+          chosenCharacter: newQuestion.chosenCharacter,
+          idkDisabled: false,
+          result: '',
+          answerInput: '',
+          qNum: prevState.qNum + 1,
+          submitDisabled: false,
+          showHint: false,
+          hintLoading: false,
+          showAnswer: false,
+          gradeCap: 'pass',
+          toneErrorCount: 0,
+        }));
+      },
+      2000,
+    );
+  }, [getState, holdOrAdvance, onFinishTest, onIdkChar, setStateMerged]);
 
   // --- Key press (input submit) ---
 
@@ -850,6 +934,19 @@ export const useTestEngine = (props: Props) => {
     const answer = Array.isArray(current.answer) ? current.answer.join(' / ') : current.answer;
     setStateMerged({ result: `Answer was: '${answer}'`, showAnswer: true });
   }, [getState, setStateMerged]);
+
+  /** Expand or collapse the component breakdown offered after a miss. */
+  const onToggleComponents = useCallback((): void => {
+    setStateMerged((prevState) => ({ showComponents: !prevState.showComponents }));
+  }, [setStateMerged]);
+
+  /** Leave the component review and run the step the grade held back. */
+  const onContinue = useCallback((): void => {
+    const advance = pendingAdvanceRef.current;
+    pendingAdvanceRef.current = null;
+    setStateMerged({ componentReviewChars: [], showComponents: false });
+    advance?.();
+  }, [setStateMerged]);
 
   const onToggleShowPinyin = useCallback((): void => {
     const current = getState();
@@ -954,6 +1051,17 @@ export const useTestEngine = (props: Props) => {
     (event: KeyboardEvent): void => {
       const current = getState();
       const sourceElement = (event.target as HTMLElement).tagName.toLowerCase();
+
+      // The component review holds a question that is already graded, so the
+      // shortcuts of a live question do nothing: Enter or space continues.
+      if (current.componentReviewChars.length > 0) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onContinue();
+        }
+        return;
+      }
+
       const currentQuizType = answerQuizType(current);
       const micAvailable =
         props.speechAvailable &&
@@ -1076,6 +1184,7 @@ export const useTestEngine = (props: Props) => {
     },
     [
       getState,
+      onContinue,
       onCorrectAnswer,
       onHint,
       onHomeClicked,
@@ -1181,6 +1290,8 @@ export const useTestEngine = (props: Props) => {
     onHint,
     onShowAnswer,
     onToggleShowPinyin,
+    onToggleComponents,
+    onContinue,
     showCharacter,
     refreshSettings,
   };

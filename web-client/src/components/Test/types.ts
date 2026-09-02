@@ -86,6 +86,14 @@ export interface TestState {
   hintLoading: boolean;
   showAnswer: boolean;
   /**
+   * The characters whose components the session is offering after a missed
+   * question, or [] when it is not offering any. A non-empty list holds the
+   * session on the reveal: the next question waits for Continue.
+   */
+  componentReviewChars: string[];
+  /** Whether the component breakdown of those characters is expanded. */
+  showComponents: boolean;
+  /**
    * The grade button the learner pressed on the current flashcard question, or
    * null while the question is ungraded. It styles the three buttons, so it is
    * set however the grade was given, by mouse or by keyboard.

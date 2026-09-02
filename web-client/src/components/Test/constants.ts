@@ -92,6 +92,8 @@ export const createInitialState = (props: Props): TestState => {
     showQuestionPinyin: false,
     hintLoading: false,
     showAnswer: false,
+    componentReviewChars: [],
+    showComponents: false,
     gradeClicked: null,
     pauseAutoRecord: false,
     synthLoading: false,

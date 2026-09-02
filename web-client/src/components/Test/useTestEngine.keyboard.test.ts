@@ -58,6 +58,8 @@ vi.mock('./constants', () => ({
     showQuestionPinyin: false,
     hintLoading: false,
     showAnswer: false,
+    componentReviewChars: [],
+    showComponents: false,
     gradeClicked: null,
     pauseAutoRecord: false,
     synthLoading: false,
