@@ -1,19 +1,19 @@
 import { test, expect } from '@playwright/test';
 import { clearEmulatorData, seedTestUser, loginViaUI } from './fixtures/seed';
 
-test.describe('Sentence stages for all words setting', () => {
+test.describe('Translate sentences for all words setting', () => {
   test.beforeEach(async ({ page }) => {
     await clearEmulatorData();
     await seedTestUser();
   });
 
-  test('Settings page shows the "Sentence stages for all words" checkbox unchecked by default', async ({
+  test('Settings page shows the "Translate sentences for all words" checkbox unchecked by default', async ({
     page,
   }) => {
     await loginViaUI(page);
     await page.goto('/settings');
 
-    const checkbox = page.getByRole('checkbox', { name: /sentence stages for all words/i });
+    const checkbox = page.getByRole('checkbox', { name: /translate sentences for all words/i });
     await expect(checkbox).toBeVisible();
     await expect(checkbox).not.toBeChecked();
   });
@@ -22,7 +22,7 @@ test.describe('Sentence stages for all words setting', () => {
     await loginViaUI(page);
     await page.goto('/settings');
 
-    const checkbox = page.getByRole('checkbox', { name: /sentence stages for all words/i });
+    const checkbox = page.getByRole('checkbox', { name: /translate sentences for all words/i });
     await checkbox.click();
     await expect(checkbox).toBeChecked();
 
@@ -38,7 +38,7 @@ test.describe('Sentence stages for all words setting', () => {
     await page.goto('/settings');
 
     // Enable the setting
-    const checkbox = page.getByRole('checkbox', { name: /sentence stages for all words/i });
+    const checkbox = page.getByRole('checkbox', { name: /translate sentences for all words/i });
     await checkbox.click();
     await expect(checkbox).toBeChecked();
 
@@ -47,22 +47,22 @@ test.describe('Sentence stages for all words setting', () => {
 
     // Verify the checkbox is still checked
     const checkboxAfterReload = page.getByRole('checkbox', {
-      name: /sentence stages for all words/i,
+      name: /translate sentences for all words/i,
     });
     await expect(checkboxAfterReload).toBeChecked();
   });
 
-  test('checkbox is disabled when both sentence stages are turned off', async ({ page }) => {
-    // Set both sentence stages to false via localStorage before navigating
+  // The setting widens the Read stage only, so Make Sentences does not enable it.
+  test('checkbox is disabled when the Read stage is turned off', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('sentenceRead', 'false');
-      localStorage.setItem('sentenceWrite', 'false');
+      localStorage.setItem('sentenceWrite', 'true');
     });
 
     await loginViaUI(page);
     await page.goto('/settings');
 
-    const checkbox = page.getByRole('checkbox', { name: /sentence stages for all words/i });
+    const checkbox = page.getByRole('checkbox', { name: /translate sentences for all words/i });
     await expect(checkbox).toBeDisabled();
   });
 
@@ -79,7 +79,7 @@ test.describe('Sentence stages for all words setting', () => {
     const initialText = await estimateEl.textContent();
 
     // Toggle the setting on
-    const checkbox = page.getByRole('checkbox', { name: /sentence stages for all words/i });
+    const checkbox = page.getByRole('checkbox', { name: /translate sentences for all words/i });
     await checkbox.click();
 
     // The estimated time should change

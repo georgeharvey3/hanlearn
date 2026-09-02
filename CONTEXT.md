@@ -156,6 +156,38 @@ A new word holds no place of its own in the queue. Its due date ranks it against
 every other word, it has no cap, and a word with no due date is not due. See
 [docs/adr/0006-the-due-date-is-the-only-rank.md](docs/adr/0006-the-due-date-is-the-only-rank.md).
 
+## Sentence stages
+
+The **Read stage** and the **Write stage** are the two halves of the "Sentences"
+step. Read shows a sentence containing the word and asks the learner to
+translate it. Write gives an English prompt and asks the learner to produce the
+Chinese sentence.
+
+The two stages take **separate word lists**, because input and output suit
+opposite ends of learning a word:
+
+| Stage | Runs for                                                      |
+| ----- | ------------------------------------------------------------- |
+| Read  | a **new word**                                                |
+| Write | a word whose `MC`, `MP`, `PC` and `PM` are all at **bank 3+** |
+
+A `fail` on any direction of a word in the session blocks both stages for that
+word: the stages are a reward for a clean run.
+
+A word that meets the Write gate is **ready for the Write stage**, and
+`readyForWriteStage` is the predicate. Writing a sentence with a word the
+learner has only just met impedes the encoding of the word form, so the Write
+stage waits for partial mastery rather than firing on novelty. `CM` is left out
+of the gate because handwriting is itself production. The Write task carries no
+time limit, because the negative effect of early output is worst under time
+pressure. See
+[docs/adr/0011-gate-the-write-stage-on-partial-mastery.md](docs/adr/0011-gate-the-write-stage-on-partial-mastery.md).
+
+The **"Translate sentences for all words"** setting widens the Read stage to
+every word of the session. It does not touch the Write gate, and neither does
+practice mode. The setting is stored as `sentenceStagesForAllWords`, which is
+the name it had when it widened both.
+
 ## Practice
 
 **Practice mode** is the unscored run that ignores due dates. This is the only

@@ -81,6 +81,22 @@ function dueWord(id: number, simp: string, level = 1): import('../../types/model
   };
 }
 
+/**
+ * Call the startSentenceStages prop the mocked Test component captured, which
+ * is how the engine hands the container the words of each sentence stage.
+ */
+function startStages(words: {
+  read: import('../../types/models').Word[];
+  write: import('../../types/models').Word[];
+}): void {
+  (
+    capturedTestProps.startSentenceStages as (w: {
+      read: import('../../types/models').Word[];
+      write: import('../../types/models').Word[];
+    }) => void
+  )(words);
+}
+
 /** A word not yet due */
 function futureWord(id: number, simp: string, level = 2): import('../../types/models').Word {
   return {
@@ -425,10 +441,10 @@ describe('TestWords — stage transitions', () => {
   /**
    * These tests use the capturedTestProps ref populated by the mocked Test component.
    * The mocked Test component stores every prop it receives into capturedTestProps on render,
-   * so we can call startSentenceRead / onVocabComplete from the test body.
+   * so we can call startSentenceStages / onVocabComplete from the test body.
    */
 
-  it('transitions to read stage when startSentenceRead is called from Test component', async () => {
+  it('transitions to read stage when startSentenceStages is called from Test component', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -445,21 +461,18 @@ describe('TestWords — stage transitions', () => {
     // Wait for Test to render and capturedTestProps to be populated
     await waitFor(() => {
       expect(screen.getByTestId('mock-test')).toBeInTheDocument();
-      expect(typeof capturedTestProps.startSentenceRead).toBe('function');
+      expect(typeof capturedTestProps.startSentenceStages).toBe('function');
     });
 
-    // Simulate Test calling startSentenceRead with sentence words
-    const sentenceWords = [dueWord(2, '学生', 2)];
-    (capturedTestProps.startSentenceRead as (words: import('../../types/models').Word[]) => void)(
-      sentenceWords,
-    );
+    // Simulate Test calling startSentenceStages with the words of each stage
+    startStages({ read: [dueWord(2, '学生', 2)], write: [] });
 
     await waitFor(() => {
       expect(screen.getByTestId('mock-sentence-read')).toBeInTheDocument();
     });
   });
 
-  it('transitions to write stage when sentenceReadEnabled=false and startSentenceRead is called', async () => {
+  it('transitions to write stage when sentenceReadEnabled=false and there are write words', async () => {
     // Disable sentenceRead via localStorage
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
       if (key === 'sentenceRead') return 'false';
@@ -481,13 +494,11 @@ describe('TestWords — stage transitions', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('mock-test')).toBeInTheDocument();
-      expect(typeof capturedTestProps.startSentenceRead).toBe('function');
+      expect(typeof capturedTestProps.startSentenceStages).toBe('function');
     });
 
-    const sentenceWords = [dueWord(2, '学生', 2)];
-    (capturedTestProps.startSentenceRead as (words: import('../../types/models').Word[]) => void)(
-      sentenceWords,
-    );
+    // The Read stage is off, so its words are dropped and Write runs first.
+    startStages({ read: [dueWord(2, '学生', 2)], write: [dueWord(3, '老师', 3)] });
 
     await waitFor(() => {
       expect(screen.getByTestId('mock-sentence-write')).toBeInTheDocument();
@@ -546,7 +557,7 @@ describe('TestWords — stage transitions', () => {
     });
   });
 
-  it('skips to summary when sentenceWriteEnabled=false and startSentenceWrite is invoked', async () => {
+  it('renders the Read stage with the Write stage off', async () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
       if (key === 'sentenceWrite') return 'false';
       return null;
@@ -568,14 +579,11 @@ describe('TestWords — stage transitions', () => {
     // Wait for Test component to render
     await waitFor(() => {
       expect(screen.getByTestId('mock-test')).toBeInTheDocument();
-      expect(typeof capturedTestProps.startSentenceRead).toBe('function');
+      expect(typeof capturedTestProps.startSentenceStages).toBe('function');
     });
 
     // Transition to SentenceRead first
-    const sentenceWords = [dueWord(2, '学生', 2)];
-    (capturedTestProps.startSentenceRead as (words: import('../../types/models').Word[]) => void)(
-      sentenceWords,
-    );
+    startStages({ read: [dueWord(2, '学生', 2)], write: [dueWord(3, '老师', 3)] });
 
     await waitFor(() => {
       expect(screen.getByTestId('mock-sentence-read')).toBeInTheDocument();

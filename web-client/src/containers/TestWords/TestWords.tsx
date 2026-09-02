@@ -16,6 +16,7 @@ import ErrorBoundary from '../../components/ErrorBoundary/ErrorBoundary';
 import * as testLogic from '../../components/Test/Logic/TestLogic';
 import { RootState } from '../../types/store';
 import { Word, WordScore } from '../../types/models';
+import { SentenceStageWords } from '../../components/Test/types';
 import { getDevTestConfig, DevTestConfig } from '../../utils/devTestMode';
 import { makeDirections } from '../../utils/directions';
 
@@ -27,7 +28,10 @@ const devConfig: DevTestConfig | null = getDevTestConfig();
 type Stage = 'new' | 'vocab' | 'read' | 'write' | 'summary';
 
 interface TestWordsState {
-  sentenceWords: Word[];
+  /** The words the Read stage runs for: the ones the learner has just met. */
+  sentenceReadWords: Word[];
+  /** The words the Write stage runs for: the ones the learner already half knows. */
+  sentenceWriteWords: Word[];
   stage: Stage;
   newWords: Word[];
   selectedWords: Word[];
@@ -93,7 +97,8 @@ const TestWords: React.FC<Props> = ({
   };
 
   const [state, setState] = useState<TestWordsState>({
-    sentenceWords: [],
+    sentenceReadWords: [],
+    sentenceWriteWords: [],
     stage: getInitialStage(),
     newWords: [],
     plan: null,
@@ -224,7 +229,8 @@ const TestWords: React.FC<Props> = ({
           selectedWords,
           newWords: plan.newWords,
           plan,
-          sentenceWords: selectedWords,
+          sentenceReadWords: selectedWords,
+          sentenceWriteWords: selectedWords,
           wordsInitialized: true,
         }));
       } else {
@@ -275,32 +281,35 @@ const TestWords: React.FC<Props> = ({
     setState((prev) => ({ ...prev, stage: 'vocab' }));
   };
 
-  const onStartSentenceRead = (sentenceWords: Word[], scores?: WordScore[]): void => {
-    if (state.sentenceReadEnabled) {
-      setState((prev) => ({
-        ...prev,
-        sentenceWords,
-        wordScores: scores ?? prev.wordScores,
-        stage: 'read',
-      }));
-    } else {
-      setState((prev) => ({
-        ...prev,
-        sentenceWords,
-        wordScores: scores ?? prev.wordScores,
-        stage: 'write',
-      }));
-    }
+  /**
+   * Route the session into whichever sentence stage has words for it.
+   *
+   * The engine gates the two lists, and the two stage settings are applied
+   * here: a stage the learner turned off takes no words, and a stage with no
+   * words is skipped. A session can therefore run Read alone, Write alone,
+   * both, or neither.
+   */
+  const onStartSentenceStages = (words: SentenceStageWords, scores?: WordScore[]): void => {
+    const readWords = state.sentenceReadEnabled ? words.read : [];
+    const writeWords = state.sentenceWriteEnabled ? words.write : [];
+
+    setState((prev) => ({
+      ...prev,
+      sentenceReadWords: readWords,
+      sentenceWriteWords: writeWords,
+      wordScores: scores ?? prev.wordScores,
+      stage: readWords.length > 0 ? 'read' : writeWords.length > 0 ? 'write' : 'summary',
+    }));
   };
 
   const onStartSentenceWrite = (
     seenOffsets: Record<string, { offset: number; text: string; english: string }>,
   ): void => {
-    if (state.sentenceWriteEnabled) {
-      setState((prev) => ({ ...prev, stage: 'write', seenOffsets }));
-    } else {
-      setState((prev) => ({ ...prev, stage: 'summary' }));
-    }
+    setState((prev) => ({
+      ...prev,
+      seenOffsets,
+      stage: prev.sentenceWriteWords.length > 0 ? 'write' : 'summary',
+    }));
   };
 
   const onVocabComplete = (scores: WordScore[]): void => {
@@ -342,9 +351,7 @@ const TestWords: React.FC<Props> = ({
               isDemo={isDemo || !!devConfig}
               words={state.selectedWords}
               plan={state.plan ?? undefined}
-              startSentenceRead={(sentenceWords: Word[], scores?: WordScore[]) =>
-                onStartSentenceRead(sentenceWords, scores)
-              }
+              startSentenceStages={onStartSentenceStages}
               onVocabComplete={onVocabComplete}
               finalStage={!state.sentenceReadEnabled && !state.sentenceWriteEnabled}
               devTestFinished={state.devTestFinished}
@@ -359,9 +366,9 @@ const TestWords: React.FC<Props> = ({
         content = (
           <ErrorBoundary>
             <SentenceRead
-              words={state.sentenceWords}
+              words={state.sentenceReadWords}
               startSentenceWrite={onStartSentenceWrite}
-              sentenceWriteEnabled={state.sentenceWriteEnabled}
+              sentenceWriteEnabled={state.sentenceWriteWords.length > 0}
               isDemo={isDemo}
             />
           </ErrorBoundary>
@@ -371,7 +378,7 @@ const TestWords: React.FC<Props> = ({
         content = (
           <ErrorBoundary>
             <SentenceWrite
-              words={state.sentenceWords}
+              words={state.sentenceWriteWords}
               seenOffsets={state.seenOffsets}
               onComplete={onSentenceWriteComplete}
               isDemo={isDemo}
@@ -391,9 +398,7 @@ const TestWords: React.FC<Props> = ({
           <Test
             words={state.selectedWords}
             plan={state.plan ?? undefined}
-            startSentenceRead={(sentenceWords: Word[], scores?: WordScore[]) =>
-              onStartSentenceRead(sentenceWords, scores)
-            }
+            startSentenceStages={onStartSentenceStages}
             onVocabComplete={onVocabComplete}
             finalStage={!state.sentenceReadEnabled && !state.sentenceWriteEnabled}
             practiceMode={state.practiceMode}

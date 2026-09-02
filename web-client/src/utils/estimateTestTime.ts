@@ -1,5 +1,6 @@
 import { Direction } from '../types/models';
 import { SessionPlan, directionOf } from '../components/Test/Logic/TestLogic';
+import { readyForWriteStage } from './directions';
 
 /** How long one question takes, by the direction it asks. */
 export const DIRECTION_SECONDS: Record<Direction, number> = {
@@ -16,6 +17,16 @@ const SENTENCE_SECONDS_PER_WORD = 30;
 /** The share of a session's words that a session with no word list assumes are new. */
 const ASSUMED_NEW_WORD_SHARE = 0.2;
 
+/**
+ * The share of a session's words that a session with no word list assumes have
+ * reached the Write stage gate.
+ *
+ * A real plan counts them. This share is a guess, and it sits at the same value
+ * as the new word share because a collection in steady state retires about as
+ * many words into partial mastery as it takes in.
+ */
+const ASSUMED_WRITE_WORD_SHARE = 0.2;
+
 export interface StageSettings {
   newWordsEnabled: boolean;
   sentenceReadEnabled: boolean;
@@ -28,20 +39,25 @@ export interface TestTimeEstimateParams extends StageSettings {
   directions: Direction[];
   /** How many of those words the Learn step teaches first. */
   newWordCount: number;
+  /** How many of those words have reached the Write stage gate. */
+  writeWordCount: number;
 }
 
 /**
  * How long a session takes, in seconds.
  *
  * The queue asks one direction of one word, so the question count and the word
- * count are the same number. The sentence stages run for a word that the
- * learner answered cleanly, and only for a new word unless the learner turned
- * them on for all words.
+ * count are the same number. Both sentence stages run for a word the learner
+ * answered cleanly, and each takes its own words: Read takes the new words,
+ * unless the learner turned it on for all words, and Write takes the words that
+ * have reached its gate. See
+ * docs/adr/0011-gate-the-write-stage-on-partial-mastery.md.
  */
 export function estimateTestTime(params: TestTimeEstimateParams): number {
   const {
     directions,
     newWordCount,
+    writeWordCount,
     newWordsEnabled,
     sentenceReadEnabled,
     sentenceWriteEnabled,
@@ -57,13 +73,16 @@ export function estimateTestTime(params: TestTimeEstimateParams): number {
     totalSeconds += newWordCount * NEW_WORD_SECONDS;
   }
 
-  const sentenceWordCount = sentenceStagesForAllWords ? directions.length : newWordCount;
+  // "Sentence stages for all words" widens the Read stage only. The Write stage
+  // keeps its gate whatever the setting says, because the reason for the gate
+  // is that early output impedes learning, not that the stage is slow.
+  const readWordCount = sentenceStagesForAllWords ? directions.length : newWordCount;
 
   if (sentenceReadEnabled) {
-    totalSeconds += sentenceWordCount * SENTENCE_SECONDS_PER_WORD;
+    totalSeconds += readWordCount * SENTENCE_SECONDS_PER_WORD;
   }
   if (sentenceWriteEnabled) {
-    totalSeconds += sentenceWordCount * SENTENCE_SECONDS_PER_WORD;
+    totalSeconds += writeWordCount * SENTENCE_SECONDS_PER_WORD;
   }
 
   return totalSeconds;
@@ -80,6 +99,7 @@ export function estimatePlannedTime(plan: SessionPlan, stages: StageSettings): n
     ...stages,
     directions: plan.queue.map(directionOf),
     newWordCount: plan.newWords.length,
+    writeWordCount: plan.words.filter(readyForWriteStage).length,
   });
 }
 
@@ -100,11 +120,19 @@ export function spreadOverDirections(budget: number, directions: Direction[]): D
  * How many words of a session with no word list to treat as new.
  *
  * A real plan counts them. This is the guess the Settings estimate uses in
- * place of that count, and it gates both the Learn step and the sentence
- * stages, which are the two parts that only new words reach.
+ * place of that count, and it gates both the Learn step and the Read stage,
+ * which are the two parts that only new words reach.
  */
 export function assumedNewWordCount(budget: number): number {
   return Math.max(1, Math.round(budget * ASSUMED_NEW_WORD_SHARE));
+}
+
+/**
+ * How many words of a session with no word list to treat as ready for the Write
+ * stage. The Settings estimate uses this in place of a count from a real plan.
+ */
+export function assumedWriteWordCount(budget: number): number {
+  return Math.max(1, Math.round(budget * ASSUMED_WRITE_WORD_SHARE));
 }
 
 export function formatTestTime(totalSeconds: number): string {
