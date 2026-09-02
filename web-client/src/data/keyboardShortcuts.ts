@@ -36,6 +36,11 @@ export const keyboardShortcuts: ShortcutGroup[] = [
       { keys: 'E', description: 'Toggle English display' },
       { keys: 'T', description: 'Toggle translation' },
       { keys: 'Enter', description: 'Submit answer' },
+      {
+        keys: 'Enter / Space',
+        description: 'Continue past the answer',
+        context: 'after a missed character',
+      },
     ],
   },
   {

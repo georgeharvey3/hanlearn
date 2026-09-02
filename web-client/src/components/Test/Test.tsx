@@ -9,6 +9,7 @@ import ProgressBar from './ProgressBar/ProgressBar';
 import QuestionDisplay from './QuestionDisplay';
 import AnswerInput, { getVerb } from './AnswerInput';
 import TestActions from './TestActions';
+import ComponentReview from './ComponentReview/ComponentReview';
 import AudioSettingsDrawer from './AudioSettingsDrawer/AudioSettingsDrawer';
 import { useTestEngine } from './useTestEngine';
 import { AudioSettings } from '../../utils/audioSettings';
@@ -61,6 +62,8 @@ const Test: React.FC<Props> = (props) => {
     onHint,
     onShowAnswer,
     onToggleShowPinyin,
+    onToggleComponents,
+    onContinue,
     showCharacter,
     refreshSettings,
   } = useTestEngine(props);
@@ -197,6 +200,12 @@ const Test: React.FC<Props> = (props) => {
           >
             {state.result}
           </Typography>
+          <ComponentReview
+            chars={state.componentReviewChars}
+            open={state.showComponents}
+            onToggle={onToggleComponents}
+            onContinue={onContinue}
+          />
           <Box
             sx={{
               minHeight: { xs: 0, sm: 160 },
