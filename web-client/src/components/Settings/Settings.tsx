@@ -14,6 +14,7 @@ import { RootState } from '../../types/store';
 import { colors } from '../../theme';
 import {
   assumedNewWordCount,
+  assumedWriteWordCount,
   estimateTestTime,
   formatTestTime,
   spreadOverDirections,
@@ -303,11 +304,14 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
       disabledTooltip: '',
     },
     {
+      // Widens the Read stage only. Make Sentences keeps its own gate, because
+      // writing with a word the learner has only just met impedes learning it.
+      // See docs/adr/0011-gate-the-write-stage-on-partial-mastery.md.
       value: 'sentenceStagesForAllWords',
-      label: 'Sentence stages for all words',
-      checked: state.sentenceStagesForAllWords && (state.sentenceRead || state.sentenceWrite),
-      disabled: !state.sentenceRead && !state.sentenceWrite,
-      disabledTooltip: 'Enable at least one sentence stage first',
+      label: 'Translate sentences for all words',
+      checked: state.sentenceStagesForAllWords && state.sentenceRead,
+      disabled: !state.sentenceRead,
+      disabledTooltip: 'Enable Translate Sentences first',
     },
   ];
 
@@ -326,6 +330,7 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
             }),
           ),
           newWordCount: assumedNewWordCount(state.questionsPerSession),
+          writeWordCount: assumedWriteWordCount(state.questionsPerSession),
           newWordsEnabled: state.newWords,
           sentenceReadEnabled: state.sentenceRead,
           sentenceWriteEnabled: state.sentenceWrite,

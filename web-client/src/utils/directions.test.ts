@@ -2,7 +2,15 @@
  * Tests for the per-direction scheduling helpers.
  */
 import { describe, it, expect } from 'vitest';
-import { makeDirections, fillDirections, isNewWord, leechDirections } from './directions';
+import {
+  makeDirections,
+  fillDirections,
+  isNewWord,
+  leechDirections,
+  readyForWriteStage,
+  RECALL_DIRECTIONS,
+  WRITE_STAGE_BANK,
+} from './directions';
 import { DIRECTIONS } from '../types/models';
 import { LEECH_THRESHOLD } from './scheduling';
 
@@ -77,6 +85,46 @@ describe('isNewWord', () => {
   it('falls back to the top-level level for a word with no directions', () => {
     expect(isNewWord(word(1))).toBe(true);
     expect(isNewWord(word(2))).toBe(false);
+  });
+});
+
+describe('readyForWriteStage', () => {
+  const word = (level: number, directions?: Record<string, { level: number; dueDate: string }>) =>
+    ({ level, directions }) as Parameters<typeof readyForWriteStage>[0];
+
+  const at = (level: number) => makeDirections(level, '2026/03/05');
+
+  it('is false for a new word', () => {
+    expect(readyForWriteStage(word(1, at(1)))).toBe(false);
+  });
+
+  it('is false one bank below the threshold', () => {
+    expect(readyForWriteStage(word(1, at(WRITE_STAGE_BANK - 1)))).toBe(false);
+  });
+
+  it('is true once every recall direction reaches the threshold', () => {
+    expect(readyForWriteStage(word(1, at(WRITE_STAGE_BANK)))).toBe(true);
+  });
+
+  it('is true above the threshold', () => {
+    expect(readyForWriteStage(word(1, at(5)))).toBe(true);
+  });
+
+  it('is false when one recall direction lags behind', () => {
+    for (const direction of RECALL_DIRECTIONS) {
+      const directions = { ...at(WRITE_STAGE_BANK), [direction]: { level: 2, dueDate: 'x' } };
+      expect(readyForWriteStage(word(1, directions))).toBe(false);
+    }
+  });
+
+  it('ignores the handwriting direction, which is itself production', () => {
+    const directions = { ...at(WRITE_STAGE_BANK), CM: { level: 1, dueDate: 'x' } };
+    expect(readyForWriteStage(word(1, directions))).toBe(true);
+  });
+
+  it('falls back to the top-level level for a word with no directions', () => {
+    expect(readyForWriteStage(word(WRITE_STAGE_BANK - 1))).toBe(false);
+    expect(readyForWriteStage(word(WRITE_STAGE_BANK))).toBe(true);
   });
 });
 

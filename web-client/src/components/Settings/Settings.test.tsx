@@ -298,8 +298,9 @@ describe('Settings — speech availability gating', () => {
 
   it('disables Translate Sentences stage when speechAvailable is false', () => {
     renderWithProviders(<Settings />, { store: makeStore(false, false) });
+    // Exact, because "Translate sentences for all words" also starts this way.
     const translateSentencesCheckbox = screen.getByRole('checkbox', {
-      name: /translate sentences/i,
+      name: 'Translate Sentences',
     });
     expect(translateSentencesCheckbox).toBeDisabled();
   });
@@ -374,10 +375,10 @@ describe('Settings — Only Priority checkbox', () => {
   });
 });
 
-describe('Settings — sentence stages for all words', () => {
-  it('renders the "Sentence stages for all words" checkbox unchecked by default', () => {
+describe('Settings — translate sentences for all words', () => {
+  it('renders the "Translate sentences for all words" checkbox unchecked by default', () => {
     renderWithProviders(<Settings />, { store: makeStore() });
-    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
     expect(checkbox).toBeInTheDocument();
     expect(checkbox).not.toBeChecked();
   });
@@ -385,7 +386,7 @@ describe('Settings — sentence stages for all words', () => {
   it('reads sentenceStagesForAllWords=true from localStorage', () => {
     localStorage.setItem('sentenceStagesForAllWords', 'true');
     renderWithProviders(<Settings />, { store: makeStore() });
-    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
     expect(checkbox).toBeChecked();
   });
 
@@ -393,16 +394,16 @@ describe('Settings — sentence stages for all words', () => {
     const user = userEvent.setup();
     renderWithProviders(<Settings />, { store: makeStore() });
 
-    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
     await user.click(checkbox);
     expect(localStorage.getItem('sentenceStagesForAllWords')).toBe('true');
   });
 
-  it('is disabled when both sentence stages are off', () => {
+  it('is disabled when the Read stage is off', () => {
     localStorage.setItem('sentenceRead', 'false');
     localStorage.setItem('sentenceWrite', 'false');
     renderWithProviders(<Settings />, { store: makeStore() });
-    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
     expect(checkbox).toBeDisabled();
   });
 
@@ -410,16 +411,18 @@ describe('Settings — sentence stages for all words', () => {
     localStorage.setItem('sentenceRead', 'true');
     localStorage.setItem('sentenceWrite', 'false');
     renderWithProviders(<Settings />, { store: makeStore(true, false) });
-    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
     expect(checkbox).not.toBeDisabled();
   });
 
-  it('is enabled when sentenceWrite is on', () => {
+  // The setting widens the Read stage only: the Write stage keeps its own gate,
+  // so turning it on with only Make Sentences enabled would change nothing.
+  it('is disabled when only Make Sentences is on', () => {
     localStorage.setItem('sentenceRead', 'false');
     localStorage.setItem('sentenceWrite', 'true');
     renderWithProviders(<Settings />, { store: makeStore() });
-    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
-    expect(checkbox).not.toBeDisabled();
+    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
+    expect(checkbox).toBeDisabled();
   });
 
   it('updates the estimated test time when toggled on', async () => {
@@ -431,7 +434,7 @@ describe('Settings — sentence stages for all words', () => {
     const estimateEl = screen.getByText(/estimated test time:/i);
     const initialText = estimateEl.textContent;
 
-    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
     await user.click(checkbox);
 
     expect(estimateEl.textContent).not.toBe(initialText);

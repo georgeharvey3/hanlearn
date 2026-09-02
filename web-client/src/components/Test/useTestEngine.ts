@@ -12,7 +12,7 @@ import {
   WordDirectionResults,
   WordScore,
 } from '../../types/models';
-import { isNewWord } from '../../utils/directions';
+import { isNewWord, readyForWriteStage } from '../../utils/directions';
 import { checkSentenceAvailability, getHintSentence } from '../../services/sentenceService';
 import * as ttsService from '../../services/ttsService';
 import { reportError } from '../../services/errorReporting';
@@ -243,17 +243,30 @@ export const useTestEngine = (props: Props) => {
 
       const wordScores: WordScore[] = [];
       const sendResults: WordDirectionResults[] = [];
-      const sentenceWords: import('../../types/models').Word[] = [];
+      // The two sentence stages take separate word lists, because input and
+      // output suit opposite ends of learning a word. Read takes the words the
+      // learner has just met, and Write takes the ones they already half know.
+      // See docs/adr/0011-gate-the-write-stage-on-partial-mastery.md.
+      const readWords: import('../../types/models').Word[] = [];
+      const writeWords: import('../../types/models').Word[] = [];
 
       current.testSet.forEach((word) => {
         const graded = gradesByWord.get(word.id) ?? [];
 
-        // The sentence stages still gate on the word as a whole, and only a fail
-        // blocks them: they are a reward for a clean run, and issue #339 revisits
-        // what should gate them.
+        // Both stages gate on the word as a whole, and a fail blocks either:
+        // they are a reward for a clean run.
         const failed = graded.some((grade) => grade.result === 'fail');
-        if (!failed && (isNewWord(word) || props.practiceMode || props.sentenceStagesForAllWords)) {
-          sentenceWords.push(word);
+        if (!failed) {
+          if (isNewWord(word) || props.practiceMode || props.sentenceStagesForAllWords) {
+            readWords.push(word);
+          }
+          // The gate is read from the state the word held when the session
+          // started, so a word that reaches the bar on this run writes its
+          // first sentence on the next one. The demo is a tour of the stages
+          // rather than a study session, so its one word reaches both.
+          if (readyForWriteStage(word) || props.isDemo) {
+            writeWords.push(word);
+          }
         }
 
         const directions: Partial<Record<Direction, DirectionResult>> = {};
@@ -277,6 +290,10 @@ export const useTestEngine = (props: Props) => {
         onSendResults(sendResults);
       }
 
+      // One check per word, however many stages want it. The two lists overlap
+      // only when the learner asked for the Read stage on every word.
+      const sentenceWords = Array.from(new Set([...readWords, ...writeWords]));
+
       if (sentenceWords.length === 0 || props.isDemo) {
         setStateMerged({
           testFinished: true,
@@ -288,7 +305,7 @@ export const useTestEngine = (props: Props) => {
           props.onVocabComplete?.(wordScores);
         } else if (sentenceWords.length > 0 && !props.finalStage) {
           setTimeout(() => {
-            props.startSentenceRead?.(sentenceWords, wordScores);
+            props.startSentenceStages?.({ read: readWords, write: writeWords }, wordScores);
           }, 1000);
         }
       } else {
@@ -315,12 +332,16 @@ export const useTestEngine = (props: Props) => {
           const available = results.filter(
             (w): w is import('../../types/models').Word => w !== null,
           );
+          const availableIds = new Set(available.map((w) => w.id));
+          const read = readWords.filter((w) => availableIds.has(w.id));
+          const write = writeWords.filter((w) => availableIds.has(w.id));
+
           if (available.length > 0 && !props.finalStage) {
             setStateMerged({
               sentenceWords: available,
               sentenceCheckStatus: 'available',
             });
-            props.startSentenceRead?.(available, wordScores);
+            props.startSentenceStages?.({ read, write }, wordScores);
           } else {
             setStateMerged({
               sentenceWords: available,
@@ -338,7 +359,7 @@ export const useTestEngine = (props: Props) => {
       props.practiceMode,
       props.finalStage,
       props.onVocabComplete,
-      props.startSentenceRead,
+      props.startSentenceStages,
       setStateMerged,
     ],
   );
@@ -1067,7 +1088,7 @@ export const useTestEngine = (props: Props) => {
       props.finalStage,
       props.isDemo,
       props.speechAvailable,
-      props.startSentenceRead,
+      props.startSentenceStages,
       setStateMerged,
     ],
   );

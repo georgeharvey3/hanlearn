@@ -65,6 +65,43 @@ export function isNewWord(word: Pick<Word, 'level' | 'directions'>): boolean {
 }
 
 /**
+ * The directions the Write stage gate reads: receptive recognition (`MC`, `MP`)
+ * and productive recall (`PC`, `PM`).
+ *
+ * `CM` is left out because handwriting is itself production, and production is
+ * the thing the gate holds back. A word whose handwriting direction is still at
+ * bank 1 can perfectly well write a sentence with the word in pinyin.
+ */
+export const RECALL_DIRECTIONS: readonly Direction[] = ['MC', 'MP', 'PC', 'PM'];
+
+/**
+ * The bank every recall direction reaches before the Write stage runs.
+ *
+ * Bank 3 is an interval of 7 to 29 days, so a word that meets it has survived a
+ * week or more in each of the four directions that ask for recall. The research
+ * does not name a threshold, so this one is a starting point to tune.
+ */
+export const WRITE_STAGE_BANK = 3;
+
+/**
+ * Whether the learner knows a word well enough for the Write stage to ask them
+ * to produce a sentence with it.
+ *
+ * Writing a sentence with a word the learner has only just met impedes the
+ * encoding of the word form, so the Write stage waits for partial mastery
+ * rather than firing on novelty. Every recall direction has to clear the bar:
+ * one strong direction is not knowledge of the word.
+ *
+ * The fallback reads the top-level level, for a word built without scheduling
+ * state at all. See docs/adr/0011-gate-the-write-stage-on-partial-mastery.md.
+ */
+export function readyForWriteStage(word: Pick<Word, 'level' | 'directions'>): boolean {
+  const directions = word.directions;
+  if (!directions) return (word.level ?? 1) >= WRITE_STAGE_BANK;
+  return RECALL_DIRECTIONS.every((direction) => directions[direction].level >= WRITE_STAGE_BANK);
+}
+
+/**
  * The directions of a word that are leeches: the ones the learner has failed to
  * recall enough times that the schedule is not fixing them on its own.
  *

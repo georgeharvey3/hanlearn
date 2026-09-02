@@ -90,6 +90,14 @@ function dueWord(id: number, simp: string, level = 1, daysAgo = 0): Word {
   };
 }
 
+/**
+ * Call the startSentenceStages prop the mocked Test component captured, which
+ * is how the engine hands the container the words of each sentence stage.
+ */
+function startStages(words: { read: Word[]; write: Word[] }): void {
+  (capturedTestProps.startSentenceStages as (w: { read: Word[]; write: Word[] }) => void)(words);
+}
+
 function futureWord(id: number, simp: string, level = 2): Word {
   return {
     id,
@@ -279,13 +287,12 @@ describe('TestWords — SentenceWrite to summary transition', () => {
     // Wait for Test component
     await waitFor(() => {
       expect(screen.getByTestId('mock-test')).toBeInTheDocument();
-      expect(typeof capturedTestProps.startSentenceRead).toBe('function');
+      expect(typeof capturedTestProps.startSentenceStages).toBe('function');
     });
 
-    // Transition to SentenceRead
-    const sentenceWords = [dueWord(2, '学生', 2)];
+    // Transition to SentenceRead, with a word waiting for the Write stage too
     act(() => {
-      (capturedTestProps.startSentenceRead as (words: Word[]) => void)(sentenceWords);
+      startStages({ read: [dueWord(2, '学生', 2)], write: [dueWord(3, '老师', 3)] });
     });
 
     await waitFor(() => {
@@ -313,16 +320,16 @@ describe('TestWords — SentenceWrite to summary transition', () => {
 });
 
 describe('TestWords — SentenceRead receives sentenceWriteEnabled prop', () => {
-  it('passes sentenceWriteEnabled=true by default', async () => {
+  it('passes sentenceWriteEnabled=true when a word is waiting for the Write stage', async () => {
     const store = makeStore({ words: [dueWord(1, '你好', 2)] });
     renderWithProviders(<TestWords />, { store });
 
     await waitFor(() => {
-      expect(typeof capturedTestProps.startSentenceRead).toBe('function');
+      expect(typeof capturedTestProps.startSentenceStages).toBe('function');
     });
 
     act(() => {
-      (capturedTestProps.startSentenceRead as (words: Word[]) => void)([dueWord(2, '学生')]);
+      startStages({ read: [dueWord(2, '学生')], write: [dueWord(3, '老师', 3)] });
     });
 
     await waitFor(() => {
@@ -341,11 +348,11 @@ describe('TestWords — SentenceRead receives sentenceWriteEnabled prop', () => 
     renderWithProviders(<TestWords />, { store });
 
     await waitFor(() => {
-      expect(typeof capturedTestProps.startSentenceRead).toBe('function');
+      expect(typeof capturedTestProps.startSentenceStages).toBe('function');
     });
 
     act(() => {
-      (capturedTestProps.startSentenceRead as (words: Word[]) => void)([dueWord(2, '学生')]);
+      startStages({ read: [dueWord(2, '学生')], write: [dueWord(3, '老师', 3)] });
     });
 
     await waitFor(() => {

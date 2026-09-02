@@ -90,6 +90,7 @@ import { DIRECTIONS, Direction, Word } from '../../types/models';
 import { Props } from './types';
 import * as ttsService from '../../services/ttsService';
 import { checkSentenceAvailability } from '../../services/sentenceService';
+import { makeDirections, WRITE_STAGE_BANK } from '../../utils/directions';
 
 const makeWord = (overrides: Partial<Word> = {}): Word => ({
   id: 1,
@@ -677,10 +678,10 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
     vi.useRealTimers();
   });
 
-  it('calls startSentenceRead when level-1 words have sentences available', async () => {
+  it('calls startSentenceStages when level-1 words have sentences available', async () => {
     vi.mocked(checkSentenceAvailability).mockResolvedValue(true);
 
-    const startSentenceRead = vi.fn();
+    const startSentenceStages = vi.fn();
     const level1Word = makeWord({ id: 1, level: 1 });
 
     const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
@@ -705,7 +706,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         isDemo: false,
         practiceMode: false,
         finalStage: false,
-        startSentenceRead,
+        startSentenceStages,
         onFinishTest: vi.fn(),
       },
     );
@@ -729,8 +730,9 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
     });
 
     expect(checkSentenceAvailability).toHaveBeenCalledWith('你好', 'simp');
-    expect(startSentenceRead).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ id: 1 })]),
+    // A level-1 word is new, so it reaches the Read stage and not the Write one.
+    expect(startSentenceStages).toHaveBeenCalledWith(
+      { read: [expect.objectContaining({ id: 1 })], write: [] },
       expect.any(Array),
     );
   });
@@ -813,7 +815,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         isDemo: false,
         practiceMode: false,
         finalStage: false,
-        startSentenceRead: vi.fn(),
+        startSentenceStages: vi.fn(),
         onFinishTest: vi.fn(),
       },
     );
@@ -1012,5 +1014,172 @@ describe('useTestEngine — the finishTest payload', () => {
     const [payload] = onFinishTest.mock.calls[0];
     expect(payload[0]).toEqual({ word_id: 1, directions: { MP: 'pass' }, toneErrors: {} });
     expect(payload[1]).toEqual({ word_id: 2, directions: { CM: 'fail' }, toneErrors: {} });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Which words each sentence stage gets: the Read stage takes the new words, and
+// the Write stage takes the ones the learner already half knows.
+// See docs/adr/0011-gate-the-write-stage-on-partial-mastery.md.
+// ---------------------------------------------------------------------------
+describe('useTestEngine — the words of each sentence stage', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.mocked(checkSentenceAvailability).mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const wordAtBank = (id: number, simp: string, bank: number): Word =>
+    makeWord({ id, simp, level: bank, directions: makeDirections(bank, '2020/01/01') });
+
+  /**
+   * Answer the last question of a session correctly and return the two stage
+   * lists the engine handed to startSentenceStages.
+   */
+  async function finishAndReadStages(
+    words: Word[],
+    props: Partial<Props> = {},
+    state: Record<string, unknown> = {},
+  ) {
+    const startSentenceStages = vi.fn();
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+
+    const result = renderEngineWithState(
+      {
+        answerCategory: 'meaning',
+        answer: ['hello'],
+        answerInput: 'hello',
+        chosenCharacter: words[0].simp,
+        currentPair: pair,
+        testSet: words,
+        queue: [pair],
+        charSet: 'simp',
+        gradeList: [],
+        gradeCap: 'pass',
+        toneErrorCount: 0,
+        useAutoRecord: false,
+        recognition: null,
+        ...state,
+      },
+      {
+        words,
+        isDemo: false,
+        practiceMode: false,
+        finalStage: false,
+        startSentenceStages,
+        onVocabComplete: vi.fn(),
+        onFinishTest: vi.fn(),
+        ...props,
+      },
+    );
+
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(1100);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    return startSentenceStages;
+  }
+
+  it('sends a partially known word to the Write stage and not the Read one', async () => {
+    const known = wordAtBank(1, '你好', WRITE_STAGE_BANK);
+
+    const startSentenceStages = await finishAndReadStages([known]);
+
+    expect(startSentenceStages).toHaveBeenCalledWith(
+      { read: [], write: [expect.objectContaining({ id: 1 })] },
+      expect.any(Array),
+    );
+  });
+
+  it('sends a new word to the Read stage and not the Write one', async () => {
+    const fresh = wordAtBank(1, '你好', 1);
+
+    const startSentenceStages = await finishAndReadStages([fresh]);
+
+    expect(startSentenceStages).toHaveBeenCalledWith(
+      { read: [expect.objectContaining({ id: 1 })], write: [] },
+      expect.any(Array),
+    );
+  });
+
+  it('holds back a word that has not reached the gate', async () => {
+    const halfway = wordAtBank(1, '你好', WRITE_STAGE_BANK - 1);
+    const onVocabComplete = vi.fn();
+
+    const startSentenceStages = await finishAndReadStages([halfway], { onVocabComplete });
+
+    // Neither new nor ready: the session goes straight to the summary.
+    expect(startSentenceStages).not.toHaveBeenCalled();
+    expect(onVocabComplete).toHaveBeenCalled();
+  });
+
+  it('keeps the Write stage gated when sentences are on for all words', async () => {
+    const halfway = wordAtBank(1, '你好', WRITE_STAGE_BANK - 1);
+
+    const startSentenceStages = await finishAndReadStages([halfway], {
+      sentenceStagesForAllWords: true,
+    });
+
+    expect(startSentenceStages).toHaveBeenCalledWith(
+      { read: [expect.objectContaining({ id: 1 })], write: [] },
+      expect.any(Array),
+    );
+  });
+
+  it('keeps the Write stage gated in practice mode', async () => {
+    const halfway = wordAtBank(1, '你好', WRITE_STAGE_BANK - 1);
+
+    const startSentenceStages = await finishAndReadStages([halfway], { practiceMode: true });
+
+    expect(startSentenceStages).toHaveBeenCalledWith(
+      { read: [expect.objectContaining({ id: 1 })], write: [] },
+      expect.any(Array),
+    );
+  });
+
+  it('sends the demo word to both stages, because the demo is a tour', async () => {
+    const fresh = wordAtBank(1, '你好', 1);
+
+    const startSentenceStages = await finishAndReadStages([fresh], { isDemo: true });
+
+    await act(async () => {
+      vi.advanceTimersByTime(1100);
+    });
+
+    expect(startSentenceStages).toHaveBeenCalledWith(
+      {
+        read: [expect.objectContaining({ id: 1 })],
+        write: [expect.objectContaining({ id: 1 })],
+      },
+      expect.any(Array),
+    );
+  });
+
+  it('runs neither stage for a word the learner failed', async () => {
+    const known = wordAtBank(1, '你好', WRITE_STAGE_BANK);
+    const onVocabComplete = vi.fn();
+
+    const startSentenceStages = await finishAndReadStages(
+      [known],
+      { onVocabComplete },
+      {
+        gradeList: [{ wordId: 1, direction: 'CM' as Direction, result: 'fail', toneErrors: 0 }],
+      },
+    );
+
+    expect(startSentenceStages).not.toHaveBeenCalled();
+    expect(onVocabComplete).toHaveBeenCalled();
   });
 });
