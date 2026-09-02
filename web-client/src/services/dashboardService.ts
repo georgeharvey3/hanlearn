@@ -3,12 +3,19 @@ import { getStreakData, calculateStreak, computeWeeklyStats, WeeklyStats } from 
 import { estimatePlannedTime, formatTestTime } from '../utils/estimateTestTime';
 import { planSession, readSessionSettings } from '../components/Test/Logic/TestLogic';
 import { traceAsync } from './performanceService';
+import { BankCounts, directionBankDistribution } from '../utils/directions';
+import { Direction } from '../types/models';
 
 export interface DashboardStats {
   totalWords: number;
   dueWords: number;
   streak: number;
   levelDistribution: Record<number, number>;
+  /**
+   * The bank counts of each direction. The word's own level is the lowest of
+   * the five, so this is what shows which skill is weak.
+   */
+  directionDistribution: Record<Direction, BankCounts>;
   masteredCount: number;
   estimatedStudyTime: string | null;
   weeklyStats: WeeklyStats;
@@ -27,6 +34,8 @@ export const getDashboardStats = async (userId: string, listId?: string): Promis
       const level = word.level ?? 1;
       levelDistribution[level] = (levelDistribution[level] || 0) + 1;
     }
+
+    const directionDistribution = directionBankDistribution(allWords);
 
     const streak = calculateStreak(streakData.map((d) => d.date));
     const weeklyStats = computeWeeklyStats(streakData);
@@ -60,6 +69,7 @@ export const getDashboardStats = async (userId: string, listId?: string): Promis
       dueWords: dueCount,
       streak,
       levelDistribution,
+      directionDistribution,
       masteredCount,
       estimatedStudyTime,
       weeklyStats,

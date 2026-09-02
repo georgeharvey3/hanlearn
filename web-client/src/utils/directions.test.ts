@@ -10,6 +10,7 @@ import {
   readyForWriteStage,
   RECALL_DIRECTIONS,
   WRITE_STAGE_BANK,
+  directionBankDistribution,
 } from './directions';
 import { DIRECTIONS } from '../types/models';
 import { LEECH_THRESHOLD } from './scheduling';
@@ -155,5 +156,79 @@ describe('leechDirections', () => {
       MC: { level: 2, dueDate: '2026/03/05', lapses: LEECH_THRESHOLD + 4 },
     };
     expect(leechDirections(word(directions))).toEqual(['MC', 'CM']);
+  });
+});
+
+describe('directionBankDistribution', () => {
+  const word = (level: number, directions?: Record<string, { level: number; dueDate: string }>) =>
+    ({ level, directions }) as Parameters<typeof directionBankDistribution>[0][number];
+
+  it('counts nothing for an empty word list', () => {
+    const distribution = directionBankDistribution([]);
+
+    expect(Object.keys(distribution).sort()).toEqual([...DIRECTIONS].sort());
+    for (const direction of DIRECTIONS) {
+      expect(distribution[direction]).toEqual({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
+    }
+  });
+
+  it('counts each direction at its own bank, not the word level', () => {
+    const directions = {
+      ...makeDirections(5, '2026/03/05'),
+      CM: { level: 1, dueDate: '2026/03/05' },
+    };
+
+    const distribution = directionBankDistribution([word(1, directions)]);
+
+    // The word reads as level 1 because handwriting is, but the other four
+    // directions are mastered, and that is exactly what the derived level hides.
+    expect(distribution.CM).toEqual({ 1: 1, 2: 0, 3: 0, 4: 0, 5: 0 });
+    expect(distribution.MC).toEqual({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 1 });
+    expect(distribution.MP[5]).toBe(1);
+  });
+
+  it('adds up several words in the same direction', () => {
+    const words = [
+      word(2, makeDirections(2, '2026/03/05')),
+      word(2, makeDirections(2, '2026/03/05')),
+      word(4, makeDirections(4, '2026/03/05')),
+    ];
+
+    const distribution = directionBankDistribution(words);
+
+    expect(distribution.PM).toEqual({ 1: 0, 2: 2, 3: 0, 4: 1, 5: 0 });
+  });
+
+  it('falls back to the word level for a word with no directions', () => {
+    const distribution = directionBankDistribution([word(3)]);
+
+    for (const direction of DIRECTIONS) {
+      expect(distribution[direction][3]).toBe(1);
+    }
+  });
+
+  it('treats a word with no level at all as bank 1', () => {
+    const distribution = directionBankDistribution([
+      {} as Parameters<typeof directionBankDistribution>[0][number],
+    ]);
+
+    expect(distribution.MC).toEqual({ 1: 1, 2: 0, 3: 0, 4: 0, 5: 0 });
+  });
+
+  it('counts every word in every direction, so each direction sums to the total', () => {
+    const words = [
+      word(1, makeDirections(1, '2026/03/05')),
+      word(3, makeDirections(3, '2026/03/05')),
+      // A level outside the five banks is clamped rather than dropped.
+      word(9, makeDirections(9, '2026/03/05')),
+    ];
+
+    const distribution = directionBankDistribution(words);
+
+    for (const direction of DIRECTIONS) {
+      const total = Object.values(distribution[direction]).reduce((sum, n) => sum + n, 0);
+      expect(total).toBe(words.length);
+    }
+    expect(distribution.MC[5]).toBe(1);
   });
 });

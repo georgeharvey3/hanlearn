@@ -11,7 +11,8 @@ import { DashboardStats, getDashboardStats } from '../../services/dashboardServi
 import * as wordActions from '../../store/actions/index';
 import WordsDueCard from './widgets/WordsDueCard';
 import StreakCard from './widgets/StreakCard';
-import LevelDistributionCard from './widgets/LevelDistributionCard';
+import MasteryCard from './widgets/MasteryCard';
+import DirectionStrengthCard from './widgets/DirectionStrengthCard';
 import WeeklyStatsCard from './widgets/WeeklyStatsCard';
 import Chengyu from '../../components/Home/Chengyu/Chengyu';
 import ErrorBoundary from '../../components/ErrorBoundary/ErrorBoundary';
@@ -141,7 +142,16 @@ const Dashboard: React.FC<PropsFromRedux> = ({
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <LevelDistributionCard distribution={stats?.levelDistribution ?? {}} />
+              <MasteryCard
+                masteredCount={stats?.masteredCount ?? 0}
+                totalWords={stats?.totalWords ?? 0}
+              />
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <DirectionStrengthCard
+                distribution={stats?.directionDistribution ?? {}}
+                totalWords={stats?.totalWords ?? 0}
+              />
             </Grid>
           </Grid>
           <ErrorBoundary>

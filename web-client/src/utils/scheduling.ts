@@ -194,6 +194,23 @@ export function currentMemory(state: StoredMemory): Memory {
   };
 }
 
+/** The five banks, lowest first. */
+export const BANKS = [1, 2, 3, 4, 5] as const;
+
+/**
+ * How each bank reads to a learner.
+ *
+ * Bank 1 is a word that has not been recalled correctly yet, and bank 5 is one
+ * with an interval of 60 days or more, which the dashboard calls mastered.
+ */
+export const BANK_LABELS: Record<number, string> = {
+  1: 'New',
+  2: 'Learning',
+  3: 'Familiar',
+  4: 'Known',
+  5: 'Mastered',
+};
+
 /**
  * The bank of an interval.
  *

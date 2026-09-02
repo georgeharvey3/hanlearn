@@ -1,5 +1,5 @@
 import { DIRECTIONS, Direction, DirectionState, DirectionStates, Word } from '../types/models';
-import { isLeech } from './scheduling';
+import { BANKS, isLeech } from './scheduling';
 
 /**
  * Helpers for the per-direction scheduling state of a word.
@@ -128,3 +128,45 @@ export const DIRECTION_LABELS: Record<Direction, string> = {
   PC: 'Character → Pinyin',
   CM: 'Meaning → Character',
 };
+
+/** How many words sit at each bank, keyed by bank. */
+export type BankCounts = Record<number, number>;
+
+/**
+ * How many words sit at each bank, counted separately for each direction.
+ *
+ * The word's own level is the lowest bank across its five directions, so it
+ * hides the shape of what the learner knows: a word at level 1 can be strong
+ * for recognition and weak for handwriting, and the single level shows only the
+ * 1. Counting each direction on its own is what makes the weak skill visible.
+ *
+ * Every direction counts every word, so each direction's counts sum to the
+ * number of words. A word built without scheduling state falls back to its
+ * top-level level in all five, which is the fallback `fillDirections` makes.
+ */
+export function directionBankDistribution(
+  words: Pick<Word, 'level' | 'directions'>[],
+): Record<Direction, BankCounts> {
+  const distribution = DIRECTIONS.reduce(
+    (acc, direction) => {
+      acc[direction] = BANKS.reduce((counts, bank) => {
+        counts[bank] = 0;
+        return counts;
+      }, {} as BankCounts);
+      return acc;
+    },
+    {} as Record<Direction, BankCounts>,
+  );
+
+  for (const word of words) {
+    for (const direction of DIRECTIONS) {
+      const level = word.directions?.[direction]?.level ?? word.level ?? 1;
+      // Clamp rather than drop, so the counts of a direction always sum to the
+      // number of words and the bars read as a whole.
+      const bank = Math.min(5, Math.max(1, Math.round(level)));
+      distribution[direction][bank] += 1;
+    }
+  }
+
+  return distribution;
+}

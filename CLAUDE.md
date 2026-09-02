@@ -72,7 +72,7 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 - [web-client/src/services/wordService.ts](web-client/src/services/wordService.ts) - All Firestore operations for word management
 - [web-client/src/services/dictionaryService.ts](web-client/src/services/dictionaryService.ts) - Static dictionary loading and search (lazy-loaded, indexed in-memory)
 - [web-client/src/services/streakService.ts](web-client/src/services/streakService.ts) - Read/write `testCompletions` subcollection; calculates streak from completion dates
-- [web-client/src/services/dashboardService.ts](web-client/src/services/dashboardService.ts) - Aggregates stats (due count, streak, level distribution) for the Dashboard
+- [web-client/src/services/dashboardService.ts](web-client/src/services/dashboardService.ts) - Aggregates stats (due count, streak, level distribution, per-direction bank counts) for the Dashboard
 - [web-client/src/services/retentionService.ts](web-client/src/services/retentionService.ts) - Read/write the `reviewStats` daily rollup; the session's write joins the `finishTest` batch
 - [web-client/src/services/statsService.ts](web-client/src/services/statsService.ts) - Assembles the scheduler metrics for the `/stats` page
 - [web-client/src/services/sentenceService.ts](web-client/src/services/sentenceService.ts) - Firebase AI Logic: generates and caches example sentences in `sentenceCache`
@@ -207,7 +207,7 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 ### Next
 
 - Improve spaced repetition: show due-date countdown, allow manual level adjustment
-- Dashboard improvements: streak and level distribution are implemented; progress charts still TODO
+- Dashboard improvements: streak and the per-direction strength bars are implemented; progress charts still TODO
 - Better chengyu UX: example sentences added; stroke order hints still TODO
 
 ### Later
