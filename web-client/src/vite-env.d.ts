@@ -1,5 +1,8 @@
 /// <reference types="vite/client" />
 
+/** The build the running bundle came from. Vite defines it; see vite.config.ts. */
+declare const __BUILD_ID__: string;
+
 interface ImportMetaEnv {
   readonly VITE_FIREBASE_API_KEY: string;
   readonly VITE_FIREBASE_AUTH_DOMAIN: string;
