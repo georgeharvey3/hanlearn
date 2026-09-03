@@ -19,6 +19,17 @@ import { Word, WordScore } from '../../types/models';
 import { SentenceStageWords } from '../../components/Test/types';
 import { getDevTestConfig, DevTestConfig } from '../../utils/devTestMode';
 import { makeDirections } from '../../utils/directions';
+import { dayKey } from '../../utils/retention';
+import {
+  SAVED_SESSION_VERSION,
+  clearSavedSession,
+  describeSavedSession,
+  loadResumableSession,
+  restoreSession,
+  saveSession,
+  RestoredSession,
+  VocabProgress,
+} from '../../utils/savedSession';
 
 import { Box, Chip, Stepper, Step, StepLabel, Typography } from '@mui/material';
 
@@ -50,6 +61,18 @@ interface TestWordsState {
   wordsInitialized: boolean; // True once word selection has run (prevents flash of "No words due")
   seenOffsets: Record<string, { offset: number; text: string; english: string }>;
   wordScores: WordScore[];
+  /**
+   * The unfinished session found in storage, waiting for the learner to say
+   * whether to resume it. While it is set no session is running, so the offer
+   * is what the page shows. See issue #305.
+   */
+  pendingResume: RestoredSession | null;
+  /** How far through that session the learner is, for the offer to say. */
+  pendingResumeLabel: string;
+  /** The progress handed to the engine when a session is resumed. */
+  resume: VocabProgress | null;
+  /** The engine's latest progress, which is what gets saved. */
+  vocabProgress: VocabProgress | null;
 }
 
 interface OwnProps {
@@ -114,6 +137,10 @@ const TestWords: React.FC<Props> = ({
     wordsInitialized: false,
     seenOffsets: {},
     wordScores: [],
+    pendingResume: null,
+    pendingResumeLabel: '',
+    resume: null,
+    vocabProgress: null,
   });
 
   const prevWordsLength = useRef(words.length);
@@ -199,7 +226,16 @@ const TestWords: React.FC<Props> = ({
       prevActiveListId.current = activeListId;
       hasInitialized.current = false;
       hasSeenLoading.current = false;
-      setState((prev) => ({ ...prev, selectedWords: [], newWords: [], wordsInitialized: false }));
+      setState((prev) => ({
+        ...prev,
+        selectedWords: [],
+        newWords: [],
+        wordsInitialized: false,
+        pendingResume: null,
+        pendingResumeLabel: '',
+        resume: null,
+        vocabProgress: null,
+      }));
     }
   }, [activeListId]);
 
@@ -234,7 +270,24 @@ const TestWords: React.FC<Props> = ({
           wordsInitialized: true,
         }));
       } else {
-        setSelectedWords();
+        // An unfinished session from earlier today is offered rather than
+        // replaced: planning a new one here would throw away every answer it
+        // collected. See issue #305.
+        const saved = userId === null ? null : loadResumableSession(userId, activeListId);
+        const restored = saved ? restoreSession(saved, words) : null;
+
+        if (saved && restored) {
+          setState((prev) => ({
+            ...prev,
+            pendingResume: restored,
+            pendingResumeLabel: describeSavedSession(saved),
+            wordsInitialized: true,
+          }));
+        } else {
+          // A session whose words no longer resolve cannot be asked at all.
+          if (saved) clearSavedSession();
+          setSelectedWords();
+        }
       }
     }
     // Loading finished with no words — mark as initialized so spinner stops.
@@ -251,7 +304,16 @@ const TestWords: React.FC<Props> = ({
       hasInitialized.current = true;
       setState((prev) => ({ ...prev, wordsInitialized: true }));
     }
-  }, [isDemo, selectTestWords, setSelectedWords, words.length, wordsLoading, userId]);
+  }, [
+    activeListId,
+    isDemo,
+    selectTestWords,
+    setSelectedWords,
+    words,
+    words.length,
+    wordsLoading,
+    userId,
+  ]);
 
   // This effect is now handled by the initialization effect above
   useEffect(() => {
@@ -280,6 +342,65 @@ const TestWords: React.FC<Props> = ({
   const onStartVocab = (): void => {
     setState((prev) => ({ ...prev, stage: 'vocab' }));
   };
+
+  /** Pick up the unfinished session where it was left. */
+  const onResumeSession = (): void => {
+    setState((prev) => {
+      const restored = prev.pendingResume;
+      if (!restored) return prev;
+      return {
+        ...prev,
+        pendingResume: null,
+        pendingResumeLabel: '',
+        stage: restored.stage,
+        selectedWords: restored.words,
+        newWords: restored.newWords,
+        // The saved queue indexes into the saved word order, so the plan has to
+        // be that same order for the two to agree.
+        plan: {
+          words: restored.words,
+          queue: restored.progress.queue,
+          newWords: restored.newWords,
+        },
+        resume: restored.progress,
+        vocabProgress: restored.progress,
+        sentenceReadWords: restored.sentenceReadWords,
+        sentenceWriteWords: restored.sentenceWriteWords,
+        seenOffsets: restored.seenOffsets,
+        wordScores: restored.scoreList,
+        practiceMode: restored.practiceMode,
+        wordsInitialized: true,
+      };
+    });
+  };
+
+  /** Discard the unfinished session and plan a new one. */
+  const onDiscardSession = (): void => {
+    clearSavedSession();
+    setState((prev) => ({
+      ...prev,
+      pendingResume: null,
+      pendingResumeLabel: '',
+      resume: null,
+      vocabProgress: null,
+    }));
+    setSelectedWords();
+  };
+
+  /**
+   * Take the engine's progress, which is what the saved session is made of.
+   *
+   * The engine reports on every graded question, and the identity check keeps a
+   * report that changed nothing from costing a render.
+   */
+  const onVocabProgress = useCallback((progress: VocabProgress): void => {
+    setState((prev) =>
+      prev.vocabProgress?.queue === progress.queue &&
+      prev.vocabProgress?.gradeList === progress.gradeList
+        ? prev
+        : { ...prev, vocabProgress: progress },
+    );
+  }, []);
 
   /**
    * Route the session into whichever sentence stage has words for it.
@@ -320,6 +441,53 @@ const TestWords: React.FC<Props> = ({
     setState((prev) => ({ ...prev, stage: 'summary' }));
   };
 
+  /**
+   * Keep the running session in storage, and drop it once it is done.
+   *
+   * A session writes nothing until it finishes, so the record is the only thing
+   * standing between closing the page and losing every answer. It is rewritten
+   * on each stage and each graded question, which is every moment the session
+   * moves. The demo and the dev stages save nothing: neither is a session the
+   * learner would come back to. See issue #305.
+   */
+  useEffect(() => {
+    if (isDemo || devConfig || userId === null) return;
+    // The offer is showing, so nothing is running yet and the record it offers
+    // must survive until the learner answers it.
+    if (state.pendingResume) return;
+
+    if (state.stage === 'summary') {
+      clearSavedSession();
+      return;
+    }
+    if (!state.plan || state.selectedWords.length === 0) return;
+
+    // Before the engine has reported, the plan's own queue is what is left.
+    const progress: VocabProgress = state.vocabProgress ?? {
+      queue: state.plan.queue,
+      gradeList: [],
+      initialQueueLength: state.plan.queue.length,
+    };
+
+    const now = new Date();
+    saveSession({
+      version: SAVED_SESSION_VERSION,
+      userId,
+      listId: activeListId,
+      date: dayKey(now),
+      savedAt: now.toISOString(),
+      stage: state.stage,
+      practiceMode: state.practiceMode,
+      wordIds: state.plan.words.map((word) => word.id),
+      newWordIds: state.newWords.map((word) => word.id),
+      sentenceReadWordIds: state.sentenceReadWords.map((word) => word.id),
+      sentenceWriteWordIds: state.sentenceWriteWords.map((word) => word.id),
+      seenOffsets: state.seenOffsets,
+      scoreList: state.wordScores,
+      ...progress,
+    });
+  }, [activeListId, isDemo, state, userId]);
+
   // All dev stages require auth since they use real words from user's list
   // Wait for auth to initialize before redirecting
   if (devConfig && !authInitialized) {
@@ -331,7 +499,24 @@ const TestWords: React.FC<Props> = ({
 
   let content: React.ReactNode = null;
 
-  if (state.selectedWords.length > 0) {
+  if (state.pendingResume) {
+    content = (
+      <Box sx={{ width: '90%', maxWidth: 400, mx: 'auto', py: 8, textAlign: 'center' }}>
+        <Typography variant="h6" sx={{ mb: 0.5 }}>
+          Unfinished session
+        </Typography>
+        <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
+          {state.pendingResumeLabel}
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center' }}>
+          <Button clicked={onResumeSession}>Resume</Button>
+          <Button type="ghost" clicked={onDiscardSession}>
+            Start fresh
+          </Button>
+        </Box>
+      </Box>
+    );
+  } else if (state.selectedWords.length > 0) {
     switch (state.stage) {
       case 'new':
         content = (
@@ -351,6 +536,8 @@ const TestWords: React.FC<Props> = ({
               isDemo={isDemo || !!devConfig}
               words={state.selectedWords}
               plan={state.plan ?? undefined}
+              resume={state.resume ?? undefined}
+              onProgress={onVocabProgress}
               startSentenceStages={onStartSentenceStages}
               onVocabComplete={onVocabComplete}
               finalStage={!state.sentenceReadEnabled && !state.sentenceWriteEnabled}
@@ -398,6 +585,8 @@ const TestWords: React.FC<Props> = ({
           <Test
             words={state.selectedWords}
             plan={state.plan ?? undefined}
+            resume={state.resume ?? undefined}
+            onProgress={onVocabProgress}
             startSentenceStages={onStartSentenceStages}
             onVocabComplete={onVocabComplete}
             finalStage={!state.sentenceReadEnabled && !state.sentenceWriteEnabled}

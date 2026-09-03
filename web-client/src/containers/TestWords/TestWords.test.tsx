@@ -56,6 +56,7 @@ import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import TestWords from './TestWords';
+import { clearSavedSession } from '../../utils/savedSession';
 import { renderWithProviders, authenticatedState, createTestStore } from '../../test/utils';
 import * as wordActions from '../../store/actions/index';
 
@@ -66,6 +67,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   capturedTestProps = {};
   mockedInitWords.mockReturnValue(() => {});
+  // Each test starts a session, and a session that does not finish is saved so
+  // that it can be resumed. Without this, every test after the first would be
+  // offered the one before it rather than starting clean. See issue #305.
+  clearSavedSession();
 });
 
 /** A word that is due today */

@@ -176,6 +176,7 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 - The `api/` directory contains a legacy Flask backend that is no longer used
 - Type definitions are in [web-client/src/types/](web-client/src/types/)
 - The `amendedMeaning` field allows users to override dictionary definitions
+- An unfinished session is saved to `localStorage` (`web-client/src/utils/savedSession.ts`) and offered back on the next visit, because nothing reaches Firestore until a session ends. See [docs/adr/0014-resume-an-unfinished-session.md](docs/adr/0014-resume-an-unfinished-session.md)
 - Chengyu challenges rotate daily based on days since May 24, 2021
 
 ## Design Principles

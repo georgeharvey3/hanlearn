@@ -64,6 +64,7 @@ import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import TestWords from './TestWords';
+import { clearSavedSession } from '../../utils/savedSession';
 import { renderWithProviders, authenticatedState, createTestStore } from '../../test/utils';
 import type { Word } from '../../types/models';
 
@@ -72,6 +73,9 @@ beforeEach(() => {
   capturedTestProps = {};
   capturedReadProps = {};
   capturedWriteProps = {};
+  // An unfinished session is saved for resuming, so it has to be cleared
+  // between tests or each one is offered the session the last one left.
+  clearSavedSession();
 });
 
 afterEach(() => {
