@@ -153,8 +153,14 @@ does not ask stay at bank 1 and due, and a later session reaches them. See
 [docs/adr/0005-new-words-take-one-direction.md](docs/adr/0005-new-words-take-one-direction.md).
 
 A new word holds no place of its own in the queue. Its due date ranks it against
-every other word, it has no cap, and a word with no due date is not due. See
+every other word, and a word with no due date is not due. See
 [docs/adr/0006-the-due-date-is-the-only-rank.md](docs/adr/0006-the-due-date-is-the-only-rank.md).
+
+At most five new words enter one session, and the due date picks which five: the
+five that have waited longest. A new word passed over that way gives its
+question to the next word in the ranking, so the session is no shorter while
+there is anything left to review. See
+[docs/adr/0015-a-cap-on-new-words-per-session.md](docs/adr/0015-a-cap-on-new-words-per-session.md).
 
 ## Sentence stages
 

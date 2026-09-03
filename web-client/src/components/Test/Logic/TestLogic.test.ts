@@ -546,13 +546,44 @@ describe('planSession', () => {
     expect(result.words[parseInt(result.queue[1].index)].id).toBe(2);
   });
 
-  it('admits more than five new words when the budget allows', () => {
+  it('admits at most five new words, however large the budget is', () => {
     const words = Array.from({ length: 9 }, (_, i) => newWord(i));
 
     const result = plan(words, { budget: 100 });
 
-    expect(result.newWords).toHaveLength(9);
-    expect(result.queue).toHaveLength(9);
+    expect(result.newWords).toHaveLength(5);
+    expect(result.queue).toHaveLength(5);
+  });
+
+  it('admits the five oldest new words', () => {
+    const oldest = Array.from({ length: 5 }, (_, i) => newWord(i, older));
+    const newer = Array.from({ length: 4 }, (_, i) => newWord(i + 10, past));
+
+    const result = plan([...newer, ...oldest], { budget: 100 });
+
+    expect(result.newWords.map((word) => word.id).sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it('gives the question a passed-over new word would have had to a review word', () => {
+    const news = Array.from({ length: 8 }, (_, i) => newWord(i, older));
+    const reviews = Array.from({ length: 5 }, (_, i) =>
+      wordWith(i + 10, { MC: { level: 2, dueDate: past } }),
+    );
+
+    // The new words are all due before every review word, so without the cap
+    // they would take the first 8 questions of the 10.
+    const result = plan([...news, ...reviews], { budget: 10 });
+
+    expect(result.newWords).toHaveLength(5);
+    expect(result.queue).toHaveLength(10);
+  });
+
+  it('caps the new words in practice too', () => {
+    const words = Array.from({ length: 9 }, (_, i) => newWord(i, future));
+
+    const result = plan(words, { budget: 100, practiceMode: true });
+
+    expect(result.newWords).toHaveLength(5);
   });
 
   it('cuts the review words that are newer than the new words at the budget', () => {
