@@ -218,7 +218,7 @@ describe('getDashboardStats', () => {
     localStorage.setItem('newWords', 'false');
     localStorage.setItem('sentenceRead', 'false');
     localStorage.setItem('sentenceWrite', 'false');
-    const dueWords = Array.from({ length: 20 }, (_, i) => makeWord(i + 1, 1));
+    const dueWords = Array.from({ length: 20 }, (_, i) => makeWord(i + 1, 2));
     mockedWordService.getUserWords.mockResolvedValue(dueWords);
     mockedWordService.getDueUserWords.mockResolvedValue(dueWords);
 
@@ -252,7 +252,7 @@ describe('getDashboardStats', () => {
     localStorage.setItem('newWords', 'false');
     localStorage.setItem('sentenceRead', 'false');
     localStorage.setItem('sentenceWrite', 'false');
-    const dueWords = Array.from({ length: 20 }, (_, i) => makeWord(i + 1, 1));
+    const dueWords = Array.from({ length: 20 }, (_, i) => makeWord(i + 1, 2));
     mockedWordService.getUserWords.mockResolvedValue(dueWords);
     mockedWordService.getDueUserWords.mockResolvedValue(dueWords);
 
@@ -269,14 +269,34 @@ describe('getDashboardStats', () => {
     localStorage.setItem('newWords', 'true');
     localStorage.setItem('sentenceRead', 'false');
     localStorage.setItem('sentenceWrite', 'false');
+    const dueWords = [
+      ...Array.from({ length: 5 }, (_, i) => makeWord(i + 1, 1)),
+      ...Array.from({ length: 15 }, (_, i) => makeWord(i + 6, 2)),
+    ];
+    mockedWordService.getUserWords.mockResolvedValue(dueWords);
+    mockedWordService.getDueUserWords.mockResolvedValue(dueWords);
+
+    const stats = await getDashboardStats('user-1');
+
+    // 10 questions at 8s = 80s, and the Learn step for the 5 new words is 25s.
+    expect(stats.estimatedStudyTime).toBe('~2 min');
+  });
+
+  it('estimates a session of five new words when every due word is new', async () => {
+    localStorage.setItem('questionsPerSession', '10');
+    localStorage.setItem('priority', 'MP');
+    localStorage.setItem('onlyPriority', 'true');
+    localStorage.setItem('newWords', 'true');
+    localStorage.setItem('sentenceRead', 'false');
+    localStorage.setItem('sentenceWrite', 'false');
     const dueWords = Array.from({ length: 20 }, (_, i) => makeWord(i + 1, 1));
     mockedWordService.getUserWords.mockResolvedValue(dueWords);
     mockedWordService.getDueUserWords.mockResolvedValue(dueWords);
 
     const stats = await getDashboardStats('user-1');
 
-    // Every word is at level 1, so all 10 are new: 80s of questions and 50s of
-    // the Learn step.
-    expect(stats.estimatedStudyTime).toBe('~3 min');
+    // The cap admits 5 of the 20, and no review word is due to take the rest of
+    // the budget: 5 questions at 8s and 25s of the Learn step.
+    expect(stats.estimatedStudyTime).toBe('~2 min');
   });
 });

@@ -1,5 +1,9 @@
 import { Direction } from '../types/models';
-import { SessionPlan, directionOf } from '../components/Test/Logic/TestLogic';
+import {
+  NEW_WORDS_PER_SESSION,
+  SessionPlan,
+  directionOf,
+} from '../components/Test/Logic/TestLogic';
 import { readyForWriteStage } from './directions';
 
 /** How long one question takes, by the direction it asks. */
@@ -122,9 +126,12 @@ export function spreadOverDirections(budget: number, directions: Direction[]): D
  * A real plan counts them. This is the guess the Settings estimate uses in
  * place of that count, and it gates both the Learn step and the Read stage,
  * which are the two parts that only new words reach.
+ *
+ * A plan admits at most NEW_WORDS_PER_SESSION new words, so the guess stops
+ * there too: a long session takes more questions, not more new words.
  */
 export function assumedNewWordCount(budget: number): number {
-  return Math.max(1, Math.round(budget * ASSUMED_NEW_WORD_SHARE));
+  return Math.min(NEW_WORDS_PER_SESSION, Math.max(1, Math.round(budget * ASSUMED_NEW_WORD_SHARE)));
 }
 
 /**

@@ -94,6 +94,17 @@ export const readSessionSettings = (isDemo = false): Omit<PlanSessionOptions, 'p
   };
 };
 
+/**
+ * At most this many new words enter one session.
+ *
+ * The budget alone cannot hold the new-word load down. `addWordToList` gives a
+ * new word a due date of today or tomorrow, so a learner who adds 30 words in
+ * one sitting meets every one of them in the next session and reviews nothing.
+ * A session that teaches more than five words at once is also more than a
+ * learner takes in. See docs/adr/0015-a-cap-on-new-words-per-session.md.
+ */
+export const NEW_WORDS_PER_SESSION = 5;
+
 export interface PlanSessionOptions {
   /** How many questions the session may ask. */
   budget: number;
@@ -223,11 +234,16 @@ export function eligibleDirections(
  * about one word in the same session give each other away, because a word
  * holds three facts and every direction exposes two of them.
  *
- * The due date decides the order and nothing else. A new word is one more word
- * with a due date, so it takes its place by that date, holds no reserved part
- * of the session, and has no cap of its own. The four directions it leaves stay
- * at level 1 and due, so later sessions reach them through the same ranking.
+ * The due date decides the order, and a new word is one more word with a due
+ * date: it takes its place by that date and holds no reserved part of the
+ * session. The four directions it leaves stay at level 1 and due, so later
+ * sessions reach them through the same ranking.
  * See docs/adr/0006-the-due-date-is-the-only-rank.md.
+ *
+ * The one exception is the new-word load. At most NEW_WORDS_PER_SESSION new
+ * words enter, and the due date decides which ones: a sixth new word is passed
+ * over and the review word behind it takes the question.
+ * See docs/adr/0015-a-cap-on-new-words-per-session.md.
  *
  * See docs/adr/0002-direction-level-scheduling.md and the plan on issue #328.
  */
@@ -268,10 +284,25 @@ export const planSession = (candidates: Word[], options: PlanSessionOptions): Se
     if (group) group.push(pair);
     else byDay.set(pair.dueDay, [pair]);
   }
-  const ordered = Array.from(byDay.keys())
+  const ranked = Array.from(byDay.keys())
     .sort((a, b) => a - b)
-    .flatMap((day) => seededShuffle(byDay.get(day)!, seed))
-    .slice(0, budget);
+    .flatMap((day) => seededShuffle(byDay.get(day)!, seed));
+
+  // ─── Take the budget, admitting at most five new words ───────────────────
+  // A new word passed over here does not hold its question open: the next pair
+  // in the ranking takes it, so the cap costs the session nothing while any
+  // word is left to review. The five that do enter are the five oldest,
+  // because the ranking already put them first.
+  const ordered: typeof ranked = [];
+  let newAdmitted = 0;
+  for (const pair of ranked) {
+    if (ordered.length === budget) break;
+    if (isNewWord(pair.word)) {
+      if (newAdmitted === NEW_WORDS_PER_SESSION) continue;
+      newAdmitted++;
+    }
+    ordered.push(pair);
+  }
 
   // ─── Assemble ────────────────────────────────────────────────────────────
   const words: Word[] = ordered.map((pair) => pair.word);
