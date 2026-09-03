@@ -25,8 +25,9 @@ export const keyboardShortcuts: ShortcutGroup[] = [
       { keys: 'Ctrl+M', description: 'Activate microphone' },
       { keys: 'Ctrl+Q', description: 'Speak character (TTS)' },
       { keys: 'Ctrl+I', description: "I don't know" },
-      { keys: 'Up', description: 'Confirm correct', context: 'flashcard mode' },
-      { keys: 'Down', description: 'Mark wrong', context: 'flashcard mode' },
+      { keys: 'Up', description: 'Mark known', context: 'flashcard mode' },
+      { keys: 'Right', description: 'Mark nearly known', context: 'flashcard mode' },
+      { keys: 'Down', description: 'Mark not known', context: 'flashcard mode' },
       { keys: 'S', description: 'Toggle sentence display' },
       { keys: 'H', description: 'Show hint' },
       { keys: 'P', description: 'Toggle pinyin visibility' },
@@ -35,6 +36,11 @@ export const keyboardShortcuts: ShortcutGroup[] = [
       { keys: 'E', description: 'Toggle English display' },
       { keys: 'T', description: 'Toggle translation' },
       { keys: 'Enter', description: 'Submit answer' },
+      {
+        keys: 'Enter / Space',
+        description: 'Continue past the answer',
+        context: 'after a missed character',
+      },
     ],
   },
   {

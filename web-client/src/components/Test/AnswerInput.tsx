@@ -9,9 +9,11 @@ import { buttonStyle, activeButtonStyle, fail } from './constants';
 
 import micPic from '../../assets/images/microphone.png';
 import likePic from '../../assets/images/like.png';
+import nearlyPic from '../../assets/images/nearly.png';
 import dislikePic from '../../assets/images/dislike.png';
 
 import { TestState } from './types';
+import { DirectionResult } from '../../types/models';
 import { QuizType } from '../../utils/audioSettings';
 
 interface AnswerInputProps {
@@ -23,7 +25,9 @@ interface AnswerInputProps {
   onListen: () => void;
   onShowAnswer: () => void;
   onCorrectAnswer: () => void;
+  onNearlyKnew: () => void;
   onIDontKnow: () => void;
+  onSubmitAnswer: () => void;
   setStateMerged: (update: Partial<TestState> | ((prev: TestState) => Partial<TestState>)) => void;
 }
 
@@ -43,7 +47,9 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
   onListen,
   onShowAnswer,
   onCorrectAnswer,
+  onNearlyKnew,
   onIDontKnow,
+  onSubmitAnswer,
   setStateMerged,
 }) => {
   const textInput = (
@@ -63,25 +69,37 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
   );
 
   // A grade is final until the next question, so the pressed button keeps a ring
-  // and the other one fades. This works with sound effects off.
-  const graded = state.yesClicked || state.noClicked;
-  const gradeStyle = (pressed: boolean, ring: string): CSSProperties => ({
-    ...(pressed ? activeButtonStyle : buttonStyle),
-    ...(pressed ? { boxShadow: `0 0 0 3px ${ring}` } : null),
-    opacity: graded && !pressed ? 0.3 : 1,
-    transition: 'opacity 150ms ease, box-shadow 150ms ease',
-  });
+  // and the other two fade. This works with sound effects off.
+  const graded = state.gradeClicked !== null;
+  const gradeStyle = (grade: DirectionResult, ring: string): CSSProperties => {
+    const pressed = state.gradeClicked === grade;
+    return {
+      ...(pressed ? activeButtonStyle : buttonStyle),
+      ...(pressed ? { boxShadow: `0 0 0 3px ${ring}` } : null),
+      opacity: graded && !pressed ? 0.3 : 1,
+      transition: 'opacity 150ms ease, box-shadow 150ms ease',
+    };
+  };
 
+  // Flashcard mode has no attempt to read, so the learner grades the question
+  // and the reveal offers all three grades.
   const showAnswerContent = state.showAnswer ? (
     <div style={{ pointerEvents: graded ? 'none' : 'auto' }}>
       <PictureButton
-        style={gradeStyle(state.yesClicked, colors.success)}
-        clicked={onCorrectAnswer}
+        style={gradeStyle('pass', colors.success)}
+        // Wrapped, because the click event would otherwise arrive as the grade.
+        clicked={() => onCorrectAnswer()}
         src={likePic}
         aria-label="I knew this"
       />
       <PictureButton
-        style={gradeStyle(state.noClicked, colors.error)}
+        style={gradeStyle('lapse', colors.warning)}
+        clicked={onNearlyKnew}
+        src={nearlyPic}
+        aria-label="I nearly knew this"
+      />
+      <PictureButton
+        style={gradeStyle('fail', colors.error)}
         clicked={() => {
           if (state.useSoundEffects) fail.play();
           onIDontKnow();
@@ -120,27 +138,43 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
     </div>
   );
 
+  // The input had no submit control other than the Enter key, and a learner who
+  // speaks has no keyboard open. Speech puts its transcript in the input and
+  // sends nothing, so this button is how a spoken answer becomes an attempt.
+  const submitButton = (
+    <Button
+      id="submit-answer"
+      disabled={state.submitDisabled || state.answerInput === ''}
+      clicked={onSubmitAnswer}
+    >
+      Submit
+    </Button>
+  );
+
   const inputWithMic = (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
       {textInput}
-      {speechAvailable ? (
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <PictureButton
-            type="secondary"
-            src={micPic}
-            aria-label="Record speech"
-            clicked={() => onListen()}
-          />
-          <Toggle
-            checked={state.useAutoRecord}
-            changed={(event) => {
-              state.recognition?.abort();
-              setStateMerged({ useAutoRecord: event.target.checked });
-              if (event.target.checked) onListen();
-            }}
-          />
-        </div>
-      ) : null}
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        {speechAvailable ? (
+          <>
+            <PictureButton
+              type="secondary"
+              src={micPic}
+              aria-label="Record speech"
+              clicked={() => onListen()}
+            />
+            <Toggle
+              checked={state.useAutoRecord}
+              changed={(event) => {
+                state.recognition?.abort();
+                setStateMerged({ useAutoRecord: event.target.checked });
+                if (event.target.checked) onListen();
+              }}
+            />
+          </>
+        ) : null}
+        {submitButton}
+      </div>
     </div>
   );
 

@@ -8,12 +8,28 @@ service cloud.firestore {
       return ['MC', 'MP', 'PM', 'PC', 'CM'];
     }
 
+    // The bank and the due date are always present. The memory state that FSRS
+    // reads is optional, because a direction that no session has asked since
+    // the release does not carry it. `interval` and `ease` are the fields of
+    // the calculations that FSRS replaced, and a document keeps them until its
+    // next review. See docs/adr/0009-fsrs.md. `lapses` counts the failed
+    // retrievals of the leech rule, and it appears only once a direction has
+    // collected one. See docs/adr/0010-partial-demotion-and-leeches.md.
     function validDirection(d) {
-      return d.keys().hasOnly(['bank', 'dueDate'])
+      return d.keys().hasOnly([
+          'bank', 'dueDate', 'stability', 'difficulty',
+          'interval', 'ease', 'lastReview', 'toneErrors', 'lapses'
+        ])
         && d.bank is int
         && d.bank >= 1
         && d.bank <= 5
-        && d.dueDate is timestamp;
+        && d.dueDate is timestamp
+        && (!('stability' in d.keys()) || (d.stability is number && d.stability >= 0))
+        && (!('difficulty' in d.keys()) || (d.difficulty is number && d.difficulty >= 1 && d.difficulty <= 10))
+        && (!('interval' in d.keys()) || (d.interval is int && d.interval >= 0 && d.interval <= 365))
+        && (!('lastReview' in d.keys()) || d.lastReview is timestamp)
+        && (!('toneErrors' in d.keys()) || (d.toneErrors is int && d.toneErrors >= 0))
+        && (!('lapses' in d.keys()) || (d.lapses is int && d.lapses >= 0));
     }
 
     function validDirections(dirs) {
@@ -84,6 +100,45 @@ service cloud.firestore {
           && (!('directions' in request.resource.data.diff(resource.data).affectedKeys())
               || validDirections(request.resource.data.directions));
         allow delete: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // ReviewStats subcollection: one rollup document per day, holding the
+      // counters the retention metrics read. Every field is a counter that only
+      // ever grows, so the rules check the shape and the sign rather than the
+      // value. See docs/adr/0013-retention-metrics.md.
+      function validTally(t) {
+        return t.keys().hasOnly([
+            'attempts', 'reviews', 'reviewPasses', 'promoted', 'held', 'demoted'
+          ])
+          && (!('attempts' in t.keys()) || (t.attempts is int && t.attempts >= 0))
+          && (!('reviews' in t.keys()) || (t.reviews is int && t.reviews >= 0))
+          && (!('reviewPasses' in t.keys()) || (t.reviewPasses is int && t.reviewPasses >= 0))
+          && (!('promoted' in t.keys()) || (t.promoted is int && t.promoted >= 0))
+          && (!('held' in t.keys()) || (t.held is int && t.held >= 0))
+          && (!('demoted' in t.keys()) || (t.demoted is int && t.demoted >= 0));
+      }
+
+      // A session writes only the directions it asked, so every key is optional
+      // and each one present must be a valid tally.
+      function validTallies(dirs) {
+        return dirs is map
+          && dirs.keys().hasOnly(directionKeys())
+          && (!('MC' in dirs.keys()) || validTally(dirs.MC))
+          && (!('MP' in dirs.keys()) || validTally(dirs.MP))
+          && (!('PM' in dirs.keys()) || validTally(dirs.PM))
+          && (!('PC' in dirs.keys()) || validTally(dirs.PC))
+          && (!('CM' in dirs.keys()) || validTally(dirs.CM));
+      }
+
+      match /reviewStats/{dateId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if request.auth != null && request.auth.uid == userId
+          && request.resource.data.keys().hasOnly(['date', 'updatedAt', 'directions'])
+          && request.resource.data.date is string
+          && request.resource.data.date == dateId
+          && request.resource.data.updatedAt is timestamp
+          && (!('directions' in request.resource.data.keys())
+              || validTallies(request.resource.data.directions));
       }
 
       // TestCompletions subcollection (streak tracking)

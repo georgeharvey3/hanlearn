@@ -37,6 +37,21 @@ export class TestWordsPage {
     await this.idkButton.click();
   }
 
+  /**
+   * Grade the revealed flashcard question.
+   *
+   * Flashcard mode has no attempt to read, so the reveal offers all three
+   * grades and the learner reports one of them.
+   */
+  async gradeFlashcard(grade: 'pass' | 'lapse' | 'fail'): Promise<void> {
+    const label = {
+      pass: 'I knew this',
+      lapse: 'I nearly knew this',
+      fail: "I didn't know this",
+    }[grade];
+    await this.page.locator(`[aria-label="${label}"]`).click();
+  }
+
   /** Wait for the test to reach the summary stage */
   async waitForSummary(): Promise<void> {
     await expect(this.page.getByText('Session Summary')).toBeVisible({ timeout: 30000 });

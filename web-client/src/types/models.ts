@@ -24,10 +24,20 @@ export type Direction = (typeof DIRECTIONS)[number];
  * `level` is the spaced repetition level, 1 to 5. Firestore stores it as `bank`,
  * the same duplicate name the top-level field carries.
  * `dueDate` is a YYYY/MM/DD string, the format `Word.due_date` uses.
+ * `lapses` is how many times the learner has failed to recall this direction
+ * after learning it. It reads as 0 when absent, and a direction that has
+ * collected enough of them is a leech. See
+ * docs/adr/0010-partial-demotion-and-leeches.md.
+ * `interval` is the days the schedule put between this direction's last review
+ * and its next. It is absent on a direction no session has asked since FSRS
+ * arrived, and the retention metrics read it to measure how far the intervals
+ * of mature directions have climbed.
  */
 export interface DirectionState {
   level: number;
   dueDate: string;
+  lapses?: number;
+  interval?: number;
 }
 
 export type DirectionStates = Record<Direction, DirectionState>;
@@ -63,19 +73,69 @@ export interface User {
   username: string;
 }
 
-export interface TestScore {
+/**
+ * The grade of one question: how the first attempt at it went.
+ *
+ * `pass` is a correct first attempt, `lapse` is a correct answer that followed
+ * a wrong one, and `fail` is "I don't know" or the handwriting reveal. The
+ * retries stay, and they do not change the grade. See
+ * docs/adr/0007-grade-the-first-attempt.md.
+ */
+export type DirectionResult = 'pass' | 'lapse' | 'fail';
+
+/**
+ * What one word's session produced, as submitted to finishTest.
+ *
+ * Only the directions the session asked appear. A direction that is absent
+ * keeps the bank, due date and tone error count it already holds.
+ *
+ * `toneErrors` is a separate map because it has a separate life: the grade
+ * replaces the bank of a direction, and the tone errors add to a running count
+ * that every session of that direction contributes to.
+ */
+export interface WordDirectionResults {
   word_id: number;
-  score: number;
+  directions: Partial<Record<Direction, DirectionResult>>;
+  toneErrors?: Partial<Record<Direction, number>>;
 }
 
+/**
+ * One row of the session summary: how one question went.
+ * The session asks a word in one direction, so a word produces one of these.
+ */
 export interface WordScore {
   char: string;
-  score: 'Very Strong' | 'Strong' | 'Average' | 'Weak' | 'Very Weak';
+  direction: Direction;
+  result: DirectionResult;
+}
+
+/**
+ * The grade of one question, recorded as the session runs.
+ *
+ * The word is held by id rather than by character, because two words in one
+ * session can share a character form and the results must not be merged.
+ *
+ * `toneErrors` counts the attempts at this question that gave the correct
+ * syllables with an incorrect tone. It is 0 for every question that does not
+ * ask for pinyin.
+ */
+export interface DirectionGrade {
+  wordId: number;
+  direction: Direction;
+  result: DirectionResult;
+  toneErrors: number;
 }
 
 export type QuestionCategory = 'C' | 'P' | 'M';
 
-export interface TestPerm {
+/**
+ * One entry of the session queue: one word, asked in one direction.
+ *
+ * `index` points into the words of the plan, and the two categories are the
+ * direction split into the answer it wants and the question it shows. The
+ * direction that names the pair is `directionOf` in `TestLogic.ts`.
+ */
+export interface QueuePair {
   index: string;
   aCategory: QuestionCategory;
   qCategory: QuestionCategory;

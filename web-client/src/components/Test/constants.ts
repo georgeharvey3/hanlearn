@@ -3,7 +3,7 @@ import { Howl } from 'howler';
 import successSound from '../../assets/sounds/success1.wav';
 import failSound from '../../assets/sounds/failure1.wav';
 
-import { WordScore } from '../../types/models';
+import { DIRECTIONS, DirectionResult, WordScore } from '../../types/models';
 import { Props, TestState } from './types';
 
 export const beep = new Howl({
@@ -29,26 +29,30 @@ export const activeButtonStyle = {
 };
 
 export const createInitialState = (props: Props): TestState => {
-  const numWords = parseInt(localStorage.getItem('numWords') || '5');
   const charSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad';
   const priority = props.isDemo ? 'none' : localStorage.getItem('priority') || 'none';
   const onlyPriority = props.isDemo ? false : localStorage.getItem('onlyPriority') === 'true';
 
+  // The dev summary stage fills the summary with one row per direction of each
+  // word, so that every grade and a long list are both visible at once.
   const devScoreList: WordScore[] = props.devTestFinished
-    ? props.words.map((word) => ({
-        char: word[charSet],
-        score: ['Very Strong', 'Strong', 'Average', 'Weak', 'Very Weak'][
-          Math.floor(Math.random() * 5)
-        ] as WordScore['score'],
-      }))
+    ? props.words.flatMap((word) =>
+        DIRECTIONS.map((direction) => {
+          const roll = Math.random();
+          return {
+            char: word[charSet],
+            direction,
+            result: (roll < 0.6 ? 'pass' : roll < 0.85 ? 'lapse' : 'fail') as DirectionResult,
+          };
+        }),
+      )
     : [];
 
   return {
     testSet: [],
-    permList: [],
-    numWords: numWords,
+    queue: [],
     charSet: charSet,
-    perm: null,
+    currentPair: null,
     answer: null,
     answerCategory: null,
     question: null,
@@ -59,8 +63,10 @@ export const createInitialState = (props: Props): TestState => {
     idkDisabled: false,
     submitDisabled: false,
     progressBar: 0,
-    initNumPerms: 0,
-    idkList: [],
+    initialQueueLength: 0,
+    gradeList: [],
+    gradeCap: 'pass',
+    toneErrorCount: 0,
     scoreList: devScoreList,
     testFinished: props.devTestFinished ?? false,
     showInputChars: [],
@@ -86,8 +92,9 @@ export const createInitialState = (props: Props): TestState => {
     showQuestionPinyin: false,
     hintLoading: false,
     showAnswer: false,
-    yesClicked: false,
-    noClicked: false,
+    componentReviewChars: [],
+    showComponents: false,
+    gradeClicked: null,
     pauseAutoRecord: false,
     synthLoading: false,
     speechLoading: false,

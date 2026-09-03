@@ -14,10 +14,10 @@ vi.mock('./constants', () => ({
   fail: { play: vi.fn() },
   createInitialState: vi.fn((props: { words?: unknown[] }) => ({
     testSet: props.words ?? [],
-    permList: [],
+    queue: [],
     numWords: 5,
     charSet: 'simp',
-    perm: null,
+    currentPair: null,
     answer: null,
     answerCategory: 'meaning',
     question: '你好',
@@ -28,8 +28,10 @@ vi.mock('./constants', () => ({
     idkDisabled: false,
     submitDisabled: false,
     progressBar: 0,
-    initNumPerms: 3,
-    idkList: [],
+    initialQueueLength: 3,
+    gradeList: [],
+    gradeCap: 'pass',
+    toneErrorCount: 0,
     scoreList: [],
     testFinished: false,
     showInputChars: [],
@@ -55,8 +57,7 @@ vi.mock('./constants', () => ({
     showQuestionPinyin: false,
     hintLoading: false,
     showAnswer: false,
-    yesClicked: false,
-    noClicked: false,
+    gradeClicked: null,
     pauseAutoRecord: false,
     synthLoading: false,
     speechLoading: false,
@@ -97,11 +98,20 @@ const makeWord = (overrides: Partial<Word> = {}): Word => ({
   pinyin: 'nǐ hǎo',
   meaning: 'hello/hi',
   level: 1,
+  // The queue asks a word only when it is due, and a word with no due date is
+  // never due. A date in the past keeps these fixtures in the session.
+  due_date: '2020/01/01',
   ...overrides,
 });
 
+// Three words, so the queue outlives the first answer. A word is one question
+// now, so a single-word session finishes as soon as it is answered.
 const makeProps = (overrides: Partial<Props> = {}): Props => ({
-  words: [makeWord()],
+  words: [
+    makeWord(),
+    makeWord({ id: 2, simp: '再见', trad: '再見' }),
+    makeWord({ id: 3, simp: '谢谢', trad: '謝謝' }),
+  ],
   userId: 'user-1',
   speechAvailable: false,
   synthAvailable: false,

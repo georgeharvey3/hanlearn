@@ -9,10 +9,10 @@ vi.mock('./constants', () => ({
   fail: { play: vi.fn() },
   createInitialState: vi.fn((props: { words?: unknown[] }) => ({
     testSet: props.words ?? [],
-    permList: [],
+    queue: [],
     numWords: 5,
     charSet: 'simp',
-    perm: null,
+    currentPair: null,
     answer: null,
     answerCategory: null,
     question: null,
@@ -23,8 +23,10 @@ vi.mock('./constants', () => ({
     idkDisabled: false,
     submitDisabled: false,
     progressBar: 0,
-    initNumPerms: 0,
-    idkList: [],
+    initialQueueLength: 0,
+    gradeList: [],
+    gradeCap: 'pass',
+    toneErrorCount: 0,
     scoreList: [],
     testFinished: false,
     showInputChars: [],
@@ -50,8 +52,7 @@ vi.mock('./constants', () => ({
     showQuestionPinyin: false,
     hintLoading: false,
     showAnswer: false,
-    yesClicked: false,
-    noClicked: false,
+    gradeClicked: null,
     pauseAutoRecord: false,
     synthLoading: false,
     speechLoading: false,
@@ -89,6 +90,9 @@ const makeWord = (overrides: Partial<Word> = {}): Word => ({
   pinyin: 'hǎo',
   meaning: 'good',
   level: 1,
+  // The queue asks a word only when it is due, and a word with no due date is
+  // never due. A date in the past keeps these fixtures in the session.
+  due_date: '2020/01/01',
   ...overrides,
 });
 
@@ -217,14 +221,13 @@ describe('useTestEngine — qNum effect triggers setHanziWriter for character qu
     expect((window as any).HanziWriter.create.mock.calls.length).toBe(callsBefore);
   });
 
-  it('resets yesClicked, noClicked, showQuestionPinyin, pauseAutoRecord on qNum change', async () => {
+  it('resets gradeClicked, showQuestionPinyin, pauseAutoRecord on qNum change', async () => {
     const props = makeProps();
     const { result } = renderHook(() => useTestEngine(props));
 
     await act(async () => {
       result.current.setStateMerged({
-        yesClicked: true,
-        noClicked: true,
+        gradeClicked: 'pass',
         showQuestionPinyin: true,
         pauseAutoRecord: true,
         answerCategory: 'meaning',
@@ -238,8 +241,7 @@ describe('useTestEngine — qNum effect triggers setHanziWriter for character qu
       result.current.setStateMerged({ qNum: 4 } as any);
     });
 
-    expect(result.current.state.yesClicked).toBe(false);
-    expect(result.current.state.noClicked).toBe(false);
+    expect(result.current.state.gradeClicked).toBeNull();
     expect(result.current.state.showQuestionPinyin).toBe(false);
     expect(result.current.state.pauseAutoRecord).toBe(false);
   });
@@ -288,14 +290,14 @@ describe('useTestEngine — no reinitialisation or audio after test finishes (#1
     const props = makeProps();
     const { result } = renderHook(() => useTestEngine(props));
 
-    // Set up a test in progress with known permList
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    // Set up a test in progress with known queue
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     act(() => {
       result.current.setStateMerged({
         testSet: [makeWord()],
-        permList: [perm],
-        initNumPerms: 3,
-        perm,
+        queue: [pair],
+        initialQueueLength: 3,
+        currentPair: pair,
         answer: ['good'],
         answerCategory: 'meaning',
         question: 'hǎo',
@@ -304,24 +306,24 @@ describe('useTestEngine — no reinitialisation or audio after test finishes (#1
       } as any);
     });
 
-    const permListAfterSetup = result.current.state.permList.length;
+    const queueAfterSetup = result.current.state.queue.length;
 
     // Mark the test as finished (simulating what happens after last answer)
     act(() => {
       result.current.setStateMerged({
         testFinished: true,
-        permList: [],
+        queue: [],
         scoreList: [{ char: '好', score: 'Very Strong' as const }],
       } as any);
     });
 
-    // permList should be empty (finished)
-    expect(result.current.state.permList).toHaveLength(0);
+    // queue should be empty (finished)
+    expect(result.current.state.queue).toHaveLength(0);
     expect(result.current.state.testFinished).toBe(true);
 
-    // The permList should not have been reset to a new full set
+    // The queue should not have been reset to a new full set
     // (i.e., no reinitialisation occurred)
-    expect(result.current.state.permList).toHaveLength(0);
+    expect(result.current.state.queue).toHaveLength(0);
   });
 });
 
@@ -356,17 +358,19 @@ describe('useTestEngine — qNum effect auto-record paths', () => {
 // Flashcard grading — the feedback line and the pressed button state
 // ---------------------------------------------------------------------------
 describe('useTestEngine — flashcard grade feedback', () => {
-  const perm = { index: '0', aCategory: 'M' as any, qCategory: 'C' as any };
+  const pair = { index: '0', aCategory: 'M' as any, qCategory: 'C' as any };
 
   const gradeState = (overrides: Record<string, unknown> = {}) => ({
     answerCategory: 'meaning',
     answer: ['hello'],
     chosenCharacter: '你好',
-    perm,
+    currentPair: pair,
     testSet: [makeWord()],
-    permList: [perm, { index: '0', aCategory: 'P' as any, qCategory: 'C' as any }],
+    queue: [pair, { index: '0', aCategory: 'P' as any, qCategory: 'C' as any }],
     charSet: 'simp',
-    idkList: [],
+    gradeList: [],
+    gradeCap: 'pass',
+    toneErrorCount: 0,
     idkDisabled: false,
     useHandwriting: false,
     writer: null,
@@ -388,7 +392,7 @@ describe('useTestEngine — flashcard grade feedback', () => {
 
     expect(result.current.state.result).toContain('Not known');
     expect(result.current.state.result).toContain('hello');
-    expect(result.current.state.noClicked).toBe(true);
+    expect(result.current.state.gradeClicked).toBe('fail');
   });
 
   it('keeps the plain answer text when the answer was not shown', async () => {
@@ -404,7 +408,7 @@ describe('useTestEngine — flashcard grade feedback', () => {
     });
 
     expect(result.current.state.result).toBe("Answer was: 'hello'");
-    expect(result.current.state.noClicked).toBe(false);
+    expect(result.current.state.gradeClicked).toBeNull();
   });
 
   it('marks the like button pressed when the answer is graded as known', async () => {
@@ -420,7 +424,7 @@ describe('useTestEngine — flashcard grade feedback', () => {
     });
 
     expect(result.current.state.result).toBe('Correct');
-    expect(result.current.state.yesClicked).toBe(true);
+    expect(result.current.state.gradeClicked).toBe('pass');
   });
 
   it('does not mark the like button pressed for a typed correct answer', async () => {
@@ -435,6 +439,57 @@ describe('useTestEngine — flashcard grade feedback', () => {
       result.current.onCorrectAnswer();
     });
 
-    expect(result.current.state.yesClicked).toBe(false);
+    expect(result.current.state.gradeClicked).toBeNull();
+  });
+
+  it('marks the nearly button pressed when the learner reports a lapse', async () => {
+    const props = makeProps();
+    const { result } = renderHook(() => useTestEngine(props));
+
+    await act(async () => {
+      result.current.setStateMerged(gradeState() as any);
+    });
+
+    act(() => {
+      result.current.onNearlyKnew();
+    });
+
+    expect(result.current.state.result).toBe('Nearly');
+    expect(result.current.state.gradeClicked).toBe('lapse');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// An empty plan: candidates exist, but none of their due directions is asked
+// ---------------------------------------------------------------------------
+describe('useTestEngine — a session with nothing to ask', () => {
+  it('finishes rather than showing a question that does not exist', () => {
+    // Only handwriting is due, and the session does not ask handwriting.
+    localStorage.setItem('useHandwriting', 'false');
+    const word: Word = {
+      id: 1,
+      simp: '你好',
+      trad: '你好',
+      pinyin: 'nǐ hǎo',
+      meaning: 'hello',
+      level: 2,
+      due_date: '2026/01/01',
+      directions: {
+        MC: { level: 2, dueDate: '2099/01/01' },
+        MP: { level: 2, dueDate: '2099/01/01' },
+        PM: { level: 2, dueDate: '2099/01/01' },
+        PC: { level: 2, dueDate: '2099/01/01' },
+        CM: { level: 2, dueDate: '2026/01/01' },
+      },
+    };
+
+    // The engine plans the session on mount.
+    const props = makeProps({ words: [word], isDemo: false });
+    const { result } = renderHook(() => useTestEngine(props));
+
+    expect(result.current.state.queue).toHaveLength(0);
+    expect(result.current.state.testFinished).toBe(true);
+    expect(result.current.state.scoreList).toEqual([]);
+    localStorage.removeItem('useHandwriting');
   });
 });

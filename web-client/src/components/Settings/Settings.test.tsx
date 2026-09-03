@@ -8,7 +8,7 @@
  * - Per-answer-type quiz type radios (Text/Speech/Flashcard) persist to localStorage
  * - Disabling handwriting resets priority to none
  * - Disabling handwriting disables the Writing priority option
- * - Slider updates numWords and persists to localStorage
+ * - Slider updates questionsPerSession and persists to localStorage
  * - Speech/synth availability gates checkbox disabled state
  */
 import { vi, describe, it, expect, beforeEach } from 'vitest';
@@ -65,16 +65,42 @@ describe('Settings — initial render from localStorage', () => {
     expect(tradRadio).toBeChecked();
   });
 
-  it('shows the default numWords value (5) when localStorage is empty', () => {
+  it('shows the default questions per session (25) when localStorage is empty', () => {
     renderWithProviders(<Settings />, { store: makeStore() });
     // The number display renders the current value
-    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getByText('25')).toBeInTheDocument();
   });
 
-  it('reads numWords from localStorage', () => {
-    localStorage.setItem('numWords', '10');
+  it('reads questionsPerSession from localStorage', () => {
+    localStorage.setItem('questionsPerSession', '40');
     renderWithProviders(<Settings />, { store: makeStore() });
-    expect(screen.getByText('10')).toBeInTheDocument();
+    expect(screen.getByText('40')).toBeInTheDocument();
+  });
+
+  it('migrates the old words per session value to questions', () => {
+    localStorage.setItem('numWords', '6');
+    renderWithProviders(<Settings />, { store: makeStore() });
+    expect(screen.getByText('30')).toBeInTheDocument();
+  });
+});
+
+describe('Settings — questions per session slider', () => {
+  it('stores the value the learner selects', () => {
+    renderWithProviders(<Settings />, { store: makeStore() });
+
+    const slider = screen.getByRole('slider', { name: /questions per session/i });
+    fireEvent.change(slider, { target: { value: '35' } });
+
+    expect(localStorage.getItem('questionsPerSession')).toBe('35');
+    expect(screen.getByText('35')).toBeInTheDocument();
+  });
+
+  it('runs from 5 to 50', () => {
+    renderWithProviders(<Settings />, { store: makeStore() });
+
+    const slider = screen.getByRole('slider', { name: /questions per session/i });
+    expect(slider).toHaveAttribute('aria-valuemin', '5');
+    expect(slider).toHaveAttribute('aria-valuemax', '50');
   });
 });
 
@@ -272,8 +298,9 @@ describe('Settings — speech availability gating', () => {
 
   it('disables Translate Sentences stage when speechAvailable is false', () => {
     renderWithProviders(<Settings />, { store: makeStore(false, false) });
+    // Exact, because "Translate sentences for all words" also starts this way.
     const translateSentencesCheckbox = screen.getByRole('checkbox', {
-      name: /translate sentences/i,
+      name: 'Translate Sentences',
     });
     expect(translateSentencesCheckbox).toBeDisabled();
   });
@@ -293,8 +320,8 @@ describe('Settings — time estimate display', () => {
 
   it('updates estimate when stage checkbox is toggled off', async () => {
     const user = userEvent.setup();
-    // Use a larger numWords so the sentence stage time difference is noticeable
-    localStorage.setItem('numWords', '15');
+    // Use a larger budget so the sentence stage time difference is noticeable
+    localStorage.setItem('questionsPerSession', '50');
     renderWithProviders(<Settings />, { store: makeStore() });
 
     const estimateEl = screen.getByText(/estimated test time:/i);
@@ -348,10 +375,10 @@ describe('Settings — Only Priority checkbox', () => {
   });
 });
 
-describe('Settings — sentence stages for all words', () => {
-  it('renders the "Sentence stages for all words" checkbox unchecked by default', () => {
+describe('Settings — translate sentences for all words', () => {
+  it('renders the "Translate sentences for all words" checkbox unchecked by default', () => {
     renderWithProviders(<Settings />, { store: makeStore() });
-    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
     expect(checkbox).toBeInTheDocument();
     expect(checkbox).not.toBeChecked();
   });
@@ -359,7 +386,7 @@ describe('Settings — sentence stages for all words', () => {
   it('reads sentenceStagesForAllWords=true from localStorage', () => {
     localStorage.setItem('sentenceStagesForAllWords', 'true');
     renderWithProviders(<Settings />, { store: makeStore() });
-    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
     expect(checkbox).toBeChecked();
   });
 
@@ -367,16 +394,16 @@ describe('Settings — sentence stages for all words', () => {
     const user = userEvent.setup();
     renderWithProviders(<Settings />, { store: makeStore() });
 
-    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
     await user.click(checkbox);
     expect(localStorage.getItem('sentenceStagesForAllWords')).toBe('true');
   });
 
-  it('is disabled when both sentence stages are off', () => {
+  it('is disabled when the Read stage is off', () => {
     localStorage.setItem('sentenceRead', 'false');
     localStorage.setItem('sentenceWrite', 'false');
     renderWithProviders(<Settings />, { store: makeStore() });
-    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
     expect(checkbox).toBeDisabled();
   });
 
@@ -384,28 +411,30 @@ describe('Settings — sentence stages for all words', () => {
     localStorage.setItem('sentenceRead', 'true');
     localStorage.setItem('sentenceWrite', 'false');
     renderWithProviders(<Settings />, { store: makeStore(true, false) });
-    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
     expect(checkbox).not.toBeDisabled();
   });
 
-  it('is enabled when sentenceWrite is on', () => {
+  // The setting widens the Read stage only: the Write stage keeps its own gate,
+  // so turning it on with only Make Sentences enabled would change nothing.
+  it('is disabled when only Make Sentences is on', () => {
     localStorage.setItem('sentenceRead', 'false');
     localStorage.setItem('sentenceWrite', 'true');
     renderWithProviders(<Settings />, { store: makeStore() });
-    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
-    expect(checkbox).not.toBeDisabled();
+    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
+    expect(checkbox).toBeDisabled();
   });
 
   it('updates the estimated test time when toggled on', async () => {
     const user = userEvent.setup();
     // Ensure sentence stages are enabled so the checkbox is active
-    localStorage.setItem('numWords', '10');
+    localStorage.setItem('questionsPerSession', '50');
     renderWithProviders(<Settings />, { store: makeStore() });
 
     const estimateEl = screen.getByText(/estimated test time:/i);
     const initialText = estimateEl.textContent;
 
-    const checkbox = screen.getByRole('checkbox', { name: /sentence stages for all words/i });
+    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
     await user.click(checkbox);
 
     expect(estimateEl.textContent).not.toBe(initialText);

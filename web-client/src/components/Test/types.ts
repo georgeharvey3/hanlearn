@@ -1,14 +1,35 @@
 import { RouteComponentProps } from 'react-router-dom';
 
-import { Word, TestPerm, WordScore } from '../../types/models';
+import {
+  DirectionGrade,
+  DirectionResult,
+  Word,
+  QueuePair,
+  WordDirectionResults,
+  WordScore,
+} from '../../types/models';
 import { QuizType } from '../../utils/audioSettings';
+import { VocabProgress } from '../../utils/savedSession';
+import { SessionPlan } from './Logic/TestLogic';
+
+/**
+ * The words each sentence stage runs for.
+ *
+ * The Read stage takes the words the learner has just met, and the Write stage
+ * takes the ones they already half know, so the two lists are built from
+ * separate gates rather than sliced from one. See
+ * docs/adr/0011-gate-the-write-stage-on-partial-mastery.md.
+ */
+export interface SentenceStageWords {
+  read: Word[];
+  write: Word[];
+}
 
 export interface TestState {
   testSet: Word[];
-  permList: TestPerm[];
-  numWords: number;
+  queue: QueuePair[];
   charSet: 'simp' | 'trad';
-  perm: TestPerm | null;
+  currentPair: QueuePair | null;
   answer: string | string[] | null;
   answerCategory: string | null;
   question: string | string[] | null;
@@ -19,8 +40,22 @@ export interface TestState {
   idkDisabled: boolean;
   submitDisabled: boolean;
   progressBar: number;
-  initNumPerms: number;
-  idkList: string[];
+  initialQueueLength: number;
+  /**
+   * The grade of every question the session has finished, in the order the
+   * questions were asked. finishTest reschedules exactly these, so a direction
+   * the session did not ask keeps the bank and due date it already holds.
+   */
+  gradeList: DirectionGrade[];
+  /**
+   * The best grade the current question can still get. It starts at `pass` and
+   * a wrong first attempt, five misses on one stroke, or the stroke outline
+   * drops it to `lapse`. "I don't know" and the reveal grade `fail` outright,
+   * so they do not read this.
+   */
+  gradeCap: Exclude<DirectionResult, 'fail'>;
+  /** Tone errors collected on the current question. */
+  toneErrorCount: number;
   scoreList: WordScore[];
   testFinished: boolean;
   showInputChars: string[];
@@ -33,6 +68,11 @@ export interface TestState {
   useAutoRecord: boolean;
   showErrorMessage: boolean;
   redoChar: boolean;
+  /**
+   * Every word either sentence stage may use, deduplicated. The engine hands
+   * the two stage lists to `startSentenceStages`; this one exists so that the
+   * availability check has a single set to run over.
+   */
   sentenceWords: Word[];
   sentenceCheckStatus: 'idle' | 'pending' | 'available' | 'unavailable';
   writer: HanziWriterInstance | null;
@@ -46,8 +86,20 @@ export interface TestState {
   showQuestionPinyin: boolean;
   hintLoading: boolean;
   showAnswer: boolean;
-  yesClicked: boolean;
-  noClicked: boolean;
+  /**
+   * The characters whose components the session is offering after a missed
+   * question, or [] when it is not offering any. A non-empty list holds the
+   * session on the reveal: the next question waits for Continue.
+   */
+  componentReviewChars: string[];
+  /** Whether the component breakdown of those characters is expanded. */
+  showComponents: boolean;
+  /**
+   * The grade button the learner pressed on the current flashcard question, or
+   * null while the question is ungraded. It styles the three buttons, so it is
+   * set however the grade was given, by mouse or by keyboard.
+   */
+  gradeClicked: DirectionResult | null;
   pauseAutoRecord: boolean;
   synthLoading: boolean;
   speechLoading: boolean;
@@ -61,14 +113,31 @@ export interface ReduxProps {
   synthAvailable: boolean;
   voice?: SpeechSynthesisVoice;
   lang?: string;
-  onFinishTest: (scores: { word_id: number; score: number }[]) => void;
+  onFinishTest: (results: WordDirectionResults[]) => void;
 }
 
 export interface OwnProps {
   words: Word[];
+  /**
+   * The plan the session runs, built by TestWords so that the Learn step and
+   * the queue agree on which new words the session admits. The engine plans for
+   * itself only when this is absent, which is the demo and the unit tests.
+   */
+  plan?: SessionPlan;
+  /**
+   * The progress of a session the learner chose to resume: the questions it has
+   * left and the grades it has already collected. The queue replaces the
+   * plan's, so `plan` must be the same plan the saved queue indexes into.
+   */
+  resume?: VocabProgress;
+  /**
+   * Reports the queue and the grades after each graded question, so that the
+   * container can save the session. See issue #305.
+   */
+  onProgress?: (progress: VocabProgress) => void;
   isDemo?: boolean;
   finalStage?: boolean;
-  startSentenceRead?: (words: Word[], scores?: WordScore[]) => void;
+  startSentenceStages?: (words: SentenceStageWords, scores?: WordScore[]) => void;
   onVocabComplete?: (scores: WordScore[]) => void;
   devTestFinished?: boolean;
   practiceMode?: boolean;

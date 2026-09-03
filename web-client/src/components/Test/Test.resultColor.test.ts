@@ -42,6 +42,10 @@ describe('getResultColor', () => {
     expect(getResultColor('Incorrect tones', false)).toBe('warning.main');
   });
 
+  it('shows a flashcard grade of nearly in the warning colour', () => {
+    expect(getResultColor('Nearly', true)).toBe('warning.main');
+  });
+
   it('keeps the flashcard reveal neutral', () => {
     expect(getResultColor("Answer was: 'hello'", true)).toBe('text.primary');
   });

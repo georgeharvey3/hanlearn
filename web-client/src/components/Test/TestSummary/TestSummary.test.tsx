@@ -3,9 +3,9 @@
  *
  * Focus areas:
  * - Renders "Session Summary" heading
- * - Correct plural/singular word count ("3 words tested" vs "1 word tested")
- * - Lists each word's character and score label
- * - Score chips carry the right MUI color variant per score bucket
+ * - Counts questions and the distinct words they came from
+ * - Lists one row per direction, with the word, the direction and the result
+ * - Result chips carry the right MUI color variant
  * - Home button navigates to '/'
  */
 import { vi, describe, it, expect } from 'vitest';
@@ -18,15 +18,15 @@ import userEvent from '@testing-library/user-event';
 
 import TestSummary from './TestSummary';
 import { renderWithProviders } from '../../../test/utils';
-import { WordScore } from '../../../types/models';
+import { DIRECTIONS, WordScore } from '../../../types/models';
+import { DIRECTION_LABELS } from '../../../utils/directions';
 
-const allScores: WordScore[] = [
-  { char: '你', score: 'Very Strong' },
-  { char: '好', score: 'Strong' },
-  { char: '学', score: 'Average' },
-  { char: '生', score: 'Weak' },
-  { char: '中', score: 'Very Weak' },
-];
+/** One word asked in all five directions, with handwriting failed. */
+const allScores: WordScore[] = DIRECTIONS.map((direction) => ({
+  char: '你',
+  direction,
+  result: direction === 'CM' ? ('fail' as const) : ('pass' as const),
+}));
 
 describe('TestSummary — heading and word count', () => {
   it('renders "Session Summary" heading', () => {
@@ -34,19 +34,29 @@ describe('TestSummary — heading and word count', () => {
     expect(screen.getByRole('heading', { name: /session summary/i })).toBeInTheDocument();
   });
 
-  it('shows the correct plural word count', () => {
+  it('counts the questions and the words they came from', () => {
     renderWithProviders(<TestSummary scores={allScores} />);
-    expect(screen.getByText(/5 words tested/i)).toBeInTheDocument();
+    expect(screen.getByText(/5 questions across 1 word/i)).toBeInTheDocument();
   });
 
-  it('shows singular "word" for a single-word session', () => {
-    renderWithProviders(<TestSummary scores={[{ char: '你', score: 'Strong' }]} />);
-    expect(screen.getByText(/1 word tested/i)).toBeInTheDocument();
+  it('uses the singular for a session of one question', () => {
+    renderWithProviders(<TestSummary scores={[{ char: '你', direction: 'MC', result: 'pass' }]} />);
+    expect(screen.getByText(/1 question across 1 word/i)).toBeInTheDocument();
+  });
+
+  it('counts distinct words, not rows', () => {
+    const scores: WordScore[] = [
+      { char: '一', direction: 'MC', result: 'pass' },
+      { char: '一', direction: 'CM', result: 'fail' },
+      { char: '二', direction: 'MC', result: 'pass' },
+    ];
+    renderWithProviders(<TestSummary scores={scores} />);
+    expect(screen.getByText(/3 questions across 2 words/i)).toBeInTheDocument();
   });
 
   it('handles an empty scores array without crashing', () => {
     renderWithProviders(<TestSummary scores={[]} />);
-    expect(screen.getByText(/0 words tested/i)).toBeInTheDocument();
+    expect(screen.getByText(/0 questions across 0 words/i)).toBeInTheDocument();
   });
 
   it('renders without crashing when scores is undefined', () => {
@@ -54,33 +64,42 @@ describe('TestSummary — heading and word count', () => {
     expect(screen.getByRole('heading', { name: /session summary/i })).toBeInTheDocument();
   });
 
-  it('shows "0 words tested" when scores is undefined', () => {
+  it('shows a zero count when scores is undefined', () => {
     renderWithProviders(<TestSummary />);
-    expect(screen.getByText(/0 words tested/i)).toBeInTheDocument();
+    expect(screen.getByText(/0 questions across 0 words/i)).toBeInTheDocument();
   });
 });
 
 describe('TestSummary — session accuracy', () => {
-  it('shows accuracy line with correct count and percentage', () => {
+  it('counts a pass in every direction, not the word as a whole', () => {
     renderWithProviders(<TestSummary scores={allScores} />);
-    // 2 correct (Very Strong + Strong) out of 5 = 40%
-    expect(screen.getByTestId('session-accuracy')).toHaveTextContent('2 / 5 correct (40%)');
+    // Four directions passed, handwriting failed.
+    expect(screen.getByTestId('session-accuracy')).toHaveTextContent('4 / 5 correct (80%)');
   });
 
-  it('shows 100% when all scores are Strong or Very Strong', () => {
+  it('shows 100% when every direction passed', () => {
     const scores: WordScore[] = [
-      { char: '一', score: 'Very Strong' },
-      { char: '二', score: 'Strong' },
+      { char: '一', direction: 'MC', result: 'pass' },
+      { char: '二', direction: 'PC', result: 'pass' },
     ];
     renderWithProviders(<TestSummary scores={scores} />);
     expect(screen.getByTestId('session-accuracy')).toHaveTextContent('2 / 2 correct (100%)');
   });
 
-  it('shows 0% when no scores are Strong or Very Strong', () => {
+  it('does not count a lapse as correct', () => {
     const scores: WordScore[] = [
-      { char: '一', score: 'Average' },
-      { char: '二', score: 'Weak' },
-      { char: '三', score: 'Very Weak' },
+      { char: '一', direction: 'MC', result: 'pass' },
+      { char: '二', direction: 'MC', result: 'lapse' },
+    ];
+    renderWithProviders(<TestSummary scores={scores} />);
+    expect(screen.getByTestId('session-accuracy')).toHaveTextContent('1 / 2 correct (50%)');
+  });
+
+  it('shows 0% when every direction failed', () => {
+    const scores: WordScore[] = [
+      { char: '一', direction: 'MC', result: 'fail' },
+      { char: '二', direction: 'PC', result: 'fail' },
+      { char: '三', direction: 'CM', result: 'fail' },
     ];
     renderWithProviders(<TestSummary scores={scores} />);
     expect(screen.getByTestId('session-accuracy')).toHaveTextContent('0 / 3 correct (0%)');
@@ -97,34 +116,48 @@ describe('TestSummary — session accuracy', () => {
   });
 });
 
-describe('TestSummary — score rows', () => {
-  it('renders each word character', () => {
+describe('TestSummary — one row per direction', () => {
+  it('repeats the word once per direction it was asked in', () => {
     renderWithProviders(<TestSummary scores={allScores} />);
-    for (const { char } of allScores) {
-      expect(screen.getByText(char)).toBeInTheDocument();
+    expect(screen.getAllByText('你')).toHaveLength(DIRECTIONS.length);
+  });
+
+  it('names the direction of every row', () => {
+    renderWithProviders(<TestSummary scores={allScores} />);
+    for (const direction of DIRECTIONS) {
+      expect(screen.getByText(DIRECTION_LABELS[direction])).toBeInTheDocument();
     }
   });
 
-  it('renders all five score labels', () => {
+  it('marks the failed direction and only that one', () => {
     renderWithProviders(<TestSummary scores={allScores} />);
-    expect(screen.getByText('Very Strong')).toBeInTheDocument();
-    expect(screen.getByText('Strong')).toBeInTheDocument();
-    expect(screen.getByText('Average')).toBeInTheDocument();
-    expect(screen.getByText('Weak')).toBeInTheDocument();
-    expect(screen.getByText('Very Weak')).toBeInTheDocument();
+    expect(screen.getAllByText('Known')).toHaveLength(4);
+    expect(screen.getAllByText('Not known')).toHaveLength(1);
   });
 
-  it('renders two words with the same score correctly', () => {
+  it('names a lapse "Nearly" and keeps it apart from the other two grades', () => {
     const scores: WordScore[] = [
-      { char: '一', score: 'Strong' },
-      { char: '二', score: 'Strong' },
+      { char: '一', direction: 'MC', result: 'pass' },
+      { char: '二', direction: 'MC', result: 'lapse' },
+      { char: '三', direction: 'MC', result: 'fail' },
     ];
     renderWithProviders(<TestSummary scores={scores} />);
-    // Both chars visible
+    expect(screen.getByText('Known')).toBeInTheDocument();
+    expect(screen.getByText('Nearly')).toBeInTheDocument();
+    expect(screen.getByText('Not known')).toBeInTheDocument();
+  });
+
+  it('keeps two words with the same direction apart', () => {
+    const scores: WordScore[] = [
+      { char: '一', direction: 'MC', result: 'pass' },
+      { char: '二', direction: 'MC', result: 'fail' },
+    ];
+    renderWithProviders(<TestSummary scores={scores} />);
     expect(screen.getByText('一')).toBeInTheDocument();
     expect(screen.getByText('二')).toBeInTheDocument();
-    // Two "Strong" chips
-    expect(screen.getAllByText('Strong')).toHaveLength(2);
+    expect(screen.getAllByText(DIRECTION_LABELS.MC)).toHaveLength(2);
+    expect(screen.getByText('Known')).toBeInTheDocument();
+    expect(screen.getByText('Not known')).toBeInTheDocument();
   });
 });
 

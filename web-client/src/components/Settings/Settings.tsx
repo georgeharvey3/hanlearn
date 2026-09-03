@@ -12,12 +12,26 @@ import Tooltip from '@mui/material/Tooltip';
 
 import { RootState } from '../../types/store';
 import { colors } from '../../theme';
-import { estimateTestTime, formatTestTime } from '../../utils/estimateTestTime';
+import {
+  assumedNewWordCount,
+  assumedWriteWordCount,
+  estimateTestTime,
+  formatTestTime,
+  spreadOverDirections,
+} from '../../utils/estimateTestTime';
+import { eligibleDirections } from '../Test/Logic/TestLogic';
+import {
+  QUESTIONS_PER_SESSION_MAX,
+  QUESTIONS_PER_SESSION_MIN,
+  QUESTIONS_PER_SESSION_STEP,
+  readQuestionsPerSession,
+  writeQuestionsPerSession,
+} from '../../utils/sessionSettings';
 import { QuizCategory, QuizType, getQuizType, setQuizType } from '../../utils/audioSettings';
 
 interface SettingsState {
   charSet: string;
-  numWords: number;
+  questionsPerSession: number;
   useHandwriting: boolean;
   useSound: boolean;
   useSoundEffects: boolean;
@@ -123,7 +137,6 @@ const CheckboxRows: React.FC<{
 const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable }) => {
   const [state, setState] = useState<SettingsState>(() => {
     const localCharSet = localStorage.getItem('charSet');
-    const localNumWords = localStorage.getItem('numWords');
     const useHandwriting = localStorage.getItem('useHandwriting');
     const useSound = localStorage.getItem('useSound');
     const useSoundEffects = localStorage.getItem('useSoundEffects');
@@ -137,7 +150,7 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
 
     return {
       charSet: localCharSet || 'trad',
-      numWords: localNumWords ? parseInt(localNumWords) : 5,
+      questionsPerSession: readQuestionsPerSession(),
       useHandwriting: useHandwriting === 'false' ? false : true,
       useSound: useSound === 'false' ? false : true,
       useSoundEffects: useSoundEffects === 'false' ? false : true,
@@ -191,9 +204,9 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
     const numValue = value as number;
     setState((prev) => ({
       ...prev,
-      numWords: numValue,
+      questionsPerSession: numValue,
     }));
-    localStorage.setItem('numWords', String(numValue));
+    writeQuestionsPerSession(numValue);
   }, []);
 
   const onCheckChange = useCallback((e: ChangeEvent<HTMLInputElement>): void => {
@@ -291,22 +304,33 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
       disabledTooltip: '',
     },
     {
+      // Widens the Read stage only. Make Sentences keeps its own gate, because
+      // writing with a word the learner has only just met impedes learning it.
+      // See docs/adr/0011-gate-the-write-stage-on-partial-mastery.md.
       value: 'sentenceStagesForAllWords',
-      label: 'Sentence stages for all words',
-      checked: state.sentenceStagesForAllWords && (state.sentenceRead || state.sentenceWrite),
-      disabled: !state.sentenceRead && !state.sentenceWrite,
-      disabledTooltip: 'Enable at least one sentence stage first',
+      label: 'Translate sentences for all words',
+      checked: state.sentenceStagesForAllWords && state.sentenceRead,
+      disabled: !state.sentenceRead,
+      disabledTooltip: 'Enable Translate Sentences first',
     },
   ];
 
+  // The Settings page has no word list, so it estimates an average session:
+  // the budget of questions, spread over the directions the settings allow.
   const timeEstimate = useMemo(
     () =>
       formatTestTime(
         estimateTestTime({
-          numWords: state.numWords,
-          useHandwriting: state.useHandwriting,
-          priority: state.priority,
-          onlyPriority: state.onlyPriority,
+          directions: spreadOverDirections(
+            state.questionsPerSession,
+            eligibleDirections({
+              includeHandwriting: state.useHandwriting,
+              priority: state.priority,
+              onlyPriority: state.onlyPriority,
+            }),
+          ),
+          newWordCount: assumedNewWordCount(state.questionsPerSession),
+          writeWordCount: assumedWriteWordCount(state.questionsPerSession),
           newWordsEnabled: state.newWords,
           sentenceReadEnabled: state.sentenceRead,
           sentenceWriteEnabled: state.sentenceWrite,
@@ -314,7 +338,7 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
         }),
       ),
     [
-      state.numWords,
+      state.questionsPerSession,
       state.useHandwriting,
       state.priority,
       state.onlyPriority,
@@ -353,30 +377,31 @@ const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable })
             }}
           >
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              Words per session
+              Questions per session
             </Typography>
             <Typography
               variant="h5"
               fontWeight="bold"
               sx={{ color: colors.primaryDark, lineHeight: 1 }}
             >
-              {state.numWords}
+              {state.questionsPerSession}
             </Typography>
           </Box>
           <Slider
-            value={state.numWords}
+            value={state.questionsPerSession}
             onChange={onSliderChange}
-            min={1}
-            max={20}
+            min={QUESTIONS_PER_SESSION_MIN}
+            max={QUESTIONS_PER_SESSION_MAX}
+            step={QUESTIONS_PER_SESSION_STEP}
             size="small"
-            aria-label="Characters per test"
+            aria-label="Questions per session"
           />
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.25 }}>
             <Typography variant="caption" color="text.secondary">
-              1
+              {QUESTIONS_PER_SESSION_MIN}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              20
+              {QUESTIONS_PER_SESSION_MAX}
             </Typography>
           </Box>
           <Typography

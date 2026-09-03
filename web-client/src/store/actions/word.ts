@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/react';
 import * as actionTypes from './actionTypes';
-import { Word, WordList } from '../../types/models';
+import { Word, WordDirectionResults, WordList } from '../../types/models';
 import {
   AddWordAction,
   AddCustomWordAction,
@@ -397,17 +397,17 @@ export const postMoveWord = (wordID: number, newListId: string, wordLabel?: stri
 };
 
 /**
- * Submit test results and update word levels in Firestore.
+ * Submit the results of a session and reschedule the directions it asked.
  * Re-fetches the full word list so Redux state reflects the new levels and due dates.
  */
-export const finishTest = (scores: { word_id: number; score: number }[]): AppThunk => {
+export const finishTest = (results: WordDirectionResults[]): AppThunk => {
   return async (dispatch, getState) => {
     const { auth, addWords } = getState();
     if (!auth.userId) return;
 
     try {
       await traceAsync('finish_test', async () => {
-        await wordService.finishTest(auth.userId!, scores);
+        await wordService.finishTest(auth.userId!, results);
 
         // Re-fetch words and stats so the local store has updated levels and due dates
         try {
@@ -434,7 +434,7 @@ export const finishTest = (scores: { word_id: number; score: number }[]): AppThu
       });
 
       dispatch(showNotification('Test complete — results saved'));
-      trackFeatureUsage('test_completed', { word_count: String(scores.length) });
+      trackFeatureUsage('test_completed', { word_count: String(results.length) });
     } catch (error) {
       console.error('Failed to finish test:', error);
       Sentry.captureException(error);

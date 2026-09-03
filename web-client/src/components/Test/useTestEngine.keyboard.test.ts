@@ -15,10 +15,10 @@ vi.mock('./constants', () => ({
   fail: { play: vi.fn() },
   createInitialState: vi.fn((props: { words?: unknown[] }) => ({
     testSet: props.words ?? [],
-    permList: [],
+    queue: [],
     numWords: 5,
     charSet: 'simp',
-    perm: null,
+    currentPair: null,
     answer: null,
     answerCategory: null,
     question: null,
@@ -29,8 +29,10 @@ vi.mock('./constants', () => ({
     idkDisabled: false,
     submitDisabled: false,
     progressBar: 0,
-    initNumPerms: 0,
-    idkList: [],
+    initialQueueLength: 0,
+    gradeList: [],
+    gradeCap: 'pass',
+    toneErrorCount: 0,
     scoreList: [],
     testFinished: false,
     showInputChars: [],
@@ -56,8 +58,9 @@ vi.mock('./constants', () => ({
     showQuestionPinyin: false,
     hintLoading: false,
     showAnswer: false,
-    yesClicked: false,
-    noClicked: false,
+    componentReviewChars: [],
+    showComponents: false,
+    gradeClicked: null,
     pauseAutoRecord: false,
     synthLoading: false,
     speechLoading: false,
@@ -85,10 +88,11 @@ vi.mock('pinyin-pro', () => ({
 
 import { renderHook, act } from '@testing-library/react';
 import { useTestEngine } from './useTestEngine';
-import { Word } from '../../types/models';
+import { DIRECTIONS, Direction, Word } from '../../types/models';
 import { Props } from './types';
 import * as ttsService from '../../services/ttsService';
 import { checkSentenceAvailability } from '../../services/sentenceService';
+import { makeDirections, WRITE_STAGE_BANK } from '../../utils/directions';
 
 const makeWord = (overrides: Partial<Word> = {}): Word => ({
   id: 1,
@@ -97,6 +101,9 @@ const makeWord = (overrides: Partial<Word> = {}): Word => ({
   pinyin: 'nǐ hǎo',
   meaning: 'hello/hi',
   level: 1,
+  // The queue asks a word only when it is due, and a word with no due date is
+  // never due. A date in the past keeps these fixtures in the session.
+  due_date: '2020/01/01',
   ...overrides,
 });
 
@@ -196,17 +203,19 @@ function renderEngineWithState(
 // Keyboard: Ctrl+i triggers IDK
 // ---------------------------------------------------------------------------
 describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
-  it('adds word to idkList when Ctrl+i is pressed and idkDisabled=false', () => {
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+  it('grades the question a fail when Ctrl+i is pressed and idkDisabled=false', () => {
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
       answer: ['hello'],
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
-      idkList: [],
+      gradeList: [],
+      gradeCap: 'pass',
+      toneErrorCount: 0,
       idkDisabled: false,
       useHandwriting: false,
       writer: null,
@@ -216,21 +225,53 @@ describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
       fireKeyUp('i', { ctrlKey: true });
     });
 
-    expect(result.current.state.idkList).toContain('你好');
+    // The queue pair asks meaning from pinyin, so the grade lands on MP, once.
+    expect(result.current.state.gradeList).toEqual([
+      { wordId: 1, direction: 'MP', result: 'fail', toneErrors: 0 },
+    ]);
     expect(result.current.state.idkDisabled).toBe(true);
   });
 
-  it('does NOT fire IDK when Ctrl+i is pressed but idkDisabled=true', () => {
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+  it('records the direction once, not twice, for a single Ctrl+i', () => {
+    // Regression: Ctrl+i used to match both the ctrl branch and the plain "i"
+    // branch of the key handler, so one keypress ran onIDontKnow twice.
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
       answer: ['hello'],
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
-      idkList: [],
+      gradeList: [],
+      gradeCap: 'pass',
+      toneErrorCount: 0,
+      idkDisabled: false,
+      useHandwriting: false,
+      writer: null,
+    });
+
+    act(() => {
+      fireKeyUp('i', { ctrlKey: true });
+    });
+
+    expect(result.current.state.gradeList).toHaveLength(1);
+  });
+
+  it('does NOT fire IDK when Ctrl+i is pressed but idkDisabled=true', () => {
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const result = renderEngineWithState({
+      answerCategory: 'meaning',
+      answer: ['hello'],
+      chosenCharacter: '你好',
+      currentPair: pair,
+      testSet: [makeWord()],
+      queue: [pair],
+      charSet: 'simp',
+      gradeList: [],
+      gradeCap: 'pass',
+      toneErrorCount: 0,
       idkDisabled: true,
     });
 
@@ -238,7 +279,7 @@ describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
       fireKeyUp('i', { ctrlKey: true });
     });
 
-    expect(result.current.state.idkList).toHaveLength(0);
+    expect(result.current.state.gradeList).toHaveLength(0);
   });
 });
 
@@ -246,17 +287,19 @@ describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
 // Keyboard: 'i' key (without Ctrl) triggers IDK when source is not input
 // ---------------------------------------------------------------------------
 describe('useTestEngine — keyboard "i" key triggers onIDontKnow from non-input', () => {
-  it('adds word to idkList when "i" is pressed from body (non-input element)', () => {
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+  it('grades the question a fail when "i" is pressed from body (non-input element)', () => {
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
       answer: ['hello'],
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
-      idkList: [],
+      gradeList: [],
+      gradeCap: 'pass',
+      toneErrorCount: 0,
       idkDisabled: false,
       useHandwriting: false,
       writer: null,
@@ -267,7 +310,10 @@ describe('useTestEngine — keyboard "i" key triggers onIDontKnow from non-input
       fireKeyUp('i');
     });
 
-    expect(result.current.state.idkList).toContain('你好');
+    // The queue pair asks meaning from pinyin, so the grade lands on MP, once.
+    expect(result.current.state.gradeList).toEqual([
+      { wordId: 1, direction: 'MP', result: 'fail', toneErrors: 0 },
+    ]);
   });
 });
 
@@ -278,7 +324,7 @@ describe('useTestEngine — spacebar triggers onListen for pinyin answers', () =
   it('calls recognition.start when spacebar pressed in pinyin mode with speech enabled', () => {
     const mockRecognition = setupRecognitionMock();
 
-    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
+    const pair = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
     const result = renderEngineWithState(
       {
         answerCategory: 'pinyin',
@@ -287,9 +333,9 @@ describe('useTestEngine — spacebar triggers onListen for pinyin answers', () =
         listening: false,
         testFinished: false,
         chosenCharacter: '你好',
-        perm,
+        currentPair: pair,
         testSet: [makeWord()],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
       },
       { speechAvailable: true },
@@ -374,15 +420,15 @@ describe('useTestEngine — keyboard "p" key toggles question pinyin', () => {
 // Keyboard: ArrowUp in flashcard mode confirms correct answer
 // ---------------------------------------------------------------------------
 describe('useTestEngine — keyboard ArrowUp confirms answer in flashcard mode', () => {
-  it('sets yesClicked=true and calls onCorrectAnswer when ArrowUp pressed with showAnswer=true', () => {
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+  it('grades a pass and marks the button when ArrowUp is pressed with showAnswer=true', () => {
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
       answer: ['hello'],
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
       showAnswer: true,
       idkDisabled: false,
@@ -392,9 +438,36 @@ describe('useTestEngine — keyboard ArrowUp confirms answer in flashcard mode',
       fireKeyUp('ArrowUp');
     });
 
-    expect(result.current.state.yesClicked).toBe(true);
-    // onCorrectAnswer removes perm from permList; since this is the last perm, it triggers finish
+    expect(result.current.state.gradeClicked).toBe('pass');
+    // onCorrectAnswer removes pair from queue; since this is the last pair, it triggers finish
     expect(result.current.state.result).toMatch(/Correct|Finished/);
+  });
+
+  it('grades a lapse and marks the button when ArrowRight is pressed', () => {
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const result = renderEngineWithState({
+      answerCategory: 'meaning',
+      answer: ['hello'],
+      chosenCharacter: '你好',
+      currentPair: pair,
+      testSet: [makeWord()],
+      queue: [pair],
+      charSet: 'simp',
+      gradeList: [],
+      gradeCap: 'pass',
+      toneErrorCount: 0,
+      showAnswer: true,
+      idkDisabled: false,
+    });
+
+    act(() => {
+      fireKeyUp('ArrowRight');
+    });
+
+    expect(result.current.state.gradeClicked).toBe('lapse');
+    expect(result.current.state.gradeList).toEqual([
+      { wordId: 1, direction: 'MP', result: 'lapse', toneErrors: 0 },
+    ]);
   });
 });
 
@@ -402,17 +475,19 @@ describe('useTestEngine — keyboard ArrowUp confirms answer in flashcard mode',
 // Keyboard: ArrowDown in flashcard mode marks answer wrong (IDK)
 // ---------------------------------------------------------------------------
 describe('useTestEngine — keyboard ArrowDown marks IDK in flashcard mode', () => {
-  it('sets noClicked=true and adds to idkList when ArrowDown pressed with showAnswer=true', () => {
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+  it('grades a fail and marks the button when ArrowDown is pressed with showAnswer=true', () => {
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       answerCategory: 'meaning',
       answer: ['hello'],
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
-      idkList: [],
+      gradeList: [],
+      gradeCap: 'pass',
+      toneErrorCount: 0,
       showAnswer: true,
       idkDisabled: false,
       useHandwriting: false,
@@ -423,8 +498,11 @@ describe('useTestEngine — keyboard ArrowDown marks IDK in flashcard mode', () 
       fireKeyUp('ArrowDown');
     });
 
-    expect(result.current.state.noClicked).toBe(true);
-    expect(result.current.state.idkList).toContain('你好');
+    expect(result.current.state.gradeClicked).toBe('fail');
+    // The queue pair asks meaning from pinyin, so the grade lands on MP, once.
+    expect(result.current.state.gradeList).toEqual([
+      { wordId: 1, direction: 'MP', result: 'fail', toneErrors: 0 },
+    ]);
   });
 });
 
@@ -435,7 +513,7 @@ describe('useTestEngine — keyboard Ctrl+m triggers onListen', () => {
   it('calls recognition.start when Ctrl+m is pressed and mic is available', () => {
     const mockRecognition = setupRecognitionMock();
 
-    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
+    const pair = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
     const result = renderEngineWithState(
       {
         answerCategory: 'pinyin',
@@ -444,9 +522,9 @@ describe('useTestEngine — keyboard Ctrl+m triggers onListen', () => {
         listening: false,
         testFinished: false,
         chosenCharacter: '你好',
-        perm,
+        currentPair: pair,
         testSet: [makeWord()],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
       },
       { speechAvailable: true },
@@ -467,16 +545,16 @@ describe('useTestEngine — keyboard Ctrl+q triggers onSpeak', () => {
   it('calls ttsService.speak when Ctrl+q is pressed and speaker is available', () => {
     vi.mocked(ttsService.speak).mockClear();
 
-    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
+    const pair = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
     const result = renderEngineWithState({
       useSound: true,
       questionCategory: 'pinyin',
       testFinished: false,
       listening: false,
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
     });
 
@@ -535,16 +613,16 @@ describe('useTestEngine — keyboard "s" key triggers onSpeak', () => {
   it('calls ttsService.speak when "s" is pressed and speaker is available', () => {
     vi.mocked(ttsService.speak).mockClear();
 
-    const perm = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
+    const pair = { index: '0', aCategory: 'P' as any, qCategory: 'C' as any };
     const result = renderEngineWithState({
       useSound: true,
       questionCategory: 'pinyin',
       testFinished: false,
       listening: false,
       chosenCharacter: '你好',
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
     });
 
@@ -566,16 +644,16 @@ describe('useTestEngine — qNum effect triggers onSpeak when useSound=true', ()
   it('calls ttsService.speak when questionCategory=pinyin and useSound=true on qNum change', () => {
     vi.mocked(ttsService.speak).mockClear();
 
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState({
       questionCategory: 'pinyin',
       answerCategory: 'meaning',
       useSound: true,
       chosenCharacter: '你好',
       useAutoRecord: false,
-      perm,
+      currentPair: pair,
       testSet: [makeWord()],
-      permList: [perm],
+      queue: [pair],
       charSet: 'simp',
       qNum: 1,
     });
@@ -602,24 +680,26 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
     vi.useRealTimers();
   });
 
-  it('calls startSentenceRead when level-1 words have sentences available', async () => {
+  it('calls startSentenceStages when level-1 words have sentences available', async () => {
     vi.mocked(checkSentenceAvailability).mockResolvedValue(true);
 
-    const startSentenceRead = vi.fn();
+    const startSentenceStages = vi.fn();
     const level1Word = makeWord({ id: 1, level: 1 });
 
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState(
       {
         answerCategory: 'meaning',
         answer: ['hello'],
         answerInput: 'hello', // must match to trigger onCorrectAnswer
         chosenCharacter: '你好',
-        perm,
+        currentPair: pair,
         testSet: [level1Word],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
-        idkList: [],
+        gradeList: [],
+        gradeCap: 'pass',
+        toneErrorCount: 0,
         useAutoRecord: false,
         recognition: null,
       },
@@ -628,12 +708,12 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         isDemo: false,
         practiceMode: false,
         finalStage: false,
-        startSentenceRead,
+        startSentenceStages,
         onFinishTest: vi.fn(),
       },
     );
 
-    // Trigger correct answer — last perm is exhausted, onFinishTest called
+    // Trigger correct answer — last pair is exhausted, onFinishTest called
     act(() => {
       result.current.onSubmitAnswer();
     });
@@ -652,8 +732,9 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
     });
 
     expect(checkSentenceAvailability).toHaveBeenCalledWith('你好', 'simp');
-    expect(startSentenceRead).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ id: 1 })]),
+    // A level-1 word is new, so it reaches the Read stage and not the Write one.
+    expect(startSentenceStages).toHaveBeenCalledWith(
+      { read: [expect.objectContaining({ id: 1 })], write: [] },
       expect.any(Array),
     );
   });
@@ -664,18 +745,20 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
     const onVocabComplete = vi.fn();
     const level1Word = makeWord({ id: 1, level: 1 });
 
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
     const result = renderEngineWithState(
       {
         answerCategory: 'meaning',
         answer: ['hello'],
         answerInput: 'hello',
         chosenCharacter: '你好',
-        perm,
+        currentPair: pair,
         testSet: [level1Word],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
-        idkList: [],
+        gradeList: [],
+        gradeCap: 'pass',
+        toneErrorCount: 0,
         useAutoRecord: false,
         recognition: null,
       },
@@ -711,7 +794,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
     vi.mocked(checkSentenceAvailability).mockResolvedValue(true);
 
     const level1Word = makeWord({ id: 1, level: 1 });
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
     const result = renderEngineWithState(
       {
@@ -719,11 +802,13 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         answer: ['hello'],
         answerInput: 'hello',
         chosenCharacter: '你好',
-        perm,
+        currentPair: pair,
         testSet: [level1Word],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
-        idkList: [],
+        gradeList: [],
+        gradeCap: 'pass',
+        toneErrorCount: 0,
         useAutoRecord: false,
         recognition: null,
       },
@@ -732,7 +817,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         isDemo: false,
         practiceMode: false,
         finalStage: false,
-        startSentenceRead: vi.fn(),
+        startSentenceStages: vi.fn(),
         onFinishTest: vi.fn(),
       },
     );
@@ -759,7 +844,7 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
     vi.mocked(checkSentenceAvailability).mockResolvedValue(false);
 
     const level1Word = makeWord({ id: 1, level: 1 });
-    const perm = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
 
     const result = renderEngineWithState(
       {
@@ -767,11 +852,13 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
         answer: ['hello'],
         answerInput: 'hello',
         chosenCharacter: '你好',
-        perm,
+        currentPair: pair,
         testSet: [level1Word],
-        permList: [perm],
+        queue: [pair],
         charSet: 'simp',
-        idkList: [],
+        gradeList: [],
+        gradeCap: 'pass',
+        toneErrorCount: 0,
         useAutoRecord: false,
         recognition: null,
       },
@@ -801,5 +888,300 @@ describe('useTestEngine — onFinishTest sentence availability check', () => {
     });
 
     expect(result.current.state.sentenceCheckStatus).toBe('unavailable');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The finishTest payload: one entry per word, carrying the grades it collected
+// ---------------------------------------------------------------------------
+describe('useTestEngine — the finishTest payload', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /**
+   * Answer the last question of a session correctly and return the payload the
+   * engine submitted. `state` seeds the grades the session already collected.
+   */
+  function finishSession(
+    state: Record<string, unknown>,
+    words: ReturnType<typeof makeWord>[],
+    onFinishTest: Props['onFinishTest'],
+  ) {
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+
+    const result = renderEngineWithState(
+      {
+        answerCategory: 'meaning',
+        answer: ['hello'],
+        answerInput: 'hello',
+        chosenCharacter: words[0].simp,
+        currentPair: pair,
+        testSet: words,
+        queue: [pair],
+        charSet: 'simp',
+        gradeList: [],
+        gradeCap: 'pass',
+        toneErrorCount: 0,
+        useAutoRecord: false,
+        recognition: null,
+        ...state,
+      },
+      { words, isDemo: false, practiceMode: false, onFinishTest },
+    );
+
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
+
+    return result;
+  }
+
+  it('writes only the direction the session asked of that word', () => {
+    const onFinishTest = vi.fn();
+    const word = makeWord({ id: 1, simp: '你好', level: 3 });
+
+    finishSession({}, [word], onFinishTest);
+
+    expect(onFinishTest).toHaveBeenCalledWith([
+      { word_id: 1, directions: { MP: 'pass' }, toneErrors: {} },
+    ]);
+  });
+
+  it('carries a lapse and a fail beside a pass', () => {
+    const onFinishTest = vi.fn();
+    const word = makeWord({ id: 1, simp: '你好', level: 3 });
+
+    finishSession(
+      {
+        gradeList: [
+          { wordId: 1, direction: 'CM' as Direction, result: 'fail', toneErrors: 0 },
+          { wordId: 1, direction: 'PC' as Direction, result: 'lapse', toneErrors: 0 },
+        ],
+      },
+      [word],
+      onFinishTest,
+    );
+
+    const [payload] = onFinishTest.mock.calls[0];
+    expect(payload[0].directions).toEqual({ CM: 'fail', PC: 'lapse', MP: 'pass' });
+  });
+
+  it('carries the tone errors of each direction', () => {
+    const onFinishTest = vi.fn();
+    const word = makeWord({ id: 1, simp: '你好', level: 3 });
+
+    finishSession(
+      {
+        gradeList: [{ wordId: 1, direction: 'PM' as Direction, result: 'lapse', toneErrors: 2 }],
+      },
+      [word],
+      onFinishTest,
+    );
+
+    const [payload] = onFinishTest.mock.calls[0];
+    expect(payload[0].toneErrors).toEqual({ PM: 2 });
+  });
+
+  it('leaves a direction the session did not ask out of the payload', () => {
+    const onFinishTest = vi.fn();
+    const word = makeWord({ id: 1, simp: '你好', level: 3 });
+
+    finishSession({}, [word], onFinishTest);
+
+    expect(onFinishTest.mock.calls[0][0][0].directions).not.toHaveProperty('CM');
+  });
+
+  it('does not merge the results of two words that share a character form', () => {
+    const onFinishTest = vi.fn();
+    const first = makeWord({ id: 1, simp: '干', level: 3 });
+    const second = makeWord({ id: 2, simp: '干', level: 3 });
+
+    finishSession(
+      {
+        chosenCharacter: '干',
+        gradeList: [{ wordId: 2, direction: 'CM' as Direction, result: 'fail', toneErrors: 0 }],
+      },
+      [first, second],
+      onFinishTest,
+    );
+
+    const [payload] = onFinishTest.mock.calls[0];
+    expect(payload[0]).toEqual({ word_id: 1, directions: { MP: 'pass' }, toneErrors: {} });
+    expect(payload[1]).toEqual({ word_id: 2, directions: { CM: 'fail' }, toneErrors: {} });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Which words each sentence stage gets: the Read stage takes the new words, and
+// the Write stage takes the ones the learner already half knows.
+// See docs/adr/0011-gate-the-write-stage-on-partial-mastery.md.
+// ---------------------------------------------------------------------------
+describe('useTestEngine — the words of each sentence stage', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.mocked(checkSentenceAvailability).mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const wordAtBank = (id: number, simp: string, bank: number): Word =>
+    makeWord({ id, simp, level: bank, directions: makeDirections(bank, '2020/01/01') });
+
+  /**
+   * Answer the last question of a session correctly and return the two stage
+   * lists the engine handed to startSentenceStages.
+   */
+  async function finishAndReadStages(
+    words: Word[],
+    props: Partial<Props> = {},
+    state: Record<string, unknown> = {},
+  ) {
+    const startSentenceStages = vi.fn();
+    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+
+    const result = renderEngineWithState(
+      {
+        answerCategory: 'meaning',
+        answer: ['hello'],
+        answerInput: 'hello',
+        chosenCharacter: words[0].simp,
+        currentPair: pair,
+        testSet: words,
+        queue: [pair],
+        charSet: 'simp',
+        gradeList: [],
+        gradeCap: 'pass',
+        toneErrorCount: 0,
+        useAutoRecord: false,
+        recognition: null,
+        ...state,
+      },
+      {
+        words,
+        isDemo: false,
+        practiceMode: false,
+        finalStage: false,
+        startSentenceStages,
+        onVocabComplete: vi.fn(),
+        onFinishTest: vi.fn(),
+        ...props,
+      },
+    );
+
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(1100);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    return startSentenceStages;
+  }
+
+  it('sends a partially known word to the Write stage and not the Read one', async () => {
+    const known = wordAtBank(1, '你好', WRITE_STAGE_BANK);
+
+    const startSentenceStages = await finishAndReadStages([known]);
+
+    expect(startSentenceStages).toHaveBeenCalledWith(
+      { read: [], write: [expect.objectContaining({ id: 1 })] },
+      expect.any(Array),
+    );
+  });
+
+  it('sends a new word to the Read stage and not the Write one', async () => {
+    const fresh = wordAtBank(1, '你好', 1);
+
+    const startSentenceStages = await finishAndReadStages([fresh]);
+
+    expect(startSentenceStages).toHaveBeenCalledWith(
+      { read: [expect.objectContaining({ id: 1 })], write: [] },
+      expect.any(Array),
+    );
+  });
+
+  it('holds back a word that has not reached the gate', async () => {
+    const halfway = wordAtBank(1, '你好', WRITE_STAGE_BANK - 1);
+    const onVocabComplete = vi.fn();
+
+    const startSentenceStages = await finishAndReadStages([halfway], { onVocabComplete });
+
+    // Neither new nor ready: the session goes straight to the summary.
+    expect(startSentenceStages).not.toHaveBeenCalled();
+    expect(onVocabComplete).toHaveBeenCalled();
+  });
+
+  it('keeps the Write stage gated when sentences are on for all words', async () => {
+    const halfway = wordAtBank(1, '你好', WRITE_STAGE_BANK - 1);
+
+    const startSentenceStages = await finishAndReadStages([halfway], {
+      sentenceStagesForAllWords: true,
+    });
+
+    expect(startSentenceStages).toHaveBeenCalledWith(
+      { read: [expect.objectContaining({ id: 1 })], write: [] },
+      expect.any(Array),
+    );
+  });
+
+  it('keeps the Write stage gated in practice mode', async () => {
+    const halfway = wordAtBank(1, '你好', WRITE_STAGE_BANK - 1);
+
+    const startSentenceStages = await finishAndReadStages([halfway], { practiceMode: true });
+
+    expect(startSentenceStages).toHaveBeenCalledWith(
+      { read: [expect.objectContaining({ id: 1 })], write: [] },
+      expect.any(Array),
+    );
+  });
+
+  it('sends the demo word to both stages, because the demo is a tour', async () => {
+    const fresh = wordAtBank(1, '你好', 1);
+
+    const startSentenceStages = await finishAndReadStages([fresh], { isDemo: true });
+
+    await act(async () => {
+      vi.advanceTimersByTime(1100);
+    });
+
+    expect(startSentenceStages).toHaveBeenCalledWith(
+      {
+        read: [expect.objectContaining({ id: 1 })],
+        write: [expect.objectContaining({ id: 1 })],
+      },
+      expect.any(Array),
+    );
+  });
+
+  it('runs neither stage for a word the learner failed', async () => {
+    const known = wordAtBank(1, '你好', WRITE_STAGE_BANK);
+    const onVocabComplete = vi.fn();
+
+    const startSentenceStages = await finishAndReadStages(
+      [known],
+      { onVocabComplete },
+      {
+        gradeList: [{ wordId: 1, direction: 'CM' as Direction, result: 'fail', toneErrors: 0 }],
+      },
+    );
+
+    expect(startSentenceStages).not.toHaveBeenCalled();
+    expect(onVocabComplete).toHaveBeenCalled();
   });
 });

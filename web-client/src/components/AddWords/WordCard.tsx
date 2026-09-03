@@ -2,12 +2,15 @@ import React, { useCallback, useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import Chip from '@mui/material/Chip';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import DriveFileMoveOutlinedIcon from '@mui/icons-material/DriveFileMoveOutlined';
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import MeaningEditor from '../UI/MeaningEditor/MeaningEditor';
 import Remove from '../UI/Table/TableRow/Remove/Remove';
 import MoveToListDialog from './MoveToListDialog';
 import { Word, WordList } from '../../types/models';
+import { DIRECTION_LABELS, leechDirections } from '../../utils/directions';
 import { formatRelativeDueDate } from '../../utils/formatRelativeDueDate';
 import * as ttsService from '../../services/ttsService';
 
@@ -52,6 +55,11 @@ const WordCard: React.FC<WordCardProps> = ({
 
   // Only show the move button if there is somewhere to move the word to.
   const canMove = lists.filter((l) => l.id !== word.listId).length > 0;
+
+  // The directions the learner keeps failing to recall. The schedule is not
+  // fixing these on its own, so the card names them and leaves what to do about
+  // them to the learner. See docs/adr/0010-partial-demotion-and-leeches.md.
+  const leeches = leechDirections(word);
 
   return (
     <Box
@@ -107,6 +115,21 @@ const WordCard: React.FC<WordCardProps> = ({
         <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary', mt: 0.75 }}>
           {formatRelativeDueDate(word.due_date)}
         </Typography>
+      )}
+      {leeches.length > 0 && (
+        <Chip
+          icon={<WarningAmberOutlinedIcon />}
+          color="warning"
+          variant="outlined"
+          size="small"
+          label={`Hard to recall: ${leeches.map((d) => DIRECTION_LABELS[d]).join(', ')}`}
+          sx={{
+            mt: 0.75,
+            height: 'auto',
+            maxWidth: '100%',
+            '& .MuiChip-label': { whiteSpace: 'normal', py: 0.4, fontSize: '0.7rem' },
+          }}
+        />
       )}
       <MoveToListDialog
         open={moveDialogOpen}

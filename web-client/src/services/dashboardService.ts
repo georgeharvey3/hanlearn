@@ -1,13 +1,21 @@
 import { getUserWords, getDueUserWords } from './wordService';
 import { getStreakData, calculateStreak, computeWeeklyStats, WeeklyStats } from './streakService';
-import { estimateTestTime, formatTestTime } from '../utils/estimateTestTime';
+import { estimatePlannedTime, formatTestTime } from '../utils/estimateTestTime';
+import { planSession, readSessionSettings } from '../components/Test/Logic/TestLogic';
 import { traceAsync } from './performanceService';
+import { BankCounts, directionBankDistribution } from '../utils/directions';
+import { Direction } from '../types/models';
 
 export interface DashboardStats {
   totalWords: number;
   dueWords: number;
   streak: number;
   levelDistribution: Record<number, number>;
+  /**
+   * The bank counts of each direction. The word's own level is the lowest of
+   * the five, so this is what shows which skill is weak.
+   */
+  directionDistribution: Record<Direction, BankCounts>;
   masteredCount: number;
   estimatedStudyTime: string | null;
   weeklyStats: WeeklyStats;
@@ -27,6 +35,8 @@ export const getDashboardStats = async (userId: string, listId?: string): Promis
       levelDistribution[level] = (levelDistribution[level] || 0) + 1;
     }
 
+    const directionDistribution = directionBankDistribution(allWords);
+
     const streak = calculateStreak(streakData.map((d) => d.date));
     const weeklyStats = computeWeeklyStats(streakData);
     const masteredCount = levelDistribution[5] || 0;
@@ -35,12 +45,12 @@ export const getDashboardStats = async (userId: string, listId?: string): Promis
     let estimatedStudyTime: string | null = null;
 
     if (dueCount > 0) {
-      const numWords = parseInt(localStorage.getItem('numWords') || '5', 10);
-      const totalSeconds = estimateTestTime({
-        numWords,
-        useHandwriting: localStorage.getItem('useHandwriting') !== 'false',
-        priority: localStorage.getItem('priority') || 'none',
-        onlyPriority: localStorage.getItem('onlyPriority') === 'true',
+      // The session the learner would start now, planned from the words that
+      // are due. The queue decides how many questions they get and which
+      // directions those ask, so the estimate reads the plan rather than
+      // guessing from the budget alone.
+      const plan = planSession(dueWords, readSessionSettings());
+      const totalSeconds = estimatePlannedTime(plan, {
         newWordsEnabled: localStorage.getItem('newWords') !== 'false',
         sentenceReadEnabled: localStorage.getItem('sentenceRead') !== 'false',
         sentenceWriteEnabled: localStorage.getItem('sentenceWrite') !== 'false',
@@ -59,6 +69,7 @@ export const getDashboardStats = async (userId: string, listId?: string): Promis
       dueWords: dueCount,
       streak,
       levelDistribution,
+      directionDistribution,
       masteredCount,
       estimatedStudyTime,
       weeklyStats,

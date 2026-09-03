@@ -4,17 +4,16 @@ import { withRouter, RouteComponentProps } from 'react-router-dom';
 import { Box, Button as MuiButton, Chip, Typography } from '@mui/material';
 import HomeIcon from '@mui/icons-material/Home';
 
-import { WordScore } from '../../../types/models';
+import { DirectionResult, WordScore } from '../../../types/models';
+import { DIRECTION_LABELS } from '../../../utils/directions';
 
-const scoreConfig: Record<
-  WordScore['score'],
-  { color: 'success' | 'info' | 'warning' | 'error'; label: string }
+const resultConfig: Record<
+  DirectionResult,
+  { color: 'success' | 'warning' | 'error'; label: string }
 > = {
-  'Very Strong': { color: 'success', label: 'Very Strong' },
-  Strong: { color: 'success', label: 'Strong' },
-  Average: { color: 'info', label: 'Average' },
-  Weak: { color: 'warning', label: 'Weak' },
-  'Very Weak': { color: 'error', label: 'Very Weak' },
+  pass: { color: 'success', label: 'Known' },
+  lapse: { color: 'warning', label: 'Nearly' },
+  fail: { color: 'error', label: 'Not known' },
 };
 
 interface TestSummaryProps extends RouteComponentProps {
@@ -26,9 +25,12 @@ const TestSummary: React.FC<TestSummaryProps> = ({ history, scores }) => {
     history.push('/');
   };
 
+  // One row is one question, so the counts are per direction, not per word.
+  // A lapse is not counted correct: it did not succeed on the attempt that
+  // carries the grade. See docs/adr/0007-grade-the-first-attempt.md.
   const total = scores?.length ?? 0;
-  const correct =
-    scores?.filter((s) => s.score === 'Very Strong' || s.score === 'Strong').length ?? 0;
+  const correct = scores?.filter((s) => s.result === 'pass').length ?? 0;
+  const wordCount = new Set(scores?.map((s) => s.char)).size;
   const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
   const accuracyColor = pct >= 70 ? 'success.main' : pct >= 40 ? 'warning.main' : 'error.main';
 
@@ -38,7 +40,8 @@ const TestSummary: React.FC<TestSummaryProps> = ({ history, scores }) => {
         Session Summary
       </Typography>
       <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
-        {total} word{total !== 1 ? 's' : ''} tested
+        {total} question{total !== 1 ? 's' : ''} across {wordCount} word
+        {wordCount !== 1 ? 's' : ''}
       </Typography>
       {total > 0 && (
         <Typography
@@ -62,7 +65,7 @@ const TestSummary: React.FC<TestSummaryProps> = ({ history, scores }) => {
         }}
       >
         {scores?.map((row, index) => {
-          const config = scoreConfig[row.score];
+          const config = resultConfig[row.result];
           return (
             <Box
               key={index}
@@ -70,6 +73,7 @@ const TestSummary: React.FC<TestSummaryProps> = ({ history, scores }) => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                gap: 1,
                 px: 2,
                 py: 1,
                 borderRadius: 1.5,
@@ -78,15 +82,20 @@ const TestSummary: React.FC<TestSummaryProps> = ({ history, scores }) => {
                 borderColor: 'grey.200',
               }}
             >
-              <Typography lang="zh" sx={{ fontSize: '1.1rem', fontWeight: 500 }}>
-                {row.char}
-              </Typography>
+              <Box sx={{ minWidth: 0, textAlign: 'left' }}>
+                <Typography lang="zh" sx={{ fontSize: '1.1rem', fontWeight: 500 }}>
+                  {row.char}
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {DIRECTION_LABELS[row.direction]}
+                </Typography>
+              </Box>
               <Chip
                 label={config.label}
                 color={config.color}
                 size="small"
                 variant="outlined"
-                sx={{ fontWeight: 600, minWidth: 90 }}
+                sx={{ fontWeight: 600, minWidth: 90, flexShrink: 0 }}
               />
             </Box>
           );

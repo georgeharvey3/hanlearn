@@ -11,7 +11,8 @@
     "deploy": "npm run build && firebase deploy --only hosting",
     "deploy:functions": "npm --prefix functions run build && firebase deploy --only functions",
     "deploy:all": "npm run build && npm --prefix functions run build && firebase deploy --only hosting,functions,firestore:rules,firestore:indexes",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-hanlearn \"vitest run --config tests/rules/vitest.config.mts\""
   },
   "lint-staged": {
     "web-client/src/**/*.{ts,tsx}": [
@@ -23,8 +24,12 @@
     ]
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
     "concurrently": "^9.1.2",
+    "firebase": "^12.18.0",
+    "firebase-tools": "^15.28.2",
     "husky": "^9.1.7",
-    "lint-staged": "^16.3.2"
+    "lint-staged": "^16.3.2",
+    "vitest": "^4.1.11"
   }
 }

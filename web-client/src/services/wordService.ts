@@ -21,32 +21,71 @@ import {
   DirectionState,
   DirectionStates,
   Word,
+  WordDirectionResults,
   WordList,
 } from '../types/models';
 import { fillDirections } from '../utils/directions';
+import {
+  bankOf,
+  currentMemory,
+  dueDateFrom,
+  elapsedDays,
+  nextLapses,
+  nextMemory,
+} from '../utils/scheduling';
 import {
   searchWord as searchDictionary,
   lookupCharacter,
   lookupCharacterByTrad,
 } from './dictionaryService';
+import { addSessionToBatch } from './retentionService';
+import type { ReviewOutcome } from '../utils/retention';
 import {
   amendedMeaningSchema,
   customWordTextSchema,
   customWordMeaningSchema,
 } from '../validation/schemas';
 
-// Spaced repetition intervals in days for each level
-const LEVEL_INTERVALS: Record<number, number> = {
-  1: 1,
-  2: 3,
-  3: 7,
-  4: 30,
-  5: 60,
-};
-
 interface StoredDirectionState {
+  /**
+   * Derived from the interval. It stays in the document because the read path,
+   * the dashboard and `isNewWord` all read a bank, and because a document
+   * written before the interval existed holds nothing else to schedule from.
+   */
   bank: number;
   dueDate: Timestamp;
+  /**
+   * The days after which the recall probability of this direction is 0.9.
+   * Absent reads as the interval, which measures the same thing.
+   */
+  stability?: number;
+  /** How much one review moves the stability, from 1 to 10. Absent reads from the ease. */
+  difficulty?: number;
+  /**
+   * Days between one review of this direction and the next. Absent reads as the
+   * interval of the bank, so a document written before the field existed keeps
+   * the schedule it had and needs no migration.
+   */
+  interval?: number;
+  /**
+   * The multiplier of the calculation that FSRS replaced. It is read and not
+   * written: a direction that holds an ease seeds its difficulty from it.
+   */
+  ease?: number;
+  /** When this direction was last reviewed. Absent gives a review no delay credit. */
+  lastReview?: Timestamp;
+  /**
+   * How many tone errors this direction has collected, over every session that
+   * asked it. Absent reads as 0, so a document written before the counter
+   * existed needs no migration.
+   */
+  toneErrors?: number;
+  /**
+   * How many times the learner has failed to recall this direction after
+   * learning it. Absent reads as 0, so a document written before the counter
+   * existed needs no migration, and it starts counting from its next failure.
+   */
+  lapses?: number;
 }
 
 interface UserWordDocument {
@@ -83,6 +122,8 @@ function readDirections(data: UserWordDocument): DirectionStates {
     stored[direction] = {
       level: entry.bank,
       dueDate: entry.dueDate ? formatDate(entry.dueDate.toDate()) : undefined,
+      lapses: entry.lapses,
+      interval: entry.interval,
     };
   }
   return fillDirections(stored, data.bank, formatDate(data.dueDate.toDate()));
@@ -102,6 +143,36 @@ function storedDirections(
       return acc;
     },
     {} as Record<Direction, StoredDirectionState>,
+  );
+}
+
+/**
+ * The stored directions of a document, with any direction the document lacks
+ * derived from its top-level bank and due date. A document the migration has
+ * not reached yet therefore behaves exactly like one it has.
+ */
+function currentDirections(data: UserWordDocument): Record<Direction, StoredDirectionState> {
+  const derived = storedDirections(data.bank, data.dueDate);
+  const stored = data.directions;
+  if (!stored) return derived;
+  return DIRECTIONS.reduce(
+    (acc, direction) => {
+      acc[direction] = stored[direction] ?? derived[direction];
+      return acc;
+    },
+    {} as Record<Direction, StoredDirectionState>,
+  );
+}
+
+/** The lowest bank across the directions. Written to the derived top-level field. */
+function lowestBank(directions: Record<Direction, StoredDirectionState>): number {
+  return DIRECTIONS.reduce((min, direction) => Math.min(min, directions[direction].bank), 5);
+}
+
+/** The earliest due date across the directions. Written to the derived top-level field. */
+function earliestDueDate(directions: Record<Direction, StoredDirectionState>): Timestamp {
+  return DIRECTIONS.map((direction) => directions[direction].dueDate).reduce((earliest, dueDate) =>
+    dueDate.toDate().getTime() < earliest.toDate().getTime() ? dueDate : earliest,
   );
 }
 
@@ -342,42 +413,103 @@ export const updateWordMeaning = async (
 };
 
 /**
- * Submit test results and update levels and due dates
+ * Submit the results of a session and reschedule the directions it asked.
+ *
+ * Each direction carries its own memory state and due date, so a failure in one
+ * leaves the other four untouched. A direction the session did not ask is
+ * absent from the payload and keeps the state it already holds.
+ *
+ * FSRS reads the stability, the difficulty and the days since the last review,
+ * and it gives the day on which the recall probability falls to the target
+ * retention. See docs/adr/0009-fsrs.md.
+ *
+ * The tone errors of a direction are added to the count it already holds, in
+ * the same batch that writes the interval, and so are the failed retrievals
+ * that the leech rule counts. See
+ * docs/adr/0010-partial-demotion-and-leeches.md.
+ *
+ * Returns the new derived due date of each word, keyed by its simplified form.
  */
 export const finishTest = async (
   userId: string,
-  scores: { word_id: number; score: number }[],
+  results: WordDirectionResults[],
 ): Promise<Record<string, string>> => {
   const newDates: Record<string, string> = {};
   const batch = writeBatch(db);
+  // One clock for the whole session, so every direction of every word measures
+  // its elapsed days and its next due date from the same instant.
+  const now = new Date();
+  // What each graded question did, for the daily rollup the retention metrics
+  // read. It is collected here because this is the only place that sees both
+  // the state a direction held and the state the grade moved it to.
+  const outcomes: ReviewOutcome[] = [];
 
-  for (const { word_id, score } of scores) {
+  for (const { word_id, directions, toneErrors } of results) {
     const wordRef = doc(db, 'users', userId, 'userWords', word_id.toString());
     const wordDoc = await getDoc(wordRef);
 
     if (!wordDoc.exists()) continue;
 
     const data = wordDoc.data() as UserWordDocument;
-    let level = data.bank;
+    const updated = { ...currentDirections(data) };
 
-    // Update level based on score
-    if (score === 4 && level < 5) {
-      level += 1;
-    } else if (score < 4) {
-      level = 1;
+    for (const direction of DIRECTIONS) {
+      const result = directions[direction];
+      // Absent means the session did not ask this direction, so it keeps its state.
+      if (!result) continue;
+
+      const current = updated[direction];
+      const memory = currentMemory(current);
+      const elapsed = elapsedDays(current.lastReview?.toDate(), now, memory.interval);
+      const next = nextMemory(memory, result, elapsed, now);
+
+      const collected = (current.toneErrors ?? 0) + (toneErrors?.[direction] ?? 0);
+      const lapses = nextLapses(current.lapses ?? 0, memory, result);
+      const bank = bankOf(next.interval);
+
+      outcomes.push({
+        direction,
+        result,
+        // A direction with no stability has never been recalled, so this
+        // question formed the memory rather than testing it.
+        learned: memory.stability > 0,
+        bankBefore: current.bank,
+        bankAfter: bank,
+      });
+
+      updated[direction] = {
+        // The bank is derived from the interval, and it is written in the same
+        // object, so the two never disagree.
+        bank,
+        dueDate: Timestamp.fromDate(dueDateFrom(next.interval, now)),
+        stability: next.stability,
+        difficulty: next.difficulty,
+        interval: next.interval,
+        lastReview: Timestamp.fromDate(now),
+        // A direction that has never collected a tone error stays without the
+        // field, so a session of correct tones writes nothing new.
+        ...(collected > 0 ? { toneErrors: collected } : {}),
+        // The same for the failed retrievals, which the leech rule counts.
+        ...(lapses > 0 ? { lapses } : {}),
+      };
     }
 
-    // Calculate new due date
-    const newDueDate = new Date();
-    newDueDate.setDate(newDueDate.getDate() + LEVEL_INTERVALS[level]);
+    const derivedDueDate = earliestDueDate(updated);
 
     batch.update(wordRef, {
-      bank: level,
-      dueDate: Timestamp.fromDate(newDueDate),
+      directions: updated,
+      // Both derived fields are rewritten in the same batch as the directions,
+      // so the queryable values never disagree with the map.
+      bank: lowestBank(updated),
+      dueDate: derivedDueDate,
     });
 
-    newDates[data.wordData.simp] = formatDate(newDueDate);
+    newDates[data.wordData.simp] = formatDate(derivedDueDate.toDate());
   }
+
+  // In the same batch as the reschedules: the session records what it measured
+  // and what it scheduled together, or neither.
+  addSessionToBatch(batch, userId, outcomes, now);
 
   await batch.commit();
   return newDates;
