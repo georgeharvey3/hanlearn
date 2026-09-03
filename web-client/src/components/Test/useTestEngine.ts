@@ -979,7 +979,10 @@ export const useTestEngine = (props: Props) => {
           includeHandwriting: useHandwriting,
           practiceMode: Boolean(props.practiceMode),
         });
-      const queue = plan.queue;
+      // A resumed session asks what is left of the queue it saved, and the
+      // plan above is the plan that queue was built from, so its indexes still
+      // point at the right words. See issue #305.
+      const queue = props.resume?.queue ?? plan.queue;
 
       if (queue.length === 0) {
         // Reachable when every candidate's only due direction is one the
@@ -1006,12 +1009,23 @@ export const useTestEngine = (props: Props) => {
         question: initialVals.question,
         questionCategory: initialVals.questionCategory,
         chosenCharacter: initialVals.chosenCharacter,
-        initialQueueLength: queue.length,
+        // A resumed session keeps the length it started with, so the bar
+        // measures the whole session rather than the part that is left.
+        initialQueueLength: props.resume?.initialQueueLength ?? queue.length,
+        gradeList: props.resume?.gradeList ?? prevState.gradeList,
         showErrorMessage: false,
         qNum: prevState.qNum + 1,
       }));
     },
-    [getState, props.isDemo, props.plan, props.practiceMode, props.words, setStateMerged],
+    [
+      getState,
+      props.isDemo,
+      props.plan,
+      props.practiceMode,
+      props.resume,
+      props.words,
+      setStateMerged,
+    ],
   );
 
   const initialiseSettings = useCallback((): void => {
@@ -1259,6 +1273,26 @@ export const useTestEngine = (props: Props) => {
     setHanziWriter,
     setStateMerged,
   ]);
+
+  /**
+   * Report the session's progress whenever the queue moves.
+   *
+   * Nothing outside the engine knows which questions are left, and the grades
+   * reach Firestore only when the session finishes, so this is what the
+   * container saves to make an abandoned session resumable. It fires on the
+   * first question as well as each later one, because a session closed after
+   * one answer is the case that loses the most. See issue #305.
+   */
+  const reportProgress = props.isDemo ? undefined : props.onProgress;
+  useEffect(() => {
+    if (!reportProgress) return;
+    if (state.initialQueueLength === 0) return;
+    reportProgress({
+      queue: state.queue,
+      gradeList: state.gradeList,
+      initialQueueLength: state.initialQueueLength,
+    });
+  }, [state.queue, state.gradeList, state.initialQueueLength, reportProgress]);
 
   const refreshSettings = useCallback(
     (updated: AudioSettings): void => {

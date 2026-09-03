@@ -9,6 +9,7 @@ import {
   WordScore,
 } from '../../types/models';
 import { QuizType } from '../../utils/audioSettings';
+import { VocabProgress } from '../../utils/savedSession';
 import { SessionPlan } from './Logic/TestLogic';
 
 /**
@@ -123,6 +124,17 @@ export interface OwnProps {
    * itself only when this is absent, which is the demo and the unit tests.
    */
   plan?: SessionPlan;
+  /**
+   * The progress of a session the learner chose to resume: the questions it has
+   * left and the grades it has already collected. The queue replaces the
+   * plan's, so `plan` must be the same plan the saved queue indexes into.
+   */
+  resume?: VocabProgress;
+  /**
+   * Reports the queue and the grades after each graded question, so that the
+   * container can save the session. See issue #305.
+   */
+  onProgress?: (progress: VocabProgress) => void;
   isDemo?: boolean;
   finalStage?: boolean;
   startSentenceStages?: (words: SentenceStageWords, scores?: WordScore[]) => void;
