@@ -1,6 +1,7 @@
 # 6. The due date is the only rank
 
-- Status: accepted
+- Status: the removal of the new-word cap is superseded by
+  [0015-a-cap-on-new-words-per-session.md](0015-a-cap-on-new-words-per-session.md)
 - Date: 2026-08-28
 - Issue: #328
 - Related: [0003-direction-choice-by-oldest-due.md](0003-direction-choice-by-oldest-due.md),
@@ -56,7 +57,7 @@ Good:
 - More new words can enter an empty session, because only the budget stops
   them.
 
-Bad:
+Bad, and the reason ADR 0015 brings the cap back:
 
 - A day with many new words can fill the session with new words. The budget is
   the only limit, and `addWordToList` gives a new word a due date of today or

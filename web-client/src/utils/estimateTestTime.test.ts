@@ -189,6 +189,10 @@ describe('assumedNewWordCount', () => {
   it('assumes at least one new word', () => {
     expect(assumedNewWordCount(5)).toBe(1);
   });
+
+  it('assumes no more new words than a session admits', () => {
+    expect(assumedNewWordCount(50)).toBe(5);
+  });
 });
 
 describe('assumedWriteWordCount', () => {
