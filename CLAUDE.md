@@ -176,6 +176,7 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 - The `api/` directory contains a legacy Flask backend that is no longer used
 - Type definitions are in [web-client/src/types/](web-client/src/types/)
 - The `amendedMeaning` field allows users to override dictionary definitions
+- The build stamps its commit into the bundle and into `/version.json`; the app compares the two on load and on returning to the foreground, and reloads itself when a newer build is deployed ([web-client/src/utils/appVersion.ts](web-client/src/utils/appVersion.ts)). Without it a cached `index.html` — an iOS home-screen app keeps one — pins the app to an old bundle indefinitely
 - An unfinished session is saved to `localStorage` (`web-client/src/utils/savedSession.ts`) and offered back on the next visit, because nothing reaches Firestore until a session ends. See [docs/adr/0014-resume-an-unfinished-session.md](docs/adr/0014-resume-an-unfinished-session.md)
 - Chengyu challenges rotate daily based on days since May 24, 2021
 
