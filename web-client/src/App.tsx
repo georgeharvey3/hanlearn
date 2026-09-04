@@ -11,6 +11,7 @@ import NotificationSnackbar from './components/NotificationSnackbar/Notification
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import * as actions from './store/actions/index';
 import { trackPageView } from './services/analyticsService';
+import { useVersionCheck } from './hooks/useVersionCheck';
 
 const Home = React.lazy(() => import('./containers/Home/Home'));
 const Dashboard = React.lazy(() => import('./containers/Dashboard/Dashboard'));
@@ -44,6 +45,10 @@ const App: React.FC<Props> = ({
   onSetLang,
 }) => {
   const location = useLocation();
+
+  // A deploy leaves a cached page on the old bundle until it is told. See
+  // src/utils/appVersion.ts.
+  useVersionCheck();
 
   useEffect(() => {
     trackPageView(location.pathname);
