@@ -86,11 +86,13 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
   const showAnswerContent = state.showAnswer ? (
     <div style={{ pointerEvents: graded ? 'none' : 'auto' }}>
       <PictureButton
-        style={gradeStyle('pass', colors.success)}
-        // Wrapped, because the click event would otherwise arrive as the grade.
-        clicked={() => onCorrectAnswer()}
-        src={likePic}
-        aria-label="I knew this"
+        style={gradeStyle('fail', colors.error)}
+        clicked={() => {
+          if (state.useSoundEffects) fail.play();
+          onIDontKnow();
+        }}
+        src={dislikePic}
+        aria-label="I didn't know this"
       />
       <PictureButton
         style={gradeStyle('lapse', colors.warning)}
@@ -99,13 +101,11 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
         aria-label="I nearly knew this"
       />
       <PictureButton
-        style={gradeStyle('fail', colors.error)}
-        clicked={() => {
-          if (state.useSoundEffects) fail.play();
-          onIDontKnow();
-        }}
-        src={dislikePic}
-        aria-label="I didn't know this"
+        style={gradeStyle('pass', colors.success)}
+        // Wrapped, because the click event would otherwise arrive as the grade.
+        clicked={() => onCorrectAnswer()}
+        src={likePic}
+        aria-label="I knew this"
       />
     </div>
   ) : (
