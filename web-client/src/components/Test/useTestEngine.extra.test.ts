@@ -493,3 +493,104 @@ describe('useTestEngine — a session with nothing to ask', () => {
     localStorage.removeItem('useHandwriting');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Regression: a re-render must not restart the question the learner is on
+//
+// Grading a question reports the session's progress, the container saves it and
+// re-renders, and the callbacks it hands the engine come back with new
+// identities. That used to re-run the effect that starts a question, so the word
+// was spoken again after a thumbs up or thumbs down and the mic reopened on a
+// question that was already answered.
+// ---------------------------------------------------------------------------
+describe('useTestEngine — a re-render does not restart the current question', () => {
+  const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+
+  const questionState = (overrides: Record<string, unknown> = {}) => ({
+    currentPair: pair,
+    testSet: [makeWord()],
+    queue: [pair],
+    charSet: 'simp',
+    chosenCharacter: '好',
+    questionCategory: 'pinyin',
+    answerCategory: 'meaning',
+    answer: ['good'],
+    meaningQuizType: 'flashcard',
+    useSound: true,
+    useAutoRecord: false,
+    useHandwriting: false,
+    writer: null,
+    ...overrides,
+  });
+
+  it('does not speak the question again when the container hands over new callbacks', async () => {
+    const ttsService = await import('../../services/ttsService');
+    const { result, rerender } = renderHook((p: Props) => useTestEngine(p), {
+      initialProps: makeProps({ synthAvailable: true }),
+    });
+
+    await act(async () => {
+      result.current.setStateMerged(questionState() as any);
+    });
+
+    vi.mocked(ttsService.speak).mockClear();
+
+    await act(async () => {
+      result.current.setStateMerged({ qNum: 7 } as any);
+    });
+    expect(ttsService.speak).toHaveBeenCalledTimes(1);
+
+    // The container re-rendering — which grading a question makes it do — is not
+    // a new question, so the word is not read out a second time.
+    await act(async () => {
+      rerender(makeProps({ synthAvailable: true }));
+    });
+
+    expect(ttsService.speak).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reopen the mic when the container hands over new callbacks', async () => {
+    const start = vi.fn();
+    class FakeRecognition {
+      lang = '';
+      start = start;
+      abort = vi.fn();
+      stop = vi.fn();
+      addEventListener = vi.fn();
+      removeEventListener = vi.fn();
+    }
+    (window as any).webkitSpeechRecognition = FakeRecognition;
+
+    const { result, rerender } = renderHook((p: Props) => useTestEngine(p), {
+      initialProps: makeProps({ speechAvailable: true }),
+    });
+
+    await act(async () => {
+      result.current.setStateMerged(
+        questionState({
+          answerCategory: 'pinyin',
+          answer: 'hao3',
+          pinyinQuizType: 'input',
+          questionCategory: 'meaning',
+          useSound: false,
+          useAutoRecord: true,
+        }) as any,
+      );
+    });
+
+    start.mockClear();
+
+    await act(async () => {
+      result.current.setStateMerged({ qNum: 8 } as any);
+    });
+    expect(start).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      rerender(makeProps({ speechAvailable: true }));
+    });
+
+    expect(start).toHaveBeenCalledTimes(1);
+
+    (window as any).webkitSpeechRecognition = undefined;
+  });
+});
