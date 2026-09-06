@@ -1237,10 +1237,24 @@ export const useTestEngine = (props: Props) => {
     };
   }, [initialiseSettings, onKeyUp, setInteraction]);
 
+  /**
+   * Start a question: read it out, and open the mic when auto-record is on.
+   *
+   * It runs once per question, and `qNum` is the question. The other
+   * dependencies below are callbacks that change identity whenever the
+   * container re-renders, and grading a question re-renders it — the engine
+   * reports its progress, and the container saves it. Without this guard the
+   * effect ran again on a question that was already graded, so the word was
+   * spoken a second time after a thumbs up or thumbs down and the mic reopened
+   * on an answered question.
+   */
+  const startedQuestionRef = useRef<number | null>(null);
   useEffect(() => {
     const current = getState();
 
     if (current.testFinished) return;
+    if (startedQuestionRef.current === state.qNum) return;
+    startedQuestionRef.current = state.qNum;
 
     ttsService.stopAll();
     setStateMerged({

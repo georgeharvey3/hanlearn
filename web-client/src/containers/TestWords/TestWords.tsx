@@ -410,18 +410,27 @@ const TestWords: React.FC<Props> = ({
    * words is skipped. A session can therefore run Read alone, Write alone,
    * both, or neither.
    */
-  const onStartSentenceStages = (words: SentenceStageWords, scores?: WordScore[]): void => {
-    const readWords = state.sentenceReadEnabled ? words.read : [];
-    const writeWords = state.sentenceWriteEnabled ? words.write : [];
+  // The stage settings are read from `prev` rather than captured, so this
+  // callback keeps one identity for the life of the container: the engine
+  // depends on it, and a new identity every render restarts the question the
+  // engine is on.
+  const onStartSentenceStages = useCallback(
+    (words: SentenceStageWords, scores?: WordScore[]): void => {
+      setState((prev) => {
+        const readWords = prev.sentenceReadEnabled ? words.read : [];
+        const writeWords = prev.sentenceWriteEnabled ? words.write : [];
 
-    setState((prev) => ({
-      ...prev,
-      sentenceReadWords: readWords,
-      sentenceWriteWords: writeWords,
-      wordScores: scores ?? prev.wordScores,
-      stage: readWords.length > 0 ? 'read' : writeWords.length > 0 ? 'write' : 'summary',
-    }));
-  };
+        return {
+          ...prev,
+          sentenceReadWords: readWords,
+          sentenceWriteWords: writeWords,
+          wordScores: scores ?? prev.wordScores,
+          stage: readWords.length > 0 ? 'read' : writeWords.length > 0 ? 'write' : 'summary',
+        };
+      });
+    },
+    [],
+  );
 
   const onStartSentenceWrite = (
     seenOffsets: Record<string, { offset: number; text: string; english: string }>,
@@ -433,9 +442,9 @@ const TestWords: React.FC<Props> = ({
     }));
   };
 
-  const onVocabComplete = (scores: WordScore[]): void => {
+  const onVocabComplete = useCallback((scores: WordScore[]): void => {
     setState((prev) => ({ ...prev, wordScores: scores, stage: 'summary' }));
-  };
+  }, []);
 
   const onSentenceWriteComplete = (): void => {
     setState((prev) => ({ ...prev, stage: 'summary' }));
