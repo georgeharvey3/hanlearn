@@ -202,6 +202,7 @@ const Test: React.FC<Props> = (props) => {
           </Typography>
           <ComponentReview
             chars={state.componentReviewChars}
+            charSet={state.charSet}
             open={state.showComponents}
             onToggle={onToggleComponents}
             onContinue={onContinue}
