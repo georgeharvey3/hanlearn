@@ -7,7 +7,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 
 import ProgressBar from './ProgressBar/ProgressBar';
 import QuestionDisplay from './QuestionDisplay';
-import AnswerInput, { getVerb } from './AnswerInput';
+import AnswerInput, { getVerb, reviewHidesAnswerInput } from './AnswerInput';
 import TestActions from './TestActions';
 import ComponentReview from './ComponentReview/ComponentReview';
 import AudioSettingsDrawer from './AudioSettingsDrawer/AudioSettingsDrawer';
@@ -209,7 +209,7 @@ const Test: React.FC<Props> = (props) => {
           />
           <Box
             sx={{
-              minHeight: { xs: 0, sm: 160 },
+              minHeight: reviewHidesAnswerInput(state) ? 0 : { xs: 0, sm: 160 },
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'flex-end',
