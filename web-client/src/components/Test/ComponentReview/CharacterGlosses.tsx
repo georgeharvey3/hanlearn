@@ -154,7 +154,7 @@ const CharacterGlosses: React.FC<CharacterGlossesProps> = ({ chars, charSet, ren
   const glossFor = useCharacterGlosses(chars, charSet);
 
   return (
-    <Box sx={{ mt: 1, textAlign: 'left' }}>
+    <Box sx={{ textAlign: 'left' }}>
       {chars.map((char, index) => (
         <CharacterGlossRow key={`${char}-${index}`} char={char} gloss={glossFor(char)}>
           {renderBreakdown?.(char)}

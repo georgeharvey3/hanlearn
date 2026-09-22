@@ -35,8 +35,11 @@ const ComponentReview: React.FC<ComponentReviewProps> = ({
   if (chars.length === 0) return null;
 
   return (
-    <Box data-testid="component-review" sx={{ mt: 1.5, width: '100%' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+    <Box data-testid="component-review" sx={{ mt: 1.5, mb: 2, width: '100%' }}>
+      {/* The buttons carry the gap to whatever follows: the glosses below, or,
+          when the answer area is still on screen, the answer area. Without it
+          the next thing down reads as part of the button row. */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mb: 2 }}>
         <Button
           variant={open ? 'contained' : 'outlined'}
           size="small"
