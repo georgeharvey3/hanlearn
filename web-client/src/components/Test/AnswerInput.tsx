@@ -179,11 +179,25 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
   );
 
   if (state.answerCategory === 'character') {
-    return characterInput;
+    // The review that follows a missed character holds the session here, and
+    // the box has already been cleared by then: it is 150px of nothing in the
+    // way of the reveal, so it goes until the next question needs it.
+    return reviewHidesAnswerInput(state) ? null : characterInput;
   }
 
   return answerQuizType(state) === 'flashcard' ? showAnswerContent : inputWithMic;
 };
+
+/**
+ * Whether the answer area renders nothing while the component review is up.
+ *
+ * Only handwriting has nothing left to show: the other categories keep their
+ * grade buttons on screen through the reveal. The layout reads this too, so
+ * that it reserves no room for an answer area that is not there.
+ */
+export function reviewHidesAnswerInput(state: TestState): boolean {
+  return state.answerCategory === 'character' && state.componentReviewChars.length > 0;
+}
 
 export function getVerb(state: TestState): string {
   if (state.answerCategory === 'character') {
