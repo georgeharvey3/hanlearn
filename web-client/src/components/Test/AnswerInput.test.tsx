@@ -148,14 +148,17 @@ describe('AnswerInput — input mode without speech recognition', () => {
     expect(screen.getByRole('button', { name: /submit/i })).toBeDisabled();
   });
 
-  it('disables Submit once the question is graded', () => {
+  // Submit used to be left on screen and disabled here. The whole input area
+  // goes now, so there is nothing to press rather than something inert.
+  it('takes the answer away entirely once the question is graded', () => {
     renderAnswerInput({
       answerCategory: 'meaning',
       meaningQuizType: 'input',
       answerInput: 'hi',
       submitDisabled: true,
     });
-    expect(screen.getByRole('button', { name: /submit/i })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /submit/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/enter your answer/i)).not.toBeInTheDocument();
   });
 
   it('shows no Submit button in flashcard mode', () => {
@@ -199,6 +202,39 @@ describe('AnswerInput — input mode with speech recognition', () => {
     expect(recognition.abort).toHaveBeenCalled();
     expect(props.setStateMerged).toHaveBeenCalledWith({ useAutoRecord: true });
     expect(props.onListen).toHaveBeenCalled();
+  });
+
+  it('drops the input, the mic and Submit once the question is graded', () => {
+    renderAnswerInput(
+      { answerCategory: 'pinyin', pinyinQuizType: 'input', submitDisabled: true },
+      true,
+    );
+    expect(screen.queryByLabelText(/enter your answer/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/record speech/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/submit/i)).not.toBeInTheDocument();
+  });
+
+  it('drops the input and the mic while the review holds a missed question', () => {
+    renderAnswerInput(
+      {
+        answerCategory: 'pinyin',
+        pinyinQuizType: 'input',
+        submitDisabled: true,
+        componentReviewChars: ['得'],
+      },
+      true,
+    );
+    expect(screen.queryByLabelText(/enter your answer/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/record speech/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps the input and the mic after a wrong attempt, so it can be sent again', () => {
+    renderAnswerInput(
+      { answerCategory: 'pinyin', pinyinQuizType: 'input', gradeCap: 'lapse' },
+      true,
+    );
+    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/record speech/i)).toBeInTheDocument();
   });
 
   it('does not show the mic in flashcard mode even when speech is available', () => {
