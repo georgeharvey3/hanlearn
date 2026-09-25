@@ -185,18 +185,38 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
     return reviewHidesAnswerInput(state) ? null : characterInput;
   }
 
-  return answerQuizType(state) === 'flashcard' ? showAnswerContent : inputWithMic;
+  if (answerQuizType(state) === 'flashcard') {
+    return showAnswerContent;
+  }
+
+  // Typing and the microphone are how an attempt is made, so they go once the
+  // question is graded: the answer is on screen and nothing sent now can
+  // change it. Leaving the mic live was worse than untidy — a transcript
+  // clears the result line, so recording over the reveal erased it.
+  return attemptIsOver(state) ? null : inputWithMic;
 };
+
+/**
+ * Whether the question has been graded, so the attempt is over.
+ *
+ * Both grading paths disable Submit — a correct answer and a reveal — and the
+ * next question turns it back on. A wrong attempt does not: the input stays
+ * live there so the learner can edit and send it again.
+ */
+function attemptIsOver(state: TestState): boolean {
+  return state.submitDisabled;
+}
 
 /**
  * Whether the answer area renders nothing while the component review is up.
  *
- * Only handwriting has nothing left to show: the other categories keep their
- * grade buttons on screen through the reveal. The layout reads this too, so
- * that it reserves no room for an answer area that is not there.
+ * Only flashcard mode has anything left to show, since its grade buttons are
+ * the record of what the learner pressed. Handwriting has cleared its box by
+ * then, and a graded input is gone with the rest of the attempt. The layout
+ * reads this too, so that it reserves no room for an area that is not there.
  */
 export function reviewHidesAnswerInput(state: TestState): boolean {
-  return state.answerCategory === 'character' && state.componentReviewChars.length > 0;
+  return state.componentReviewChars.length > 0 && answerQuizType(state) !== 'flashcard';
 }
 
 export function getVerb(state: TestState): string {

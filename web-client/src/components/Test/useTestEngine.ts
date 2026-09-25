@@ -569,6 +569,10 @@ export const useTestEngine = (props: Props) => {
   const applySpeech = useCallback(
     (speech: string): void => {
       const current = getState();
+      // A transcript that lands after the question is graded would write over
+      // the reveal, since it clears the result line. The attempt is over by
+      // then, so the transcript is dropped rather than shown.
+      if (current.submitDisabled) return;
       const numToPinMap = [
         'ling3',
         'yi1',
