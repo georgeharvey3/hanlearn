@@ -33,6 +33,7 @@ const baseState = {
   useAutoRecord: false,
   answerCategory: 'character',
   recognition: null,
+  componentReviewChars: [],
 } as unknown as TestState;
 
 const noop = () => {};
@@ -82,6 +83,22 @@ describe('AnswerInput — handwriting canvas', () => {
   it('renders placeholder text in the handwriting canvas', () => {
     renderAnswerInput({ answerCategory: 'character' });
     expect(screen.getByText(/draw here/i)).toBeInTheDocument();
+  });
+
+  it('drops the canvas while the component review holds the missed character', () => {
+    renderAnswerInput({ answerCategory: 'character', componentReviewChars: ['好'] });
+    expect(document.getElementById('character-target-div')).not.toBeInTheDocument();
+    expect(screen.queryByText(/draw here/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps the grade buttons of a flashcard through the review', () => {
+    renderAnswerInput({
+      answerCategory: 'meaning',
+      meaningQuizType: 'flashcard',
+      showAnswer: true,
+      componentReviewChars: ['好'],
+    });
+    expect(screen.getByLabelText(/i knew this/i)).toBeInTheDocument();
   });
 });
 

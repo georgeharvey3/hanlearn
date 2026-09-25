@@ -24,6 +24,7 @@ vi.mock('howler', () => ({
 
 // Capture props from mocked child components to invoke callbacks
 let capturedTestProps: Record<string, unknown> = {};
+let capturedNewWordsProps: Record<string, unknown> = {};
 let capturedReadProps: Record<string, unknown> = {};
 let capturedWriteProps: Record<string, unknown> = {};
 
@@ -34,14 +35,17 @@ vi.mock('../../components/Test/Test', () => ({
   },
 }));
 vi.mock('../../components/Test/NewWords/NewWords', () => ({
-  default: ({ words, startTest }: { words: { simp: string }[]; startTest: () => void }) => (
-    <div data-testid="mock-new-words">
-      NewWords: {words.map((w) => w.simp).join(',')}
-      <button data-testid="start-test-btn" onClick={startTest}>
-        Start
-      </button>
-    </div>
-  ),
+  default: ({ words, startTest }: { words: { simp: string }[]; startTest: () => void }) => {
+    capturedNewWordsProps = { words };
+    return (
+      <div data-testid="mock-new-words">
+        NewWords: {words.map((w) => w.simp).join(',')}
+        <button data-testid="start-test-btn" onClick={startTest}>
+          Start
+        </button>
+      </div>
+    );
+  },
 }));
 vi.mock('../../components/Test/SentenceRead/SentenceRead', () => ({
   default: (props: Record<string, unknown>) => {
@@ -71,6 +75,7 @@ import type { Word } from '../../types/models';
 beforeEach(() => {
   vi.clearAllMocks();
   capturedTestProps = {};
+  capturedNewWordsProps = {};
   capturedReadProps = {};
   capturedWriteProps = {};
   // An unfinished session is saved for resuming, so it has to be cleared
@@ -178,10 +183,19 @@ describe('TestWords — the Learn stage teaches what the queue asks', () => {
 
     renderWithProviders(<TestWords />, { store });
 
+    await screen.findByTestId('mock-new-words');
+    // Two words that came due on the same day are interchangeable, and the
+    // planner shuffles them on a seed of today's date, so the order is the
+    // planner's to choose. What matters is that Test is handed the same words
+    // in the same order the Learn stage taught.
+    const taught = (capturedNewWordsProps.words as Word[]).map((w) => w.simp);
+    expect(taught).toHaveLength(2);
+    expect(taught).toEqual(expect.arrayContaining(['新一', '新二']));
+
     await userEvent.click(await screen.findByTestId('start-test-btn'));
 
     const plan = capturedTestProps.plan as { newWords: Word[]; queue: unknown[] };
-    expect(plan.newWords.map((w) => w.simp)).toEqual(['新一', '新二']);
+    expect(plan.newWords.map((w) => w.simp)).toEqual(taught);
     // One question per word now, not one per direction.
     expect(plan.queue).toHaveLength(2);
   });
