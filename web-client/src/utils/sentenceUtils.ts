@@ -1,4 +1,5 @@
 import { searchWord, substringMatch } from '../services/dictionaryService';
+import { reportError } from '../services/errorReporting';
 
 export interface SentenceWord {
   id: number;
@@ -38,6 +39,11 @@ export interface ResolvedSentence {
 
 /**
  * Resolve segmented word strings to full word objects using the static dictionary.
+ *
+ * Each segment is a separate Cloud Function call, so one failed lookup (a cold
+ * start timing out on a slow connection, say) must not lose the whole sentence.
+ * A segment whose lookup fails stays a plain string: the learner loses the
+ * translation help for that one word and keeps the sentence.
  */
 export async function resolveSentence(cloudSentence: CloudSentence): Promise<ResolvedSentence> {
   // Collect unique non-target segments
@@ -50,12 +56,25 @@ export async function resolveSentence(cloudSentence: CloudSentence): Promise<Res
 
   // Resolve all unique segments in parallel via static dictionary
   const segmentArray = Array.from(uniqueSegments);
+  let lookupFailures = 0;
+  let firstLookupError: unknown;
+  const noteLookupFailure = (error: unknown): void => {
+    lookupFailures += 1;
+    if (firstLookupError === undefined) firstLookupError = error;
+  };
+
   const lookupResults = await Promise.all(
     segmentArray.map(async (seg) => {
-      const results = await searchWord(seg, 'simp');
-      return { seg, word: results.length > 0 ? results[0] : null };
+      try {
+        const results = await searchWord(seg, 'simp');
+        return { seg, word: results.length > 0 ? results[0] : null };
+      } catch (error) {
+        noteLookupFailure(error);
+        return { seg, word: null, failed: true };
+      }
     }),
   );
+  const failedSegments = new Set(lookupResults.filter((r) => r.failed).map((r) => r.seg));
 
   const wordMap = new Map<string, SentenceWord>();
   for (const { seg, word } of lookupResults) {
@@ -77,9 +96,17 @@ export async function resolveSentence(cloudSentence: CloudSentence): Promise<Res
       }
       const resolved = wordMap.get(seg);
       if (resolved) return resolved;
+      if (failedSegments.has(seg)) return seg;
 
       // No exact match — decompose into smaller dictionary-matched substrings
-      const subWords = await substringMatch(seg, 'simp');
+      let subWords: Awaited<ReturnType<typeof substringMatch>>;
+      try {
+        subWords = await substringMatch(seg, 'simp');
+      } catch (error) {
+        noteLookupFailure(error);
+        return seg;
+      }
+      if (subWords.length === 0) return seg;
       if (subWords.length === 1 && subWords[0].id === -1) {
         // Single unknown character — keep as plain string
         return seg;
@@ -93,6 +120,14 @@ export async function resolveSentence(cloudSentence: CloudSentence): Promise<Res
       }));
     }),
   );
+
+  if (lookupFailures > 0) {
+    reportError(firstLookupError, {
+      feature: 'sentence-resolve',
+      level: 'warning',
+      context: { failedLookups: lookupFailures, segments: cloudSentence.chinese.segments.length },
+    });
+  }
 
   return {
     chinese: {

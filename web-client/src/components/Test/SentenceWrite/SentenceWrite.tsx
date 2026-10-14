@@ -38,6 +38,8 @@ interface SentenceWriteState {
 
   // Fetched Tatoeba sentence
   loading: boolean;
+  // The sentence for the current word could not be fetched
+  loadError: boolean;
   originalChinese: string | null;
   englishPrompt: string | null;
 
@@ -116,6 +118,7 @@ const SentenceWrite: React.FC<Props> = ({
     charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad',
     useSound: (localStorage.getItem('useSound') !== 'false' || Boolean(isDemo)) && synthAvailable,
     loading: false,
+    loadError: false,
     originalChinese: null,
     englishPrompt: null,
     resolvedWords: [],
@@ -159,6 +162,8 @@ const SentenceWrite: React.FC<Props> = ({
 
       updateState({
         loading: true,
+        loadError: false,
+        message: '',
         originalChinese: null,
         englishPrompt: null,
         resolvedWords: [],
@@ -177,7 +182,8 @@ const SentenceWrite: React.FC<Props> = ({
       const skipToNextWord = (): void => {
         if (wordIndex >= words.length - 1) {
           updateState({ loading: false });
-          history.push('/');
+          if (onComplete) onComplete();
+          else history.push('/');
         } else {
           const nextIndex = wordIndex + 1;
           const nextOffset = (seenOffsets?.[words[nextIndex].simp]?.offset ?? -1) + 1;
@@ -228,12 +234,39 @@ const SentenceWrite: React.FC<Props> = ({
         });
       } catch (error) {
         console.error('Error fetching sentence for SentenceWrite:', error);
-        reportError(error, { feature: 'sentence-write' });
-        updateState({ loading: false, message: 'Could not load sentence. Please try again.' });
+        reportError(error, {
+          feature: 'sentence-write',
+          context: { wordIndex, wordCount: words.length, offset: tryOffset },
+        });
+        updateState({ loading: false, loadError: true });
       }
     },
-    [seenOffsets, updateState, words],
+    [history, onComplete, seenOffsets, updateState, words],
   );
+
+  const offsetFor = useCallback(
+    (index: number): number => (seenOffsets?.[words[index].simp]?.offset ?? -1) + 1,
+    [seenOffsets, words],
+  );
+
+  const onRetryLoad = useCallback((): void => {
+    const { wordIndex } = stateRef.current;
+    fetchSentence(wordIndex, offsetFor(wordIndex));
+  }, [fetchSentence, offsetFor]);
+
+  // Leave out a word whose sentence will not load, so one failure never
+  // strands the learner on this stage.
+  const onSkipWord = useCallback((): void => {
+    const nextIndex = stateRef.current.wordIndex + 1;
+    updateState({ loadError: false, entered: '', message: '' });
+    if (nextIndex < words.length) {
+      setState((prev) => ({ ...prev, wordIndex: nextIndex }));
+      fetchSentence(nextIndex, offsetFor(nextIndex));
+    } else {
+      updateState({ wordIndex: nextIndex });
+      onComplete?.();
+    }
+  }, [fetchSentence, offsetFor, onComplete, updateState, words.length]);
 
   const hasInitialized = useRef(false);
   useEffect(() => {
@@ -408,6 +441,42 @@ const SentenceWrite: React.FC<Props> = ({
   }
 
   const currentWord = words[state.wordIndex];
+  const isLastWord = state.wordIndex >= words.length - 1;
+
+  if (state.loadError) {
+    return (
+      <Box
+        sx={{
+          width: '90%',
+          maxWidth: 400,
+          mx: 'auto',
+          py: 4,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 2,
+          textAlign: 'center',
+        }}
+      >
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          Word {state.wordIndex + 1} of {words.length}
+        </Typography>
+        <Typography role="alert">Couldn&apos;t load a sentence for this word.</Typography>
+        <Stack direction="row" spacing={2} justifyContent="center">
+          <Button clicked={onRetryLoad} aria-label="Try again">
+            Try again
+          </Button>
+          <Button
+            type="secondary"
+            clicked={onSkipWord}
+            aria-label={isLastWord ? 'Skip and finish' : 'Skip word'}
+          >
+            {isLastWord ? 'Skip and finish' : 'Skip word'}
+          </Button>
+        </Stack>
+      </Box>
+    );
+  }
 
   const outerSx = {
     width: '90%',
