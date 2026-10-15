@@ -4,6 +4,7 @@ import { Converter } from 'opencc-js';
 
 import { ai, db } from '../firebase/config';
 import { reportError } from './errorReporting';
+import { retryTransient } from '../utils/retry';
 
 const model = getGenerativeModel(ai, { model: 'gemini-2.5-flash-lite' });
 const toTraditional = Converter({ from: 'cn', to: 'tw' });
@@ -91,10 +92,12 @@ Requirements:
 - Vary the contexts and sentence structures
 - Provide accurate English translations`;
 
-  const result = await model.generateContent({
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { responseMimeType: 'application/json' },
-  });
+  const result = await retryTransient(() =>
+    model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json' },
+    }),
+  );
 
   const text = result.response.text();
   let parsed: unknown;

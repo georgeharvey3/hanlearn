@@ -759,3 +759,60 @@ describe('SentenceWrite — keyboard shortcuts', () => {
     expect(screen.getByRole('button', { name: /translate/i })).toBeInTheDocument();
   });
 });
+
+describe('SentenceWrite — a sentence that fails to load', () => {
+  const secondWord: Word = { ...testWord, id: 2, simp: '学习', trad: '學習' };
+
+  it('offers Try again, which loads the sentence', async () => {
+    const user = userEvent.setup();
+    mockedGetSegmentedSentence.mockRejectedValueOnce(new Error('network'));
+
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+
+    await user.click(await screen.findByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findByText('student.')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows the recovery buttons even without speech recognition', async () => {
+    mockedGetSegmentedSentence.mockRejectedValueOnce(new Error('network'));
+
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(false),
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't load a sentence/i);
+    expect(screen.getByRole('button', { name: 'Skip and finish' })).toBeInTheDocument();
+  });
+
+  it('skips to the next word', async () => {
+    const user = userEvent.setup();
+    mockedGetSegmentedSentence.mockRejectedValueOnce(new Error('network'));
+
+    renderWithProviders(<SentenceWrite words={[testWord, secondWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+
+    await user.click(await screen.findByRole('button', { name: 'Skip word' }));
+
+    expect(await screen.findByText('Word 2 of 2')).toBeInTheDocument();
+    expect(mockedGetSegmentedSentence).toHaveBeenLastCalledWith('学习', expect.any(String), 0);
+  });
+
+  it('finishes the stage when the last word is skipped', async () => {
+    const user = userEvent.setup();
+    const onComplete = vi.fn();
+    mockedGetSegmentedSentence.mockRejectedValueOnce(new Error('network'));
+
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={onComplete} />, {
+      store: makeStore(),
+    });
+
+    await user.click(await screen.findByRole('button', { name: 'Skip and finish' }));
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+});
