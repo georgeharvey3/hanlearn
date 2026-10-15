@@ -15,7 +15,7 @@ import { beep } from '../constants';
 
 import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
-import { getSegmentedSentence } from '../../../services/sentenceService';
+import { getSegmentedSentence, takeSentenceStart } from '../../../services/sentenceService';
 import {
   resolveSentence,
   matchEnglishToSentenceWords,
@@ -155,6 +155,16 @@ const SentenceWrite: React.FC<Props> = ({
     history.push('/');
   }, [history]);
 
+  // The sentence after the one Read showed, or the word's next rotation start
+  // when Read did not run, so Write varies from session to session too.
+  const startOffset = useCallback(
+    (simp: string): number => {
+      const seen = seenOffsets?.[simp];
+      return seen ? seen.offset + 1 : takeSentenceStart(simp);
+    },
+    [seenOffsets],
+  );
+
   const fetchSentence = useCallback(
     async (wordIndex: number, tryOffset: number): Promise<void> => {
       const word = words[wordIndex];
@@ -186,7 +196,7 @@ const SentenceWrite: React.FC<Props> = ({
           else history.push('/');
         } else {
           const nextIndex = wordIndex + 1;
-          const nextOffset = (seenOffsets?.[words[nextIndex].simp]?.offset ?? -1) + 1;
+          const nextOffset = startOffset(words[nextIndex].simp);
           setState((prev) => ({ ...prev, wordIndex: nextIndex }));
           fetchSentence(nextIndex, nextOffset);
         }
@@ -241,12 +251,12 @@ const SentenceWrite: React.FC<Props> = ({
         updateState({ loading: false, loadError: true });
       }
     },
-    [history, onComplete, seenOffsets, updateState, words],
+    [history, onComplete, seenOffsets, startOffset, updateState, words],
   );
 
   const offsetFor = useCallback(
-    (index: number): number => (seenOffsets?.[words[index].simp]?.offset ?? -1) + 1,
-    [seenOffsets, words],
+    (index: number): number => startOffset(words[index].simp),
+    [startOffset, words],
   );
 
   const onRetryLoad = useCallback((): void => {
@@ -272,10 +282,10 @@ const SentenceWrite: React.FC<Props> = ({
   useEffect(() => {
     if (!hasInitialized.current && words.length > 0) {
       hasInitialized.current = true;
-      const firstOffset = (seenOffsets?.[words[0].simp]?.offset ?? -1) + 1;
+      const firstOffset = startOffset(words[0].simp);
       fetchSentence(0, firstOffset);
     }
-  }, [fetchSentence, seenOffsets, words]);
+  }, [fetchSentence, startOffset, words]);
 
   const onListenPinyin = useCallback((): void => {
     const recognition = new window.webkitSpeechRecognition();
@@ -331,12 +341,12 @@ const SentenceWrite: React.FC<Props> = ({
     }));
 
     if (nextIndex < words.length) {
-      const nextOffset = (seenOffsets?.[words[nextIndex].simp]?.offset ?? -1) + 1;
+      const nextOffset = startOffset(words[nextIndex].simp);
       fetchSentence(nextIndex, nextOffset);
     } else {
       onComplete?.();
     }
-  }, [fetchSentence, onComplete, seenOffsets, words]);
+  }, [fetchSentence, onComplete, startOffset, words]);
 
   const onToggleWord = useCallback((index: number): void => {
     setState((prev) => {

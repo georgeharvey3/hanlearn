@@ -28,7 +28,7 @@ import * as wordActions from '../../../store/actions/index';
 import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
 import { AppDispatch } from '../../../types/actions';
-import { getSegmentedSentence } from '../../../services/sentenceService';
+import { getSegmentedSentence, takeSentenceStart } from '../../../services/sentenceService';
 import { parseMeanings } from '../../../utils/meaningUtils';
 import { resolveSentence, SentenceWord, ResolvedSentence } from '../../../utils/sentenceUtils';
 import * as ttsService from '../../../services/ttsService';
@@ -180,6 +180,7 @@ const SentenceRead: React.FC<Props> = ({
   const stateRef = useRef(state);
   const hasInitialized = useRef(false);
   const seenOffsets = useRef<Record<string, { offset: number; text: string; english: string }>>({});
+  const currentOffset = useRef(0);
 
   useEffect(() => {
     stateRef.current = state;
@@ -255,10 +256,12 @@ const SentenceRead: React.FC<Props> = ({
   }, [history, sentenceWriteEnabled, startSentenceWrite]);
 
   const fetchSentence = useCallback(
-    async (offset: number): Promise<void> => {
+    async (): Promise<void> => {
       updateState({ loading: true });
 
       const currentWord = words[stateRef.current.wordIndex].simp;
+      const offset = takeSentenceStart(currentWord);
+      currentOffset.current = offset;
 
       try {
         const { sentence: cloudSentence } = await getSegmentedSentence(
@@ -326,7 +329,7 @@ const SentenceRead: React.FC<Props> = ({
     const currentWord = words[stateRef.current.wordIndex];
     const currentSentence = stateRef.current.sentence;
     seenOffsets.current[currentWord.simp] = {
-      offset: 0,
+      offset: currentOffset.current,
       text: currentSentence?.chinese.sentence ?? '',
       english: currentSentence?.english.sentence ?? '',
     };
@@ -441,7 +444,7 @@ const SentenceRead: React.FC<Props> = ({
   useEffect(() => {
     if (!hasInitialized.current) {
       hasInitialized.current = true;
-      fetchSentence(0);
+      fetchSentence();
       initialiseSettings();
     }
     document.addEventListener('keyup', onKeyUp);
@@ -455,7 +458,7 @@ const SentenceRead: React.FC<Props> = ({
   const prevWordIndex = useRef(state.wordIndex);
   useEffect(() => {
     if (prevWordIndex.current !== state.wordIndex) {
-      fetchSentence(0);
+      fetchSentence();
     }
     prevWordIndex.current = state.wordIndex;
   }, [fetchSentence, state.wordIndex]);

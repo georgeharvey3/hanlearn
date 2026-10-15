@@ -22,6 +22,7 @@ vi.mock('howler', () => ({
 }));
 vi.mock('../../../services/sentenceService', () => ({
   getSegmentedSentence: vi.fn(),
+  takeSentenceStart: vi.fn(() => 0),
 }));
 vi.mock('../../../services/similarityService', () => ({
   getSimilarityScore: vi.fn(),
@@ -456,6 +457,18 @@ describe('SentenceWrite — stage completion', () => {
     await waitFor(() => {
       // The first call should use offset 1, not 0, since seenOffset is 0
       expect(mockedGetSegmentedSentence).toHaveBeenCalledWith('你好', expect.any(String), 1);
+    });
+  });
+
+  it('starts from the rotation when Read did not show the word, so sessions vary', async () => {
+    vi.mocked(sentenceService.takeSentenceStart).mockReturnValueOnce(3);
+
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+
+    await waitFor(() => {
+      expect(mockedGetSegmentedSentence).toHaveBeenCalledWith('你好', expect.any(String), 3);
     });
   });
 });
