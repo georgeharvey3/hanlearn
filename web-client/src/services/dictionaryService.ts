@@ -10,6 +10,7 @@ import { functions } from '../firebase/config';
 import { Word } from '../types/models';
 import { searchInputSchema } from '../validation/schemas';
 import { traceAsync } from './performanceService';
+import { retryTransient } from '../utils/retry';
 
 /**
  * Search for words by exact character match.
@@ -23,7 +24,7 @@ export async function searchWord(character: string, charSet: 'simp' | 'trad'): P
       functions,
       'dictionarySearchWord',
     );
-    const result = await fn({ character: parsed.data, charSet });
+    const result = await retryTransient(() => fn({ character: parsed.data, charSet }));
     return result.data;
   });
 }
@@ -84,7 +85,7 @@ export async function substringMatch(text: string, charSet: 'simp' | 'trad'): Pr
       functions,
       'dictionarySubstringMatch',
     );
-    const result = await fn({ text: parsed.data, charSet });
+    const result = await retryTransient(() => fn({ text: parsed.data, charSet }));
     return result.data;
   });
 }
