@@ -255,73 +255,70 @@ const SentenceRead: React.FC<Props> = ({
     }
   }, [history, sentenceWriteEnabled, startSentenceWrite]);
 
-  const fetchSentence = useCallback(
-    async (): Promise<void> => {
-      updateState({ loading: true });
+  const fetchSentence = useCallback(async (): Promise<void> => {
+    updateState({ loading: true });
 
-      const currentWord = words[stateRef.current.wordIndex].simp;
-      const offset = takeSentenceStart(currentWord);
-      currentOffset.current = offset;
+    const currentWord = words[stateRef.current.wordIndex].simp;
+    const offset = takeSentenceStart(currentWord);
+    currentOffset.current = offset;
 
-      try {
-        const { sentence: cloudSentence } = await getSegmentedSentence(
-          currentWord,
-          stateRef.current.charSet,
-          offset,
-        );
+    try {
+      const { sentence: cloudSentence } = await getSegmentedSentence(
+        currentWord,
+        stateRef.current.charSet,
+        offset,
+      );
 
-        if (!cloudSentence) {
-          console.warn(`No sentences found for word: ${currentWord}`);
-          if (stateRef.current.wordIndex >= words.length - 1) {
-            onEndStage();
-          } else {
-            setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
-          }
-          return;
-        }
-
-        const resolved = await resolveSentence(cloudSentence);
-
-        const willSpeak = stateRef.current.useSound;
-
-        setState((prevState) => ({
-          ...prevState,
-          sentence: resolved,
-          loading: false,
-          showText: false,
-          synthLoading: willSpeak,
-        }));
-
-        if (willSpeak) {
-          stateRef.current.recognition?.abort();
-          ttsService.stopAll();
-          ttsService.speak(resolved.chinese.sentence, {
-            speed: slowModeRef.current ? 0.7 : 1.0,
-            fallbackVoice: voice,
-            fallbackLang: lang || 'zh-CN',
-            onStart: () => {
-              updateState({ synthLoading: false });
-            },
-            onEnd: () => {
-              updateState({ synthLoading: false });
-            },
-            onError: () => {
-              updateState({ synthLoading: false });
-            },
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching sentence:', error);
-        reportError(error, { feature: 'sentence-read' });
+      if (!cloudSentence) {
+        console.warn(`No sentences found for word: ${currentWord}`);
         if (stateRef.current.wordIndex >= words.length - 1) {
           onEndStage();
         } else {
           setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
         }
+        return;
       }
-    },
-    [onEndStage, updateState, words, voice, lang],
-  );
+
+      const resolved = await resolveSentence(cloudSentence);
+
+      const willSpeak = stateRef.current.useSound;
+
+      setState((prevState) => ({
+        ...prevState,
+        sentence: resolved,
+        loading: false,
+        showText: false,
+        synthLoading: willSpeak,
+      }));
+
+      if (willSpeak) {
+        stateRef.current.recognition?.abort();
+        ttsService.stopAll();
+        ttsService.speak(resolved.chinese.sentence, {
+          speed: slowModeRef.current ? 0.7 : 1.0,
+          fallbackVoice: voice,
+          fallbackLang: lang || 'zh-CN',
+          onStart: () => {
+            updateState({ synthLoading: false });
+          },
+          onEnd: () => {
+            updateState({ synthLoading: false });
+          },
+          onError: () => {
+            updateState({ synthLoading: false });
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching sentence:', error);
+      reportError(error, { feature: 'sentence-read' });
+      if (stateRef.current.wordIndex >= words.length - 1) {
+        onEndStage();
+      } else {
+        setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
+      }
+    }
+  }, [onEndStage, updateState, words, voice, lang]);
 
   const onYesClicked = (): void => {
     if (stateRef.current.useSound) beep.play();
