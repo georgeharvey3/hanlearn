@@ -2,7 +2,7 @@
  * Tests for wordService.ts — focused on the spaced repetition algorithm in finishTest.
  * Firebase Firestore is mocked at the SDK level since wordService IS the service layer.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // vi.hoisted ensures these vars are available when vi.mock factories run (hoisted to top)
 const {
@@ -416,11 +416,98 @@ describe('finishTest — per-direction scheduling', () => {
       }),
     );
 
-    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+    // A lapse buries nothing, so the overdue CM keeps its date.
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'lapse' } }]);
 
     const update = mockBatchUpdate.mock.calls[0][1];
     expect(update.bank).toBe(1);
     expect(update.dueDate.toDate()).toEqual(new Date(2026, 0, 1));
+  });
+
+  // ─── Burying the other directions (ADR 0016) ───────────────────────────────
+
+  describe('burying the directions it did not ask', () => {
+    const now = new Date(2026, 1, 27, 12, 0, 0);
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('moves a due sibling past the next day after a pass', async () => {
+      // A new word: all five directions due together. MC passes with 3 days.
+      mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', true, allDirections(1)));
+
+      await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+      const update = mockBatchUpdate.mock.calls[0][1];
+      for (const direction of ['MP', 'PM', 'PC', 'CM']) {
+        expect(daysFrom(now, update.directions[direction].dueDate)).toBe(3);
+      }
+      // MC's own date is fuzzed by a day either way, but the word as a whole
+      // no longer comes back the next day.
+      expect(daysFrom(now, update.dueDate)).toBeGreaterThanOrEqual(2);
+    });
+
+    it('moves only the due date of a sibling', async () => {
+      const sibling = storedDirection(3, new Date(2026, 1, 20), {
+        stability: 9,
+        difficulty: 5,
+        interval: 9,
+        lapses: 1,
+      });
+      mockGetDoc.mockResolvedValue(
+        makeFakeDoc(3, '你好', true, { ...allDirections(3), PM: sibling }),
+      );
+
+      await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+      const { dueDate, ...rest } = mockBatchUpdate.mock.calls[0][1].directions.PM;
+      expect(rest).toEqual({ bank: 3, stability: 9, difficulty: 5, interval: 9, lapses: 1 });
+      expect(daysFrom(now, dueDate)).toBe(7);
+    });
+
+    it('caps the burial at a week for a long interval', async () => {
+      // MC passes from 30 days to 97; the siblings wait 7 days, not 97.
+      mockGetDoc.mockResolvedValue(makeFakeDoc(4, '你好', true, allDirections(4)));
+
+      await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+      expect(daysFrom(now, mockBatchUpdate.mock.calls[0][1].directions.CM.dueDate)).toBe(7);
+    });
+
+    it('leaves a sibling due after the burial window where it was', async () => {
+      const later = new Date(2026, 3, 1);
+      mockGetDoc.mockResolvedValue(
+        makeFakeDoc(1, '你好', true, { ...allDirections(1), CM: storedDirection(4, later) }),
+      );
+
+      await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+      expect(mockBatchUpdate.mock.calls[0][1].directions.CM.dueDate.toDate()).toEqual(later);
+    });
+
+    it.each(['lapse', 'fail'] as const)('buries nothing after a %s', async (grade) => {
+      mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', true, allDirections(1)));
+
+      await finishTest('user-1', [{ word_id: 1, directions: { MC: grade } }]);
+
+      const update = mockBatchUpdate.mock.calls[0][1];
+      expect(update.directions.CM.dueDate.toDate()).toEqual(new Date(2026, 0, 1));
+    });
+
+    it('buries nothing when any asked direction failed', async () => {
+      mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', true, allDirections(1)));
+
+      await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass', MP: 'fail' } }]);
+
+      const update = mockBatchUpdate.mock.calls[0][1];
+      expect(update.directions.CM.dueDate.toDate()).toEqual(new Date(2026, 0, 1));
+    });
   });
 
   // ─── Documents the migration has not reached ───────────────────────────────
