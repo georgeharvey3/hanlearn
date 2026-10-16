@@ -18,6 +18,7 @@ vi.mock('howler', () => ({
 }));
 vi.mock('../../../services/sentenceService', () => ({
   getSegmentedSentence: vi.fn(),
+  takeSentenceStart: vi.fn(() => 0),
 }));
 vi.mock('../../../services/dictionaryService', () => ({
   searchWord: vi.fn(),
