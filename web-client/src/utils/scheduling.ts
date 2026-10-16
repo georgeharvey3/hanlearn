@@ -399,3 +399,56 @@ export function dueDateFrom(interval: number, now: Date, random?: () => number):
   dueDate.setDate(dueDate.getDate() + days);
   return dueDate;
 }
+
+/**
+ * The fewest days a review buries the other directions of its word.
+ *
+ * One day would leave them due the next day, which is the fault that burying
+ * removes.
+ */
+export const MIN_BURY_DAYS = 2;
+
+/**
+ * The most days a review buries the other directions of its word.
+ *
+ * A sibling that is due holds its own schedule, and burying only spreads the
+ * directions of a word over several days. It must not hold a sibling back for
+ * the weeks that a mature direction's interval reaches.
+ */
+export const MAX_BURY_DAYS = 7;
+
+/**
+ * Whether a word's session buries the directions it did not ask.
+ *
+ * Only a word whose every graded direction passed is buried. A word with a
+ * failed retrieval is a weak word, and its other directions stay as due as
+ * they were, so it keeps coming back. See docs/adr/0016-bury-sibling-directions.md.
+ */
+export function shouldBury(grades: DirectionResult[]): boolean {
+  return grades.length > 0 && grades.every((grade) => !isFailedRetrieval(grade));
+}
+
+/**
+ * The days a review buries the other directions of its word, from the shortest
+ * interval that the session gave the word.
+ *
+ * The gap between two sightings of a word then follows the interval the word
+ * was just given, between `MIN_BURY_DAYS` and `MAX_BURY_DAYS`.
+ */
+export function buryDays(interval: number): number {
+  return Math.min(MAX_BURY_DAYS, Math.max(MIN_BURY_DAYS, interval));
+}
+
+/**
+ * The due date of a buried sibling direction.
+ *
+ * A sibling due before the end of the bury window moves to its end, and one due
+ * after it keeps its date. Only the due date moves: the stability, the
+ * difficulty, the interval and the last review stay, so a sibling asked late
+ * takes the longer interval that FSRS gives for the elapsed days.
+ */
+export function buriedDueDate(dueDate: Date, days: number, now: Date): Date {
+  const until = new Date(now.getTime());
+  until.setDate(until.getDate() + days);
+  return dueDate.getTime() < until.getTime() ? until : dueDate;
+}

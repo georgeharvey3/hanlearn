@@ -104,6 +104,22 @@ describe('userWords', () => {
     );
   });
 
+  it('accepts a buried sibling that moved only its due date', async () => {
+    // ADR 0016: a pass moves the due date of the directions the session did not
+    // ask, and leaves the rest of each record as it was. A sibling that no
+    // session has asked since the release holds only a bank and a due date.
+    await seedWord();
+    const buried = { bank: 1, dueDate: Timestamp.fromDate(new Date(Date.now() + 3 * 864e5)) };
+
+    await assertSucceeds(
+      updateDoc(ref(db, 'users/user-1/userWords/1'), {
+        directions: { ...directionsMap(), MP: buried, PM: buried, PC: buried, CM: buried },
+        bank: 1,
+        dueDate: buried.dueDate,
+      }),
+    );
+  });
+
   it('rejects a negative lapse count', async () => {
     await seedWord();
 

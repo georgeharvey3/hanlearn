@@ -2,14 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { DirectionResult } from '../types/models';
 import {
   LEECH_THRESHOLD,
+  MAX_BURY_DAYS,
   MAX_DIFFICULTY,
   MAX_INTERVAL_DAYS,
   MAX_POST_LAPSE_INTERVAL_DAYS,
+  MIN_BURY_DAYS,
   MIN_DIFFICULTY,
   MIN_EASE,
   MAX_EASE,
   STARTING_EASE,
   bankOf,
+  buriedDueDate,
+  buryDays,
   currentMemory,
   difficultyFromEase,
   dueDateFrom,
@@ -19,6 +23,7 @@ import {
   nextLapses,
   nextMemory,
   seedInterval,
+  shouldBury,
   type Memory,
 } from './scheduling';
 
@@ -361,5 +366,50 @@ describe('dueDateFrom', () => {
 
   it('keeps the time of day of the session', () => {
     expect(dueDateFrom(10, now, () => 0.5).getHours()).toBe(12);
+  });
+});
+
+describe('shouldBury', () => {
+  it('buries after passes only', () => {
+    expect(shouldBury(['pass'])).toBe(true);
+    expect(shouldBury(['pass', 'pass'])).toBe(true);
+  });
+
+  it('buries nothing when any grade is a failed retrieval', () => {
+    expect(shouldBury(['lapse'])).toBe(false);
+    expect(shouldBury(['fail'])).toBe(false);
+    expect(shouldBury(['pass', 'lapse'])).toBe(false);
+  });
+
+  it('buries nothing for a word that was not asked', () => {
+    expect(shouldBury([])).toBe(false);
+  });
+});
+
+describe('buryDays', () => {
+  it('follows the interval inside the range', () => {
+    expect(buryDays(3)).toBe(3);
+    expect(buryDays(5)).toBe(5);
+  });
+
+  it('never leaves a sibling due the next day', () => {
+    expect(buryDays(0)).toBe(MIN_BURY_DAYS);
+    expect(buryDays(1)).toBe(MIN_BURY_DAYS);
+  });
+
+  it('caps the burial of a long interval', () => {
+    expect(buryDays(97)).toBe(MAX_BURY_DAYS);
+  });
+});
+
+describe('buriedDueDate', () => {
+  it('moves a due date inside the window to its end', () => {
+    const due = new Date(2026, 5, 18);
+    expect(buriedDueDate(due, 3, now)).toEqual(new Date(2026, 5, 23, 12, 0, 0));
+  });
+
+  it('keeps a due date after the window', () => {
+    const due = new Date(2026, 6, 1);
+    expect(buriedDueDate(due, 3, now)).toBe(due);
   });
 });

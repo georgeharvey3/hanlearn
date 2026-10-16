@@ -70,6 +70,16 @@ at which recall is 0.9.
 The calculation is in `utils/scheduling.ts`, and `finishTest` holds the write.
 See [docs/adr/0009-fsrs.md](docs/adr/0009-fsrs.md).
 
+## Burying
+
+When every direction a session asked of a word passed, the directions it did not
+ask are **buried**: each one due within the next few days moves its due date to
+the end of that window, so the word does not come back the next day for each
+direction in turn. The window is the shortest interval the session gave the word,
+held between 2 and 7 days. Only the due date moves, and a lapse or a failure
+buries nothing. See
+[docs/adr/0016-bury-sibling-directions.md](docs/adr/0016-bury-sibling-directions.md).
+
 ## Lapse count and leech
 
 Each direction counts the retrievals it has lost, in a `lapses` field. A `lapse`
@@ -149,7 +159,8 @@ answered correctly in any direction.
 The session teaches a new word in the Learn step, then asks it once, in one
 direction like any other word. The five directions of a new word share one due
 date, so the queue treats them as tied. The four directions that the session
-does not ask stay at bank 1 and due, and a later session reaches them. See
+does not ask stay at bank 1, buried for a few days if the word passed, and a
+later session reaches them. See
 [docs/adr/0005-new-words-take-one-direction.md](docs/adr/0005-new-words-take-one-direction.md).
 
 A new word holds no place of its own in the queue. Its due date ranks it against
