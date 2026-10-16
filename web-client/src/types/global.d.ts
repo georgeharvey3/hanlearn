@@ -29,9 +29,13 @@ interface HanziWriterOptions {
   showHintAfterMisses?: number;
   highlightOnComplete?: boolean;
   highlightCompleteColor?: string;
-  charDataLoader?: (char: string, onComplete: (data: object) => void) => void;
+  charDataLoader?: (
+    char: string,
+    onComplete: (data: object) => void,
+    onError: (error: unknown) => void,
+  ) => void;
   onLoadCharDataSuccess?: (data: object) => void;
-  onLoadCharDataError?: (error: Error) => void;
+  onLoadCharDataError?: (error: unknown) => void;
   renderer?: 'svg' | 'canvas';
 }
 
