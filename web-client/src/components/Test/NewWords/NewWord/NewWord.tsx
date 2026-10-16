@@ -13,6 +13,7 @@ import speakerPic from '../../../../assets/images/speaker.png';
 
 import { searchWord } from '../../../../services/dictionaryService';
 import { reportError } from '../../../../services/errorReporting';
+import { loadCharData, onCharDataError } from '../../../../utils/charDataLoader';
 import * as ttsService from '../../../../services/ttsService';
 
 import { RootState } from '../../../../types/store';
@@ -216,6 +217,8 @@ const NewWord: React.FC<Props> = ({
         showOutline: true,
         strokeAnimationSpeed: 1,
         delayBetweenStrokes: 200,
+        charDataLoader: loadCharData,
+        onLoadCharDataError: onCharDataError,
       });
       writerRef.current = writer;
       writer.animateCharacter();
