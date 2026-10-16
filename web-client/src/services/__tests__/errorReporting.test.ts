@@ -44,6 +44,18 @@ describe('errorReporting', () => {
     expect(scope.setLevel).toHaveBeenCalledWith('warning');
   });
 
+  it('reports a request the network dropped as a warning', () => {
+    reportError(Object.assign(new Error('internal'), { code: 'functions/internal' }), {
+      feature: 'sentence-write',
+    });
+    expect(scope.setLevel).toHaveBeenCalledWith('warning');
+  });
+
+  it('keeps an explicit level for a dropped request', () => {
+    reportError(new TypeError('Load failed'), { feature: 'tts', level: 'error' });
+    expect(scope.setLevel).toHaveBeenCalledWith('error');
+  });
+
   it('attaches the context when one is given', () => {
     reportError(new Error('boom'), { feature: 'tts', context: { textLength: 12 } });
     expect(scope.setContext).toHaveBeenCalledWith('detail', { textLength: 12 });

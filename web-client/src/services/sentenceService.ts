@@ -4,6 +4,7 @@ import { Converter } from 'opencc-js';
 
 import { ai, db } from '../firebase/config';
 import { reportError } from './errorReporting';
+import { retryTransient } from '../utils/retry';
 
 const model = getGenerativeModel(ai, { model: 'gemini-2.5-flash-lite' });
 const toTraditional = Converter({ from: 'cn', to: 'tw' });
@@ -63,6 +64,28 @@ export interface SegmentedSentenceResult {
 
 const SENTENCES_PER_WORD = 5;
 
+const ROTATION_KEY = 'sentenceRotation';
+
+/**
+ * Returns where this session should start in a word's sentences, and moves the
+ * stored start on by two so the next session begins past both the Read and the
+ * Write sentence. Without it every session showed the same sentences.
+ */
+export function takeSentenceStart(word: string): number {
+  try {
+    const rotation = JSON.parse(localStorage.getItem(ROTATION_KEY) ?? '{}') as Record<
+      string,
+      number
+    >;
+    const start = typeof rotation[word] === 'number' ? rotation[word] : 0;
+    rotation[word] = start + 2;
+    localStorage.setItem(ROTATION_KEY, JSON.stringify(rotation));
+    return start;
+  } catch {
+    return Math.floor(Math.random() * SENTENCES_PER_WORD);
+  }
+}
+
 function calculateHighlightIndices(sentence: string, word: string): number[][] {
   const indices: number[][] = [];
   let startIndex = 0;
@@ -91,10 +114,12 @@ Requirements:
 - Vary the contexts and sentence structures
 - Provide accurate English translations`;
 
-  const result = await model.generateContent({
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { responseMimeType: 'application/json' },
-  });
+  const result = await retryTransient(() =>
+    model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json' },
+    }),
+  );
 
   const text = result.response.text();
   let parsed: unknown;
@@ -172,11 +197,12 @@ export async function getSegmentedSentence(
 ): Promise<SegmentedSentenceResult> {
   const examples = await getOrGenerateSentences(word);
 
-  if (offset >= examples.length) {
-    return { sentence: null, totalCount: examples.length };
+  if (examples.length === 0) {
+    return { sentence: null, totalCount: 0 };
   }
 
-  const example = examples[offset];
+  // Offsets wrap, so a rotating start never runs off the end of the list.
+  const example = examples[offset % examples.length];
   const convertedWord = charSet === 'trad' ? toTraditional(word) : word;
   const convertedChinese = charSet === 'trad' ? toTraditional(example.chinese) : example.chinese;
   const convertedSegments = example.segments.map((seg) =>

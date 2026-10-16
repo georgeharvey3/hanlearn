@@ -18,6 +18,7 @@ import { db } from '../firebase/config';
 import {
   DIRECTIONS,
   Direction,
+  DirectionResult,
   DirectionState,
   DirectionStates,
   Word,
@@ -27,11 +28,14 @@ import {
 import { fillDirections } from '../utils/directions';
 import {
   bankOf,
+  buriedDueDate,
+  buryDays,
   currentMemory,
   dueDateFrom,
   elapsedDays,
   nextLapses,
   nextMemory,
+  shouldBury,
 } from '../utils/scheduling';
 import {
   searchWord as searchDictionary,
@@ -452,6 +456,10 @@ export const finishTest = async (
 
     const data = wordDoc.data() as UserWordDocument;
     const updated = { ...currentDirections(data) };
+    // The grades and the new intervals of the asked directions, which decide
+    // whether and how far the other directions of the word are buried.
+    const grades: DirectionResult[] = [];
+    const intervals: number[] = [];
 
     for (const direction of DIRECTIONS) {
       const result = directions[direction];
@@ -466,6 +474,8 @@ export const finishTest = async (
       const collected = (current.toneErrors ?? 0) + (toneErrors?.[direction] ?? 0);
       const lapses = nextLapses(current.lapses ?? 0, memory, result);
       const bank = bankOf(next.interval);
+      grades.push(result);
+      intervals.push(next.interval);
 
       outcomes.push({
         direction,
@@ -492,6 +502,23 @@ export const finishTest = async (
         // The same for the failed retrievals, which the leech rule counts.
         ...(lapses > 0 ? { lapses } : {}),
       };
+    }
+
+    // Bury the directions the session did not ask, so that a word whose
+    // directions fell due together does not come back the next day for each
+    // of them in turn. Only the due date moves. See
+    // docs/adr/0016-bury-sibling-directions.md.
+    if (shouldBury(grades)) {
+      const days = buryDays(Math.min(...intervals));
+      for (const direction of DIRECTIONS) {
+        if (directions[direction]) continue;
+        const sibling = updated[direction];
+        const dueDate = sibling.dueDate.toDate();
+        const buried = buriedDueDate(dueDate, days, now);
+        if (buried !== dueDate) {
+          updated[direction] = { ...sibling, dueDate: Timestamp.fromDate(buried) };
+        }
+      }
     }
 
     const derivedDueDate = earliestDueDate(updated);

@@ -28,7 +28,7 @@ import * as wordActions from '../../../store/actions/index';
 import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
 import { AppDispatch } from '../../../types/actions';
-import { getSegmentedSentence } from '../../../services/sentenceService';
+import { getSegmentedSentence, takeSentenceStart } from '../../../services/sentenceService';
 import { parseMeanings } from '../../../utils/meaningUtils';
 import { resolveSentence, SentenceWord, ResolvedSentence } from '../../../utils/sentenceUtils';
 import * as ttsService from '../../../services/ttsService';
@@ -180,6 +180,7 @@ const SentenceRead: React.FC<Props> = ({
   const stateRef = useRef(state);
   const hasInitialized = useRef(false);
   const seenOffsets = useRef<Record<string, { offset: number; text: string; english: string }>>({});
+  const currentOffset = useRef(0);
 
   useEffect(() => {
     stateRef.current = state;
@@ -254,71 +255,70 @@ const SentenceRead: React.FC<Props> = ({
     }
   }, [history, sentenceWriteEnabled, startSentenceWrite]);
 
-  const fetchSentence = useCallback(
-    async (offset: number): Promise<void> => {
-      updateState({ loading: true });
+  const fetchSentence = useCallback(async (): Promise<void> => {
+    updateState({ loading: true });
 
-      const currentWord = words[stateRef.current.wordIndex].simp;
+    const currentWord = words[stateRef.current.wordIndex].simp;
+    const offset = takeSentenceStart(currentWord);
+    currentOffset.current = offset;
 
-      try {
-        const { sentence: cloudSentence } = await getSegmentedSentence(
-          currentWord,
-          stateRef.current.charSet,
-          offset,
-        );
+    try {
+      const { sentence: cloudSentence } = await getSegmentedSentence(
+        currentWord,
+        stateRef.current.charSet,
+        offset,
+      );
 
-        if (!cloudSentence) {
-          console.warn(`No sentences found for word: ${currentWord}`);
-          if (stateRef.current.wordIndex >= words.length - 1) {
-            onEndStage();
-          } else {
-            setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
-          }
-          return;
-        }
-
-        const resolved = await resolveSentence(cloudSentence);
-
-        const willSpeak = stateRef.current.useSound;
-
-        setState((prevState) => ({
-          ...prevState,
-          sentence: resolved,
-          loading: false,
-          showText: false,
-          synthLoading: willSpeak,
-        }));
-
-        if (willSpeak) {
-          stateRef.current.recognition?.abort();
-          ttsService.stopAll();
-          ttsService.speak(resolved.chinese.sentence, {
-            speed: slowModeRef.current ? 0.7 : 1.0,
-            fallbackVoice: voice,
-            fallbackLang: lang || 'zh-CN',
-            onStart: () => {
-              updateState({ synthLoading: false });
-            },
-            onEnd: () => {
-              updateState({ synthLoading: false });
-            },
-            onError: () => {
-              updateState({ synthLoading: false });
-            },
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching sentence:', error);
-        reportError(error, { feature: 'sentence-read' });
+      if (!cloudSentence) {
+        console.warn(`No sentences found for word: ${currentWord}`);
         if (stateRef.current.wordIndex >= words.length - 1) {
           onEndStage();
         } else {
           setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
         }
+        return;
       }
-    },
-    [onEndStage, updateState, words, voice, lang],
-  );
+
+      const resolved = await resolveSentence(cloudSentence);
+
+      const willSpeak = stateRef.current.useSound;
+
+      setState((prevState) => ({
+        ...prevState,
+        sentence: resolved,
+        loading: false,
+        showText: false,
+        synthLoading: willSpeak,
+      }));
+
+      if (willSpeak) {
+        stateRef.current.recognition?.abort();
+        ttsService.stopAll();
+        ttsService.speak(resolved.chinese.sentence, {
+          speed: slowModeRef.current ? 0.7 : 1.0,
+          fallbackVoice: voice,
+          fallbackLang: lang || 'zh-CN',
+          onStart: () => {
+            updateState({ synthLoading: false });
+          },
+          onEnd: () => {
+            updateState({ synthLoading: false });
+          },
+          onError: () => {
+            updateState({ synthLoading: false });
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching sentence:', error);
+      reportError(error, { feature: 'sentence-read' });
+      if (stateRef.current.wordIndex >= words.length - 1) {
+        onEndStage();
+      } else {
+        setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
+      }
+    }
+  }, [onEndStage, updateState, words, voice, lang]);
 
   const onYesClicked = (): void => {
     if (stateRef.current.useSound) beep.play();
@@ -326,7 +326,7 @@ const SentenceRead: React.FC<Props> = ({
     const currentWord = words[stateRef.current.wordIndex];
     const currentSentence = stateRef.current.sentence;
     seenOffsets.current[currentWord.simp] = {
-      offset: 0,
+      offset: currentOffset.current,
       text: currentSentence?.chinese.sentence ?? '',
       english: currentSentence?.english.sentence ?? '',
     };
@@ -441,7 +441,7 @@ const SentenceRead: React.FC<Props> = ({
   useEffect(() => {
     if (!hasInitialized.current) {
       hasInitialized.current = true;
-      fetchSentence(0);
+      fetchSentence();
       initialiseSettings();
     }
     document.addEventListener('keyup', onKeyUp);
@@ -455,7 +455,7 @@ const SentenceRead: React.FC<Props> = ({
   const prevWordIndex = useRef(state.wordIndex);
   useEffect(() => {
     if (prevWordIndex.current !== state.wordIndex) {
-      fetchSentence(0);
+      fetchSentence();
     }
     prevWordIndex.current = state.wordIndex;
   }, [fetchSentence, state.wordIndex]);

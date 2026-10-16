@@ -1,5 +1,6 @@
 import { getGenerativeModel } from 'firebase/ai';
 import { ai } from '../firebase/config';
+import { retryTransient } from '../utils/retry';
 
 const model = getGenerativeModel(ai, { model: 'gemini-2.5-flash-lite' });
 
@@ -39,10 +40,12 @@ Scoring guide:
 
 Return ONLY a JSON object in this exact format: {"score": <number>}`;
 
-  const result = await model.generateContent({
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { responseMimeType: 'application/json' },
-  });
+  const result = await retryTransient(() =>
+    model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json' },
+    }),
+  );
 
   const text = result.response.text();
   const parsed = JSON.parse(text) as { score: number };

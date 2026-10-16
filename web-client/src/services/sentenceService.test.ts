@@ -34,6 +34,7 @@ import {
   getSegmentedSentence,
   getHintSentence,
   checkSentenceAvailability,
+  takeSentenceStart,
 } from './sentenceService';
 
 // Sentence data used when the AI mock is needed
@@ -68,9 +69,9 @@ describe('sentenceService', () => {
       expect(result.sentence!.chinese.sentence).toBe('她走进来时说了你好。');
     });
 
-    it('returns null sentence when offset is at or beyond totalCount', async () => {
-      const result = await getSegmentedSentence('你好', 'simp', 4);
-      expect(result.sentence).toBeNull();
+    it('wraps an offset at or beyond totalCount back to the start', async () => {
+      const result = await getSegmentedSentence('你好', 'simp', 5);
+      expect(result.sentence!.chinese.sentence).toBe('请向他们说声你好。');
       expect(result.totalCount).toBe(4);
     });
 
@@ -429,6 +430,23 @@ describe('sentenceService', () => {
 
       const available = await checkSentenceAvailability('学习', 'trad');
       expect(available).toBe(true);
+    });
+  });
+
+  describe('takeSentenceStart', () => {
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    it('starts at 0 and moves on by two each session', () => {
+      expect(takeSentenceStart('学习')).toBe(0);
+      expect(takeSentenceStart('学习')).toBe(2);
+      expect(takeSentenceStart('学习')).toBe(4);
+    });
+
+    it('keeps a separate start for each word', () => {
+      takeSentenceStart('学习');
+      expect(takeSentenceStart('辖区')).toBe(0);
     });
   });
 });

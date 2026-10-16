@@ -1,5 +1,7 @@
 import * as Sentry from '@sentry/react';
 
+import { isTransientError } from '../utils/retry';
+
 /**
  * Error reporting for the web client.
  *
@@ -17,7 +19,11 @@ interface ReportOptions {
   feature: string;
   /** Extra values that help explain the failure. Never put user text here. */
   context?: Record<string, unknown>;
-  /** Defaults to 'error'. Use 'warning' where the fallback is good enough. */
+  /**
+   * Defaults to 'error', or 'warning' for a request the network dropped: that
+   * is the connection, not a bug to fix. Use 'warning' where the fallback is
+   * good enough.
+   */
   level?: Sentry.SeverityLevel;
 }
 
@@ -26,7 +32,8 @@ export function reportError(error: unknown, options: ReportOptions): void {
 
   Sentry.withScope((scope) => {
     scope.setTag('feature', feature);
-    if (level) scope.setLevel(level);
+    const resolvedLevel = level ?? (isTransientError(error) ? 'warning' : undefined);
+    if (resolvedLevel) scope.setLevel(resolvedLevel);
     if (context) scope.setContext('detail', context);
     Sentry.captureException(error);
   });
