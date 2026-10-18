@@ -17,6 +17,8 @@ interface InputProps {
   spellCheck?: boolean;
   maxLength?: number;
   style?: CSSProperties;
+  // `large` is the study card's answer field, where the answer is the focus.
+  size?: 'small' | 'large';
 }
 
 const Input: React.FC<InputProps> = (props) => (
@@ -46,7 +48,10 @@ const Input: React.FC<InputProps> = (props) => (
       width: '75%',
       maxWidth: 400,
       mx: 'auto',
-      '& input': { textAlign: 'center' },
+      '& input': {
+        textAlign: 'center',
+        ...(props.size === 'large' ? { fontSize: '1.375rem', py: 1.5 } : null),
+      },
     }}
   />
 );

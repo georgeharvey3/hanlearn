@@ -1,7 +1,8 @@
 import React from 'react';
 import { Box } from '@mui/material';
 
-import { colors } from '../../theme';
+import { copy } from '../../copy';
+import { colors, fonts } from '../../theme';
 import PictureButton from '../UI/Buttons/PictureButton/PictureButton';
 import Spinner from '../UI/Spinner/Spinner';
 
@@ -17,6 +18,15 @@ interface QuestionDisplayProps {
   chosenCharacter: string | null;
   onSpeak: (word: string) => void;
   onToggleShowPinyin: () => void;
+}
+
+// Hanzi are the focus of the card, so they are as large as the card allows: a
+// four-character chengyu must still fit on one line of a phone-width card.
+function hanziFontSize(text: string): string {
+  if (text.length <= 2) return '5.5rem';
+  if (text.length === 3) return '4.5rem';
+  if (text.length === 4) return '3.5rem';
+  return '2.5rem';
 }
 
 const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
@@ -51,7 +61,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
             <PictureButton
               type="secondary"
               src={speakerPic}
-              aria-label="Play pronunciation"
+              aria-label={copy.test.playPronunciation}
               clicked={() => chosenCharacter && onSpeak(chosenCharacter)}
             />
           )}
@@ -77,7 +87,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
             '&:hover': { color: 'primary.light' },
           }}
         >
-          {showQuestionPinyin ? 'Hide Pinyin' : 'Show Pinyin'}
+          {showQuestionPinyin ? copy.test.hidePinyin : copy.test.showPinyin}
         </Box>
       </>
     );
@@ -85,6 +95,22 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
 
   const langAttr =
     questionCategory === 'character' ? 'zh' : questionCategory === 'pinyin' ? 'zh-Latn' : undefined;
+  if (questionCategory === 'character' && typeof questionText === 'string') {
+    return (
+      <h2
+        lang={langAttr}
+        style={{
+          fontFamily: fonts.hanzi,
+          fontWeight: 400,
+          fontSize: hanziFontSize(questionText),
+          lineHeight: 1.1,
+          letterSpacing: '0.06em',
+        }}
+      >
+        {questionText}
+      </h2>
+    );
+  }
   return <h2 lang={langAttr}>{questionText}</h2>;
 };
 

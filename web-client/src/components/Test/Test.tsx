@@ -19,6 +19,8 @@ import { WordDirectionResults } from '../../types/models';
 import { AppDispatch } from '../../types/actions';
 import * as actions from '../../store/actions/index';
 import { Props } from './types';
+import { copy } from '../../copy';
+import { colors, fonts, shadows } from '../../theme';
 
 const mapStateToProps = (state: RootState) => ({
   userId: state.auth.userId,
@@ -80,6 +82,7 @@ const Test: React.FC<Props> = (props) => {
 
   const progressNum = Math.floor((state.queue.length / state.initialQueueLength) * 100) || 0;
   const verb = getVerb(state);
+  const answeredCount = state.initialQueueLength - state.queue.length;
 
   if (state.testSet.length !== 0 || props.isDemo) {
     return (
@@ -92,11 +95,11 @@ const Test: React.FC<Props> = (props) => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: 'rgba(255,255,255,0.75)',
+              bgcolor: 'rgba(246, 239, 228, 0.75)',
               zIndex: 1200,
             }}
           >
-            <CircularProgress aria-label="Loading test" />
+            <CircularProgress aria-label={copy.test.loadingTest} />
           </Box>
         )}
         <Box
@@ -108,29 +111,36 @@ const Test: React.FC<Props> = (props) => {
             py: '30px',
             color: 'text.primary',
             '& h3': {
-              fontWeight: 500,
-              fontSize: '1.1rem',
+              fontWeight: 400,
+              fontSize: '0.95rem',
+              letterSpacing: '0.02em',
               color: 'text.secondary',
+              mt: 4,
               mb: 2,
             },
             '& h3 span': {
-              bgcolor: 'primary.dark',
-              color: '#fff',
-              borderRadius: '4px',
-              px: '6px',
-              py: '2px',
+              color: 'primary.light',
               fontWeight: 600,
             },
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Box sx={{ flex: 1 }}>
               <ProgressBar progress={progressNum} />
             </Box>
+            <Typography
+              sx={{
+                fontSize: '0.8rem',
+                color: 'text.secondary',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {copy.test.progressCount(answeredCount, state.initialQueueLength)}
+            </Typography>
             <IconButton
               size="small"
               onClick={() => setSettingsDrawerOpen(true)}
-              aria-label="Audio settings"
+              aria-label={copy.test.audioSettings}
               sx={{ color: 'text.secondary' }}
             >
               <SettingsIcon fontSize="small" />
@@ -138,22 +148,23 @@ const Test: React.FC<Props> = (props) => {
           </Box>
           <h3 id="q-phrase-box">
             {verb}
-            <span>{state.answerCategory}</span> for...
+            <span>{state.answerCategory}</span>
+            {copy.test.promptAfter}
           </h3>
           <Paper
             elevation={0}
             sx={{
               position: 'relative',
-              width: '90%',
               bgcolor: 'background.paper',
               border: '1px solid',
               borderColor: 'divider',
+              boxShadow: shadows.card,
               color: 'text.primary',
-              borderRadius: 3,
-              minHeight: 160,
+              borderRadius: 1,
+              minHeight: { xs: 220, sm: 260 },
               boxSizing: 'border-box',
               mx: 'auto',
-              p: '20px 12px',
+              p: '24px 16px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
@@ -164,7 +175,7 @@ const Test: React.FC<Props> = (props) => {
               <Box
                 role="img"
                 data-testid="lapse-marker"
-                aria-label="Nearly: this question no longer counts as known"
+                aria-label={copy.test.lapseMarker}
                 sx={{
                   position: 'absolute',
                   top: 8,
@@ -176,6 +187,28 @@ const Test: React.FC<Props> = (props) => {
                 }}
               />
             )}
+            <Box
+              aria-hidden="true"
+              sx={{
+                position: 'absolute',
+                right: 14,
+                bottom: 14,
+                width: 26,
+                height: 26,
+                border: `2px solid ${colors.primaryLight}`,
+                borderRadius: '3px',
+                color: 'primary.light',
+                fontFamily: fonts.hanzi,
+                fontSize: 14,
+                lineHeight: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: 0.8,
+              }}
+            >
+              {copy.test.seal}
+            </Box>
             <QuestionDisplay
               questionCategory={state.questionCategory}
               question={state.question}

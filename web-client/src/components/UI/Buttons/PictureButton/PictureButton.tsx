@@ -1,5 +1,6 @@
 import React, { CSSProperties } from 'react';
 import IconButton from '@mui/material/IconButton';
+import { colors } from '../../../../theme';
 
 type ButtonType = 'primary' | 'secondary' | 'ghost';
 
@@ -12,8 +13,8 @@ interface PictureButtonProps {
 }
 
 const buttonStyles: Record<ButtonType, { bg: string; hover: string; invert: boolean }> = {
-  primary: { bg: 'primary.dark', hover: '#145233', invert: true },
-  secondary: { bg: 'primary.light', hover: '#c94d62', invert: true },
+  primary: { bg: 'primary.dark', hover: colors.primaryDarkHover, invert: true },
+  secondary: { bg: 'primary.light', hover: colors.primaryLightHover, invert: true },
   ghost: { bg: 'grey', hover: 'grey', invert: false },
 };
 

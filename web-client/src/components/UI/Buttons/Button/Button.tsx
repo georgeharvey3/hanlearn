@@ -1,5 +1,6 @@
 import React, { ReactNode, CSSProperties } from 'react';
 import MuiButton from '@mui/material/Button';
+import { colors } from '../../../../theme';
 
 type ButtonType = 'primary' | 'secondary' | 'ghost';
 
@@ -19,16 +20,17 @@ const buttonStyles: Record<ButtonType, object> = {
   primary: {
     bgcolor: 'primary.dark',
     color: '#fff',
-    '&:hover': { bgcolor: '#145233' },
+    '&:hover': { bgcolor: colors.primaryDarkHover },
   },
   secondary: {
     bgcolor: 'primary.light',
     color: '#fff',
-    '&:hover': { bgcolor: '#c94d62' },
+    '&:hover': { bgcolor: colors.primaryLightHover },
   },
   ghost: {
-    color: 'text.secondary',
-    borderColor: 'divider',
+    color: 'text.primary',
+    borderColor: colors.borderStrong,
+    '&:hover': { borderColor: 'text.secondary', bgcolor: 'background.paper' },
   },
 };
 

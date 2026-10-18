@@ -7,6 +7,7 @@ import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 // that the two places agree on what a component is. See issue #335.
 import DecompositionTree from '../NewWords/NewWord/DecompositionTree';
 import CharacterGlosses from './CharacterGlosses';
+import { colors } from '../../../theme';
 
 interface ComponentReviewProps {
   /** The characters to break down, one tree each. Empty means no review. */
@@ -52,7 +53,7 @@ const ComponentReview: React.FC<ComponentReviewProps> = ({
                   px: 2.5,
                   bgcolor: 'primary.dark',
                   color: '#fff',
-                  '&:hover': { bgcolor: '#145233' },
+                  '&:hover': { bgcolor: colors.primaryDarkHover },
                 }
               : { px: 2.5, color: 'text.secondary', borderColor: 'divider' }
           }

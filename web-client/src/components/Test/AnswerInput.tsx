@@ -1,5 +1,6 @@
 import React, { CSSProperties } from 'react';
 
+import { copy } from '../../copy';
 import { colors } from '../../theme';
 import Input from '../UI/Input/Input';
 import PictureButton from '../UI/Buttons/PictureButton/PictureButton';
@@ -55,7 +56,8 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
   const textInput = (
     <Input
       id="answer-input"
-      aria-label="Enter your answer"
+      aria-label={copy.test.answerInput}
+      size="large"
       keyPressed={onKeyPress}
       value={state.answerInput}
       changed={onInputChanged}
@@ -92,25 +94,25 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
           onIDontKnow();
         }}
         src={dislikePic}
-        aria-label="I didn't know this"
+        aria-label={copy.test.gradeFail}
       />
       <PictureButton
         style={gradeStyle('lapse', colors.warning)}
         clicked={onNearlyKnew}
         src={nearlyPic}
-        aria-label="I nearly knew this"
+        aria-label={copy.test.gradeLapse}
       />
       <PictureButton
         style={gradeStyle('pass', colors.success)}
         // Wrapped, because the click event would otherwise arrive as the grade.
         clicked={() => onCorrectAnswer()}
         src={likePic}
-        aria-label="I knew this"
+        aria-label={copy.test.gradePass}
       />
     </div>
   ) : (
     <Button style={{ width: '230px', margin: '0 auto' }} clicked={onShowAnswer}>
-      Show Answer
+      {copy.test.showAnswer}
     </Button>
   );
 
@@ -118,13 +120,13 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
     <div
       id="character-target-div"
       role="img"
-      aria-label="Handwriting input area — draw the character here"
+      aria-label={copy.test.drawArea}
       style={{
-        backgroundColor: colors.divider,
+        backgroundColor: colors.card,
         width: '150px',
         margin: '0 auto',
-        borderRadius: '8px',
-        border: `2px dashed ${colors.primaryDark ?? colors.primary}`,
+        borderRadius: '4px',
+        border: `2px dashed ${colors.borderStrong}`,
         minHeight: '150px',
         display: 'flex',
         alignItems: 'center',
@@ -134,7 +136,7 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
         opacity: 0.6,
       }}
     >
-      Draw here
+      {copy.test.drawHere}
     </div>
   );
 
@@ -147,7 +149,7 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
       disabled={state.submitDisabled || state.answerInput === ''}
       clicked={onSubmitAnswer}
     >
-      Submit
+      {copy.test.submit}
     </Button>
   );
 
@@ -160,7 +162,7 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
             <PictureButton
               type="secondary"
               src={micPic}
-              aria-label="Record speech"
+              aria-label={copy.test.recordSpeech}
               clicked={() => onListen()}
             />
             <Toggle
@@ -221,9 +223,9 @@ export function reviewHidesAnswerInput(state: TestState): boolean {
 
 export function getVerb(state: TestState): string {
   if (state.answerCategory === 'character') {
-    return 'Draw the ';
+    return copy.test.verbDraw;
   }
-  return answerQuizType(state) === 'flashcard' ? 'What is the ' : 'Enter the ';
+  return answerQuizType(state) === 'flashcard' ? copy.test.verbFlashcard : copy.test.verbEnter;
 }
 
 export default React.memo(AnswerInput);

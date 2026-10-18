@@ -18,6 +18,7 @@ import * as ttsService from '../../../../services/ttsService';
 
 import { RootState } from '../../../../types/store';
 import { Word } from '../../../../types/models';
+import { colors } from '../../../../theme';
 
 interface CharData {
   simp: string;
@@ -279,7 +280,7 @@ const NewWord: React.FC<Props> = ({
                         px: 2.5,
                         bgcolor: 'primary.dark',
                         color: '#fff',
-                        '&:hover': { bgcolor: '#145233' },
+                        '&:hover': { bgcolor: colors.primaryDarkHover },
                       }
                     : {
                         px: 2.5,
@@ -303,7 +304,7 @@ const NewWord: React.FC<Props> = ({
                         px: 2.5,
                         bgcolor: 'primary.dark',
                         color: '#fff',
-                        '&:hover': { bgcolor: '#145233' },
+                        '&:hover': { bgcolor: colors.primaryDarkHover },
                       }
                     : {
                         px: 2.5,

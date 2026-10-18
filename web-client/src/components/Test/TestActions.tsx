@@ -3,6 +3,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 
 import Button from '../UI/Buttons/Button/Button';
 import { TestState } from './types';
+import { copy } from '../../copy';
 
 interface TestActionsProps {
   state: TestState;
@@ -25,15 +26,17 @@ const TestActions: React.FC<TestActionsProps> = ({ state, onIDontKnow, onHint, s
         justifyContent: 'center',
         flexWrap: 'wrap',
         gap: '4px',
+        maxWidth: 360,
+        margin: '0 auto',
       }}
     >
       <Button
-        type="secondary"
+        type="ghost"
         disabled={state.idkDisabled || state.showAnswer}
         clicked={onIDontKnow}
         id="idk"
       >
-        I Don&apos;t Know
+        {copy.test.iDontKnow}
       </Button>
       <Button
         type="ghost"
@@ -49,22 +52,29 @@ const TestActions: React.FC<TestActionsProps> = ({ state, onIDontKnow, onHint, s
       >
         {state.hintLoading ? (
           <>
-            <CircularProgress size={14} color="inherit" aria-label="Loading hint" sx={{ mr: 1 }} />
-            Loading Hint
+            <CircularProgress
+              size={14}
+              color="inherit"
+              aria-label={copy.test.loadingHintLabel}
+              sx={{ mr: 1 }}
+            />
+            {copy.test.loadingHint}
           </>
         ) : state.questionCategory === 'pinyin' && state.useSound ? (
-          'Hint'
+          copy.test.hint
         ) : state.showHint ? (
-          'Hide Hint'
+          copy.test.hideHint
         ) : (
-          'Show Hint'
+          copy.test.showHint
         )}
       </Button>
       {state.questionCategory === 'pinyin' &&
       state.useSound &&
       state.chosenCharacter?.length === 1 ? (
         <Button type="ghost" clicked={showCharacter}>
-          {state.result === state.chosenCharacter ? 'Hide Character' : 'Show Character'}
+          {state.result === state.chosenCharacter
+            ? copy.test.hideCharacter
+            : copy.test.showCharacter}
         </Button>
       ) : null}
     </div>
