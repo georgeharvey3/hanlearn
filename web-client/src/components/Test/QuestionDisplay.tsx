@@ -29,6 +29,15 @@ function hanziFontSize(text: string): string {
   return '2.5rem';
 }
 
+// A meaning can be a long dictionary entry. At the size of a short one it fills
+// the card and pushes the answer area off the screen, so the text gets smaller
+// as it gets longer.
+function meaningStyle(text: string): React.CSSProperties {
+  if (text.length <= 30) return { fontSize: '1.8rem', lineHeight: 1.25 };
+  if (text.length <= 80) return { fontSize: '1.35rem', lineHeight: 1.35 };
+  return { fontSize: '1.05rem', fontWeight: 400, lineHeight: 1.45 };
+}
+
 const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
   questionCategory,
   question,
@@ -110,6 +119,9 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
         {questionText}
       </h2>
     );
+  }
+  if (questionCategory === 'meaning' && typeof questionText === 'string') {
+    return <h2 style={meaningStyle(questionText)}>{questionText}</h2>;
   }
   return <h2 lang={langAttr}>{questionText}</h2>;
 };
