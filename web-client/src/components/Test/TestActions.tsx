@@ -46,6 +46,7 @@ const TestActions: React.FC<TestActionsProps> = ({ state, onIDontKnow, onHint, s
             !meaningAnswer &&
             state.answerCategory !== 'character') ||
           state.showAnswer ||
+          state.idkDisabled ||
           state.hintLoading
         }
         clicked={onHint}

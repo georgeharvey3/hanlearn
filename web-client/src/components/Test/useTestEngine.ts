@@ -908,7 +908,9 @@ export const useTestEngine = (props: Props) => {
 
   const onHint = useCallback((): void => {
     const current = getState();
-    if (current.hintLoading) {
+    // A graded question has its answer on the result line, and a hint there
+    // would replace it. The `h` key reaches here as well as the button.
+    if (current.hintLoading || current.idkDisabled) {
       return;
     }
     if (current.showHint) {

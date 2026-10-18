@@ -36,6 +36,12 @@ describe('TestActions hint button', () => {
     expect(screen.getByRole('button', { name: 'Show Hint' })).toBeEnabled();
   });
 
+  it('disables the hint once the question is graded', () => {
+    renderActions({ ...baseState, idkDisabled: true });
+
+    expect(screen.getByRole('button', { name: 'Show Hint' })).toBeDisabled();
+  });
+
   it('shows a loading indicator while the hint loads', () => {
     renderActions({ ...baseState, hintLoading: true });
 

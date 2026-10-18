@@ -277,6 +277,24 @@ describe('useTestEngine — onHint dismiss hides character outline', () => {
   });
 });
 
+describe('useTestEngine — hint after the question is graded', () => {
+  it('leaves the result line alone once the question is graded', () => {
+    const result = renderEngineWithState({
+      answerCategory: 'pinyin',
+      answer: 'ni3 hao3',
+      idkDisabled: true,
+      result: "Answer was: 'ni3 hao3'",
+    });
+
+    act(() => {
+      result.current.onHint();
+    });
+
+    expect(result.current.state.result).toBe("Answer was: 'ni3 hao3'");
+    expect(result.current.state.showHint).toBe(false);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // showSentenceHint — loading state and late answers
 // ---------------------------------------------------------------------------
