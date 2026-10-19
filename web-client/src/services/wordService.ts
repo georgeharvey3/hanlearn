@@ -18,7 +18,6 @@ import { db } from '../firebase/config';
 import {
   DIRECTIONS,
   Direction,
-  DirectionResult,
   DirectionState,
   DirectionStates,
   Word,
@@ -35,7 +34,6 @@ import {
   elapsedDays,
   nextLapses,
   nextMemory,
-  shouldBury,
 } from '../utils/scheduling';
 import {
   searchWord as searchDictionary,
@@ -456,9 +454,8 @@ export const finishTest = async (
 
     const data = wordDoc.data() as UserWordDocument;
     const updated = { ...currentDirections(data) };
-    // The grades and the new intervals of the asked directions, which decide
-    // whether and how far the other directions of the word are buried.
-    const grades: DirectionResult[] = [];
+    // The new intervals of the asked directions, which decide how far the
+    // other directions of the word are buried.
     const intervals: number[] = [];
 
     for (const direction of DIRECTIONS) {
@@ -474,7 +471,6 @@ export const finishTest = async (
       const collected = (current.toneErrors ?? 0) + (toneErrors?.[direction] ?? 0);
       const lapses = nextLapses(current.lapses ?? 0, memory, result);
       const bank = bankOf(next.interval);
-      grades.push(result);
       intervals.push(next.interval);
 
       outcomes.push({
@@ -506,9 +502,11 @@ export const finishTest = async (
 
     // Bury the directions the session did not ask, so that a word whose
     // directions fell due together does not come back the next day for each
-    // of them in turn. Only the due date moves. See
-    // docs/adr/0016-bury-sibling-directions.md.
-    if (shouldBury(grades)) {
+    // of them in turn, and a word just answered does not come back the same
+    // day in another direction, with the answer still fresh. A miss buries
+    // too: the missed direction's own short interval brings the word back.
+    // Only the due date moves. See docs/adr/0016-bury-sibling-directions.md.
+    if (intervals.length > 0) {
       const days = buryDays(Math.min(...intervals));
       for (const direction of DIRECTIONS) {
         if (directions[direction]) continue;

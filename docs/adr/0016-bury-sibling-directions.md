@@ -1,6 +1,6 @@
 # 16. Bury the other directions of a passed word
 
-- Status: accepted
+- Status: accepted, amended 2026-10-19 (a miss buries too)
 - Date: 2026-10-16
 - Issue: #377
 - Related: [0002-direction-level-scheduling.md](0002-direction-level-scheduling.md),
@@ -27,8 +27,7 @@ previous one.
 
 ## Decision
 
-When every direction a session asked of a word passed, the directions it did not
-ask are **buried**: each one due inside the bury window moves to the end of it.
+When a session asks a word, the directions it did not ask are **buried**: each one due inside the bury window moves to the end of it.
 This is what Anki does for the cards of one note.
 
 - **How far.** The window is the shortest interval the session gave the word,
@@ -41,12 +40,13 @@ This is what Anki does for the cards of one note.
   the counters stay as they were. FSRS reads the elapsed days at the next
   review, so a sibling asked late gets the longer interval a late correct answer
   earns. The derived top-level `dueDate` follows from the map as before.
-- **No burial after a failed retrieval.** A `lapse` or a `fail` on any asked
-  direction buries nothing, so a weak word keeps coming back.
+- **A miss buries too.** A `lapse` or a `fail` buries by the same rule. Its
+  interval is 0 to 3 days, so the siblings wait 2 or 3 days. See the amendment
+  below.
 - **A sibling due after the window keeps its date.** Burying never brings a
   direction forward.
 
-`shouldBury`, `buryDays` and `buriedDueDate` in `utils/scheduling.ts` hold the
+`buryDays` and `buriedDueDate` in `utils/scheduling.ts` hold the
 rules, and `finishTest` applies them in the same batch as the reschedule. The
 write changes only existing `dueDate` fields, which `firestore.rules` already
 accepts; a rules test covers the shape.
@@ -56,8 +56,8 @@ accepts; a rules test covers the shape.
 Good:
 
 - In the same simulation, the share of sightings on the day after the previous
-  one falls from 61% to 33%. What remains comes from lapses and failures, which
-  bury nothing on purpose.
+  one falls from 61% to 33%. That figure is from before the amendment, when
+  lapses and failures buried nothing.
 - The learner meets a word at gaps that follow its intervals, and each session
   holds more distinct words.
 
@@ -78,3 +78,17 @@ Bad:
 - Schedule at word level and pick the direction inside the review. This undoes
   ADR 0002's per-direction memory, which is what lets the three skills advance
   at their own rates.
+
+## Amendment, 2026-10-19: a miss buries too
+
+The first version buried nothing after a `lapse` or a `fail`, so that a weak word
+kept coming back. But its other directions then stayed due that same day. A
+learner who missed a word, or used the hint that caps it at a lapse, in a morning
+session met the same word in another direction in an afternoon session, with
+the answer still fresh. That is the leak ADR 0005 avoids by asking one direction
+per session, and a second session on the same day reopens it.
+
+A miss now buries by the same rule as a pass. The word still comes back soon:
+the missed direction's own interval brings it back the next day after a `fail`,
+or within 1 to 3 days after a `lapse`, and the siblings follow a day or two
+later. A miss on one skill is also no evidence that the others are weak.
