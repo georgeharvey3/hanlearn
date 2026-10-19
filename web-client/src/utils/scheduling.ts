@@ -418,17 +418,6 @@ export const MIN_BURY_DAYS = 2;
 export const MAX_BURY_DAYS = 7;
 
 /**
- * Whether a word's session buries the directions it did not ask.
- *
- * Only a word whose every graded direction passed is buried. A word with a
- * failed retrieval is a weak word, and its other directions stay as due as
- * they were, so it keeps coming back. See docs/adr/0016-bury-sibling-directions.md.
- */
-export function shouldBury(grades: DirectionResult[]): boolean {
-  return grades.length > 0 && grades.every((grade) => !isFailedRetrieval(grade));
-}
-
-/**
  * The days a review buries the other directions of its word, from the shortest
  * interval that the session gave the word.
  *
