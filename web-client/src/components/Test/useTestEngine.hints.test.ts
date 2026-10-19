@@ -367,3 +367,32 @@ describe('useTestEngine — hint loading state', () => {
     expect(result.current.state.hintLoading).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// onHint on a writer whose stroke data failed to load
+// ---------------------------------------------------------------------------
+describe('useTestEngine — outline hint without stroke data', () => {
+  // Sentry JAVASCRIPT-REACT-9: the Hint button threw after the data failed to load
+  it('does not throw or cap the grade when the writer has no character', () => {
+    const failedWriter = {
+      ...mockWriter,
+      showOutline: vi.fn(() => {
+        throw new Error('Failed to load character data. Call setCharacter and try again.');
+      }),
+    };
+
+    const result = renderEngineWithState({
+      answerCategory: 'character',
+      writer: failedWriter,
+      showHint: false,
+      gradeCap: 'pass',
+    });
+
+    expect(() => {
+      act(() => {
+        result.current.onHint();
+      });
+    }).not.toThrow();
+    expect(result.current.state.gradeCap).toBe('pass');
+  });
+});

@@ -13,6 +13,7 @@ import {
   WordScore,
 } from '../../types/models';
 import { isNewWord, readyForWriteStage } from '../../utils/directions';
+import { loadCharData, onCharDataError } from '../../utils/charDataLoader';
 import { checkSentenceAvailability, getHintSentence } from '../../services/sentenceService';
 import * as ttsService from '../../services/ttsService';
 import { reportError } from '../../services/errorReporting';
@@ -672,6 +673,8 @@ export const useTestEngine = (props: Props) => {
         delayBetweenStrokes: 10,
         strokeAnimationSpeed: 1,
         outlineColor: '#555',
+        charDataLoader: loadCharData,
+        onLoadCharDataError: onCharDataError,
       });
 
       setStateMerged({ writer });
@@ -923,10 +926,16 @@ export const useTestEngine = (props: Props) => {
     } else if (current.answerCategory === 'meaning' && current.chosenCharacter) {
       showSentenceHint(current.chosenCharacter);
     } else if (current.answerCategory === 'character' && current.writer) {
+      // A writer whose stroke data failed to load throws here, and has no
+      // outline to show. The load failure is already reported.
+      try {
+        current.writer.showOutline();
+      } catch {
+        return;
+      }
       // The one aid that is the answer, so it caps the question at a lapse. The
       // other aids identify the question the learner is asked, and are free.
       setStateMerged({ gradeCap: 'lapse' });
-      current.writer.showOutline();
       setTimeout(() => {
         current.writer!.hideOutline();
       }, 1000);

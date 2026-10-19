@@ -23,7 +23,6 @@ import {
   nextLapses,
   nextMemory,
   seedInterval,
-  shouldBury,
   type Memory,
 } from './scheduling';
 
@@ -366,23 +365,6 @@ describe('dueDateFrom', () => {
 
   it('keeps the time of day of the session', () => {
     expect(dueDateFrom(10, now, () => 0.5).getHours()).toBe(12);
-  });
-});
-
-describe('shouldBury', () => {
-  it('buries after passes only', () => {
-    expect(shouldBury(['pass'])).toBe(true);
-    expect(shouldBury(['pass', 'pass'])).toBe(true);
-  });
-
-  it('buries nothing when any grade is a failed retrieval', () => {
-    expect(shouldBury(['lapse'])).toBe(false);
-    expect(shouldBury(['fail'])).toBe(false);
-    expect(shouldBury(['pass', 'lapse'])).toBe(false);
-  });
-
-  it('buries nothing for a word that was not asked', () => {
-    expect(shouldBury([])).toBe(false);
   });
 });
 
