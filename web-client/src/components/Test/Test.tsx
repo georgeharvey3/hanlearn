@@ -95,7 +95,7 @@ const Test: React.FC<Props> = (props) => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: 'rgba(246, 239, 228, 0.75)',
+              bgcolor: 'rgba(250, 248, 245, 0.75)',
               zIndex: 1200,
             }}
           >

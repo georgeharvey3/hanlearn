@@ -12,8 +12,8 @@ export const colors = {
   primaryLightHover: '#9c2a35',
   charcoal: '#36454f',
   white: '#ffffff',
-  paper: '#f6efe4', // the page ground
-  card: '#fffaf2', // a surface that sits on the paper
+  paper: '#faf8f5', // the page ground: an off-white
+  card: '#ffffff', // a surface that sits on the paper
   text: '#2b2622', // ink
   textSecondary: '#6b6158',
   error: '#cc0000',
