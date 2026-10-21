@@ -63,6 +63,7 @@ const Test: React.FC<Props> = (props) => {
     onSubmitAnswer,
     onIDontKnow,
     onHint,
+    onPlayHintSentence,
     onShowAnswer,
     onToggleShowPinyin,
     onToggleComponents,
@@ -122,6 +123,7 @@ const Test: React.FC<Props> = (props) => {
       <QuestionDisplay
         state={state}
         onSpeak={onSpeak}
+        onPlayHintSentence={onPlayHintSentence}
         onToggleShowPinyin={onToggleShowPinyin}
         showCharacter={showCharacter}
       />

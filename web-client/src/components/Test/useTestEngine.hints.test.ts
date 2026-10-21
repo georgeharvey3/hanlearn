@@ -84,6 +84,7 @@ vi.mock('pinyin-pro', () => ({
 import { renderHook, act } from '@testing-library/react';
 import { useTestEngine } from './useTestEngine';
 import { getHintSentence } from '../../services/sentenceService';
+import * as ttsService from '../../services/ttsService';
 import { pinyin } from 'pinyin-pro';
 import { Word } from '../../types/models';
 import { Props } from './types';
@@ -208,6 +209,43 @@ describe('useTestEngine — showSentenceHint with useSound=false shows pinyin', 
     expect(result.current.state.hintLoading).toBe(false);
     // the hint holds the pinyin output
     expect(result.current.state.hint).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// showSentenceHint — useSound=true path
+// ---------------------------------------------------------------------------
+describe('useTestEngine — showSentenceHint with useSound=true plays the sentence', () => {
+  it('keeps the sentence to play again, with its pinyin, and leaves the word button alone', async () => {
+    vi.mocked(getHintSentence).mockResolvedValueOnce({
+      chinese: '你好吗',
+      english: 'How are you?',
+    });
+
+    const result = renderEngineWithState({
+      answerCategory: 'meaning',
+      answer: ['hello'],
+      chosenCharacter: '你好',
+      showHint: false,
+      useSound: true,
+      interaction: true,
+    });
+
+    await act(async () => {
+      result.current.onHint();
+    });
+
+    expect(vi.mocked(ttsService.speak)).toHaveBeenLastCalledWith('你好吗', expect.anything());
+    expect(result.current.state.hintSentence).toBe('你好吗');
+    expect(result.current.state.hint).toBeTruthy();
+    expect(result.current.state.sentenceLoading).toBe(true);
+    expect(result.current.state.synthLoading).toBe(false);
+
+    vi.mocked(ttsService.speak).mockClear();
+    act(() => {
+      result.current.onPlayHintSentence();
+    });
+    expect(vi.mocked(ttsService.speak)).toHaveBeenCalledWith('你好吗', expect.anything());
   });
 });
 

@@ -104,10 +104,15 @@ export interface TestState {
   outcome: DirectionResult | null;
   /**
    * The text the hint shows on the card: the initials of each syllable, or
-   * the pinyin of an example sentence when sound is off. Null for a hint that
-   * has no text, such as a sentence that plays aloud or a stroke outline.
+   * the pinyin of an example sentence. Null for a hint that has no text, such
+   * as a stroke outline.
    */
   hint: string | null;
+  /**
+   * The example sentence of a hint that plays aloud, so the card can play it
+   * again. Null when sound is off or the hint is not a sentence.
+   */
+  hintSentence: string | null;
   /** Whether the character of a spoken pinyin question is on the card. */
   showQuestionCharacter: boolean;
   /** The character of the answer the learner is writing, counted from 0. */
@@ -120,6 +125,8 @@ export interface TestState {
   gradeClicked: DirectionResult | null;
   pauseAutoRecord: boolean;
   synthLoading: boolean;
+  /** Whether the example sentence of a hint is loading its audio. */
+  sentenceLoading: boolean;
   speechLoading: boolean;
   interaction: boolean;
   speechResult: boolean;

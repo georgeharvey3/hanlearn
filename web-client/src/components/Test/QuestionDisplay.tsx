@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Box, ButtonBase, IconButton } from '@mui/material';
 import VolumeUpRoundedIcon from '@mui/icons-material/VolumeUpRounded';
-import GraphicEqRoundedIcon from '@mui/icons-material/GraphicEqRounded';
 
 import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
@@ -21,6 +20,7 @@ import { TestState } from './types';
 interface QuestionDisplayProps {
   state: TestState;
   onSpeak: (word: string) => void;
+  onPlayHintSentence: () => void;
   onToggleShowPinyin: () => void;
   showCharacter: () => void;
 }
@@ -41,16 +41,59 @@ function asList(value: string | string[] | null): string[] {
   return Array.isArray(value) ? value : [value];
 }
 
-/** The hint, drawn inside the card under the question. */
-const Hint: React.FC<{ state: TestState }> = ({ state }) => {
-  if (!state.showHint) return null;
-  const dashed = {
-    border: `1px dashed ${colors.borderStrong}`,
-    borderRadius: 1,
-    color: colors.textSecondary,
-  };
+const dashed = {
+  border: `1px dashed ${colors.borderStrong}`,
+  borderRadius: 1,
+  color: colors.textSecondary,
+};
 
-  if (state.answerCategory === 'pinyin' && state.hint) {
+/**
+ * An example sentence that plays aloud. It mounts with the hint, so each
+ * sentence starts with its pinyin hidden.
+ */
+const SpokenSentence: React.FC<{
+  pinyin: string;
+  loading: boolean;
+  onPlay: () => void;
+}> = ({ pinyin, loading, onPlay }) => {
+  const [shown, setShown] = useState(false);
+  return (
+    <Box
+      sx={{
+        ...dashed,
+        maxWidth: 300,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 1,
+        px: 1.75,
+        py: 1,
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, fontSize: 14 }}>
+        <PlayButton size={36} loading={loading} onClick={onPlay} label={copy.test.playSentence} />
+        {copy.test.exampleSentence}
+      </Box>
+      {shown && (
+        <Box lang="zh-Latn" sx={{ fontSize: 17, lineHeight: 1.4 }}>
+          {pinyin}
+        </Box>
+      )}
+      <PillToggle pressed={shown} onClick={() => setShown(!shown)}>
+        {shown ? copy.test.hidePinyin : copy.test.showPinyin}
+      </PillToggle>
+    </Box>
+  );
+};
+
+/** The hint, drawn inside the card under the question. */
+const Hint: React.FC<{ state: TestState; onPlaySentence: () => void }> = ({
+  state,
+  onPlaySentence,
+}) => {
+  if (!state.showHint || !state.hint) return null;
+
+  if (state.answerCategory === 'pinyin') {
     const initials = state.hint.split(' ');
     return (
       <Box
@@ -68,31 +111,21 @@ const Hint: React.FC<{ state: TestState }> = ({ state }) => {
   }
 
   if (state.answerCategory === 'meaning') {
-    if (state.hint) {
+    if (state.hintSentence) {
       return (
-        <Box
-          lang="zh-Latn"
-          sx={{ ...dashed, maxWidth: 300, px: 1.75, py: 1, fontSize: 17, lineHeight: 1.4 }}
-        >
-          {state.hint}
-        </Box>
+        <SpokenSentence
+          pinyin={state.hint}
+          loading={state.sentenceLoading}
+          onPlay={onPlaySentence}
+        />
       );
     }
-    // Sound is on, so the sentence plays aloud and has no text to show.
     return (
       <Box
-        sx={{
-          ...dashed,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.25,
-          px: 1.75,
-          py: 1,
-          fontSize: 14,
-        }}
+        lang="zh-Latn"
+        sx={{ ...dashed, maxWidth: 300, px: 1.75, py: 1, fontSize: 17, lineHeight: 1.4 }}
       >
-        <GraphicEqRoundedIcon sx={{ fontSize: 18, color: colors.primaryDark }} />
-        {copy.test.exampleSentence}
+        {state.hint}
       </Box>
     );
   }
@@ -121,6 +154,7 @@ const Pinyin: React.FC<{ text: string; size: number; color?: string; bold?: bool
 const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
   state,
   onSpeak,
+  onPlayHintSentence,
   onToggleShowPinyin,
   showCharacter,
 }) => {
@@ -193,7 +227,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
               : colors.textSecondary,
             asked('meaning') && (failed || flashcard),
           )}
-        <Hint state={state} />
+        <Hint state={state} onPlaySentence={onPlayHintSentence} />
       </>
     );
   } else if (state.questionCategory === 'meaning') {
@@ -258,7 +292,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
             </Box>
           </>
         )}
-        <Hint state={state} />
+        <Hint state={state} onPlaySentence={onPlayHintSentence} />
       </>
     );
   } else if (state.questionCategory === 'pinyin') {
@@ -307,7 +341,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
               </PillToggle>
             )}
           </Box>
-          <Hint state={state} />
+          <Hint state={state} onPlaySentence={onPlayHintSentence} />
         </>
       );
     } else {
@@ -316,7 +350,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
           <Box lang="zh-Latn" sx={{ fontSize: 44, letterSpacing: '0.02em' }}>
             {toneMarks(pinyin)}
           </Box>
-          <Hint state={state} />
+          <Hint state={state} onPlaySentence={onPlayHintSentence} />
         </>
       );
     }

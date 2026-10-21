@@ -60,6 +60,7 @@ const componentsToReview = (state: TestState, result: DirectionResult): string[]
  */
 const FRESH_QUESTION = {
   hint: null,
+  hintSentence: null,
   showHint: false,
   showQuestionCharacter: false,
   outcome: null,
@@ -217,19 +218,25 @@ export const useTestEngine = (props: Props) => {
   }, [getState, setStateMerged]);
 
   const onSpeak = useCallback(
-    (word: string, auto = false): void => {
+    (
+      word: string,
+      auto = false,
+      loading: 'synthLoading' | 'sentenceLoading' = 'synthLoading',
+    ): void => {
       const current = getState();
       current.recognition?.abort();
 
+      // Each play button shows only its own audio loading: the word's, or the
+      // example sentence's.
       if (current.interaction) {
-        setStateMerged({ synthLoading: true });
+        setStateMerged({ [loading]: true });
       }
 
       ttsService.speak(word, {
         fallbackVoice: props.voice,
         fallbackLang: props.lang || 'zh-CN',
         onStart: () => {
-          setStateMerged({ synthLoading: false });
+          setStateMerged({ [loading]: false });
         },
         onEnd: () => {
           const latest = getState();
@@ -238,7 +245,11 @@ export const useTestEngine = (props: Props) => {
           }
         },
         onError: () => {
-          setStateMerged({ result: copy.test.status.audioFailed, showPinyin: true });
+          setStateMerged({
+            result: copy.test.status.audioFailed,
+            showPinyin: true,
+            [loading]: false,
+          });
         },
       });
     },
@@ -927,16 +938,15 @@ export const useTestEngine = (props: Props) => {
             setStateMerged({ result: copy.test.status.noSentence, hintLoading: false });
             return;
           }
+          setStateMerged({
+            hint: pinyin(sentence.chinese, { toneType: 'num' }),
+            hintSentence: current.useSound ? sentence.chinese : null,
+            showHint: true,
+            hintLoading: false,
+            result: '',
+          });
           if (current.useSound) {
-            onSpeak(sentence.chinese);
-            setStateMerged({ hintLoading: false, showHint: true, hint: null, result: '' });
-          } else {
-            setStateMerged({
-              hint: pinyin(sentence.chinese, { toneType: 'num' }),
-              showHint: true,
-              hintLoading: false,
-              result: '',
-            });
+            onSpeak(sentence.chinese, false, 'sentenceLoading');
           }
         })
         .catch(() => {
@@ -961,7 +971,7 @@ export const useTestEngine = (props: Props) => {
       if (current.answerCategory === 'character' && current.writer) {
         current.writer.hideOutline();
       }
-      setStateMerged({ showHint: false, hint: null });
+      setStateMerged({ showHint: false, hint: null, hintSentence: null });
       return;
     }
 
@@ -986,6 +996,11 @@ export const useTestEngine = (props: Props) => {
       }, 1000);
     }
   }, [getState, setStateMerged, showSentenceHint]);
+
+  const onPlayHintSentence = useCallback((): void => {
+    const sentence = getState().hintSentence;
+    if (sentence) onSpeak(sentence, false, 'sentenceLoading');
+  }, [getState, onSpeak]);
 
   const onShowAnswer = useCallback((): void => {
     const current = getState();
@@ -1408,6 +1423,7 @@ export const useTestEngine = (props: Props) => {
     onSubmitAnswer,
     onIDontKnow,
     onHint,
+    onPlayHintSentence,
     onShowAnswer,
     onToggleShowPinyin,
     onToggleComponents,

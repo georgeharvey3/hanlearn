@@ -102,6 +102,7 @@ export const copy = {
     hintLabel: (hint: string) => `Hint: ${hint}`,
     moreSenses: (count: number) => `+ ${count} more ${count === 1 ? 'sense' : 'senses'}`,
     exampleSentence: 'Example sentence',
+    playSentence: 'Play sentence',
     youTyped: 'You typed',
     drawArea: 'Handwriting area: draw the character here',
     characterProgress: (index: number, total: number) => `Character ${index} of ${total}`,
