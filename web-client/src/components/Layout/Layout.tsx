@@ -1,6 +1,8 @@
 import React, { ReactNode, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import Container from '@mui/material/Container';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 
 import Toolbar from '../Navigation/Toolbar/Toolbar';
 import SideDrawer from '../Navigation/SideDrawer/SideDrawer';
@@ -34,7 +36,13 @@ const Layout: React.FC<Props> = ({ isAuthenticated, children }) => {
   const [state, setState] = useState<LayoutState>({
     showSideDrawer: false,
   });
-  const [focused, setFocused] = useState(false);
+  const [focusRequested, setFocused] = useState(false);
+  // Focus mode is for a phone, where the navigation costs the study screen
+  // room it needs. On a wider screen the sidebar sits beside the session, so
+  // the navigation stays.
+  const theme = useTheme();
+  const phone = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
+  const focused = focusRequested && phone;
   const {
     open: shortcutsOpen,
     handleOpen: openShortcuts,

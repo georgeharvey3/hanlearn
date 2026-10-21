@@ -498,7 +498,7 @@ const TestWords: React.FC<Props> = ({
     });
   }, [activeListId, isDemo, state, userId]);
 
-  // A study stage fills the screen; its own bar has the way out. The Learn
+  // On a phone a study stage fills the screen; its own bar has the way out. The Learn
   // step, the summary and the prompts keep the app's navigation.
   const studying =
     !state.pendingResume &&
