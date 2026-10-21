@@ -8,6 +8,7 @@ import Spinner from '../../components/UI/Spinner/Spinner';
 import { RootState } from '../../types/store';
 import { getSchedulerStats, SchedulerStats } from '../../services/statsService';
 import { reportError } from '../../services/errorReporting';
+import * as wordActions from '../../store/actions/word';
 import RetentionByTypeCard from './widgets/RetentionByTypeCard';
 import MatureIntervalCard from './widgets/MatureIntervalCard';
 import ReviewLoadCard from './widgets/ReviewLoadCard';
@@ -17,7 +18,11 @@ const mapStateToProps = (state: RootState) => ({
   activeListId: state.addWords.activeListId,
 });
 
-const connector = connect(mapStateToProps);
+const mapDispatchToProps = {
+  onInitWordLists: wordActions.initWordLists,
+};
+
+const connector = connect(mapStateToProps, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 
 /**
@@ -27,7 +32,7 @@ type PropsFromRedux = ConnectedProps<typeof connector>;
  * dashboard's job is to get the learner into a session, and four diagnostic
  * panels in the way of that is the opposite of what it is for.
  */
-const Stats: React.FC<PropsFromRedux> = ({ userId, activeListId }) => {
+const Stats: React.FC<PropsFromRedux> = ({ userId, activeListId, onInitWordLists }) => {
   const [stats, setStats] = useState<SchedulerStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -58,6 +63,14 @@ const Stats: React.FC<PropsFromRedux> = ({ userId, activeListId }) => {
   useEffect(() => {
     loadStats();
   }, [loadStats]);
+
+  // The lists check the remembered list: a list that is gone falls back to
+  // General, and the stats load again for it.
+  useEffect(() => {
+    if (userId) {
+      onInitWordLists();
+    }
+  }, [userId, onInitWordLists]);
 
   const errorContent = (
     <Box sx={{ textAlign: 'center', py: 4 }} role="alert">

@@ -3,9 +3,9 @@ import { Word } from '../../types/models';
 import { AddWordsState } from '../../types/store';
 import { WordAction } from '../../types/actions';
 import { makeDirections } from '../../utils/directions';
-import { readActiveList } from '../../utils/activeList';
+import { DEFAULT_LIST_ID, readActiveList } from '../../utils/activeList';
 
-const DEFAULT_LIST = { id: 'default', name: 'General', createdAt: '', order: 0 };
+const DEFAULT_LIST = { id: DEFAULT_LIST_ID, name: 'General', createdAt: '', order: 0 };
 
 /**
  * Compute the initial due date string (YYYY/MM/DD) for a newly added word.
@@ -143,7 +143,7 @@ const reducer = (state = initialState(), action: WordAction): AddWordsState => {
       return {
         ...state,
         lists: action.lists,
-        activeListId: keepActive ? state.activeListId : 'default',
+        activeListId: keepActive ? state.activeListId : DEFAULT_LIST_ID,
       };
     }
     case actionTypes.ADD_WORD_LIST:
@@ -154,7 +154,8 @@ const reducer = (state = initialState(), action: WordAction): AddWordsState => {
     case actionTypes.REMOVE_WORD_LIST: {
       const newLists = state.lists.filter((list) => list.id !== action.listId);
       // If the active list was deleted, switch to default
-      const newActiveListId = state.activeListId === action.listId ? 'default' : state.activeListId;
+      const newActiveListId =
+        state.activeListId === action.listId ? DEFAULT_LIST_ID : state.activeListId;
       return {
         ...state,
         lists: newLists,
