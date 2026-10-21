@@ -252,6 +252,14 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 - Start emulators before e2e tests: `npm run emulators` from repo root
 - Emulator data is ephemeral — tests must seed their own data
 
+## Architecture Decision Records
+
+`docs/adr/` holds only the decisions that pass all three tests in the `domain-modeling` skill: hard to reverse, surprising without context, and a real trade-off.
+
+- Before you offer an ADR, give a one-line verdict on each of the three tests.
+- If one test fails, write the reason in the PR body, or in a code comment where the rule lives.
+- A product rule that you can tune (a cap, a threshold, a tie-break) usually fails the first test. ADRs 0005, 0006 and 0015 changed one cap three times in one week.
+
 ## Git Conventions
 
 ### Branching Model
