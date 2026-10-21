@@ -1,11 +1,14 @@
 import React, { ReactNode, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import Container from '@mui/material/Container';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 
 import Toolbar from '../Navigation/Toolbar/Toolbar';
 import SideDrawer from '../Navigation/SideDrawer/SideDrawer';
 import Sidebar, { SIDEBAR_WIDTH } from '../Navigation/Sidebar/Sidebar';
 import SkipLink from './SkipLink';
+import { FocusModeProvider } from './focusMode';
 import KeyboardShortcutsDialog from '../KeyboardShortcutsDialog/KeyboardShortcutsDialog';
 import { useKeyboardShortcutsDialog } from '../KeyboardShortcutsDialog/useKeyboardShortcutsDialog';
 import { RootState } from '../../types/store';
@@ -33,6 +36,13 @@ const Layout: React.FC<Props> = ({ isAuthenticated, children }) => {
   const [state, setState] = useState<LayoutState>({
     showSideDrawer: false,
   });
+  const [focusRequested, setFocused] = useState(false);
+  // Focus mode is for a phone, where the navigation costs the study screen
+  // room it needs. On a wider screen the sidebar sits beside the session, so
+  // the navigation stays.
+  const theme = useTheme();
+  const phone = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
+  const focused = focusRequested && phone;
   const {
     open: shortcutsOpen,
     handleOpen: openShortcuts,
@@ -48,36 +58,42 @@ const Layout: React.FC<Props> = ({ isAuthenticated, children }) => {
   };
 
   return (
-    <>
+    <FocusModeProvider value={setFocused}>
       <SkipLink />
-      <Toolbar drawerToggleClicked={sideDrawerToggleHandler} isAuth={isAuthenticated} />
-      <SideDrawer
-        open={state.showSideDrawer}
-        closed={sideDrawerClosedHandler}
-        isAuth={isAuthenticated}
-        onOpenShortcuts={openShortcuts}
-      />
-      {isAuthenticated && <Sidebar onOpenShortcuts={openShortcuts} />}
+      {!focused && (
+        <>
+          <Toolbar drawerToggleClicked={sideDrawerToggleHandler} isAuth={isAuthenticated} />
+          <SideDrawer
+            open={state.showSideDrawer}
+            closed={sideDrawerClosedHandler}
+            isAuth={isAuthenticated}
+            onOpenShortcuts={openShortcuts}
+          />
+          {isAuthenticated && <Sidebar onOpenShortcuts={openShortcuts} />}
+        </>
+      )}
       <KeyboardShortcutsDialog open={shortcutsOpen} onClose={closeShortcuts} />
       <Container
         id="main-content"
         component="main"
         maxWidth={false}
         sx={{
-          mt: '56px',
-          pt: 3,
+          mt: focused ? 0 : '56px',
+          pt: focused ? 0 : 3,
           height: '100%',
-          ...(isAuthenticated
-            ? {
-                ml: { xs: 0, sm: `${SIDEBAR_WIDTH}px` },
-                maxWidth: { xs: '100%', sm: 1440 - SIDEBAR_WIDTH },
-              }
-            : { maxWidth: 1440 }),
+          ...(focused
+            ? { maxWidth: '100%' }
+            : isAuthenticated
+              ? {
+                  ml: { xs: 0, sm: `${SIDEBAR_WIDTH}px` },
+                  maxWidth: { xs: '100%', sm: 1440 - SIDEBAR_WIDTH },
+                }
+              : { maxWidth: 1440 }),
         }}
       >
         {children}
       </Container>
-    </>
+    </FocusModeProvider>
   );
 };
 

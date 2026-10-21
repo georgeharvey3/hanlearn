@@ -16,18 +16,6 @@ export const fail = new Howl({
   volume: 0.7,
 });
 
-export const buttonStyle = {
-  display: 'inline-block',
-  width: '50px',
-  height: '50px',
-  margin: '10px 20px',
-};
-export const activeButtonStyle = {
-  ...buttonStyle,
-  boxShadow: '0px 0px',
-  transform: 'translateY(3px)',
-};
-
 export const createInitialState = (props: Props): TestState => {
   const charSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad';
   const priority = props.isDemo ? 'none' : localStorage.getItem('priority') || 'none';
@@ -94,9 +82,16 @@ export const createInitialState = (props: Props): TestState => {
     showAnswer: false,
     componentReviewChars: [],
     showComponents: false,
+    awaitingContinue: false,
+    outcome: null,
+    hint: null,
+    hintSentence: null,
+    showQuestionCharacter: false,
+    writingIndex: 0,
     gradeClicked: null,
     pauseAutoRecord: false,
     synthLoading: false,
+    sentenceLoading: false,
     speechLoading: false,
     interaction: false,
     speechResult: false,

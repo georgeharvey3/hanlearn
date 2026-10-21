@@ -2,10 +2,10 @@
  * Tests for AnswerInput — the answer area of the vocabulary quiz.
  *
  * Rendering is driven by the answer category and its quiz type:
- * - character  → handwriting canvas
- * - input      → text input, plus mic + auto-record toggle when the browser
+ * - character  → the handwriting box, then the characters printed after a miss
+ * - input      → the answer field, under the microphone when the browser
  *                supports speech recognition
- * - flashcard  → Show Answer button, then like/dislike buttons
+ * - flashcard  → nothing; the buttons are in TestActions
  */
 import React from 'react';
 import { screen, fireEvent, render } from '@testing-library/react';
@@ -14,48 +14,39 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 vi.mock('./constants', () => ({
   beep: { play: vi.fn() },
   fail: { play: vi.fn() },
-  buttonStyle: { display: 'inline-block' },
-  activeButtonStyle: { display: 'inline-block', boxShadow: '0px 0px' },
 }));
 
-import AnswerInput, { getVerb } from './AnswerInput';
-import { fail } from './constants';
+import AnswerInput from './AnswerInput';
 import { TestState } from './types';
 
 const baseState = {
+  answer: 'ni3 hao3',
   answerInput: '',
+  result: '',
   showAnswer: false,
+  outcome: null,
   gradeClicked: null,
   useSound: false,
   useSoundEffects: false,
   pinyinQuizType: 'input',
   meaningQuizType: 'input',
-  useAutoRecord: false,
   answerCategory: 'character',
   recognition: null,
+  listening: false,
   componentReviewChars: [],
+  awaitingContinue: false,
+  toneErrorCount: 0,
+  writingIndex: 0,
 } as unknown as TestState;
-
-const noop = () => {};
-
-function makeState(overrides: Partial<TestState> = {}): TestState {
-  return { ...baseState, ...overrides } as TestState;
-}
 
 function makeProps(stateOverrides: Partial<TestState> = {}, speechAvailable = false) {
   return {
-    state: makeState(stateOverrides),
+    state: { ...baseState, ...stateOverrides } as TestState,
     speechAvailable,
     onKeyPress: vi.fn() as any,
     onInputChanged: vi.fn() as any,
     onFocusEntry: vi.fn() as any,
     onListen: vi.fn(),
-    onShowAnswer: vi.fn(),
-    onCorrectAnswer: vi.fn(),
-    onNearlyKnew: vi.fn(),
-    onIDontKnow: vi.fn(),
-    onSubmitAnswer: vi.fn(),
-    setStateMerged: vi.fn() as any,
   };
 }
 
@@ -69,387 +60,133 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-// ── character (handwriting) ─────────────────────────────────────────────────
-
-describe('AnswerInput — handwriting canvas', () => {
-  it('renders the handwriting canvas with an accessible label', () => {
-    renderAnswerInput({ answerCategory: 'character' });
-    const canvas = document.getElementById('character-target-div');
-    expect(canvas).toBeInTheDocument();
-    expect(canvas).toHaveAttribute('aria-label');
-    expect(canvas?.getAttribute('aria-label')).toMatch(/draw/i);
+describe('AnswerInput — handwriting', () => {
+  it('renders the handwriting box with an accessible label', () => {
+    renderAnswerInput({ answerCategory: 'character', answer: '你好' });
+    const box = document.getElementById('character-target-div');
+    expect(box).toBeInTheDocument();
+    expect(box?.getAttribute('aria-label')).toMatch(/draw/i);
   });
 
-  it('renders placeholder text in the handwriting canvas', () => {
-    renderAnswerInput({ answerCategory: 'character' });
-    expect(screen.getByText(/draw here/i)).toBeInTheDocument();
+  it('says which character of the word is being written', () => {
+    renderAnswerInput({ answerCategory: 'character', answer: '你好', writingIndex: 1 });
+    expect(screen.getByRole('img', { name: 'Character 2 of 2' })).toBeInTheDocument();
+    // The written character shows in its step.
+    expect(screen.getByText('你')).toBeInTheDocument();
   });
 
-  it('drops the canvas while the component review holds the missed character', () => {
-    renderAnswerInput({ answerCategory: 'character', componentReviewChars: ['好'] });
-    expect(document.getElementById('character-target-div')).not.toBeInTheDocument();
-    expect(screen.queryByText(/draw here/i)).not.toBeInTheDocument();
-  });
-
-  it('keeps the grade buttons of a flashcard through the review', () => {
+  it('prints the characters in place of the box once a miss has played', () => {
     renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: true,
-      componentReviewChars: ['好'],
+      answerCategory: 'character',
+      answer: '你好',
+      outcome: 'fail',
+      awaitingContinue: true,
     });
-    expect(screen.getByLabelText(/i knew this/i)).toBeInTheDocument();
+    expect(document.getElementById('character-target-div')).not.toBeInTheDocument();
+    expect(screen.getByText('你')).toBeInTheDocument();
+    expect(screen.getByText('好')).toBeInTheDocument();
+  });
+
+  it('keeps the box while the strokes of a miss play', () => {
+    renderAnswerInput({ answerCategory: 'character', answer: '你好', outcome: 'fail' });
+    expect(document.getElementById('character-target-div')).toBeInTheDocument();
   });
 });
 
-// ── input mode without speech support ────────────────────────────────────────
-
-describe('AnswerInput — input mode without speech recognition', () => {
-  it('renders only a text input for pinyin answers', () => {
-    renderAnswerInput({ answerCategory: 'pinyin', pinyinQuizType: 'input' });
-    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/record speech/i)).not.toBeInTheDocument();
+describe('AnswerInput — the answer field', () => {
+  it('renders the field with a placeholder for the pinyin', () => {
+    renderAnswerInput({ answerCategory: 'pinyin' });
+    expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveAttribute(
+      'placeholder',
+      'Pinyin with tone numbers',
+    );
   });
 
-  it('renders only a text input for meaning answers', () => {
-    renderAnswerInput({ answerCategory: 'meaning', meaningQuizType: 'input' });
-    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/record speech/i)).not.toBeInTheDocument();
-  });
-
-  it('renders a text input for an unknown answer category', () => {
-    renderAnswerInput({ answerCategory: 'unknown' as any });
-    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
+  it('renders the field with a placeholder for the meaning', () => {
+    renderAnswerInput({ answerCategory: 'meaning', answer: ['hello'] });
+    expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveAttribute(
+      'placeholder',
+      'Type the meaning',
+    );
   });
 
   it('forwards typing to onInputChanged', () => {
-    const props = renderAnswerInput({ answerCategory: 'pinyin', pinyinQuizType: 'input' });
-    fireEvent.change(screen.getByLabelText(/enter your answer/i), { target: { value: 'ni3' } });
+    const props = renderAnswerInput({ answerCategory: 'meaning' });
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'hello' } });
     expect(props.onInputChanged).toHaveBeenCalled();
   });
 
-  it('renders a Submit button beside the input when speech is unavailable', () => {
-    renderAnswerInput({ answerCategory: 'meaning', meaningQuizType: 'input', answerInput: 'hi' });
-    expect(screen.getByRole('button', { name: /submit/i })).toBeEnabled();
+  it('shows no microphone when speech is unavailable', () => {
+    renderAnswerInput({ answerCategory: 'meaning' });
+    expect(screen.queryByRole('button', { name: 'Record speech' })).not.toBeInTheDocument();
   });
 
-  it('sends the answer when Submit is pressed', () => {
-    const props = renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'input',
-      answerInput: 'hi',
-    });
-    fireEvent.click(screen.getByRole('button', { name: /submit/i }));
-    expect(props.onSubmitAnswer).toHaveBeenCalledTimes(1);
-  });
-
-  it('disables Submit while the input is empty', () => {
-    renderAnswerInput({ answerCategory: 'meaning', meaningQuizType: 'input', answerInput: '' });
-    expect(screen.getByRole('button', { name: /submit/i })).toBeDisabled();
-  });
-
-  // Submit used to be left on screen and disabled here. The whole input area
-  // goes now, so there is nothing to press rather than something inert.
-  it('takes the answer away entirely once the question is graded', () => {
-    renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'input',
-      answerInput: 'hi',
-      submitDisabled: true,
-    });
-    expect(screen.queryByRole('button', { name: /submit/i })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/enter your answer/i)).not.toBeInTheDocument();
-  });
-
-  it('shows no Submit button in flashcard mode', () => {
-    renderAnswerInput({ answerCategory: 'meaning', meaningQuizType: 'flashcard' });
-    expect(screen.queryByRole('button', { name: /submit/i })).not.toBeInTheDocument();
+  it('shows nothing in flashcard mode', () => {
+    const { container } = render(
+      <AnswerInput
+        {...makeProps({ answerCategory: 'meaning', meaningQuizType: 'flashcard' }, true)}
+      />,
+    );
+    expect(container).toBeEmptyDOMElement();
   });
 });
 
-// ── input mode with speech support ───────────────────────────────────────────
-
-describe('AnswerInput — input mode with speech recognition', () => {
-  it('renders the text input, the mic and Submit side by side for pinyin answers', () => {
-    renderAnswerInput({ answerCategory: 'pinyin', pinyinQuizType: 'input' }, true);
-    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/record speech/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /submit/i })).toBeInTheDocument();
-  });
-
-  it('renders the text input and the mic side by side for meaning answers', () => {
-    renderAnswerInput({ answerCategory: 'meaning', meaningQuizType: 'input' }, true);
-    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/record speech/i)).toBeInTheDocument();
-  });
-
-  it('calls onListen when the mic button is clicked', () => {
-    const props = renderAnswerInput({ answerCategory: 'pinyin', pinyinQuizType: 'input' }, true);
-    fireEvent.click(screen.getByLabelText(/record speech/i));
+describe('AnswerInput — the microphone', () => {
+  it('records when pressed', () => {
+    const props = renderAnswerInput({ answerCategory: 'pinyin' }, true);
+    fireEvent.click(screen.getByRole('button', { name: 'Record speech' }));
     expect(props.onListen).toHaveBeenCalled();
   });
 
-  it('enables auto-record and starts listening when the toggle is switched on', () => {
-    const recognition = { abort: vi.fn() };
-    const props = makeProps(
-      { answerCategory: 'pinyin', pinyinQuizType: 'input', recognition } as any,
+  it('stops recording when pressed while listening', () => {
+    const abort = vi.fn();
+    const props = renderAnswerInput(
+      { answerCategory: 'pinyin', listening: true, recognition: { abort } as any },
       true,
     );
-    render(<AnswerInput {...props} />);
-
-    fireEvent.click(screen.getByRole('switch'));
-
-    expect(recognition.abort).toHaveBeenCalled();
-    expect(props.setStateMerged).toHaveBeenCalledWith({ useAutoRecord: true });
-    expect(props.onListen).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }));
+    expect(abort).toHaveBeenCalled();
+    expect(props.onListen).not.toHaveBeenCalled();
   });
 
-  it('drops the input, the mic and Submit once the question is graded', () => {
+  it('keeps the field and the mic after a wrong attempt, so it can be sent again', () => {
+    renderAnswerInput({ answerCategory: 'pinyin', answerInput: 'ni2', result: 'Try again' }, true);
+    expect(screen.getByRole('textbox')).toHaveValue('ni2');
+    expect(screen.getByRole('button', { name: 'Record speech' })).toBeEnabled();
+  });
+
+  it('stays in place, switched off, once the answer is known', () => {
     renderAnswerInput(
-      { answerCategory: 'pinyin', pinyinQuizType: 'input', submitDisabled: true },
+      { answerCategory: 'meaning', answerInput: 'hello', outcome: 'pass', result: 'Correct' },
       true,
     );
-    expect(screen.queryByLabelText(/enter your answer/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/record speech/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/submit/i)).not.toBeInTheDocument();
-  });
-
-  it('drops the input and the mic while the review holds a missed question', () => {
-    renderAnswerInput(
-      {
-        answerCategory: 'pinyin',
-        pinyinQuizType: 'input',
-        submitDisabled: true,
-        componentReviewChars: ['得'],
-      },
-      true,
-    );
-    expect(screen.queryByLabelText(/enter your answer/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/record speech/i)).not.toBeInTheDocument();
-  });
-
-  it('keeps the input and the mic after a wrong attempt, so it can be sent again', () => {
-    renderAnswerInput(
-      { answerCategory: 'pinyin', pinyinQuizType: 'input', gradeCap: 'lapse' },
-      true,
-    );
-    expect(screen.getByLabelText(/enter your answer/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/record speech/i)).toBeInTheDocument();
-  });
-
-  it('does not show the mic in flashcard mode even when speech is available', () => {
-    renderAnswerInput({ answerCategory: 'meaning', meaningQuizType: 'flashcard' }, true);
-    expect(screen.queryByLabelText(/record speech/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /show answer/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Record speech' })).toBeDisabled();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.getByText('hello')).toBeInTheDocument();
   });
 });
 
-// ── flashcard mode ───────────────────────────────────────────────────────────
-
-describe('AnswerInput — flashcard mode (show-answer flow)', () => {
-  it('renders "Show Answer" button for meaning answers when showAnswer is false', () => {
-    renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: false,
-    });
-    expect(screen.getByRole('button', { name: /show answer/i })).toBeInTheDocument();
-    expect(screen.queryByLabelText(/i knew this/i)).not.toBeInTheDocument();
-  });
-
-  it('renders "Show Answer" button for pinyin answers when showAnswer is false', () => {
+describe('AnswerInput — after a miss', () => {
+  it('underlines the syllables with the wrong tone, and edits again on a tap', () => {
     renderAnswerInput({
       answerCategory: 'pinyin',
-      pinyinQuizType: 'flashcard',
-      showAnswer: false,
+      answer: 'ni3 hao3',
+      answerInput: 'ni3 hao4',
+      result: 'Incorrect tones',
+      toneErrorCount: 1,
     });
-    expect(screen.getByRole('button', { name: /show answer/i })).toBeInTheDocument();
-    expect(screen.queryByLabelText(/enter your answer/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Your answer' }));
+    expect(screen.getByRole('textbox')).toHaveValue('ni3 hao4');
   });
 
-  it('calls onShowAnswer when "Show Answer" is clicked', () => {
-    const props = renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: false,
-    });
-    fireEvent.click(screen.getByRole('button', { name: /show answer/i }));
-    expect(props.onShowAnswer).toHaveBeenCalled();
-  });
-
-  it('renders like/dislike buttons when showAnswer is true', () => {
-    renderAnswerInput({
-      answerCategory: 'pinyin',
-      pinyinQuizType: 'flashcard',
-      showAnswer: true,
-    });
-    expect(screen.getByLabelText(/i knew this/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/i didn't know this/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /show answer/i })).not.toBeInTheDocument();
-  });
-
-  it('calls onCorrectAnswer when the like button is clicked', () => {
-    const props = renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: true,
-    });
-    fireEvent.click(screen.getByLabelText(/i knew this/i));
-    expect(props.onCorrectAnswer).toHaveBeenCalledTimes(1);
-  });
-
-  it('keeps all three buttons at full strength before a grade', () => {
-    renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: true,
-    });
-    expect(screen.getByLabelText(/i knew this/i)).toHaveStyle({ opacity: '1' });
-    expect(screen.getByLabelText(/i nearly knew this/i)).toHaveStyle({ opacity: '1' });
-    expect(screen.getByLabelText(/i didn't know this/i)).toHaveStyle({ opacity: '1' });
-  });
-
-  it('rings the like button and fades the other two after a known grade', () => {
-    renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: true,
-      gradeClicked: 'pass',
-    });
-    const like = screen.getByLabelText(/i knew this/i);
-    expect(like).toHaveStyle({ opacity: '1' });
-    expect(like.style.boxShadow).toContain('3px');
-    expect(screen.getByLabelText(/i nearly knew this/i)).toHaveStyle({ opacity: '0.3' });
-    expect(screen.getByLabelText(/i didn't know this/i)).toHaveStyle({ opacity: '0.3' });
-  });
-
-  it('rings the nearly button and fades the other two after a lapse grade', () => {
-    renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: true,
-      gradeClicked: 'lapse',
-    });
-    const nearly = screen.getByLabelText(/i nearly knew this/i);
-    expect(nearly).toHaveStyle({ opacity: '1' });
-    expect(nearly.style.boxShadow).toContain('3px');
-    expect(screen.getByLabelText(/i knew this/i)).toHaveStyle({ opacity: '0.3' });
-    expect(screen.getByLabelText(/i didn't know this/i)).toHaveStyle({ opacity: '0.3' });
-  });
-
-  it('rings the dislike button and fades the other two after a not-known grade', () => {
-    renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: true,
-      gradeClicked: 'fail',
-    });
-    const dislike = screen.getByLabelText(/i didn't know this/i);
-    expect(dislike).toHaveStyle({ opacity: '1' });
-    expect(dislike.style.boxShadow).toContain('3px');
-    expect(screen.getByLabelText(/i knew this/i)).toHaveStyle({ opacity: '0.3' });
-  });
-
-  it('grades a pass with no argument, so the click event is not read as a grade', () => {
-    const props = renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: true,
-    });
-    fireEvent.click(screen.getByLabelText(/i knew this/i));
-    expect(props.onCorrectAnswer).toHaveBeenCalledWith();
-  });
-
-  it('calls onNearlyKnew when the nearly button is clicked', () => {
-    const props = renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: true,
-    });
-    fireEvent.click(screen.getByLabelText(/i nearly knew this/i));
-    expect(props.onNearlyKnew).toHaveBeenCalledTimes(1);
-  });
-
-  it('stops further presses once the answer is graded', () => {
-    renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: true,
-      gradeClicked: 'pass',
-    });
-    expect(screen.getByLabelText(/i knew this/i).parentElement).toHaveStyle({
-      pointerEvents: 'none',
-    });
-  });
-
-  it('calls onIDontKnow when the dislike button is clicked', () => {
-    const props = renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: true,
-    });
-    fireEvent.click(screen.getByLabelText(/i didn't know this/i));
-    expect(props.onIDontKnow).toHaveBeenCalledTimes(1);
-  });
-
-  it('plays fail sound when dislike is clicked and useSoundEffects=true', () => {
-    const mockedFail = vi.mocked(fail);
-    renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: true,
-      useSoundEffects: true,
-    });
-    fireEvent.click(screen.getByLabelText(/i didn't know this/i));
-    expect(mockedFail.play).toHaveBeenCalled();
-  });
-
-  it('does not play fail sound on dislike when useSoundEffects=false', () => {
-    const mockedFail = vi.mocked(fail);
-    renderAnswerInput({
-      answerCategory: 'meaning',
-      meaningQuizType: 'flashcard',
-      showAnswer: true,
-      useSoundEffects: false,
-      useSound: true,
-    });
-    fireEvent.click(screen.getByLabelText(/i didn't know this/i));
-    expect(mockedFail.play).not.toHaveBeenCalled();
-  });
-});
-
-// ── getVerb ──────────────────────────────────────────────────────────────────
-
-describe('getVerb', () => {
-  it('returns "Draw the " for character answers', () => {
-    expect(getVerb(makeState({ answerCategory: 'character' }))).toBe('Draw the ');
-  });
-
-  it('returns "Enter the " for input-mode pinyin answers', () => {
-    expect(getVerb(makeState({ answerCategory: 'pinyin', pinyinQuizType: 'input' }))).toBe(
-      'Enter the ',
+  it('shows the attempt struck through when the learner gave up', () => {
+    renderAnswerInput(
+      { answerCategory: 'pinyin', answerInput: 'peng2 yu3', outcome: 'fail', result: 'Not known' },
+      true,
     );
-  });
-
-  it('returns "Enter the " for input-mode meaning answers', () => {
-    expect(getVerb(makeState({ answerCategory: 'meaning', meaningQuizType: 'input' }))).toBe(
-      'Enter the ',
-    );
-  });
-
-  it('returns "What is the " for flashcard pinyin answers', () => {
-    expect(getVerb(makeState({ answerCategory: 'pinyin', pinyinQuizType: 'flashcard' }))).toBe(
-      'What is the ',
-    );
-  });
-
-  it('returns "What is the " for flashcard meaning answers', () => {
-    expect(getVerb(makeState({ answerCategory: 'meaning', meaningQuizType: 'flashcard' }))).toBe(
-      'What is the ',
-    );
-  });
-
-  it('returns "Enter the " for an unknown answer category', () => {
-    expect(getVerb(makeState({ answerCategory: 'unknown' as any }))).toBe('Enter the ');
+    expect(screen.getByText('You typed')).toBeInTheDocument();
+    expect(screen.getByText('peng2 yu3')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Record speech' })).not.toBeInTheDocument();
   });
 });

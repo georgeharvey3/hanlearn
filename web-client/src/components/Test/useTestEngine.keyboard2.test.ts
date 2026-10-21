@@ -247,7 +247,6 @@ describe('useTestEngine — spacebar triggers onShowAnswer in flashcard mode', (
     });
 
     expect(result.current.state.showAnswer).toBe(true);
-    expect(result.current.state.result).toBe("Answer was: 'ni3 hao3'");
   });
 });
 

@@ -27,7 +27,7 @@ async function seedSentenceCache(word: string): Promise<void> {
 
   const res = await fetch(url, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer owner' },
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
     body: JSON.stringify({
       fields: {
         sentences: {
@@ -123,9 +123,9 @@ test.describe('Sentence similarity scoring', () => {
     await page.goto('/test-words');
 
     // Wait for test to load
-    await expect(
-      page.getByText(/pinyin|character|meaning/i).first(),
-    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/pinyin|character|meaning/i).first()).toBeVisible({
+      timeout: 15000,
+    });
 
     // Answer the flashcard/meaning question to progress to sentence stage
     // Type the meaning and submit
@@ -139,7 +139,10 @@ test.describe('Sentence similarity scoring', () => {
 
     // We should now be in the sentence read stage
     // Look for the sentence text or the translation input
-    const sentenceVisible = await page.getByText('I like to drink water.').isVisible({ timeout: 10000 }).catch(() => false);
+    const sentenceVisible = await page
+      .getByText('I like to drink water.')
+      .isVisible({ timeout: 10000 })
+      .catch(() => false);
 
     if (sentenceVisible) {
       // Find the answer input for the sentence translation
@@ -148,9 +151,9 @@ test.describe('Sentence similarity scoring', () => {
       await sentenceInput.fill('I like to drink water.');
       await sentenceInput.press('Enter');
 
-      // Should show the similarity score (85% = "Great")
+      // Should show the similarity score (85% = "Close match")
       await expect(
-        page.getByText(/85%|Great|Score unavailable|Scoring/i).first(),
+        page.getByText(/85%|Close match|Score unavailable|Scoring/i).first(),
       ).toBeVisible({ timeout: 10000 });
     }
   });
@@ -171,9 +174,9 @@ test.describe('Sentence similarity scoring', () => {
     await page.goto('/test-words');
 
     // Wait for test to load
-    await expect(
-      page.getByText(/pinyin|character|meaning/i).first(),
-    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/pinyin|character|meaning/i).first()).toBeVisible({
+      timeout: 15000,
+    });
 
     // Answer the flashcard/meaning question
     const answerInput = page.locator('#answer-input');
@@ -184,7 +187,10 @@ test.describe('Sentence similarity scoring', () => {
     }
 
     // In sentence read stage
-    const sentenceVisible = await page.getByText('I like to drink water.').isVisible({ timeout: 10000 }).catch(() => false);
+    const sentenceVisible = await page
+      .getByText('I like to drink water.')
+      .isVisible({ timeout: 10000 })
+      .catch(() => false);
 
     if (sentenceVisible) {
       const sentenceInput = page.locator('#answerInput');
@@ -193,9 +199,7 @@ test.describe('Sentence similarity scoring', () => {
       await sentenceInput.press('Enter');
 
       // Should show "Score unavailable" since the AI service failed
-      await expect(
-        page.getByText('Score unavailable'),
-      ).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText('Score unavailable')).toBeVisible({ timeout: 10000 });
     }
   });
 });

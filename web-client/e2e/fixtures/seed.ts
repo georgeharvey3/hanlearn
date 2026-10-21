@@ -261,7 +261,7 @@ export async function configureTestSettings(
     // Disable handwriting — HanziWriter is not available in headless Chromium
     localStorage.setItem('useHandwriting', 'false');
     // Use flashcard mode with meaning-only answers for reliable E2E test flow
-    // (flashcard "I knew this" / "I didn't know this" buttons reliably advance the test)
+    // (the flashcard "Yes" / "No" grades reliably advance the test)
     localStorage.setItem('useFlashcards', 'true');
     localStorage.setItem('priority', 'MP');
     localStorage.setItem('onlyPriority', 'true');

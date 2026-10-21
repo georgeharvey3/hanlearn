@@ -17,6 +17,9 @@ import { loadCharData, onCharDataError } from '../../utils/charDataLoader';
 import { checkSentenceAvailability, getHintSentence } from '../../services/sentenceService';
 import * as ttsService from '../../services/ttsService';
 import { reportError } from '../../services/errorReporting';
+import { copy } from '../../copy';
+import { colors } from '../../theme';
+import { WRITER_SIZE } from './handwriting';
 
 /**
  * Misses on one stroke before the handwriting quiz shows the stroke outline.
@@ -48,6 +51,21 @@ const componentsToReview = (state: TestState, result: DirectionResult): string[]
   if (state.answerCategory !== 'character' && state.questionCategory !== 'character') return [];
   return Array.from(state.chosenCharacter ?? '');
 };
+
+/**
+ * The state a question starts with that the question before it may have
+ * changed: its hint, its reveal and its grade. Every step that moves to the
+ * next question spreads it, so that no part of one reveal shows on the next
+ * question for a render.
+ */
+const FRESH_QUESTION = {
+  hint: null,
+  hintSentence: null,
+  showHint: false,
+  showQuestionCharacter: false,
+  outcome: null,
+  gradeClicked: null,
+} as const;
 
 /**
  * Clear the HanziWriter mount point.
@@ -92,13 +110,15 @@ export const useTestEngine = (props: Props) => {
   /**
    * Run the step that ends a question, or hold it for the component review.
    *
-   * `chars` empty is the ordinary path: the step runs after `delay`, or at once
-   * when the delay is 0. A missed character question hands its characters here
-   * instead, and the step then waits for Continue. See issue #335.
+   * `chars` empty and `hold` false is the path of a flashcard grade: the step
+   * runs after `delay`, or at once when the delay is 0. A typed, spoken or
+   * drawn answer passes `hold`, so that the learner reads the reveal, and a
+   * missed character question hands its characters here. Either one waits for
+   * Continue. See issue #335.
    */
   const holdOrAdvance = useCallback(
-    (chars: string[], advance: () => void, delay: number): void => {
-      if (chars.length === 0) {
+    (chars: string[], advance: () => void, delay: number, hold = false): void => {
+      if (chars.length === 0 && !hold) {
         if (delay > 0) {
           setTimeout(advance, delay);
         } else {
@@ -107,7 +127,11 @@ export const useTestEngine = (props: Props) => {
         return;
       }
       pendingAdvanceRef.current = advance;
-      setStateMerged({ componentReviewChars: chars, showComponents: false });
+      setStateMerged({
+        componentReviewChars: chars,
+        showComponents: false,
+        awaitingContinue: true,
+      });
     },
     [setStateMerged],
   );
@@ -173,7 +197,7 @@ export const useTestEngine = (props: Props) => {
       const latest = getState();
       setStateMerged({ listening: false, speechLoading: false, speechResult: false });
       if (!result && !latest.idkDisabled) {
-        setStateMerged({ result: "Couldn't hear anything..." });
+        setStateMerged({ result: copy.test.status.heardNothing });
       }
     });
 
@@ -187,26 +211,32 @@ export const useTestEngine = (props: Props) => {
     });
 
     recognition.addEventListener('audiostart', () => {
-      setStateMerged({ result: 'Listening...', listening: true });
+      setStateMerged({ result: copy.test.status.listening, listening: true });
     });
 
     recognition.start();
   }, [getState, setStateMerged]);
 
   const onSpeak = useCallback(
-    (word: string, auto = false): void => {
+    (
+      word: string,
+      auto = false,
+      loading: 'synthLoading' | 'sentenceLoading' = 'synthLoading',
+    ): void => {
       const current = getState();
       current.recognition?.abort();
 
+      // Each play button shows only its own audio loading: the word's, or the
+      // example sentence's.
       if (current.interaction) {
-        setStateMerged({ synthLoading: true });
+        setStateMerged({ [loading]: true });
       }
 
       ttsService.speak(word, {
         fallbackVoice: props.voice,
         fallbackLang: props.lang || 'zh-CN',
         onStart: () => {
-          setStateMerged({ synthLoading: false });
+          setStateMerged({ [loading]: false });
         },
         onEnd: () => {
           const latest = getState();
@@ -215,7 +245,11 @@ export const useTestEngine = (props: Props) => {
           }
         },
         onError: () => {
-          setStateMerged({ result: 'Error playing pinyin', showPinyin: true });
+          setStateMerged({
+            result: copy.test.status.audioFailed,
+            showPinyin: true,
+            [loading]: false,
+          });
         },
       });
     },
@@ -424,9 +458,12 @@ export const useTestEngine = (props: Props) => {
         // A typed answer that follows a wrong one is still correct, and the
         // feedback line says so. The amber marker beside the question is what
         // reports the lapse. Only the flashcard button reports itself here.
-        result: grade === 'lapse' ? 'Nearly' : 'Correct',
+        result: grade === 'lapse' ? copy.test.status.nearly : copy.test.status.correct,
+        outcome: result,
         idkDisabled: true,
         submitDisabled: true,
+        showHint: false,
+        hint: null,
         // Flashcard grading: mark the button pressed however it was triggered.
         gradeClicked: prevState.showAnswer ? result : null,
         gradeList: recorded ? prevState.gradeList.concat(recorded) : prevState.gradeList,
@@ -441,8 +478,11 @@ export const useTestEngine = (props: Props) => {
         setStateMerged({ queue: remainingQueue });
       }
       // A question the learner missed offers its components before the session
-      // moves on, so the reveal waits for Continue rather than a timer.
+      // moves on, so the reveal waits for Continue rather than a timer. So does
+      // every answer but a flashcard grade: the learner pressed that button,
+      // and has read the reveal already.
       const review = componentsToReview(current, result);
+      const hold = !current.showAnswer;
 
       if (remainingQueue.length !== 0) {
         const newQuestion = testLogic.assignQA(current.testSet, remainingQueue, current.charSet);
@@ -456,6 +496,7 @@ export const useTestEngine = (props: Props) => {
               question: newQuestion.question,
               questionCategory: newQuestion.questionCategory,
               chosenCharacter: newQuestion.chosenCharacter,
+              ...FRESH_QUESTION,
               result: '',
               answerInput: '',
               qNum: prevState.qNum + 1,
@@ -467,13 +508,14 @@ export const useTestEngine = (props: Props) => {
             }));
           },
           1000,
+          hold,
         );
       } else {
         holdOrAdvance(
           review,
           () => {
             onFinishTest(recorded);
-            setStateMerged({ result: 'Finished!' });
+            setStateMerged({ result: copy.test.status.finished });
           },
           0,
         );
@@ -522,7 +564,7 @@ export const useTestEngine = (props: Props) => {
         if (current.useSoundEffects) {
           fail.play();
         }
-        let resultString = 'Try again';
+        let resultString: string = copy.test.status.tryAgain;
         let toneError = false;
 
         if (current.answerCategory === 'pinyin' && typeof current.answer === 'string') {
@@ -530,7 +572,7 @@ export const useTestEngine = (props: Props) => {
           const cleanInput = input.trim().replace(/ /g, '').toLowerCase();
 
           if (testLogic.toneChecker(cleanInput, cleanAnswer)) {
-            resultString = 'Incorrect tones';
+            resultString = copy.test.status.tones;
             toneError = true;
           }
         }
@@ -538,6 +580,7 @@ export const useTestEngine = (props: Props) => {
         setStateMerged((prevState) => ({
           result: resultString,
           showHint: false,
+          hint: null,
           gradeCap: 'lapse',
           toneErrorCount: prevState.toneErrorCount + (toneError ? 1 : 0),
         }));
@@ -628,6 +671,7 @@ export const useTestEngine = (props: Props) => {
         },
         onComplete: () => {
           index++;
+          setStateMerged({ writingIndex: index });
           if (index < char.length) {
             setTimeout(() => {
               updateHanziWriterQuiz(writer, char, index);
@@ -636,8 +680,9 @@ export const useTestEngine = (props: Props) => {
             setStateMerged((prevState) => ({
               drawnCharacters: prevState.drawnCharacters.concat(char),
             }));
+            // The drawn character stays in the box for the reveal. The next
+            // question clears it when it mounts its own writer.
             setTimeout(() => {
-              clearCharacterTarget();
               onCorrectAnswer();
             }, 1000);
           }
@@ -664,20 +709,22 @@ export const useTestEngine = (props: Props) => {
       clearCharacterTarget();
 
       const writer = window.HanziWriter.create('character-target-div', char[index], {
-        width: 150,
-        height: 150,
-        padding: 20,
+        width: WRITER_SIZE,
+        height: WRITER_SIZE,
+        padding: 24,
         showOutline: false,
         showCharacter: flashChar,
         showHintAfterMisses: missesBeforeHint,
         delayBetweenStrokes: 10,
         strokeAnimationSpeed: 1,
-        outlineColor: '#555',
+        strokeColor: colors.text,
+        drawingColor: colors.text,
+        outlineColor: colors.outline,
         charDataLoader: loadCharData,
         onLoadCharDataError: onCharDataError,
       });
 
-      setStateMerged({ writer });
+      setStateMerged({ writer, writingIndex: 0 });
       quizWriter(writer, char, index);
     },
     [missesBeforeHint, quizWriter, setStateMerged],
@@ -721,9 +768,10 @@ export const useTestEngine = (props: Props) => {
               review,
               () => {
                 onFinishTest(grade);
-                setStateMerged({ result: 'Finished!' });
+                setStateMerged({ result: copy.test.status.finished });
               },
               0,
+              true,
             );
             return;
           }
@@ -734,6 +782,7 @@ export const useTestEngine = (props: Props) => {
             review,
             () => {
               setStateMerged((prevState) => ({
+                ...FRESH_QUESTION,
                 currentPair: newQuestion.pair,
                 answer: newQuestion.answer,
                 answerCategory: newQuestion.answerCategory,
@@ -751,6 +800,7 @@ export const useTestEngine = (props: Props) => {
               }));
             },
             0,
+            true,
           );
         }
       });
@@ -760,7 +810,13 @@ export const useTestEngine = (props: Props) => {
 
   const onIdkChar = useCallback(
     (writer: HanziWriterInstance, char: string): void => {
-      setStateMerged({ idkDisabled: true });
+      setStateMerged({
+        idkDisabled: true,
+        result: copy.test.status.notKnown,
+        outcome: 'fail',
+        showHint: false,
+        hint: null,
+      });
       writer.cancelQuiz();
       const index = 0;
       writer.setCharacter(char[index]);
@@ -782,22 +838,17 @@ export const useTestEngine = (props: Props) => {
       return;
     }
 
-    let displayAnswer = current.answer;
-    if (current.answerCategory === 'meaning' && Array.isArray(displayAnswer)) {
-      displayAnswer = displayAnswer.join(' / ');
-    }
-
     const grade = currentGrade(current, 'fail');
 
     setStateMerged((prevState) => ({
       gradeList: grade ? prevState.gradeList.concat(grade) : prevState.gradeList,
       idkDisabled: true,
       submitDisabled: true,
-      // In flashcard mode the answer is already on screen, so the feedback line
-      // reports the grade instead of repeating the reveal text unchanged.
-      result: prevState.showAnswer
-        ? `Not known — answer was: '${displayAnswer}'`
-        : `Answer was: '${displayAnswer}'`,
+      // The card shows the answer, so the feedback line reports the grade.
+      result: copy.test.status.notKnown,
+      outcome: 'fail',
+      showHint: false,
+      hint: null,
       gradeClicked: prevState.showAnswer ? 'fail' : null,
     }));
 
@@ -806,8 +857,10 @@ export const useTestEngine = (props: Props) => {
     setStateMerged({ queue: remainingQueue });
 
     // The question was revealed, so it is a fail: a character question offers
-    // its components and waits for Continue instead of the timer below.
+    // its components. Any reveal but a flashcard grade waits for Continue, so
+    // that the learner reads the answer; a flashcard grade has the timer below.
     const review = componentsToReview(current, 'fail');
+    const hold = !current.showAnswer;
 
     if (remainingQueue.length === 0) {
       // Let the reveal stand for a moment before the summary replaces it.
@@ -815,9 +868,10 @@ export const useTestEngine = (props: Props) => {
         review,
         () => {
           onFinishTest(grade);
-          setStateMerged({ result: 'Finished!' });
+          setStateMerged({ result: copy.test.status.finished });
         },
         2000,
+        hold,
       );
       return;
     }
@@ -828,6 +882,7 @@ export const useTestEngine = (props: Props) => {
       review,
       () => {
         setStateMerged((prevState) => ({
+          ...FRESH_QUESTION,
           currentPair: newQuestion.pair,
           answer: newQuestion.answer,
           answerCategory: newQuestion.answerCategory,
@@ -839,7 +894,6 @@ export const useTestEngine = (props: Props) => {
           answerInput: '',
           qNum: prevState.qNum + 1,
           submitDisabled: false,
-          showHint: false,
           hintLoading: false,
           showAnswer: false,
           gradeCap: 'pass',
@@ -847,6 +901,7 @@ export const useTestEngine = (props: Props) => {
         }));
       },
       2000,
+      hold,
     );
   }, [getState, holdOrAdvance, onFinishTest, onIdkChar, setStateMerged]);
 
@@ -880,19 +935,18 @@ export const useTestEngine = (props: Props) => {
             return;
           }
           if (!sentence) {
-            setStateMerged({ result: 'No example sentence found', hintLoading: false });
+            setStateMerged({ result: copy.test.status.noSentence, hintLoading: false });
             return;
           }
+          setStateMerged({
+            hint: pinyin(sentence.chinese, { toneType: 'num' }),
+            hintSentence: current.useSound ? sentence.chinese : null,
+            showHint: true,
+            hintLoading: false,
+            result: '',
+          });
           if (current.useSound) {
-            onSpeak(sentence.chinese);
-            setStateMerged({ hintLoading: false, showHint: true });
-          } else {
-            const pinyinResult = pinyin(sentence.chinese, { toneType: 'num' });
-            setStateMerged({
-              result: pinyinResult,
-              showHint: true,
-              hintLoading: false,
-            });
+            onSpeak(sentence.chinese, false, 'sentenceLoading');
           }
         })
         .catch(() => {
@@ -900,7 +954,7 @@ export const useTestEngine = (props: Props) => {
             setStateMerged({ hintLoading: false });
             return;
           }
-          setStateMerged({ result: 'Could not load hint', hintLoading: false });
+          setStateMerged({ result: copy.test.status.hintFailed, hintLoading: false });
         });
     },
     [getState, onSpeak, setStateMerged],
@@ -908,21 +962,22 @@ export const useTestEngine = (props: Props) => {
 
   const onHint = useCallback((): void => {
     const current = getState();
-    if (current.hintLoading) {
+    // A graded question has its answer on the card, and a hint there would
+    // sit beside it. The `h` key reaches here as well as the button.
+    if (current.hintLoading || current.idkDisabled) {
       return;
     }
     if (current.showHint) {
       if (current.answerCategory === 'character' && current.writer) {
         current.writer.hideOutline();
       }
-      setStateMerged({ result: '', showHint: false });
+      setStateMerged({ showHint: false, hint: null, hintSentence: null });
       return;
     }
 
     if (current.answerCategory === 'pinyin' && typeof current.answer === 'string') {
       const hinted = current.answer.split(' ').map((word) => word[0] + '__');
-      const hint = 'Hint: ' + hinted.join(' ');
-      setStateMerged({ result: hint, showHint: true });
+      setStateMerged({ hint: hinted.join(' '), showHint: true });
     } else if (current.answerCategory === 'meaning' && current.chosenCharacter) {
       showSentenceHint(current.chosenCharacter);
     } else if (current.answerCategory === 'character' && current.writer) {
@@ -942,10 +997,15 @@ export const useTestEngine = (props: Props) => {
     }
   }, [getState, setStateMerged, showSentenceHint]);
 
+  const onPlayHintSentence = useCallback((): void => {
+    const sentence = getState().hintSentence;
+    if (sentence) onSpeak(sentence, false, 'sentenceLoading');
+  }, [getState, onSpeak]);
+
   const onShowAnswer = useCallback((): void => {
     const current = getState();
-    const answer = Array.isArray(current.answer) ? current.answer.join(' / ') : current.answer;
-    setStateMerged({ result: `Answer was: '${answer}'`, showAnswer: true });
+    if (current.submitDisabled) return;
+    setStateMerged({ result: '', showAnswer: true, showHint: false, hint: null });
   }, [getState, setStateMerged]);
 
   /** Expand or collapse the component breakdown offered after a miss. */
@@ -953,11 +1013,11 @@ export const useTestEngine = (props: Props) => {
     setStateMerged((prevState) => ({ showComponents: !prevState.showComponents }));
   }, [setStateMerged]);
 
-  /** Leave the component review and run the step the grade held back. */
+  /** Leave the reveal and run the step the grade held back. */
   const onContinue = useCallback((): void => {
     const advance = pendingAdvanceRef.current;
     pendingAdvanceRef.current = null;
-    setStateMerged({ componentReviewChars: [], showComponents: false });
+    setStateMerged({ componentReviewChars: [], showComponents: false, awaitingContinue: false });
     advance?.();
   }, [setStateMerged]);
 
@@ -971,11 +1031,8 @@ export const useTestEngine = (props: Props) => {
   }, [getState, setStateMerged]);
 
   const showCharacter = useCallback((): void => {
-    const current = getState();
-    setStateMerged((prevState) => ({
-      result: prevState.result === current.chosenCharacter ? '' : current.chosenCharacter || '',
-    }));
-  }, [getState, setStateMerged]);
+    setStateMerged((prevState) => ({ showQuestionCharacter: !prevState.showQuestionCharacter }));
+  }, [setStateMerged]);
 
   // --- Initialization ---
 
@@ -1074,15 +1131,30 @@ export const useTestEngine = (props: Props) => {
 
   // --- Keyboard shortcuts ---
 
+  const continueArmedRef = useRef(false);
+  const onKeyDown = useCallback(
+    (event: KeyboardEvent): void => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        continueArmedRef.current = getState().awaitingContinue;
+      }
+    },
+    [getState],
+  );
+
   const onKeyUp = useCallback(
     (event: KeyboardEvent): void => {
       const current = getState();
       const sourceElement = (event.target as HTMLElement).tagName.toLowerCase();
 
-      // The component review holds a question that is already graded, so the
-      // shortcuts of a live question do nothing: Enter or space continues.
-      if (current.componentReviewChars.length > 0) {
-        if (event.key === 'Enter' || event.key === ' ') {
+      // A held reveal is a question that is already graded, so the shortcuts
+      // of a live question do nothing: Enter or space continues. The key must
+      // also have gone down on the reveal, because the Enter that sent the
+      // answer comes back up after the reveal is on screen. A button handles
+      // its own Enter and space.
+      if (current.awaitingContinue) {
+        const armed = continueArmedRef.current;
+        continueArmedRef.current = false;
+        if ((event.key === 'Enter' || event.key === ' ') && armed && sourceElement !== 'button') {
           event.preventDefault();
           onContinue();
         }
@@ -1236,19 +1308,21 @@ export const useTestEngine = (props: Props) => {
       initialiseSettings();
       initializedRef.current = true;
     }
+    document.addEventListener('keydown', onKeyDown);
     document.addEventListener('keyup', onKeyUp);
     document.addEventListener('mouseover', setInteraction);
     document.addEventListener('scroll', setInteraction);
     document.addEventListener('keydown', setInteraction);
 
     return () => {
+      document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('keyup', onKeyUp);
       document.removeEventListener('mouseover', setInteraction);
       document.removeEventListener('scroll', setInteraction);
       document.removeEventListener('keydown', setInteraction);
       ttsService.stopAll();
     };
-  }, [initialiseSettings, onKeyUp, setInteraction]);
+  }, [initialiseSettings, onKeyDown, onKeyUp, setInteraction]);
 
   /**
    * Start a question: read it out, and open the mic when auto-record is on.
@@ -1349,6 +1423,7 @@ export const useTestEngine = (props: Props) => {
     onSubmitAnswer,
     onIDontKnow,
     onHint,
+    onPlayHintSentence,
     onShowAnswer,
     onToggleShowPinyin,
     onToggleComponents,

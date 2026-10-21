@@ -26,7 +26,7 @@ async function seedSentenceCache(word: string): Promise<void> {
 
   const res = await fetch(url, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer owner' },
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
     body: JSON.stringify({
       fields: {
         sentences: {
@@ -118,9 +118,9 @@ test.describe('Sentence stage submit buttons', () => {
       await page.goto('/test-words');
 
       // Wait for test to load and answer the vocab question
-      await expect(
-        page.getByText(/pinyin|character|meaning/i).first(),
-      ).toBeVisible({ timeout: 15000 });
+      await expect(page.getByText(/pinyin|character|meaning/i).first()).toBeVisible({
+        timeout: 15000,
+      });
 
       const answerInput = page.locator('#answer-input');
       if (await answerInput.isVisible({ timeout: 5000 })) {
@@ -135,7 +135,7 @@ test.describe('Sentence stage submit buttons', () => {
 
       if (inputVisible) {
         // Submit button should be visible but disabled when input is empty
-        const submitBtn = page.getByRole('button', { name: 'Submit translation' });
+        const submitBtn = page.getByRole('button', { name: 'Check', exact: true });
         await expect(submitBtn).toBeVisible();
         await expect(submitBtn).toBeDisabled();
 
@@ -149,13 +149,11 @@ test.describe('Sentence stage submit buttons', () => {
         await submitBtn.click();
 
         // Should show the comparison view with score
-        await expect(
-          page.getByText(/your translation/i),
-        ).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText(/your translation/i)).toBeVisible({ timeout: 10000 });
 
-        await expect(
-          page.getByRole('button', { name: /next word/i }),
-        ).toBeVisible({ timeout: 5000 });
+        await expect(page.getByRole('button', { name: /next word/i })).toBeVisible({
+          timeout: 5000,
+        });
       }
     });
   });
@@ -184,9 +182,9 @@ test.describe('Sentence stage submit buttons', () => {
       await page.goto('/test-words');
 
       // Wait for test to load and answer the vocab question
-      await expect(
-        page.getByText(/pinyin|character|meaning/i).first(),
-      ).toBeVisible({ timeout: 15000 });
+      await expect(page.getByText(/pinyin|character|meaning/i).first()).toBeVisible({
+        timeout: 15000,
+      });
 
       const answerInput = page.locator('#answer-input');
       if (await answerInput.isVisible({ timeout: 5000 })) {
@@ -201,7 +199,7 @@ test.describe('Sentence stage submit buttons', () => {
 
       if (inputVisible) {
         // Submit button should be visible but disabled when input is empty
-        const submitBtn = page.getByRole('button', { name: 'Submit answer' });
+        const submitBtn = page.getByRole('button', { name: 'Check', exact: true });
         await expect(submitBtn).toBeVisible();
         await expect(submitBtn).toBeDisabled();
 
@@ -215,13 +213,11 @@ test.describe('Sentence stage submit buttons', () => {
         await submitBtn.click();
 
         // Should show the comparison view
-        await expect(
-          page.getByText(/your answer/i),
-        ).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText(/your answer/i)).toBeVisible({ timeout: 10000 });
 
-        await expect(
-          page.getByRole('button', { name: /next word/i }),
-        ).toBeVisible({ timeout: 5000 });
+        await expect(page.getByRole('button', { name: /next word/i })).toBeVisible({
+          timeout: 5000,
+        });
       }
     });
   });

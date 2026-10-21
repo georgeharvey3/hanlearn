@@ -363,7 +363,7 @@ describe('useTestEngine — onSpeak error handling', () => {
       options.onError();
     });
 
-    expect(result.current.state.result).toBe('Error playing pinyin');
+    expect(result.current.state.result).toBe("Couldn't play audio");
     expect(result.current.state.showPinyin).toBe(true);
   });
 });

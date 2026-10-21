@@ -105,10 +105,10 @@ beforeEach(() => {
 });
 
 // ---------------------------------------------------------------------------
-// fetchSentence error handling — catch block advances to next word
+// fetchSentence error handling — the learner tries again or skips the word
 // ---------------------------------------------------------------------------
 describe('SentenceRead — fetchSentence error handling', () => {
-  it('advances to next word when fetchSentence throws for current word', async () => {
+  it('loads the sentence again on Try again', async () => {
     mockedGetSegmentedSentence
       .mockRejectedValueOnce(new Error('Network error'))
       .mockResolvedValue({ sentence: mockCloudSentence, totalCount: 1 });
@@ -122,16 +122,14 @@ describe('SentenceRead — fetchSentence error handling', () => {
       { store: makeStore() },
     );
 
-    // Should recover and show input for the second word
-    await waitFor(
-      () => {
-        expect(screen.getByPlaceholderText(/type your translation/i)).toBeInTheDocument();
-      },
-      { timeout: 3000 },
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't load a sentence/i);
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findByPlaceholderText(/type your translation/i)).toBeInTheDocument();
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
   });
 
-  it('calls startSentenceWrite when fetchSentence throws for only word', async () => {
+  it('ends the stage when the only word is skipped', async () => {
     mockedGetSegmentedSentence.mockRejectedValue(new Error('Server error'));
 
     const startSentenceWrite = vi.fn();
@@ -144,9 +142,8 @@ describe('SentenceRead — fetchSentence error handling', () => {
       { store: makeStore() },
     );
 
-    await waitFor(() => {
-      expect(startSentenceWrite).toHaveBeenCalledTimes(1);
-    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Skip word' }));
+    expect(startSentenceWrite).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -287,7 +284,7 @@ describe('SentenceRead — multi-word navigation', () => {
 
     // Initially shows word 1 of 2
     await waitFor(() => {
-      expect(screen.getByText(/word 1 of 2/i)).toBeInTheDocument();
+      expect(screen.getByText('1 / 2')).toBeInTheDocument();
     });
 
     const input = await screen.findByPlaceholderText(/type your translation/i);
@@ -298,7 +295,7 @@ describe('SentenceRead — multi-word navigation', () => {
 
     // After clicking Next Word, should move to word 2
     await waitFor(() => {
-      expect(screen.getByText(/word 2 of 2/i)).toBeInTheDocument();
+      expect(screen.getByText('2 / 2')).toBeInTheDocument();
     });
   });
 });

@@ -365,7 +365,7 @@ describe('useTestEngine — keyboard "h" key toggles hint', () => {
     });
 
     expect(result.current.state.showHint).toBe(true);
-    expect(result.current.state.result).toMatch(/Hint:/);
+    expect(result.current.state.hint).toBe('n__ h__');
   });
 
   it('clears hint when "h" is pressed and hint is already shown', () => {
@@ -373,7 +373,7 @@ describe('useTestEngine — keyboard "h" key toggles hint', () => {
       answerCategory: 'pinyin',
       answer: 'ni3 hao3',
       showHint: true,
-      result: 'Hint: ni3__ hao3__',
+      hint: 'n__ h__',
     });
 
     act(() => {
@@ -381,7 +381,7 @@ describe('useTestEngine — keyboard "h" key toggles hint', () => {
     });
 
     expect(result.current.state.showHint).toBe(false);
-    expect(result.current.state.result).toBe('');
+    expect(result.current.state.hint).toBeNull();
   });
 });
 

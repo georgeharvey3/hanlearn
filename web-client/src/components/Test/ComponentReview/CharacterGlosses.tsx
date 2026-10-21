@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
 
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Box, CircularProgress } from '@mui/material';
 
 import { searchWord } from '../../../services/dictionaryService';
 import { reportError } from '../../../services/errorReporting';
 import { CharacterGloss } from './characterGloss';
 import { readGloss, writeGloss } from './glossCache';
+import { copy } from '../../../copy';
+import { colors } from '../../../theme';
+import { toneMarks } from '../../../utils/pinyinMarks';
+import { hanziSx } from '../Study/parts';
 
 /**
  * Look up each character of the missed word.
@@ -47,8 +51,8 @@ const useCharacterGlosses = (
         writeGloss(char, charSet, gloss);
         record(char, gloss);
       } catch (error) {
-        // The learner only sees 'Definition unavailable', so the cause has to
-        // go somewhere.
+        // The learner only sees that the definition is unavailable, so the
+        // cause has to go somewhere.
         reportError(error, { feature: 'character-lookup', context: { char, phase: 'review' } });
         record(char, { pinyins: [], meanings: [], failed: true });
       }
@@ -69,68 +73,77 @@ const useCharacterGlosses = (
 interface CharacterGlossRowProps {
   char: string;
   gloss: CharacterGloss | undefined;
+  last: boolean;
   /** The breakdown of this character, rendered under its gloss when open. */
   children?: React.ReactNode;
 }
 
-const CharacterGlossRow: React.FC<CharacterGlossRowProps> = ({ char, gloss, children }) => {
+/** The first few senses of a character, as one short line. */
+const SENSES_SHOWN = 3;
+
+function senses(gloss: CharacterGloss): string {
+  const all = gloss.meanings.flatMap((meaning) => meaning.split('/')).map((s) => s.trim());
+  return Array.from(new Set(all.filter(Boolean)))
+    .slice(0, SENSES_SHOWN)
+    .join(' · ');
+}
+
+const CharacterGlossRow: React.FC<CharacterGlossRowProps> = ({ char, gloss, last, children }) => {
   const meaning = gloss?.failed
-    ? 'Definition unavailable'
+    ? copy.test.definitionFailed
     : gloss && gloss.meanings.length === 0
-      ? 'Not in the dictionary'
-      : gloss?.meanings.join(' / ');
+      ? copy.test.notInDictionary
+      : gloss && senses(gloss);
 
   return (
     <Box
       data-testid={`character-gloss-${char}`}
       sx={{
-        p: '10px 12px',
-        border: '1px solid',
-        borderColor: 'divider',
-        borderRadius: 2.5,
-        mb: 1,
-        bgcolor: 'background.paper',
+        px: 1.75,
+        py: 1.25,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1,
+        borderBottom: last ? 'none' : `1px solid ${colors.divider}`,
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Typography
-          lang="zh"
-          sx={{
-            fontSize: '2em',
-            fontWeight: 500,
-            color: 'text.primary',
-            minWidth: 48,
-            textAlign: 'center',
-            lineHeight: 1.2,
-          }}
-        >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.75 }}>
+        <Box lang="zh" sx={hanziSx(30)}>
           {char}
-        </Typography>
+        </Box>
         {/* minWidth 0 lets the text column shrink below its longest line, and
             overflowWrap breaks a meaning such as 'sharp/favorable/advantage',
             which has no spaces to wrap at, instead of spilling past the card. */}
-        <Box sx={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 0.25,
+            minWidth: 0,
+            overflowWrap: 'anywhere',
+          }}
+        >
           {gloss === undefined ? (
-            <CircularProgress size={16} aria-label={`Loading the definition of ${char}`} />
+            <CircularProgress size={16} aria-label={copy.test.definitionLoading(char)} />
           ) : (
             <>
               {gloss.pinyins.length > 0 && (
-                <Typography
+                <Box
                   lang="zh-Latn"
-                  sx={{ fontSize: '1em', color: 'primary.dark', fontWeight: 500 }}
+                  sx={{ fontSize: 15, fontWeight: 600, color: colors.primaryDark }}
                 >
-                  {gloss.pinyins.join(' / ')}
-                </Typography>
+                  {gloss.pinyins.map(toneMarks).join(' / ')}
+                </Box>
               )}
-              <Typography
+              <Box
                 sx={{
-                  fontSize: '0.85em',
-                  color: gloss.failed ? 'text.disabled' : 'text.secondary',
-                  mt: 0.25,
+                  fontSize: 14,
+                  color: gloss.failed ? colors.disabledText : colors.textSecondary,
                 }}
               >
                 {meaning}
-              </Typography>
+              </Box>
             </>
           )}
         </Box>
@@ -157,9 +170,21 @@ const CharacterGlosses: React.FC<CharacterGlossesProps> = ({ chars, charSet, ren
   const glossFor = useCharacterGlosses(chars, charSet);
 
   return (
-    <Box sx={{ textAlign: 'left' }}>
+    <Box
+      sx={{
+        textAlign: 'left',
+        bgcolor: colors.card,
+        border: `1px solid ${colors.divider}`,
+        borderRadius: 1,
+      }}
+    >
       {chars.map((char, index) => (
-        <CharacterGlossRow key={`${char}-${index}`} char={char} gloss={glossFor(char)}>
+        <CharacterGlossRow
+          key={`${char}-${index}`}
+          char={char}
+          gloss={glossFor(char)}
+          last={index === chars.length - 1}
+        >
           {renderBreakdown?.(char)}
         </CharacterGlossRow>
       ))}

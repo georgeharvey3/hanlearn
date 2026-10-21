@@ -172,7 +172,7 @@ describe('useTestEngine — qNum effect triggers setHanziWriter for character qu
     expect((window as any).HanziWriter.create).toHaveBeenCalledWith(
       'character-target-div',
       '好',
-      expect.objectContaining({ width: 150, height: 150 }),
+      expect.objectContaining({ width: 280, height: 280 }),
     );
   });
 
@@ -378,7 +378,7 @@ describe('useTestEngine — flashcard grade feedback', () => {
     ...overrides,
   });
 
-  it('reports the grade instead of repeating the reveal text when the answer is shown', async () => {
+  it('reports the grade of a flashcard and marks the button pressed', async () => {
     const props = makeProps();
     const { result } = renderHook(() => useTestEngine(props));
 
@@ -390,12 +390,12 @@ describe('useTestEngine — flashcard grade feedback', () => {
       result.current.onIDontKnow();
     });
 
-    expect(result.current.state.result).toContain('Not known');
-    expect(result.current.state.result).toContain('hello');
+    expect(result.current.state.result).toBe('Not known');
+    expect(result.current.state.outcome).toBe('fail');
     expect(result.current.state.gradeClicked).toBe('fail');
   });
 
-  it('keeps the plain answer text when the answer was not shown', async () => {
+  it('reports a reveal the same way, and presses no grade button', async () => {
     const props = makeProps();
     const { result } = renderHook(() => useTestEngine(props));
 
@@ -407,7 +407,8 @@ describe('useTestEngine — flashcard grade feedback', () => {
       result.current.onIDontKnow();
     });
 
-    expect(result.current.state.result).toBe("Answer was: 'hello'");
+    expect(result.current.state.result).toBe('Not known');
+    expect(result.current.state.outcome).toBe('fail');
     expect(result.current.state.gradeClicked).toBeNull();
   });
 

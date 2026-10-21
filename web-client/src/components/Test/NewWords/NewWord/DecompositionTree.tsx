@@ -4,6 +4,7 @@ import { Box, Button, CircularProgress, Typography } from '@mui/material';
 
 import { decomposeCharacter } from '../../../../services/decompositionService';
 import { reportError } from '../../../../services/errorReporting';
+import { colors } from '../../../../theme';
 
 interface DecompositionComponent {
   char: string;
@@ -121,7 +122,7 @@ const ComponentRow: React.FC<ComponentRowProps> = ({ component, depth }) => {
                     whiteSpace: 'nowrap',
                     bgcolor: 'primary.dark',
                     color: '#fff',
-                    '&:hover': { bgcolor: '#145233' },
+                    '&:hover': { bgcolor: colors.primaryDarkHover },
                   }
                 : {
                     minWidth: 'auto',

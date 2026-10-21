@@ -84,6 +84,7 @@ vi.mock('pinyin-pro', () => ({
 import { renderHook, act } from '@testing-library/react';
 import { useTestEngine } from './useTestEngine';
 import { getHintSentence } from '../../services/sentenceService';
+import * as ttsService from '../../services/ttsService';
 import { pinyin } from 'pinyin-pro';
 import { Word } from '../../types/models';
 import { Props } from './types';
@@ -206,8 +207,45 @@ describe('useTestEngine — showSentenceHint with useSound=false shows pinyin', 
     expect(vi.mocked(pinyin)).toHaveBeenCalledWith('你好吗', { toneType: 'num' });
     expect(result.current.state.showHint).toBe(true);
     expect(result.current.state.hintLoading).toBe(false);
-    // result should contain the pinyin output
-    expect(result.current.state.result).toBeTruthy();
+    // the hint holds the pinyin output
+    expect(result.current.state.hint).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// showSentenceHint — useSound=true path
+// ---------------------------------------------------------------------------
+describe('useTestEngine — showSentenceHint with useSound=true plays the sentence', () => {
+  it('keeps the sentence to play again, with its pinyin, and leaves the word button alone', async () => {
+    vi.mocked(getHintSentence).mockResolvedValueOnce({
+      chinese: '你好吗',
+      english: 'How are you?',
+    });
+
+    const result = renderEngineWithState({
+      answerCategory: 'meaning',
+      answer: ['hello'],
+      chosenCharacter: '你好',
+      showHint: false,
+      useSound: true,
+      interaction: true,
+    });
+
+    await act(async () => {
+      result.current.onHint();
+    });
+
+    expect(vi.mocked(ttsService.speak)).toHaveBeenLastCalledWith('你好吗', expect.anything());
+    expect(result.current.state.hintSentence).toBe('你好吗');
+    expect(result.current.state.hint).toBeTruthy();
+    expect(result.current.state.sentenceLoading).toBe(true);
+    expect(result.current.state.synthLoading).toBe(false);
+
+    vi.mocked(ttsService.speak).mockClear();
+    act(() => {
+      result.current.onPlayHintSentence();
+    });
+    expect(vi.mocked(ttsService.speak)).toHaveBeenCalledWith('你好吗', expect.anything());
   });
 });
 
@@ -215,7 +253,7 @@ describe('useTestEngine — showSentenceHint with useSound=false shows pinyin', 
 // showSentenceHint — error/catch path (lines 717-718)
 // ---------------------------------------------------------------------------
 describe('useTestEngine — showSentenceHint when getHintSentence rejects', () => {
-  it('sets result to "Could not load hint" on error', async () => {
+  it('reports a hint that failed to load on the status line', async () => {
     vi.mocked(getHintSentence).mockRejectedValueOnce(new Error('network failure'));
 
     const result = renderEngineWithState({
@@ -230,7 +268,7 @@ describe('useTestEngine — showSentenceHint when getHintSentence rejects', () =
       result.current.onHint();
     });
 
-    expect(result.current.state.result).toBe('Could not load hint');
+    expect(result.current.state.result).toBe("Couldn't load hint");
     expect(result.current.state.hintLoading).toBe(false);
   });
 });
@@ -246,7 +284,7 @@ describe('useTestEngine — onHint dismiss hides character outline', () => {
       answerCategory: 'character',
       writer: mockWriter,
       showHint: true,
-      result: 'some hint text',
+      hint: 'some hint text',
     });
 
     act(() => {
@@ -255,7 +293,7 @@ describe('useTestEngine — onHint dismiss hides character outline', () => {
 
     expect(mockWriter.hideOutline).toHaveBeenCalled();
     expect(result.current.state.showHint).toBe(false);
-    expect(result.current.state.result).toBe('');
+    expect(result.current.state.hint).toBeNull();
   });
 
   it('does NOT call hideOutline when toggling hint off for non-character answer', () => {
@@ -265,7 +303,7 @@ describe('useTestEngine — onHint dismiss hides character outline', () => {
       answerCategory: 'pinyin',
       answer: 'ni3 hao3',
       showHint: true,
-      result: 'Hint: n__ h__',
+      hint: 'n__ h__',
     });
 
     act(() => {
@@ -273,6 +311,24 @@ describe('useTestEngine — onHint dismiss hides character outline', () => {
     });
 
     expect(mockWriter.hideOutline).not.toHaveBeenCalled();
+    expect(result.current.state.showHint).toBe(false);
+  });
+});
+
+describe('useTestEngine — hint after the question is graded', () => {
+  it('leaves the result line alone once the question is graded', () => {
+    const result = renderEngineWithState({
+      answerCategory: 'pinyin',
+      answer: 'ni3 hao3',
+      idkDisabled: true,
+      result: "Answer was: 'ni3 hao3'",
+    });
+
+    act(() => {
+      result.current.onHint();
+    });
+
+    expect(result.current.state.result).toBe("Answer was: 'ni3 hao3'");
     expect(result.current.state.showHint).toBe(false);
   });
 });

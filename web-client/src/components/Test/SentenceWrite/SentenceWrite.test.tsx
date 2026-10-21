@@ -112,7 +112,7 @@ describe('SentenceWrite — loading state', () => {
     renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
       store: makeStore(),
     });
-    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Loading' })).toBeInTheDocument();
   });
 
   it('hides spinner after sentence is loaded', async () => {
@@ -120,7 +120,7 @@ describe('SentenceWrite — loading state', () => {
       store: makeStore(),
     });
     await waitFor(() => {
-      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+      expect(screen.queryByRole('progressbar', { name: 'Loading' })).not.toBeInTheDocument();
     });
   });
 });
@@ -163,7 +163,7 @@ describe('SentenceWrite — prompt display', () => {
       store: makeStore(),
     });
     await waitFor(() => {
-      expect(screen.getByText('Word 1 of 2')).toBeInTheDocument();
+      expect(screen.getByText('1 / 2')).toBeInTheDocument();
     });
   });
 
@@ -174,11 +174,11 @@ describe('SentenceWrite — prompt display', () => {
       store: makeStore(),
     });
 
-    const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
+    const input = await screen.findByPlaceholderText(/用中文写/);
     await user.type(input, '你好{Enter}');
 
     await waitFor(() => {
-      expect(screen.getByText('Word 1 of 2')).toBeInTheDocument();
+      expect(screen.getByText('1 / 2')).toBeInTheDocument();
     });
   });
 
@@ -187,16 +187,7 @@ describe('SentenceWrite — prompt display', () => {
       store: makeStore(),
     });
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/type your answer in chinese/i)).toBeInTheDocument();
-    });
-  });
-
-  it('shows hint text about tapping words for translation', async () => {
-    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
-      store: makeStore(),
-    });
-    await waitFor(() => {
-      expect(screen.getByText(/tap english words for translation help/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/用中文写/)).toBeInTheDocument();
     });
   });
 });
@@ -208,33 +199,28 @@ describe('SentenceWrite — translation feature', () => {
     });
     await waitFor(() => {
       const wordButton = screen.getByRole('button', {
-        name: /student\.: tap to select for translation/i,
+        name: /student\.: show Chinese/i,
       });
       expect(wordButton).toBeInTheDocument();
     });
   });
 
-  it('shows Translate button when a word is selected', async () => {
+  it('presses a tapped word, and releases it on a second tap', async () => {
     const user = userEvent.setup();
     renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
       store: makeStore(),
     });
 
-    await waitFor(() => {
-      expect(screen.getByText('student.')).toBeInTheDocument();
-    });
+    const word = await screen.findByRole('button', { name: /student\.: show Chinese/i });
+    await user.click(word);
+    expect(word).toHaveAttribute('aria-pressed', 'true');
 
-    // No translate button initially
-    expect(screen.queryByRole('button', { name: /translate/i })).not.toBeInTheDocument();
-
-    // Click on "student."
-    await user.click(screen.getByText('student.'));
-
-    // Translate button should appear
-    expect(screen.getByRole('button', { name: /translate/i })).toBeInTheDocument();
+    await user.click(word);
+    expect(word).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByText('學生')).not.toBeInTheDocument();
   });
 
-  it('hides Translate button when word is deselected', async () => {
+  it('shows the Chinese of a tapped word', async () => {
     const user = userEvent.setup();
     renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
       store: makeStore(),
@@ -244,27 +230,7 @@ describe('SentenceWrite — translation feature', () => {
       expect(screen.getByText('student.')).toBeInTheDocument();
     });
 
-    // Select then deselect
     await user.click(screen.getByText('student.'));
-    expect(screen.getByRole('button', { name: /translate/i })).toBeInTheDocument();
-
-    await user.click(screen.getByText('student.'));
-    expect(screen.queryByRole('button', { name: /translate/i })).not.toBeInTheDocument();
-  });
-
-  it('shows translation result after clicking Translate', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
-      store: makeStore(),
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText('student.')).toBeInTheDocument();
-    });
-
-    // Select "student." and translate
-    await user.click(screen.getByText('student.'));
-    await user.click(screen.getByRole('button', { name: /translate/i }));
 
     // Should show the Chinese translation (trad is default charSet)
     await waitFor(() => {
@@ -285,7 +251,6 @@ describe('SentenceWrite — translation feature', () => {
 
     // Select "I" which won't match any sentence word meaning
     await user.click(screen.getByText('I'));
-    await user.click(screen.getByRole('button', { name: /translate/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/no translation found/i)).toBeInTheDocument();
@@ -300,7 +265,7 @@ describe('SentenceWrite — submitting an answer', () => {
       store: makeStore(),
     });
 
-    const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
+    const input = await screen.findByPlaceholderText(/用中文写/);
     await user.type(input, '你好{Enter}');
 
     await waitFor(() => {
@@ -315,7 +280,7 @@ describe('SentenceWrite — submitting an answer', () => {
       store: makeStore(),
     });
 
-    const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
+    const input = await screen.findByPlaceholderText(/用中文写/);
     await user.type(input, '你好{Enter}');
 
     await waitFor(() => {
@@ -325,7 +290,7 @@ describe('SentenceWrite — submitting an answer', () => {
     // Similarity score should appear
     await waitFor(() => {
       expect(screen.getByText('72%')).toBeInTheDocument();
-      expect(screen.getByText('Good')).toBeInTheDocument();
+      expect(screen.getByText('Close match')).toBeInTheDocument();
     });
   });
 
@@ -335,7 +300,7 @@ describe('SentenceWrite — submitting an answer', () => {
       store: makeStore(),
     });
 
-    const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
+    const input = await screen.findByPlaceholderText(/用中文写/);
     await user.type(input, '{Enter}');
 
     // Should still be on the input view — comparison "Original" section only appears after submission
@@ -350,10 +315,10 @@ describe('SentenceWrite — submitting an answer', () => {
       store: makeStore(),
     });
 
-    const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
+    const input = await screen.findByPlaceholderText(/用中文写/);
     await user.type(input, '你好');
 
-    const submitBtn = screen.getByRole('button', { name: /submit answer/i });
+    const submitBtn = screen.getByRole('button', { name: /^check$/i });
     await user.click(submitBtn);
 
     await waitFor(() => {
@@ -368,7 +333,7 @@ describe('SentenceWrite — submitting an answer', () => {
     });
 
     await waitFor(() => {
-      const submitBtn = screen.getByRole('button', { name: /submit answer/i });
+      const submitBtn = screen.getByRole('button', { name: /^check$/i });
       expect(submitBtn).toBeDisabled();
     });
   });
@@ -382,7 +347,7 @@ describe('SentenceWrite — stage completion', () => {
       store: makeStore(),
     });
 
-    const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
+    const input = await screen.findByPlaceholderText(/用中文写/);
     await user.type(input, '你好{Enter}');
 
     const nextBtn = await screen.findByRole('button', { name: /finish/i });
@@ -400,7 +365,7 @@ describe('SentenceWrite — stage completion', () => {
       store: makeStore(),
     });
 
-    const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
+    const input = await screen.findByPlaceholderText(/用中文写/);
     await user.type(input, '你好{Enter}');
 
     const nextBtn = await screen.findByRole('button', { name: /next word/i });
@@ -481,7 +446,7 @@ describe('SentenceWrite — primary button text', () => {
       store: makeStore(),
     });
 
-    const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
+    const input = await screen.findByPlaceholderText(/用中文写/);
     await user.type(input, '你好{Enter}');
 
     await waitFor(() => {
@@ -495,7 +460,7 @@ describe('SentenceWrite — primary button text', () => {
       store: makeStore(),
     });
 
-    const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
+    const input = await screen.findByPlaceholderText(/用中文写/);
     await user.type(input, '你好{Enter}');
 
     await waitFor(() => {
@@ -634,7 +599,7 @@ describe('SentenceWrite — fetch error handling', () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+      expect(screen.queryByRole('progressbar', { name: 'Loading' })).not.toBeInTheDocument();
     });
   });
 
@@ -674,7 +639,7 @@ describe('SentenceWrite — similarity score edge cases', () => {
       store: makeStore(),
     });
 
-    const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
+    const input = await screen.findByPlaceholderText(/用中文写/);
     await user.type(input, '你好{Enter}');
 
     await waitFor(() => {
@@ -691,7 +656,7 @@ describe('SentenceWrite — similarity score edge cases', () => {
       store: makeStore(),
     });
 
-    const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
+    const input = await screen.findByPlaceholderText(/用中文写/);
     await user.type(input, '你好{Enter}');
 
     // The comparison view should show while score is loading
@@ -711,7 +676,7 @@ describe('SentenceWrite — keyboard shortcuts', () => {
     });
 
     // Submit answer
-    const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
+    const input = await screen.findByPlaceholderText(/用中文写/);
     await user.type(input, '你好{Enter}');
 
     // Click "Finish" to advance past the last word
@@ -729,7 +694,7 @@ describe('SentenceWrite — keyboard shortcuts', () => {
       store: makeStore(),
     });
 
-    const input = await screen.findByPlaceholderText(/type your answer in chinese/i);
+    const input = await screen.findByPlaceholderText(/用中文写/);
     await user.type(input, '你好{Enter}');
 
     // Wait for comparison view
@@ -763,13 +728,12 @@ describe('SentenceWrite — keyboard shortcuts', () => {
 
     // Focus the word button and press Enter
     const wordBtn = screen.getByRole('button', {
-      name: /student\.: tap to select for translation/i,
+      name: /student\.: show Chinese/i,
     });
     wordBtn.focus();
     await user.keyboard('{Enter}');
 
-    // Translate button should appear
-    expect(screen.getByRole('button', { name: /translate/i })).toBeInTheDocument();
+    expect(wordBtn).toHaveAttribute('aria-pressed', 'true');
   });
 });
 
@@ -811,7 +775,7 @@ describe('SentenceWrite — a sentence that fails to load', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Skip word' }));
 
-    expect(await screen.findByText('Word 2 of 2')).toBeInTheDocument();
+    expect(await screen.findByText('2 / 2')).toBeInTheDocument();
     expect(mockedGetSegmentedSentence).toHaveBeenLastCalledWith('学习', expect.any(String), 0);
   });
 

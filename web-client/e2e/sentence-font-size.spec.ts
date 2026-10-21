@@ -26,7 +26,7 @@ async function seedSentenceCache(word: string): Promise<void> {
 
   const res = await fetch(url, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer owner' },
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
     body: JSON.stringify({
       fields: {
         sentences: {
@@ -91,9 +91,9 @@ test.describe('Sentence character font size consistency', () => {
     await page.goto('/test-words');
 
     // Wait for test to load
-    await expect(
-      page.getByText(/pinyin|character|meaning/i).first(),
-    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/pinyin|character|meaning/i).first()).toBeVisible({
+      timeout: 15000,
+    });
 
     // Answer the meaning question to advance to sentence stage
     const answerInput = page.locator('#answer-input');
@@ -104,19 +104,19 @@ test.describe('Sentence character font size consistency', () => {
     }
 
     // Wait for sentence text to appear with clickable words
-    const clickableWord = page.locator('[data-popup]').first();
+    const clickableWord = page.getByRole('button', { name: /show meaning/i }).first();
     await expect(clickableWord).toBeVisible({ timeout: 10000 });
 
     // Get all font sizes: the target word (highlighted span) and clickable words
     const fontSizes = await page.evaluate(() => {
       const sizes: { element: string; fontSize: string }[] = [];
 
-      // Find the sentence container (has lang="zh")
-      const container = document.querySelector('[lang="zh"]');
+      // Find the sentence (a paragraph with lang="zh")
+      const container = document.querySelector('p[lang="zh"]');
       if (!container) return sizes;
 
-      // Get computed font size of all direct child spans
-      const children = container.querySelectorAll(':scope > span');
+      // Get computed font size of the target span and the word buttons
+      const children = container.querySelectorAll(':scope > span, :scope > button');
       children.forEach((child) => {
         const computed = window.getComputedStyle(child);
         sizes.push({

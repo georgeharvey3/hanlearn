@@ -1,20 +1,14 @@
-import React, { CSSProperties } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Box, ButtonBase } from '@mui/material';
 
-import { colors } from '../../theme';
-import Input from '../UI/Input/Input';
-import PictureButton from '../UI/Buttons/PictureButton/PictureButton';
-import Button from '../UI/Buttons/Button/Button';
-import Toggle from '../UI/Toggle/Toggle';
-import { buttonStyle, activeButtonStyle, fail } from './constants';
-
-import micPic from '../../assets/images/microphone.png';
-import likePic from '../../assets/images/like.png';
-import nearlyPic from '../../assets/images/nearly.png';
-import dislikePic from '../../assets/images/dislike.png';
+import { copy } from '../../copy';
+import { colors, fonts } from '../../theme';
+import { checkTones } from '../../utils/pinyinMarks';
+import { MicButton, hanziSx } from './Study/parts';
+import { WRITER_SIZE } from './handwriting';
 
 import { TestState } from './types';
-import { DirectionResult } from '../../types/models';
-import { QuizType } from '../../utils/audioSettings';
+import { answerQuizType } from './answerQuizType';
 
 interface AnswerInputProps {
   state: TestState;
@@ -23,21 +17,112 @@ interface AnswerInputProps {
   onInputChanged: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onFocusEntry: (e: React.FocusEvent<HTMLInputElement>) => void;
   onListen: () => void;
-  onShowAnswer: () => void;
-  onCorrectAnswer: () => void;
-  onNearlyKnew: () => void;
-  onIDontKnow: () => void;
-  onSubmitAnswer: () => void;
-  setStateMerged: (update: Partial<TestState> | ((prev: TestState) => Partial<TestState>)) => void;
 }
 
-const answerQuizType = (state: TestState): QuizType =>
-  (state.answerCategory === 'pinyin'
-    ? state.pinyinQuizType
-    : state.answerCategory === 'meaning'
-      ? state.meaningQuizType
-      : 'input') || 'input';
+const fieldSx = {
+  height: 48,
+  boxSizing: 'border-box',
+  borderRadius: 1,
+  bgcolor: colors.card,
+  px: 1.75,
+  fontFamily: fonts.body,
+  fontSize: 17,
+  color: colors.text,
+  textAlign: 'center',
+} as const;
 
+/** The guides of a handwriting box: a cross through the middle. */
+const GridGuides: React.FC = () => (
+  <>
+    <Box
+      aria-hidden="true"
+      sx={{
+        position: 'absolute',
+        left: '50%',
+        top: 0,
+        bottom: 0,
+        borderLeft: `1px dashed ${colors.gridLine}`,
+      }}
+    />
+    <Box
+      aria-hidden="true"
+      sx={{
+        position: 'absolute',
+        top: '50%',
+        left: 0,
+        right: 0,
+        borderTop: `1px dashed ${colors.gridLine}`,
+      }}
+    />
+  </>
+);
+
+const gridBoxSx = (side: number) => ({
+  position: 'relative',
+  width: side,
+  height: side,
+  boxSizing: 'border-box',
+  bgcolor: colors.card,
+  border: `2px solid ${colors.primaryLight}`,
+  borderRadius: '2px',
+  overflow: 'hidden',
+  flex: 'none',
+});
+
+/** Where the learner is in a word of several characters. */
+const CharacterSteps: React.FC<{ answer: string; index: number; done: boolean }> = ({
+  answer,
+  index,
+  done,
+}) => {
+  const chars = Array.from(answer);
+  return (
+    <Box
+      role="img"
+      aria-label={copy.test.characterProgress(Math.min(index + 1, chars.length), chars.length)}
+      sx={{ mt: 1.75, display: 'flex', justifyContent: 'center', gap: 1 }}
+    >
+      {chars.map((char, i) => {
+        const written = done || i < index;
+        const current = !written && i === index;
+        return (
+          <Box
+            key={i}
+            aria-hidden="true"
+            lang={written ? 'zh' : undefined}
+            sx={{
+              width: 30,
+              height: 30,
+              boxSizing: 'border-box',
+              borderRadius: '3px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              ...(written ? {} : { fontSize: 13, fontWeight: 600 }),
+              ...(written
+                ? {
+                    border: `1px solid ${colors.primaryDark}`,
+                    bgcolor: colors.successSurface,
+                    color: colors.primaryDark,
+                    ...hanziSx(20),
+                  }
+                : current
+                  ? { border: `2px solid ${colors.primaryLight}`, color: colors.primaryLight }
+                  : { border: `1px solid ${colors.borderStrong}`, color: colors.textSecondary }),
+            }}
+          >
+            {written ? char : i + 1}
+          </Box>
+        );
+      })}
+    </Box>
+  );
+};
+
+/**
+ * The answer area: the microphone and the answer field, or the handwriting box.
+ * A flashcard question has nothing here; its buttons are in TestActions.
+ */
 const AnswerInput: React.FC<AnswerInputProps> = ({
   state,
   speechAvailable,
@@ -45,185 +130,192 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
   onInputChanged,
   onFocusEntry,
   onListen,
-  onShowAnswer,
-  onCorrectAnswer,
-  onNearlyKnew,
-  onIDontKnow,
-  onSubmitAnswer,
-  setStateMerged,
 }) => {
-  const textInput = (
-    <Input
-      id="answer-input"
-      aria-label="Enter your answer"
-      keyPressed={onKeyPress}
-      value={state.answerInput}
-      changed={onInputChanged}
-      focussed={onFocusEntry}
-      autoFocus={!speechAvailable}
-      autoComplete="off"
-      autoCorrect="off"
-      autoCapitalize="off"
-      spellCheck={false}
-    />
-  );
+  const inputRef = useRef<HTMLInputElement>(null);
+  // "Incorrect tones" shows the attempt with the wrong syllables underlined.
+  // A tap goes back to the field; the count tells one wrong attempt from the
+  // next, since each shows the same words on the status line.
+  const [editingAt, setEditingAt] = useState(-1);
+  const showTones =
+    state.result === copy.test.status.tones &&
+    editingAt !== state.toneErrorCount &&
+    typeof state.answer === 'string';
 
-  // A grade is final until the next question, so the pressed button keeps a ring
-  // and the other two fade. This works with sound effects off.
-  const graded = state.gradeClicked !== null;
-  const gradeStyle = (grade: DirectionResult, ring: string): CSSProperties => {
-    const pressed = state.gradeClicked === grade;
-    return {
-      ...(pressed ? activeButtonStyle : buttonStyle),
-      ...(pressed ? { boxShadow: `0 0 0 3px ${ring}` } : null),
-      opacity: graded && !pressed ? 0.3 : 1,
-      transition: 'opacity 150ms ease, box-shadow 150ms ease',
-    };
-  };
+  useEffect(() => {
+    if (editingAt === state.toneErrorCount) inputRef.current?.focus();
+  }, [editingAt, state.toneErrorCount]);
 
-  // Flashcard mode has no attempt to read, so the learner grades the question
-  // and the reveal offers all three grades.
-  const showAnswerContent = state.showAnswer ? (
-    <div style={{ pointerEvents: graded ? 'none' : 'auto' }}>
-      <PictureButton
-        style={gradeStyle('fail', colors.error)}
-        clicked={() => {
-          if (state.useSoundEffects) fail.play();
-          onIDontKnow();
+  if (state.answerCategory === 'character') {
+    const answer = typeof state.answer === 'string' ? state.answer : '';
+    // The reveal of a character the learner did not know: each character,
+    // printed in its own box, once the strokes have played.
+    if (state.outcome === 'fail' && state.awaitingContinue) {
+      return (
+        <Box
+          sx={{ mt: 0.5, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1.5 }}
+        >
+          {Array.from(answer).map((char, i) => (
+            <Box key={i} sx={gridBoxSx(150)}>
+              <GridGuides />
+              <Box
+                lang="zh"
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  ...hanziSx(116, { color: colors.text }),
+                }}
+              >
+                {char}
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      );
+    }
+    return (
+      <>
+        <CharacterSteps
+          answer={answer}
+          index={state.writingIndex}
+          done={state.outcome === 'pass' || state.outcome === 'lapse'}
+        />
+        {/* The border sits outside the writer's square. */}
+        <Box sx={{ ...gridBoxSx(WRITER_SIZE + 4), mx: 'auto', mt: 1.5 }}>
+          <GridGuides />
+          <Box
+            id="character-target-div"
+            role="img"
+            aria-label={copy.test.drawArea}
+            sx={{ position: 'absolute', inset: 0 }}
+          />
+        </Box>
+      </>
+    );
+  }
+
+  if (answerQuizType(state) === 'flashcard') return null;
+
+  const graded = state.outcome !== null;
+  const known = state.outcome === 'pass' || state.outcome === 'lapse';
+  const wrong = state.result === copy.test.status.tryAgain;
+
+  // A reveal after "I don't know" has the answer on the card. The attempt the
+  // learner made, if any, shows struck through for comparison.
+  if (graded && !known) {
+    if (state.answerInput === '') return null;
+    return (
+      <Box
+        sx={{ mt: 0.5, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}
+      >
+        <Box sx={{ fontSize: 13, color: colors.textSecondary }}>{copy.test.youTyped}</Box>
+        <Box sx={{ fontSize: 18, color: colors.textSecondary, textDecoration: 'line-through' }}>
+          {state.answerInput}
+        </Box>
+      </Box>
+    );
+  }
+
+  let field: React.ReactNode;
+  if (known) {
+    // Keep the field's place, so that nothing moves when the answer shows.
+    field = (
+      <Box
+        sx={{
+          ...fieldSx,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: `2px solid ${colors.primaryDark}`,
+          bgcolor: colors.successSurface,
+          color: colors.primaryDark,
         }}
-        src={dislikePic}
-        aria-label="I didn't know this"
+      >
+        {state.answerInput}
+      </Box>
+    );
+  } else if (showTones) {
+    field = (
+      <ButtonBase
+        onClick={() => setEditingAt(state.toneErrorCount)}
+        aria-label={copy.test.answerInput}
+        sx={{
+          ...fieldSx,
+          width: '100%',
+          display: 'flex',
+          gap: 0.75,
+          border: `2px solid ${colors.warningText}`,
+        }}
+      >
+        {checkTones(state.answerInput, state.answer as string).map(({ syllable, wrongTone }, i) => (
+          <Box
+            component="span"
+            key={i}
+            sx={
+              wrongTone
+                ? {
+                    textDecoration: 'underline',
+                    textDecorationColor: colors.warningText,
+                    textDecorationThickness: '2px',
+                    textUnderlineOffset: '5px',
+                  }
+                : undefined
+            }
+          >
+            {syllable}
+          </Box>
+        ))}
+      </ButtonBase>
+    );
+  } else {
+    field = (
+      <Box
+        component="input"
+        ref={inputRef}
+        id="answer-input"
+        aria-label={copy.test.answerInput}
+        placeholder={
+          state.answerCategory === 'pinyin'
+            ? copy.test.placeholderPinyin
+            : copy.test.placeholderMeaning
+        }
+        value={state.answerInput}
+        onChange={onInputChanged}
+        onKeyPress={onKeyPress}
+        onFocus={onFocusEntry}
+        autoFocus={!speechAvailable}
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        sx={{
+          ...fieldSx,
+          width: '100%',
+          outline: 'none',
+          color: state.listening ? colors.textSecondary : colors.text,
+          border: wrong ? `2px solid ${colors.primaryLight}` : `1px solid ${colors.borderStrong}`,
+          '&:focus': wrong ? {} : { border: `2px solid ${colors.primaryDark}` },
+          '&::placeholder': { color: colors.placeholder },
+        }}
       />
-      <PictureButton
-        style={gradeStyle('lapse', colors.warning)}
-        clicked={onNearlyKnew}
-        src={nearlyPic}
-        aria-label="I nearly knew this"
-      />
-      <PictureButton
-        style={gradeStyle('pass', colors.success)}
-        // Wrapped, because the click event would otherwise arrive as the grade.
-        clicked={() => onCorrectAnswer()}
-        src={likePic}
-        aria-label="I knew this"
-      />
-    </div>
-  ) : (
-    <Button style={{ width: '230px', margin: '0 auto' }} clicked={onShowAnswer}>
-      Show Answer
-    </Button>
-  );
-
-  const characterInput = (
-    <div
-      id="character-target-div"
-      role="img"
-      aria-label="Handwriting input area — draw the character here"
-      style={{
-        backgroundColor: colors.divider,
-        width: '150px',
-        margin: '0 auto',
-        borderRadius: '8px',
-        border: `2px dashed ${colors.primaryDark ?? colors.primary}`,
-        minHeight: '150px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: colors.text,
-        fontSize: '0.875rem',
-        opacity: 0.6,
-      }}
-    >
-      Draw here
-    </div>
-  );
-
-  // The input had no submit control other than the Enter key, and a learner who
-  // speaks has no keyboard open. Speech puts its transcript in the input and
-  // sends nothing, so this button is how a spoken answer becomes an attempt.
-  const submitButton = (
-    <Button
-      id="submit-answer"
-      disabled={state.submitDisabled || state.answerInput === ''}
-      clicked={onSubmitAnswer}
-    >
-      Submit
-    </Button>
-  );
-
-  const inputWithMic = (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-      {textInput}
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        {speechAvailable ? (
-          <>
-            <PictureButton
-              type="secondary"
-              src={micPic}
-              aria-label="Record speech"
-              clicked={() => onListen()}
-            />
-            <Toggle
-              checked={state.useAutoRecord}
-              changed={(event) => {
-                state.recognition?.abort();
-                setStateMerged({ useAutoRecord: event.target.checked });
-                if (event.target.checked) onListen();
-              }}
-            />
-          </>
-        ) : null}
-        {submitButton}
-      </div>
-    </div>
-  );
-
-  if (state.answerCategory === 'character') {
-    // The review that follows a missed character holds the session here, and
-    // the box has already been cleared by then: it is 150px of nothing in the
-    // way of the reveal, so it goes until the next question needs it.
-    return reviewHidesAnswerInput(state) ? null : characterInput;
+    );
   }
 
-  if (answerQuizType(state) === 'flashcard') {
-    return showAnswerContent;
-  }
-
-  // Typing and the microphone are how an attempt is made, so they go once the
-  // question is graded: the answer is on screen and nothing sent now can
-  // change it. Leaving the mic live was worse than untidy — a transcript
-  // clears the result line, so recording over the reveal erased it.
-  return attemptIsOver(state) ? null : inputWithMic;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+      {speechAvailable && (
+        <MicButton
+          listening={state.listening}
+          disabled={graded}
+          onClick={() => (state.listening ? state.recognition?.abort() : onListen())}
+          sx={{ mt: 0.75 }}
+        />
+      )}
+      <Box sx={{ mt: speechAvailable ? 2.5 : 1 }}>{field}</Box>
+    </Box>
+  );
 };
-
-/**
- * Whether the question has been graded, so the attempt is over.
- *
- * Both grading paths disable Submit — a correct answer and a reveal — and the
- * next question turns it back on. A wrong attempt does not: the input stays
- * live there so the learner can edit and send it again.
- */
-function attemptIsOver(state: TestState): boolean {
-  return state.submitDisabled;
-}
-
-/**
- * Whether the answer area renders nothing while the component review is up.
- *
- * Only flashcard mode has anything left to show, since its grade buttons are
- * the record of what the learner pressed. Handwriting has cleared its box by
- * then, and a graded input is gone with the rest of the attempt. The layout
- * reads this too, so that it reserves no room for an area that is not there.
- */
-export function reviewHidesAnswerInput(state: TestState): boolean {
-  return state.componentReviewChars.length > 0 && answerQuizType(state) !== 'flashcard';
-}
-
-export function getVerb(state: TestState): string {
-  if (state.answerCategory === 'character') {
-    return 'Draw the ';
-  }
-  return answerQuizType(state) === 'flashcard' ? 'What is the ' : 'Enter the ';
-}
 
 export default React.memo(AnswerInput);
