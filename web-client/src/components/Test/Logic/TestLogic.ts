@@ -217,6 +217,7 @@ export const planSession = (candidates: Word[], options: PlanSessionOptions): Se
   // would repeat all day. It shuffles every pair afresh on each run.
   let ranked: Pair[];
   if (practiceMode) {
+    // A random seed turns the seeded shuffle into a plain one.
     ranked = seededShuffle(pairs, (Math.random() * 0x100000000) | 0);
   } else {
     const seed = seedFromDate(today);

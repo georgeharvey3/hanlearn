@@ -7,7 +7,7 @@ import {
   Counter,
   removePunctuation,
 } from './TestLogic';
-import { DIRECTIONS, Word } from '../../../types/models';
+import { DIRECTIONS, Direction, Word } from '../../../types/models';
 
 function makeWord(id: number, simp: string, due_date?: string): Word {
   return {
@@ -714,11 +714,11 @@ describe('planSession', () => {
 
   // ─── ADR 0017: the direction share ───────────────────────────────────────
 
-  const countOf = (asked: string[], direction: string) =>
+  const countOf = (asked: string[], direction: Direction) =>
     asked.filter((d) => d === direction).length;
 
   /** A word with one due direction only. */
-  const dueIn = (id: number, direction: string, dueDate = past) =>
+  const dueIn = (id: number, direction: Direction, dueDate = past) =>
     wordWith(id, { [direction]: { level: 2, dueDate } });
 
   it('asks each direction its share when every direction has more due pairs', () => {
@@ -793,9 +793,21 @@ describe('planSession', () => {
 
     expect(asked).toHaveLength(25);
     expect(asked).not.toContain('CM');
-    for (const direction of ['MC', 'MP', 'PM', 'PC']) {
+    for (const direction of ['MC', 'MP', 'PM', 'PC'] as const) {
       expect(countOf(asked, direction)).toBeGreaterThanOrEqual(6);
     }
+  });
+
+  it('admits at most five new words and still holds each direction to its share', () => {
+    const news = Array.from({ length: 10 }, (_, i) => newWord(i, older));
+    const reviews = Array.from({ length: 30 }, (_, i) => allDue(i + 100));
+
+    const result = plan([...news, ...reviews], { budget: 25 });
+    const asked = directionsIn(result);
+
+    expect(result.newWords).toHaveLength(5);
+    expect(asked).toHaveLength(25);
+    for (const direction of DIRECTIONS) expect(countOf(asked, direction)).toBe(5);
   });
 
   it('gives onlyPriority the whole budget', () => {
