@@ -2,6 +2,14 @@ import React from 'react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 
+// The toolbar's auth actions initialize Firebase on import, which fails
+// without the API key that CI does not have.
+vi.mock('../../firebase/config', () => ({
+  auth: {},
+  db: {},
+  functions: {},
+}));
+
 import Layout from './Layout';
 import { useFocusMode } from './focusMode';
 import { renderWithProviders } from '../../test/utils';
