@@ -1,6 +1,7 @@
 # 4. Priority breaks ties only
 
-- Status: accepted
+- Status: accepted. [0017-balance-the-directions-in-each-session.md](0017-balance-the-directions-in-each-session.md)
+  moves the tie from the directions of one word to the pairs of one due day.
 - Date: 2026-08-27
 - Issue: #328
 - Related: [0003-direction-choice-by-oldest-due.md](0003-direction-choice-by-oldest-due.md)
