@@ -23,6 +23,7 @@ import { recordTestCompletion } from '../../services/streakService';
 import { traceAsync } from '../../services/performanceService';
 import { trackFeatureUsage } from '../../services/analyticsService';
 import { showNotification } from './notifications';
+import { writeActiveList } from '../../utils/activeList';
 
 export const addWord = (word: Word): AddWordAction => {
   return {
@@ -122,7 +123,7 @@ export const setListStats = (listStats: Record<string, ListStats>): SetListStats
  */
 export const initWords = (): AppThunk => {
   return async (dispatch, getState) => {
-    const { auth, addWords } = getState();
+    const { auth } = getState();
     if (!auth.userId) {
       dispatch(fetchWordsFailed());
       return;
@@ -138,7 +139,10 @@ export const initWords = (): AppThunk => {
       const lists = await wordService.getUserWordLists(auth.userId);
       dispatch(setWordLists(lists));
 
-      const activeListId = addWords.activeListId;
+      // Read the state again: setWordLists falls back to General when the
+      // remembered list is gone.
+      const activeListId = getState().addWords.activeListId;
+      writeActiveList(activeListId);
       const [words, stats] = await Promise.all([
         wordService.getUserWords(
           auth.userId,
@@ -172,6 +176,7 @@ export const initWordLists = (): AppThunk => {
         wordService.getListStats(auth.userId),
       ]);
       dispatch(setWordLists(lists));
+      writeActiveList(getState().addWords.activeListId);
       dispatch(setListStats(stats));
     } catch (error) {
       console.error('Failed to fetch word lists:', error);
@@ -188,6 +193,7 @@ export const switchActiveList = (listId: string): AppThunk => {
   return async (dispatch, getState) => {
     const { auth } = getState();
     dispatch(setActiveList(listId));
+    writeActiveList(listId);
 
     if (!auth.userId) return;
 
@@ -259,6 +265,8 @@ export const postDeleteWordList = (listId: string): AppThunk => {
     try {
       await wordService.deleteWordList(auth.userId, listId);
       dispatch(removeWordList(listId));
+      // Deleting the active list moves the learner to General.
+      writeActiveList(getState().addWords.activeListId);
       dispatch(showNotification('List deleted'));
     } catch (error) {
       console.error('Failed to delete word list:', error);

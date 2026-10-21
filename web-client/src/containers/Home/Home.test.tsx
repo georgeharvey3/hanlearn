@@ -46,6 +46,16 @@ import { Word } from '../../types/models';
 
 const mockedWordService = vi.mocked(wordService);
 
+// The service always returns General among the lists, and an object of list
+// stats. The reducer reads the lists to check the active list, so the mocks
+// must return the shapes the service returns.
+beforeEach(() => {
+  mockedWordService.getUserWordLists.mockResolvedValue([
+    { id: 'default', name: 'General', createdAt: '', order: 0 },
+  ]);
+  mockedWordService.getListStats.mockResolvedValue({});
+});
+
 const TODAY = new Date();
 TODAY.setHours(0, 0, 0, 0);
 
