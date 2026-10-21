@@ -204,7 +204,10 @@ const App: React.FC<Props> = ({
         </ErrorBoundary>
       </Layout>
       <AuthModal />
-      <NotificationSnackbar />
+      {/* PROTOTYPE (#401): a shell variant draws its own toast. */}
+      {(import.meta.env.PROD || !new URLSearchParams(location.search).get('variant')) && (
+        <NotificationSnackbar />
+      )}
     </Box>
   );
 };
