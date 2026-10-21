@@ -109,7 +109,11 @@ const Stats: React.FC<PropsFromRedux> = ({ userId, activeListId }) => {
               />
             </Grid>
             <Grid size={{ xs: 12, md: 8 }}>
-              <RetentionByTypeCard metrics={stats.directions} windowDays={stats.windowDays} />
+              <RetentionByTypeCard
+                metrics={stats.directions}
+                windowDays={stats.windowDays}
+                overdue={stats.load.overdue}
+              />
             </Grid>
             <Grid size={{ xs: 12 }}>
               <ReviewLoadCard load={stats.load} />

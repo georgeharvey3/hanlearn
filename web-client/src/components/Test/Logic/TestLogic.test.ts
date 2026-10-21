@@ -608,9 +608,7 @@ describe('planSession', () => {
   });
 
   it('admits no new word when older review words take the whole budget', () => {
-    const reviews = Array.from({ length: 12 }, (_, i) =>
-      wordWith(i + 10, { MC: { level: 2, dueDate: older } }),
-    );
+    const reviews = Array.from({ length: 12 }, (_, i) => allDue(i + 10, older));
 
     const result = plan([...reviews, newWord(1, past)], { budget: 12 });
 
@@ -636,12 +634,15 @@ describe('planSession', () => {
     expect(directionsIn(plan([word], { priority: 'PC' }))).toEqual(['PC']);
   });
 
-  it('takes the priority direction for every word that is still in step', () => {
+  it('asks the priority pairs first within one due day, up to its share', () => {
     const words = Array.from({ length: 20 }, (_, i) => allDue(i));
 
     const asked = directionsIn(plan(words, { priority: 'PC', budget: 20 }));
 
-    expect(asked.every((direction) => direction === 'PC')).toBe(true);
+    // The priority direction breaks the tie within the day, but it gets the
+    // same share as every other direction. See ADR 0017.
+    expect(asked.slice(0, 4)).toEqual(['PC', 'PC', 'PC', 'PC']);
+    expect(asked.filter((direction) => direction === 'PC')).toHaveLength(4);
   });
 
   it('leaves the priority direction out when an older direction is due', () => {
@@ -709,6 +710,125 @@ describe('planSession', () => {
     const result = plan(words, { practiceMode: true, budget: 40, includeHandwriting: false });
 
     expect(directionsIn(result)).not.toContain('CM');
+  });
+
+  // ─── ADR 0017: the direction share ───────────────────────────────────────
+
+  const countOf = (asked: string[], direction: string) =>
+    asked.filter((d) => d === direction).length;
+
+  /** A word with one due direction only. */
+  const dueIn = (id: number, direction: string, dueDate = past) =>
+    wordWith(id, { [direction]: { level: 2, dueDate } });
+
+  it('asks each direction its share when every direction has more due pairs', () => {
+    const words = Array.from({ length: 40 }, (_, i) => allDue(i));
+
+    const asked = directionsIn(plan(words, { budget: 25 }));
+
+    expect(asked).toHaveLength(25);
+    for (const direction of DIRECTIONS) expect(countOf(asked, direction)).toBe(5);
+  });
+
+  it('asks at most five CM questions in 25 when CM is the oldest of every word', () => {
+    const words = Array.from({ length: 40 }, (_, i) =>
+      wordWith(i, {
+        CM: { level: 2, dueDate: older },
+        MC: { level: 2, dueDate: past },
+        MP: { level: 2, dueDate: past },
+        PM: { level: 2, dueDate: past },
+        PC: { level: 2, dueDate: past },
+      }),
+    );
+
+    const asked = directionsIn(plan(words, { budget: 25 }));
+
+    expect(countOf(asked, 'CM')).toBe(5);
+    expect(asked).toHaveLength(25);
+  });
+
+  it('gives the questions a short direction leaves free to the other directions', () => {
+    const words = [
+      dueIn(1, 'CM'),
+      dueIn(2, 'CM'),
+      ...Array.from({ length: 30 }, (_, i) => dueIn(i + 10, 'MC')),
+    ];
+
+    const asked = directionsIn(plan(words, { budget: 25 }));
+
+    expect(asked).toHaveLength(25);
+    expect(countOf(asked, 'CM')).toBe(2);
+    expect(countOf(asked, 'MC')).toBe(23);
+  });
+
+  it('asks a word in its next oldest direction when its oldest direction is full', () => {
+    const fullCM = Array.from({ length: 5 }, (_, i) => dueIn(i + 10, 'CM', '2026/02/10'));
+    const word = wordWith(1, {
+      CM: { level: 2, dueDate: older },
+      MP: { level: 2, dueDate: past },
+    });
+
+    const result = plan([...fullCM, word], { budget: 25 });
+    const index = result.words.findIndex((w) => w.id === 1);
+
+    expect(directionsIn(result)[index]).toBe('MP');
+  });
+
+  it('drops a word when none of its due directions has room', () => {
+    const olderCM = Array.from({ length: 2 }, (_, i) => dueIn(i + 10, 'CM', older));
+    const olderMC = Array.from({ length: 4 }, (_, i) => dueIn(i + 20, 'MC', older));
+
+    // A budget of 5 gives each direction a share of 1. The older pairs fill
+    // the session before the late CM word comes up in either walk.
+    const result = plan([dueIn(1, 'CM'), ...olderCM, ...olderMC], { budget: 5 });
+
+    expect(result.queue).toHaveLength(5);
+    expect(result.words.map((w) => w.id)).not.toContain(1);
+  });
+
+  it('gives the remainder to the fill walk when handwriting is off', () => {
+    const words = Array.from({ length: 40 }, (_, i) => allDue(i));
+
+    const asked = directionsIn(plan(words, { budget: 25, includeHandwriting: false }));
+
+    expect(asked).toHaveLength(25);
+    expect(asked).not.toContain('CM');
+    for (const direction of ['MC', 'MP', 'PM', 'PC']) {
+      expect(countOf(asked, direction)).toBeGreaterThanOrEqual(6);
+    }
+  });
+
+  it('gives onlyPriority the whole budget', () => {
+    const words = Array.from({ length: 30 }, (_, i) => allDue(i));
+
+    const asked = directionsIn(plan(words, { budget: 25, priority: 'PC', onlyPriority: true }));
+
+    expect(asked).toHaveLength(25);
+    expect(countOf(asked, 'PC')).toBe(25);
+  });
+
+  it('keeps a pair from the fill walk at its due-date position in the queue', () => {
+    const olderMC = Array.from({ length: 4 }, (_, i) => dueIn(i + 10, 'MC', older));
+
+    const result = plan([dueIn(1, 'CM', soon), ...olderMC], { budget: 5 });
+
+    expect(directionsIn(result)).toEqual(['MC', 'MC', 'MC', 'MC', 'CM']);
+  });
+
+  it('asks an exact mix of directions in practice', () => {
+    const words = Array.from({ length: 40 }, (_, i) => wordWith(i, {}));
+
+    const asked = directionsIn(plan(words, { budget: 25, practiceMode: true }));
+
+    for (const direction of DIRECTIONS) expect(countOf(asked, direction)).toBe(5);
+  });
+
+  it('shuffles practice again on every run', () => {
+    const words = Array.from({ length: 40 }, (_, i) => wordWith(i, {}));
+    const idsOf = () =>
+      plan(words, { budget: 25, practiceMode: true }).words.map((word) => word.id);
+
+    expect(idsOf()).not.toEqual(idsOf());
   });
 
   // ─── Words a word list of legacy shape ───────────────────────────────────

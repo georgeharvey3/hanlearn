@@ -76,8 +76,6 @@ export const chooseTestSet = (allWords: Word[], numWords: number): Word[] => {
   return [...definitelyIn, ...shuffledTies.slice(0, remaining)];
 };
 
-const ranChoice = <T>(array: T[]): T => array[Math.floor(Math.random() * array.length)];
-
 /**
  * The session options that the learner's settings decide.
  *
@@ -148,26 +146,6 @@ function isDirectionDue(word: Word, direction: Direction, today: Date): boolean 
   return due !== null && due <= today;
 }
 
-/**
- * A seed for one word's tie-break, distinct from every other word's.
- *
- * The day seed alone is not enough. seededShuffle is a plain LCG, so the same
- * seed and the same tied set give the same permutation, and every word whose
- * five directions are still in step would take the same direction all day.
- * That is the fault this replaces, one step to the side.
- *
- * `id` is parseInt of the Firestore document id, so it is NaN for a document
- * whose id is not numeric. The characters carry the seed in that case.
- */
-function wordSeed(word: Word, daySeed: number): number {
-  let hash = daySeed;
-  const text = word.simp || word.trad || '';
-  for (let i = 0; i < text.length; i++) {
-    hash = (hash * 31 + text.charCodeAt(i)) | 0;
-  }
-  return (hash ^ (Number.isFinite(word.id) ? word.id : 0)) | 0;
-}
-
 /** The due day of one direction, or +Infinity when it has no due date at all. */
 function directionDueDay(word: Word, direction: Direction): number {
   const dueDate = directionDueDate(word, direction);
@@ -176,44 +154,6 @@ function directionDueDay(word: Word, direction: Direction): number {
   return due === null
     ? Number.POSITIVE_INFINITY
     : new Date(due.getFullYear(), due.getMonth(), due.getDate()).getTime();
-}
-
-/**
- * The direction to ask a word in, from the ones available for it.
- *
- * The direction that has waited longest wins: the available directions are
- * ranked by their own due dates, oldest first. A direction that falls behind
- * therefore cannot be starved by one that is already ahead.
- *
- * Directions that share the oldest due date are interchangeable, and the
- * schedule has no opinion between them. `priority` decides there if the learner
- * set one. Otherwise the choice is random, seeded per word so that a reload on
- * the same day asks the same question while different words differ.
- *
- * The fixed order of DIRECTIONS used to decide this outright, which asked `MC`
- * of every word until it passed, because a word whose directions are still in
- * step has all five tied. See docs/adr/0003-direction-choice-by-oldest-due.md.
- *
- * Practice reschedules nothing, so every direction stays tied forever and the
- * seeded choice would repeat for the rest of the day. It picks at random on
- * every call instead, which is what practice did before the queue existed.
- */
-function chooseDirection(
-  word: Word,
-  available: Direction[],
-  priority: string,
-  practiceMode: boolean,
-  daySeed: number,
-): Direction {
-  if (practiceMode) return ranChoice(available);
-
-  const oldest = Math.min(...available.map((direction) => directionDueDay(word, direction)));
-  const tied = available.filter((direction) => directionDueDay(word, direction) === oldest);
-
-  if (priority !== 'none' && tied.includes(priority as Direction)) {
-    return priority as Direction;
-  }
-  return seededShuffle(tied, wordSeed(word, daySeed))[0];
 }
 
 /** The directions a session may ask at all, before any word is considered. */
@@ -234,16 +174,16 @@ export function eligibleDirections(
  * about one word in the same session give each other away, because a word
  * holds three facts and every direction exposes two of them.
  *
- * The due date decides the order, and a new word is one more word with a due
- * date: it takes its place by that date and holds no reserved part of the
- * session. The four directions it leaves stay at level 1 and due, so later
- * sessions reach them through the same ranking.
- * See docs/adr/0006-the-due-date-is-the-only-rank.md.
+ * The plan ranks pairs, not words: every due (word, direction) pair, by the
+ * due date of that direction, oldest first. Each direction may then fill only
+ * its direction share of the budget, so a direction that fails often (`CM`)
+ * cannot crowd the others out of the session. A word whose oldest direction
+ * has no room goes to its oldest due direction that has room.
+ * See docs/adr/0017-balance-the-directions-in-each-session.md.
  *
- * The one exception is the new-word load. At most NEW_WORDS_PER_SESSION new
- * words enter, and the due date decides which ones: a sixth new word is passed
- * over and the review word behind it takes the question.
- * See docs/adr/0015-a-cap-on-new-words-per-session.md.
+ * At most NEW_WORDS_PER_SESSION new words enter, and the due date decides which
+ * ones: a sixth new word is passed over and the pair behind it takes the
+ * question. See docs/adr/0015-a-cap-on-new-words-per-session.md.
  *
  * See docs/adr/0002-direction-level-scheduling.md and the plan on issue #328.
  */
@@ -256,55 +196,81 @@ export const planSession = (candidates: Word[], options: PlanSessionOptions): Se
     return { words: [], queue: [], newWords: [] };
   }
 
-  // One seed for the day, so a reload rebuilds the same session. Every use
-  // below mixes something of its own into it: the word for a direction
-  // tie-break, the pair for the shuffle within one due day.
-  const seed = seedFromDate(today);
-
-  // ─── One pair for each word, new or not ──────────────────────────────────
-  const pairs: { word: Word; direction: Direction; dueDay: number }[] = [];
-
+  // ─── Every due pair of every word ────────────────────────────────────────
+  type Pair = { word: Word; direction: Direction; dueDay: number };
+  const pairs: Pair[] = [];
   for (const word of candidates) {
-    const available = eligible.filter(
-      (direction) => practiceMode || isDirectionDue(word, direction, today),
-    );
-    if (available.length === 0) continue;
-
-    const direction = chooseDirection(word, available, priority, practiceMode, seed);
-    pairs.push({ word, direction, dueDay: directionDueDay(word, direction) });
+    for (const direction of eligible) {
+      if (practiceMode || isDirectionDue(word, direction, today)) {
+        pairs.push({ word, direction, dueDay: directionDueDay(word, direction) });
+      }
+    }
   }
 
-  // ─── Rank by the due date of the chosen direction, oldest first ──────────
-  // Words that came due on the same day are interchangeable, so shuffle within
+  // ─── Rank by the due date of the direction, oldest first ─────────────────
+  // Pairs that came due on the same day are interchangeable, so shuffle within
   // each day rather than letting the list order decide who is cut at the
   // budget. The seed is the day, so one day's session is stable if it reloads.
-  const byDay = new Map<number, typeof pairs>();
-  for (const pair of pairs) {
-    const group = byDay.get(pair.dueDay);
-    if (group) group.push(pair);
-    else byDay.set(pair.dueDay, [pair]);
-  }
-  const ranked = Array.from(byDay.keys())
-    .sort((a, b) => a - b)
-    .flatMap((day) => seededShuffle(byDay.get(day)!, seed));
-
-  // ─── Take the budget, admitting at most five new words ───────────────────
-  // A new word passed over here does not hold its question open: the next pair
-  // in the ranking takes it, so the cap costs the session nothing while any
-  // word is left to review. The five that do enter are the five oldest,
-  // because the ranking already put them first.
-  const ordered: typeof ranked = [];
-  let newAdmitted = 0;
-  for (const pair of ranked) {
-    if (ordered.length === budget) break;
-    if (isNewWord(pair.word)) {
-      if (newAdmitted === NEW_WORDS_PER_SESSION) continue;
-      newAdmitted++;
+  // The priority direction breaks the tie: its pairs lead their day.
+  //
+  // Practice ignores the due date and reschedules nothing, so a seeded order
+  // would repeat all day. It shuffles every pair afresh on each run.
+  let ranked: Pair[];
+  if (practiceMode) {
+    ranked = seededShuffle(pairs, (Math.random() * 0x100000000) | 0);
+  } else {
+    const seed = seedFromDate(today);
+    const byDay = new Map<number, Pair[]>();
+    for (const pair of pairs) {
+      const group = byDay.get(pair.dueDay);
+      if (group) group.push(pair);
+      else byDay.set(pair.dueDay, [pair]);
     }
-    ordered.push(pair);
+    ranked = Array.from(byDay.keys())
+      .sort((a, b) => a - b)
+      .flatMap((day) => {
+        const shuffled = seededShuffle(byDay.get(day)!, seed);
+        return [
+          ...shuffled.filter((pair) => pair.direction === priority),
+          ...shuffled.filter((pair) => pair.direction !== priority),
+        ];
+      });
   }
 
-  // ─── Assemble ────────────────────────────────────────────────────────────
+  // ─── Take the budget in two walks ────────────────────────────────────────
+  // The share walk holds each direction to its share. The fill walk then gives
+  // the questions a short direction left free to whatever pairs remain, so a
+  // share is a limit and never makes the session shorter.
+  //
+  // A new word passed over by the cap does not hold its question open: the
+  // next pair in the ranking takes it, so the cap costs the session nothing
+  // while any word is left to review.
+  const share = Math.floor(budget / eligible.length);
+  const taken = new Set<Pair>();
+  const wordsTaken = new Set<Word>();
+  const perDirection = new Map<Direction, number>();
+  let newAdmitted = 0;
+
+  const walk = (withShares: boolean) => {
+    for (const pair of ranked) {
+      if (taken.size === budget) return;
+      if (wordsTaken.has(pair.word)) continue;
+      const used = perDirection.get(pair.direction) ?? 0;
+      if (withShares && used === share) continue;
+      const isNew = isNewWord(pair.word);
+      if (isNew && newAdmitted === NEW_WORDS_PER_SESSION) continue;
+
+      if (isNew) newAdmitted++;
+      taken.add(pair);
+      wordsTaken.add(pair.word);
+      perDirection.set(pair.direction, used + 1);
+    }
+  };
+  walk(true);
+  walk(false);
+
+  // ─── Assemble, in the order of the ranking ───────────────────────────────
+  const ordered = ranked.filter((pair) => taken.has(pair));
   const words: Word[] = ordered.map((pair) => pair.word);
   const queue: QueuePair[] = ordered.map((pair, index) => pairFor(index, pair.direction));
 

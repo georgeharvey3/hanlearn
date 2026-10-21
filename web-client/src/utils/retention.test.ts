@@ -184,7 +184,7 @@ describe('reviewLoad', () => {
 
     expect(load.days[2].due).toBe(2);
     expect(load.days[3].due).toBe(3);
-    expect(load.overdue).toBe(0);
+    expect(Object.values(load.overdue).every((count) => count === 0)).toBe(true);
   });
 
   it('separates the overdue from the days ahead', () => {
@@ -193,7 +193,8 @@ describe('reviewLoad', () => {
     ];
     const load = reviewLoad(words, 14, now);
 
-    expect(load.overdue).toBe(1);
+    expect(load.overdue.MC).toBe(1);
+    expect(load.overdue.MP).toBe(0);
     expect(load.days[0].due).toBe(1);
   });
 
@@ -202,7 +203,26 @@ describe('reviewLoad', () => {
     const load = reviewLoad(words, 14, now);
 
     expect(load.days.reduce((sum, d) => sum + d.due, 0)).toBe(0);
-    expect(load.overdue).toBe(0);
+    expect(load.overdue.MC).toBe(0);
+  });
+
+  it('counts the overdue directions of each direction', () => {
+    const words = [
+      makeWord(1, makeDirections({ CM: { dueDate: '2026/08/20' }, MC: { dueDate: '2026/08/30' } })),
+      makeWord(2, makeDirections({ CM: { dueDate: '2026/08/31' } })),
+    ];
+    const load = reviewLoad(words, 14, now);
+
+    expect(load.overdue).toEqual({ MC: 1, MP: 0, PM: 0, PC: 0, CM: 2 });
+  });
+
+  it('counts nothing for a word with no due date', () => {
+    const word: Word = { ...makeWord(1, makeDirections({})), due_date: undefined };
+    delete word.directions;
+    const load = reviewLoad([word], 14, now);
+
+    expect(load.overdue).toEqual({ MC: 0, MP: 0, PM: 0, PC: 0, CM: 0 });
+    expect(load.days.reduce((sum, d) => sum + d.due, 0)).toBe(0);
   });
 
   it('averages across the window and not across the days with reviews', () => {
