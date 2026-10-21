@@ -3,8 +3,9 @@ import { Word } from '../../types/models';
 import { AddWordsState } from '../../types/store';
 import { WordAction } from '../../types/actions';
 import { makeDirections } from '../../utils/directions';
+import { DEFAULT_LIST_ID, readActiveList } from '../../utils/activeList';
 
-const DEFAULT_LIST = { id: 'default', name: 'General', createdAt: '', order: 0 };
+const DEFAULT_LIST = { id: DEFAULT_LIST_ID, name: 'General', createdAt: '', order: 0 };
 
 /**
  * Compute the initial due date string (YYYY/MM/DD) for a newly added word.
@@ -36,16 +37,18 @@ function insertSorted(words: Word[], newWord: Word): Word[] {
   return result;
 }
 
-const initialState: AddWordsState = {
+// A function, not a constant, so each new store reads the remembered list.
+// The first fetch then asks for that list and not for 'default' first.
+const initialState = (): AddWordsState => ({
   lists: [DEFAULT_LIST],
-  activeListId: 'default',
+  activeListId: readActiveList(),
   words: [],
   listStats: {},
   error: false,
   loading: false,
-};
+});
 
-const reducer = (state = initialState, action: WordAction): AddWordsState => {
+const reducer = (state = initialState(), action: WordAction): AddWordsState => {
   switch (action.type) {
     case actionTypes.ADD_WORD: {
       const dueDate = formatInitialDueDate(state.words.length);
@@ -131,11 +134,18 @@ const reducer = (state = initialState, action: WordAction): AddWordsState => {
       };
 
     // Word list actions
-    case actionTypes.SET_WORD_LISTS:
+    case actionTypes.SET_WORD_LISTS: {
+      // The remembered list can be gone: deleted on a different device, or a
+      // list of a different account on this browser. Fall back to General.
+      const keepActive =
+        state.activeListId === '__all__' ||
+        action.lists.some((list) => list.id === state.activeListId);
       return {
         ...state,
         lists: action.lists,
+        activeListId: keepActive ? state.activeListId : DEFAULT_LIST_ID,
       };
+    }
     case actionTypes.ADD_WORD_LIST:
       return {
         ...state,
@@ -144,7 +154,8 @@ const reducer = (state = initialState, action: WordAction): AddWordsState => {
     case actionTypes.REMOVE_WORD_LIST: {
       const newLists = state.lists.filter((list) => list.id !== action.listId);
       // If the active list was deleted, switch to default
-      const newActiveListId = state.activeListId === action.listId ? 'default' : state.activeListId;
+      const newActiveListId =
+        state.activeListId === action.listId ? DEFAULT_LIST_ID : state.activeListId;
       return {
         ...state,
         lists: newLists,
