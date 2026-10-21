@@ -17,11 +17,13 @@
 
 The `CM` direction (meaning to character, by hand) is the hardest direction.
 Most `CM` answers fail, also for words that the learner saw many times. A failed
-`CM` comes back the next day or within three days (ADR 0010), and a failure
-buries nothing (ADR 0016).
+`CM` comes back the next day or within three days (ADR 0010). A miss also
+buries the other directions of the word for 2 or 3 days (ADR 0016).
 
-Two rules then put `CM` at the front of every session:
+Three rules then put `CM` at the front of every session:
 
+- The burial after a miss moves the other directions of the word away. When
+  the failed `CM` comes back, it is often the only due direction of the word.
 - A word asks its oldest due direction (ADR 0003). The failed `CM` is usually
   that direction, so the word goes to `CM` again.
 - The queue ranks the words by the due date of that direction (ADR 0006). A
@@ -29,8 +31,8 @@ Two rules then put `CM` at the front of every session:
   day.
 
 Most sessions therefore ask `CM` and few questions in the other four directions.
-These sessions are slow and not enjoyable. The other four directions of a `CM`
-leech also wait, because the word reaches the session only through `CM`.
+These sessions are slow and not enjoyable. When the burial ends, the other four
+directions of a `CM` leech still wait, because the older `CM` wins the word.
 
 ## Decision
 
@@ -62,6 +64,8 @@ The oldest due direction of a word is its first choice and no longer its only
 choice. If the share of that direction is full, a later pair of the same word
 comes up in the walk. The word then goes to its oldest due direction that has
 room. A word drops out of the session only when no due direction of it has room.
+While a miss keeps the other directions of a word buried, `CM` is its only due
+direction, and the word waits for room in the `CM` share.
 
 This replaces the decision of ADR 0003. The tie-break of ADR 0003 stays: pairs
 on one day are shuffled with a seed, so a reload on the same day gives the same
