@@ -156,7 +156,7 @@ The calculation is in [web-client/src/utils/scheduling.ts](web-client/src/utils/
 - Each direction carries a **stability** (days at which recall is 0.9), a **difficulty** (1 to 10), an **interval** in days, and the date of its **last review**
 - `pass` sends the Good rating; `lapse` and `fail` both send Again, and a `fail` also resets the interval to 0, which asks the direction again the next day
 - A failed retrieval **demotes** a direction and never resets it: the stability after it never exceeds the stability before it, and a `lapse` comes back in 1 to 3 days. Each direction counts its lapses, and one with 8 or more is a **leech**, flagged in the word list. See [docs/adr/0010-partial-demotion-and-leeches.md](docs/adr/0010-partial-demotion-and-leeches.md)
-- A pass **buries** the directions the session did not ask: each one due within the window (the word's new interval, held to 2-7 days) moves its due date to the end of it, so a word does not come back daily for each direction in turn. Only the due date moves, and a `lapse` or `fail` buries nothing. See [docs/adr/0016-bury-sibling-directions.md](docs/adr/0016-bury-sibling-directions.md)
+- A review **buries** the directions the session did not ask: each one due within the window (the word's new interval, held to 2-7 days) moves its due date to the end of it, so a word does not come back daily for each direction in turn. Only the due date moves, and a `lapse` or `fail` buries too, so a missed word is not seen again the same day in another direction. See [docs/adr/0016-bury-sibling-directions.md](docs/adr/0016-bury-sibling-directions.md)
 - FSRS reads the elapsed days since the last review, so a late correct answer gives a longer interval
 - The maximum interval is 365 days, and the due date takes a fuzz of up to 5%
 - **5 levels** are bands of the interval: 1 (0 days), 2 (1-6), 3 (7-29), 4 (30-59), 5 (60+). See [docs/adr/0009-fsrs.md](docs/adr/0009-fsrs.md)
@@ -251,6 +251,14 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 
 - Start emulators before e2e tests: `npm run emulators` from repo root
 - Emulator data is ephemeral — tests must seed their own data
+
+## Architecture Decision Records
+
+`docs/adr/` holds only the decisions that pass all three tests in the `domain-modeling` skill: hard to reverse, surprising without context, and a real trade-off.
+
+- Before you offer an ADR, give a one-line verdict on each of the three tests.
+- If one test fails, write the reason in the PR body, or in a code comment where the rule lives.
+- A product rule that you can tune (a cap, a threshold, a tie-break) usually fails the first test. ADRs 0005, 0006 and 0015 changed one cap three times in one week.
 
 ## Git Conventions
 

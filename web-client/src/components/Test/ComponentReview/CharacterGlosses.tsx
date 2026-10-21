@@ -111,7 +111,19 @@ const CharacterGlossRow: React.FC<CharacterGlossRowProps> = ({ char, gloss, last
         <Box lang="zh" sx={hanziSx(30)}>
           {char}
         </Box>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, minWidth: 0 }}>
+        {/* minWidth 0 lets the text column shrink below its longest line, and
+            overflowWrap breaks a meaning such as 'sharp/favorable/advantage',
+            which has no spaces to wrap at, instead of spilling past the card. */}
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 0.25,
+            minWidth: 0,
+            overflowWrap: 'anywhere',
+          }}
+        >
           {gloss === undefined ? (
             <CircularProgress size={16} aria-label={copy.test.definitionLoading(char)} />
           ) : (

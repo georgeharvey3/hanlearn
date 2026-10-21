@@ -163,7 +163,8 @@ describe('finishTest — per-direction scheduling', () => {
   });
 
   it('leaves a direction the session did not ask completely untouched', async () => {
-    const cmDate = new Date(2026, 5, 1);
+    // Due after any burial window, so not even its due date moves.
+    const cmDate = new Date(2099, 5, 1);
     mockGetDoc.mockResolvedValue(
       makeFakeDoc(2, '你好', true, { ...allDirections(2), CM: storedDirection(5, cmDate) }),
     );
@@ -416,12 +417,13 @@ describe('finishTest — per-direction scheduling', () => {
       }),
     );
 
-    // A lapse buries nothing, so the overdue CM keeps its date.
-    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'lapse' } }]);
+    // MC passes to months away, and the overdue CM is buried for a week, so
+    // CM holds both the lowest bank and the earliest due date.
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
 
     const update = mockBatchUpdate.mock.calls[0][1];
     expect(update.bank).toBe(1);
-    expect(update.dueDate.toDate()).toEqual(new Date(2026, 0, 1));
+    expect(update.dueDate.toDate()).toEqual(update.directions.CM.dueDate.toDate());
   });
 
   // ─── Burying the other directions (ADR 0016) ───────────────────────────────
@@ -491,22 +493,35 @@ describe('finishTest — per-direction scheduling', () => {
       expect(mockBatchUpdate.mock.calls[0][1].directions.CM.dueDate.toDate()).toEqual(later);
     });
 
-    it.each(['lapse', 'fail'] as const)('buries nothing after a %s', async (grade) => {
-      mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', true, allDirections(1)));
+    it('buries the siblings after a fail, so the word is not seen again the same day', async () => {
+      // MC fails and comes back the next day; the siblings wait the least window.
+      mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
 
-      await finishTest('user-1', [{ word_id: 1, directions: { MC: grade } }]);
+      await finishTest('user-1', [{ word_id: 1, directions: { MC: 'fail' } }]);
 
       const update = mockBatchUpdate.mock.calls[0][1];
-      expect(update.directions.CM.dueDate.toDate()).toEqual(new Date(2026, 0, 1));
+      for (const direction of ['MP', 'PM', 'PC', 'CM']) {
+        expect(daysFrom(now, update.directions[direction].dueDate)).toBe(2);
+      }
     });
 
-    it('buries nothing when any asked direction failed', async () => {
-      mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', true, allDirections(1)));
+    it('buries the siblings after a lapse by the interval the lapse gave', async () => {
+      mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+
+      await finishTest('user-1', [{ word_id: 1, directions: { MC: 'lapse' } }]);
+
+      const update = mockBatchUpdate.mock.calls[0][1];
+      const days = daysFrom(now, update.directions.CM.dueDate);
+      expect(days).toBeGreaterThanOrEqual(2);
+      expect(days).toBeLessThanOrEqual(3);
+    });
+
+    it('buries by the shortest interval when one asked direction failed', async () => {
+      mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
 
       await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass', MP: 'fail' } }]);
 
-      const update = mockBatchUpdate.mock.calls[0][1];
-      expect(update.directions.CM.dueDate.toDate()).toEqual(new Date(2026, 0, 1));
+      expect(daysFrom(now, mockBatchUpdate.mock.calls[0][1].directions.CM.dueDate)).toBe(2);
     });
   });
 
