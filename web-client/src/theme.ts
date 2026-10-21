@@ -28,9 +28,12 @@ export const colors = {
 
 export const fonts = {
   body: "'Cabin', sans-serif",
-  // Kai is the brush-written script, the closest to handwriting. Apple and
-  // Windows devices have a Kai face; others (Android) fall back to Noto Serif SC.
-  hanzi: "'Kaiti SC', 'STKaiti', 'KaiTi', 'Noto Serif SC', 'Noto Serif CJK SC', serif",
+  // The Arphic Kai faces that Hanzi Writer's strokes trace, so a printed
+  // character matches the animated one. The app serves them
+  // (public/fonts/hanzi, built by migration/build-hanzi-font.py); a character
+  // outside them falls back to a device Kai face, then Noto Serif SC.
+  hanzi:
+    "'HanLearn Kai', 'Kaiti SC', 'STKaiti', 'KaiTi', 'Noto Serif SC', 'Noto Serif CJK SC', serif",
 } as const;
 
 export const shadows = {
