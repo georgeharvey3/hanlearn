@@ -252,13 +252,21 @@ export interface ForecastDay {
 export interface ReviewLoad {
   /** The days ahead, oldest first, starting at today. */
   days: ForecastDay[];
-  /** Directions whose due date has already passed. They are not in `days`. */
-  overdue: number;
+  /**
+   * Directions whose due date has already passed, for each direction. They are
+   * not in `days`. A count that keeps growing is a backlog that the direction
+   * share cannot clear. See docs/adr/0017-balance-the-directions-in-each-session.md.
+   */
+  overdue: Record<Direction, number>;
   /** The mean directions per day across the window, overdue excluded. */
   perDay: number;
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/** The overdue directions of every direction together. */
+export const totalOverdue = (load: ReviewLoad): number =>
+  DIRECTIONS.reduce((sum, direction) => sum + load.overdue[direction], 0);
 
 /**
  * The review load ahead: how many directions come due on each of the next
@@ -274,7 +282,10 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 export function reviewLoad(words: Word[], days: number, now: Date = new Date()): ReviewLoad {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const counts = new Array<number>(days).fill(0);
-  let overdue = 0;
+  const overdue = Object.fromEntries(DIRECTIONS.map((direction) => [direction, 0])) as Record<
+    Direction,
+    number
+  >;
 
   for (const word of words) {
     for (const direction of DIRECTIONS) {
@@ -286,7 +297,7 @@ export function reviewLoad(words: Word[], days: number, now: Date = new Date()):
       const day = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
       const offset = Math.round((day - today) / MS_PER_DAY);
 
-      if (offset < 0) overdue += 1;
+      if (offset < 0) overdue[direction] += 1;
       else if (offset < days) counts[offset] += 1;
     }
   }

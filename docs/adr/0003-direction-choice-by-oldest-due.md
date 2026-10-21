@@ -1,6 +1,8 @@
 # 3. The session asks the direction with the oldest due date
 
-- Status: accepted
+- Status: the direction choice is superseded by
+  [0017-balance-the-directions-in-each-session.md](0017-balance-the-directions-in-each-session.md).
+  The oldest due direction is now the first choice, not the only choice.
 - Date: 2026-08-27
 - Issue: #328
 - Related: #306

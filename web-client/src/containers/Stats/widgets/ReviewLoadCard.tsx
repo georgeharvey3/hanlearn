@@ -4,7 +4,7 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 
 import { colors } from '../../../theme';
-import { ReviewLoad } from '../../../utils/retention';
+import { ReviewLoad, totalOverdue } from '../../../utils/retention';
 
 interface ReviewLoadCardProps {
   load: ReviewLoad;
@@ -19,6 +19,7 @@ function dayLabel(offset: number): string {
 
 const ReviewLoadCard: React.FC<ReviewLoadCardProps> = ({ load }) => {
   const max = Math.max(...load.days.map((day) => day.due), 1);
+  const overdue = totalOverdue(load);
 
   return (
     <Paper
@@ -33,7 +34,7 @@ const ReviewLoadCard: React.FC<ReviewLoadCardProps> = ({ load }) => {
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
         Questions coming due over the next {load.days.length} days, from the words you have now —{' '}
         {Math.round(load.perDay)} a day on average.
-        {load.overdue > 0 ? ` ${load.overdue} already overdue.` : ''}
+        {overdue > 0 ? ` ${overdue} already overdue.` : ''}
       </Typography>
 
       {load.days.map((day) => (

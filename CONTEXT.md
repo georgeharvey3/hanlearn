@@ -19,9 +19,12 @@ answer-first. There are five:
 
 The listed order has no effect on the session queue. When more than one
 direction of a word is due, the queue asks the direction with the oldest due
-date. Directions that share the oldest date go to the `priority` setting, or to
-a random choice. See
-[docs/adr/0003-direction-choice-by-oldest-due.md](docs/adr/0003-direction-choice-by-oldest-due.md).
+date, if its direction share has room. If the share is full, the word goes to
+its oldest due direction that has room. Directions that share the oldest date
+go to the `priority` setting, or to a random choice. See
+[docs/adr/0003-direction-choice-by-oldest-due.md](docs/adr/0003-direction-choice-by-oldest-due.md)
+and
+[docs/adr/0017-balance-the-directions-in-each-session.md](docs/adr/0017-balance-the-directions-in-each-session.md).
 
 Each direction of each word carries its own bank and due date. See
 [docs/adr/0002-direction-level-scheduling.md](docs/adr/0002-direction-level-scheduling.md).
@@ -132,8 +135,12 @@ A **session** is one run of the test flow. Its **queue** is an ordered list of
 **(word, direction) pairs**, and one pair is one question. A word appears at most
 once in a session. There is no exception.
 
-The due date of the chosen direction gives the order, oldest first. Pairs that
-share a day are shuffled, and the **budget** cuts the queue at its end.
+Every due pair is a candidate, and the due date of its own direction gives the
+order, oldest first. Pairs that share a day are shuffled. The session takes
+pairs in that order until the **budget** is full, and each direction takes no
+more than its **direction share**. If a direction has too few due pairs, the
+other directions fill its questions. See
+[docs/adr/0017-balance-the-directions-in-each-session.md](docs/adr/0017-balance-the-directions-in-each-session.md).
 
 The code calls one pair a `QueuePair`, and it holds the index of the word plus
 the two categories of the direction. `TestState` holds the queue as `queue`, and
@@ -150,6 +157,16 @@ questions. A learner who has the old `numWords` value keeps the session length
 they had: `readQuestionsPerSession` reads it one time, multiplies it by five,
 and caps the result at 50.
 
+## Direction share
+
+The part of the budget that one direction can fill in one session. It is the
+budget divided by the number of directions that the session asks, rounded down.
+With a budget of 25 and all five directions, each direction share is 5.
+
+A direction share is a limit, not a target. A direction with fewer due pairs
+than its share leaves the free questions to the other directions. A direction
+with more due pairs than its share stays due, and a later session reaches it.
+
 ## New word
 
 A word whose five directions are all at bank 1, that is, one that has never been
@@ -163,7 +180,8 @@ them. See
 [docs/adr/0005-new-words-take-one-direction.md](docs/adr/0005-new-words-take-one-direction.md).
 
 A new word holds no place of its own in the queue. Its due date ranks it against
-every other word, and a word with no due date is not due. See
+every other word, within the direction shares, and a word with no due date is
+not due. See
 [docs/adr/0006-the-due-date-is-the-only-rank.md](docs/adr/0006-the-due-date-is-the-only-rank.md).
 
 At most five new words enter one session, and the due date picks which five: the
