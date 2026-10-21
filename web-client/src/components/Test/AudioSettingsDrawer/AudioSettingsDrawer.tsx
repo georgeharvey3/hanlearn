@@ -1,14 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import {
-  Box,
-  Checkbox,
-  Drawer,
-  FormControlLabel,
-  FormGroup,
-  Radio,
-  RadioGroup,
-  Typography,
-} from '@mui/material';
+import { Box, ButtonBase, Drawer } from '@mui/material';
 import {
   AudioSettings,
   AudioSettingKey,
@@ -19,6 +10,8 @@ import {
   setAudioSetting,
   setQuizType,
 } from '../../../utils/audioSettings';
+import { copy } from '../../../copy';
+import { colors, fonts } from '../../../theme';
 
 interface AudioSettingsDrawerProps {
   open: boolean;
@@ -36,8 +29,8 @@ const AudioSettingsDrawer: React.FC<AudioSettingsDrawerProps> = ({
   const [settings, setSettings] = useState<AudioSettings>(getAudioSettings);
 
   const handleChange = useCallback(
-    (key: AudioSettingKey) => (_e: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
-      const updated = setAudioSetting(key, checked);
+    (key: AudioSettingKey) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const updated = setAudioSetting(key, e.target.checked);
       setSettings(updated);
     },
     [],
@@ -47,13 +40,10 @@ const AudioSettingsDrawer: React.FC<AudioSettingsDrawerProps> = ({
     onClose(settings);
   }, [onClose, settings]);
 
-  const handleQuizTypeChange = useCallback(
-    (category: QuizCategory) => (_e: React.ChangeEvent<HTMLInputElement>, value: string) => {
-      setQuizType(category, value as QuizType);
-      setSettings(getAudioSettings());
-    },
-    [],
-  );
+  const handleQuizTypeChange = useCallback((category: QuizCategory, value: QuizType) => {
+    setQuizType(category, value);
+    setSettings(getAudioSettings());
+  }, []);
 
   const items = useMemo(
     () => getAudioSettingItems(speechAvailable, synthAvailable),
@@ -61,19 +51,45 @@ const AudioSettingsDrawer: React.FC<AudioSettingsDrawerProps> = ({
   );
 
   const quizTypeRow = (label: string, category: QuizCategory, value: QuizType) => (
-    <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-      <Typography variant="body2" id={`quiz-type-${category}-label`} sx={{ width: 72 }}>
+    <Box
+      sx={{ height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+    >
+      <Box component="span" id={`quiz-type-${category}-label`} sx={{ fontSize: 16 }}>
         {label}
-      </Typography>
-      <RadioGroup
-        row
+      </Box>
+      <Box
+        role="radiogroup"
         aria-labelledby={`quiz-type-${category}-label`}
-        value={value}
-        onChange={handleQuizTypeChange(category)}
+        sx={{
+          display: 'flex',
+          border: `1px solid ${colors.borderStrong}`,
+          borderRadius: 1,
+          overflow: 'hidden',
+        }}
       >
-        <FormControlLabel value="input" control={<Radio size="small" />} label="Input" />
-        <FormControlLabel value="flashcard" control={<Radio size="small" />} label="Flashcard" />
-      </RadioGroup>
+        {(['input', 'flashcard'] as QuizType[]).map((type) => {
+          const checked = value === type;
+          return (
+            <ButtonBase
+              key={type}
+              role="radio"
+              aria-checked={checked}
+              onClick={() => handleQuizTypeChange(category, type)}
+              sx={{
+                height: 40,
+                px: 2,
+                fontFamily: fonts.body,
+                fontSize: 14,
+                fontWeight: 600,
+                bgcolor: checked ? colors.primaryDark : colors.card,
+                color: checked ? colors.white : colors.text,
+              }}
+            >
+              {type === 'input' ? copy.settings.input : copy.settings.flashcard}
+            </ButtonBase>
+          );
+        })}
+      </Box>
     </Box>
   );
 
@@ -83,40 +99,95 @@ const AudioSettingsDrawer: React.FC<AudioSettingsDrawerProps> = ({
       open={open}
       onClose={handleClose}
       PaperProps={{
+        role: 'dialog',
+        'aria-label': copy.study.settings,
         sx: {
-          borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
-          px: 3,
-          py: 2,
-          maxWidth: 400,
+          borderTopLeftRadius: 12,
+          borderTopRightRadius: 12,
+          px: 2.5,
+          pt: 1.5,
+          pb: 3.5,
+          maxWidth: 440,
           mx: 'auto',
+          fontFamily: fonts.body,
+          color: colors.text,
         },
       }}
     >
-      <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
-        Test Settings
-      </Typography>
-      <Box sx={{ mb: 1 }}>
-        {quizTypeRow('Meaning', 'meaning', settings.meaningQuizType)}
-        {quizTypeRow('Pinyin', 'pinyin', settings.pinyinQuizType)}
-      </Box>
-      <FormGroup>
-        {items.map(({ key, label, disabled }) => (
-          <FormControlLabel
+      <Box
+        aria-hidden="true"
+        sx={{
+          alignSelf: 'center',
+          width: 36,
+          height: 4,
+          borderRadius: 2,
+          bgcolor: colors.borderStrong,
+          mb: 1.75,
+        }}
+      />
+      <Box sx={{ fontSize: 18, fontWeight: 600, mb: 0.75 }}>{copy.study.settings}</Box>
+      {quizTypeRow(copy.settings.meaning, 'meaning', settings.meaningQuizType)}
+      {quizTypeRow(copy.settings.pinyin, 'pinyin', settings.pinyinQuizType)}
+      {items.map(({ key, disabled }) => {
+        const checked = disabled ? false : settings[key];
+        const label = copy.settings[key];
+        return (
+          <Box
+            component="label"
             key={key}
-            control={
-              <Checkbox
-                size="small"
-                checked={disabled ? false : settings[key]}
-                onChange={handleChange(key)}
-                disabled={disabled}
+            sx={{
+              height: 48,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: 16,
+              borderTop: `1px solid ${colors.divider}`,
+              color: disabled ? colors.textSecondary : colors.text,
+              cursor: disabled ? 'default' : 'pointer',
+              // The switch is drawn; the checkbox under it keeps it a control.
+              '&:has(input:focus-visible) .switch': {
+                outline: `2px solid ${colors.primaryDark}`,
+                outlineOffset: '2px',
+              },
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={checked}
+              disabled={disabled}
+              onChange={handleChange(key)}
+              style={{ position: 'absolute', opacity: 0, width: 1, height: 1 }}
+            />
+            {disabled ? copy.settings.unsupported(label) : label}
+            <Box
+              aria-hidden="true"
+              className="switch"
+              sx={{
+                position: 'relative',
+                flex: 'none',
+                width: 36,
+                height: 20,
+                borderRadius: '10px',
+                bgcolor: checked ? colors.primaryDark : colors.borderStrong,
+                transition: 'background-color 150ms ease',
+              }}
+            >
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 2,
+                  left: checked ? 18 : 2,
+                  width: 16,
+                  height: 16,
+                  borderRadius: '8px',
+                  bgcolor: colors.white,
+                  transition: 'left 150ms ease',
+                }}
               />
-            }
-            label={disabled ? `${label} (not supported by your browser)` : label}
-            sx={{ my: 0.25 }}
-          />
-        ))}
-      </FormGroup>
+            </Box>
+          </Box>
+        );
+      })}
     </Drawer>
   );
 };

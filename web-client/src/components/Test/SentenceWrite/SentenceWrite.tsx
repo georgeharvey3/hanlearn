@@ -1,15 +1,15 @@
 import React, { KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
-import { Box, Paper, Stack, Typography } from '@mui/material';
+import { Box, CircularProgress } from '@mui/material';
 
-import Button from '../../UI/Buttons/Button/Button';
-import Input from '../../UI/Input/Input';
-import PictureButton from '../../UI/Buttons/PictureButton/PictureButton';
-import Spinner from '../../UI/Spinner/Spinner';
+import { copy } from '../../../copy';
+import { colors, fonts } from '../../../theme';
+import { toneMarks } from '../../../utils/pinyinMarks';
 import SimilarityScore from '../../UI/SimilarityScore/SimilarityScore';
-
-import micPic from '../../../assets/images/microphone.png';
+import StudyScreen from '../Study/StudyScreen';
+import StudyTop from '../Study/StudyTop';
+import { MicButton, Overline, StatusLine, StudyButton, StudyCard, hanziSx } from '../Study/parts';
 
 import { beep } from '../constants';
 
@@ -58,6 +58,8 @@ interface SentenceWriteState {
   // Results
   results: SentenceResult[];
   message: string;
+  recognition: SpeechRecognition | null;
+  listening: boolean;
 
   // Similarity scoring
   score: number | null;
@@ -129,6 +131,8 @@ const SentenceWrite: React.FC<Props> = ({
     submitted: false,
     results: [],
     message: '',
+    recognition: null,
+    listening: false,
     score: null,
     scoreLoading: false,
   }));
@@ -288,10 +292,11 @@ const SentenceWrite: React.FC<Props> = ({
   }, [fetchSentence, startOffset, words]);
 
   const onListenPinyin = useCallback((): void => {
+    stateRef.current.recognition?.abort();
     const recognition = new window.webkitSpeechRecognition();
     recognition.lang = 'zh-CN';
 
-    updateState({ message: '' });
+    updateState({ message: '', recognition });
 
     let result: string | undefined;
 
@@ -302,11 +307,12 @@ const SentenceWrite: React.FC<Props> = ({
     });
 
     recognition.addEventListener('end', () => {
-      if (!result) updateState({ message: "Couldn't hear anything..." });
+      updateState({ listening: false });
+      if (!result) updateState({ message: copy.test.status.heardNothing });
     });
 
     recognition.addEventListener('audiostart', () => {
-      updateState({ message: 'Listening...' });
+      updateState({ message: copy.test.status.listening, listening: true });
     });
 
     recognition.start();
@@ -348,6 +354,7 @@ const SentenceWrite: React.FC<Props> = ({
     }
   }, [fetchSentence, onComplete, startOffset, words]);
 
+  // A tapped English word shows the Chinese for the words selected so far.
   const onToggleWord = useCallback((index: number): void => {
     setState((prev) => {
       const next = new Set(prev.selectedWordIndices);
@@ -356,30 +363,28 @@ const SentenceWrite: React.FC<Props> = ({
       } else {
         next.add(index);
       }
+      if (!prev.englishPrompt || next.size === 0) {
+        return {
+          ...prev,
+          selectedWordIndices: next,
+          showTranslation: false,
+          translationResults: [],
+        };
+      }
+      const englishWords = prev.englishPrompt.split(/\s+/);
+      const selectedText = Array.from(next)
+        .sort((a, b) => a - b)
+        .map((i) => stripPunctuation(englishWords[i]))
+        .filter((w) => w.length > 0)
+        .join(' ');
       return {
         ...prev,
         selectedWordIndices: next,
-        // Hide previous translation when selection changes
-        showTranslation: false,
-        translationResults: [],
+        translationResults: matchEnglishToSentenceWords(selectedText, prev.resolvedWords),
+        showTranslation: true,
       };
     });
   }, []);
-
-  const onTranslate = useCallback((): void => {
-    const { englishPrompt, selectedWordIndices, resolvedWords } = stateRef.current;
-    if (!englishPrompt || selectedWordIndices.size === 0) return;
-
-    const englishWords = englishPrompt.split(/\s+/);
-    const selectedText = Array.from(selectedWordIndices)
-      .sort((a, b) => a - b)
-      .map((i) => stripPunctuation(englishWords[i]))
-      .filter((w) => w.length > 0)
-      .join(' ');
-
-    const matches = matchEnglishToSentenceWords(selectedText, resolvedWords);
-    updateState({ translationResults: matches, showTranslation: true });
-  }, [updateState]);
 
   const onKeyUp = useCallback(
     (event: globalThis.KeyboardEvent): void => {
@@ -441,353 +446,317 @@ const SentenceWrite: React.FC<Props> = ({
     onSubmitAnswer();
   };
 
-  // Loading state
-  if (state.loading) {
-    return (
-      <Box sx={{ width: '90%', maxWidth: 400, textAlign: 'center', mx: 'auto', py: '30px' }}>
-        <Spinner />
-      </Box>
-    );
-  }
+  const onEnd = (): void => {
+    stateRef.current.recognition?.abort();
+    history.push('/');
+  };
 
   const currentWord = words[state.wordIndex];
+  const target = currentWord?.[state.charSet] ?? '';
   const isLastWord = state.wordIndex >= words.length - 1;
+  const top = (
+    <StudyTop
+      stage={copy.study.stageWrite}
+      done={Math.min(state.wordIndex + (state.submitted ? 1 : 0), words.length)}
+      position={Math.min(state.wordIndex + 1, words.length)}
+      total={words.length}
+      onEnd={onEnd}
+    />
+  );
+
+  // A line of Chinese with each use of the word under study highlighted.
+  const withTarget = (text: string): React.ReactNode =>
+    target === ''
+      ? text
+      : text.split(target).flatMap((part, i) =>
+          i === 0
+            ? [part]
+            : [
+                <Box
+                  component="span"
+                  key={i}
+                  sx={{
+                    color: colors.primaryDark,
+                    bgcolor: colors.successSurface,
+                    borderRadius: '3px',
+                    px: '3px',
+                  }}
+                >
+                  {target}
+                </Box>,
+                part,
+              ],
+        );
+
+  const mustUse = (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+      <Overline component="span">{copy.sentence.mustUse}</Overline>
+      <Box
+        component="span"
+        lang="zh"
+        sx={{
+          px: 1.25,
+          py: 0.5,
+          border: `2px solid ${colors.primaryLight}`,
+          borderRadius: '3px',
+          color: colors.primaryLight,
+          ...hanziSx(26, { lineHeight: 1.1 }),
+        }}
+      >
+        {target}
+      </Box>
+    </Box>
+  );
+
+  if (state.loading) {
+    return (
+      <StudyScreen>
+        {top}
+        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <CircularProgress aria-label={copy.study.loading} sx={{ color: colors.primaryDark }} />
+        </Box>
+      </StudyScreen>
+    );
+  }
 
   if (state.loadError) {
     return (
-      <Box
-        sx={{
-          width: '90%',
-          maxWidth: 400,
-          mx: 'auto',
-          py: 4,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 2,
-          textAlign: 'center',
-        }}
-      >
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Word {state.wordIndex + 1} of {words.length}
-        </Typography>
-        <Typography role="alert">Couldn&apos;t load a sentence for this word.</Typography>
-        <Stack direction="row" spacing={2} justifyContent="center">
-          <Button clicked={onRetryLoad} aria-label="Try again">
-            Try again
-          </Button>
-          <Button
-            type="secondary"
-            clicked={onSkipWord}
-            aria-label={isLastWord ? 'Skip and finish' : 'Skip word'}
-          >
-            {isLastWord ? 'Skip and finish' : 'Skip word'}
-          </Button>
-        </Stack>
-      </Box>
+      <StudyScreen>
+        {top}
+        <Box
+          sx={{
+            mt: 2.5,
+            height: 300,
+            boxSizing: 'border-box',
+            p: 3,
+            bgcolor: colors.card,
+            border: `1px dashed ${colors.borderStrong}`,
+            borderRadius: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1.75,
+            textAlign: 'center',
+          }}
+        >
+          <Box lang="zh" sx={hanziSx(48, { color: colors.disabledText })}>
+            {target}
+          </Box>
+          <Box role="alert" sx={{ fontSize: 17, fontWeight: 600 }}>
+            {copy.sentence.loadFailed}
+          </Box>
+        </Box>
+        <Box sx={{ flex: 1 }} />
+        <StudyButton onClick={onSkipWord}>
+          {isLastWord ? copy.sentence.skipAndFinish : copy.sentence.skipWord}
+        </StudyButton>
+        <StudyButton variant="primary" onClick={onRetryLoad} sx={{ mt: 1.25 }}>
+          {copy.sentence.tryAgain}
+        </StudyButton>
+      </StudyScreen>
     );
   }
 
-  const outerSx = {
-    width: '90%',
-    maxWidth: 520,
-    mx: 'auto',
-    py: 4,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 3,
+  const answerBox = {
+    p: 1.75,
+    border: `1px solid ${colors.divider}`,
+    borderRadius: 1,
+    bgcolor: colors.card,
+    fontFamily: fonts.hanzi,
+    fontSize: 26,
+    lineHeight: 1.4,
+    minHeight: 48,
   };
 
-  // Comparison view (after submission)
   if (state.submitted) {
     return (
-      <Box sx={outerSx}>
-        <Typography
-          variant="overline"
-          sx={{ textAlign: 'center', color: 'text.secondary', letterSpacing: 2, display: 'block' }}
+      <StudyScreen>
+        {top}
+        <Box
+          sx={{
+            mt: 2.5,
+            px: 2.5,
+            py: 2,
+            bgcolor: colors.card,
+            border: `1px solid ${colors.divider}`,
+            borderRadius: 1,
+            fontSize: 18,
+            textAlign: 'center',
+            color: colors.textSecondary,
+          }}
         >
-          Write in Chinese
-        </Typography>
-
-        <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary' }}>
-          Word {state.wordIndex + 1} of {words.length}
-        </Typography>
-
-        <Stack spacing={2} alignItems="center">
-          <Stack spacing={1} sx={{ width: '100%' }}>
-            <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: 1 }}>
-              Your answer
-            </Typography>
-            <Paper
-              variant="outlined"
-              sx={{
-                p: '12px 16px',
-                borderRadius: 2,
-                bgcolor: '#f9f9f9',
-                textAlign: 'left',
-                minHeight: 48,
-              }}
-            >
-              <Typography
-                lang="zh"
-                sx={{ color: 'text.primary', fontSize: '1.1rem', letterSpacing: 1 }}
-              >
-                {state.entered || (
-                  <Box component="span" sx={{ color: 'text.disabled' }}>
-                    —
-                  </Box>
-                )}
-              </Typography>
-            </Paper>
-          </Stack>
-
-          <Stack spacing={1} sx={{ width: '100%' }}>
-            <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: 1 }}>
-              Original
-            </Typography>
-            <Paper
-              variant="outlined"
-              sx={{
-                p: '12px 16px',
-                borderRadius: 2,
-                bgcolor: '#f0f7f4',
-                textAlign: 'left',
-                minHeight: 48,
-              }}
-            >
-              <Typography
-                lang="zh"
-                sx={{ color: 'text.primary', fontSize: '1.1rem', letterSpacing: 1 }}
-              >
-                {state.originalChinese}
-              </Typography>
-            </Paper>
-          </Stack>
-
+          {state.englishPrompt}
+        </Box>
+        <Overline sx={{ mt: 2.75, mb: 0.75 }}>{copy.sentence.yourAnswer}</Overline>
+        <Box lang="zh" sx={answerBox}>
+          {withTarget(state.entered)}
+        </Box>
+        <Overline sx={{ mt: 2, mb: 0.75 }}>{copy.sentence.original}</Overline>
+        <Box lang="zh" sx={answerBox}>
+          {withTarget(state.originalChinese ?? '')}
+        </Box>
+        <Box sx={{ mt: 2.75 }}>
           {state.scoreLoading ? (
             <SimilarityScore score={0} loading />
           ) : state.score !== null ? (
             <SimilarityScore score={state.score} />
           ) : (
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              Score unavailable
-            </Typography>
+            <Box sx={{ fontSize: 14, color: colors.textSecondary }}>
+              {copy.sentence.scoreUnavailable}
+            </Box>
           )}
-
-          <Button
-            clicked={onYesClicked}
-            aria-label={state.wordIndex >= words.length - 1 ? 'Finish' : 'Next word'}
-          >
-            {state.wordIndex >= words.length - 1 ? 'Finish' : 'Next Word'}
-          </Button>
-        </Stack>
-      </Box>
+        </Box>
+        <Box sx={{ flex: 1, minHeight: 24 }} />
+        <StudyButton variant="primary" onClick={onYesClicked}>
+          {isLastWord ? copy.sentence.finish : copy.sentence.nextWord}
+        </StudyButton>
+      </StudyScreen>
     );
   }
 
-  // Split English prompt into tappable words
+  // The English prompt, one button per word: a tapped word shows its Chinese.
   const englishWords = state.englishPrompt?.split(/\s+/) || [];
 
-  // Input view
   return (
-    <Box sx={outerSx}>
-      <Typography
-        variant="overline"
-        sx={{ textAlign: 'center', color: 'text.secondary', letterSpacing: 2, display: 'block' }}
+    <StudyScreen>
+      {top}
+      <StudyCard
+        seal={false}
+        height={240}
+        sx={{ mt: 3, px: 2.75, pt: 3.5, pb: 2.75, gap: state.showTranslation ? 2.25 : 2.75 }}
       >
-        Write in Chinese
-      </Typography>
-
-      <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary' }}>
-        Word {state.wordIndex + 1} of {words.length}
-      </Typography>
-
-      {/* Prompt card */}
-      <Paper
-        elevation={2}
-        sx={{
-          p: 3,
-          borderRadius: 3,
-          bgcolor: '#fff',
-          textAlign: 'center',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 2,
-        }}
-      >
-        {/* Tappable English words */}
-        <Box
-          sx={{
-            fontSize: '1.25rem',
-            fontWeight: 400,
-            lineHeight: 1.8,
-            color: 'text.primary',
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            gap: 0.5,
-          }}
-        >
+        <Box component="p" sx={{ m: 0, fontSize: 24, lineHeight: 1.6 }}>
           {englishWords.map((word, index) => {
-            const isSelected = state.selectedWordIndices.has(index);
+            const selected = state.selectedWordIndices.has(index);
             return (
-              <Box
-                key={index}
-                component="span"
-                role="button"
-                tabIndex={0}
-                aria-label={`${word}: tap to select for translation`}
-                aria-pressed={isSelected}
-                onClick={() => onToggleWord(index)}
-                onKeyDown={(e: React.KeyboardEvent) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onToggleWord(index);
-                  }
-                }}
-                sx={{
-                  cursor: 'pointer',
-                  px: 0.75,
-                  py: 0.25,
-                  borderRadius: 1,
-                  userSelect: 'none',
-                  transition: 'background-color 0.15s, color 0.15s',
-                  bgcolor: isSelected ? 'primary.main' : 'transparent',
-                  color: isSelected ? '#fff' : 'text.primary',
-                  '&:hover': {
-                    bgcolor: isSelected ? 'primary.dark' : 'action.hover',
-                  },
-                }}
-              >
-                {word}
-              </Box>
+              <React.Fragment key={index}>
+                {index > 0 && ' '}
+                <Box
+                  component="button"
+                  type="button"
+                  aria-label={copy.sentence.englishWord(word)}
+                  aria-pressed={selected}
+                  onClick={() => onToggleWord(index)}
+                  sx={{
+                    border: 'none',
+                    p: selected ? '0 6px' : '0 2px',
+                    font: 'inherit',
+                    cursor: 'pointer',
+                    borderRadius: '3px',
+                    bgcolor: selected ? colors.primaryDark : 'transparent',
+                    color: selected ? colors.white : 'inherit',
+                    borderBottom: selected ? 'none' : `1px dotted ${colors.borderStrong}`,
+                  }}
+                >
+                  {word}
+                </Box>
+              </React.Fragment>
             );
           })}
         </Box>
-
-        {/* Translate button */}
-        {state.selectedWordIndices.size > 0 && (
-          <Button clicked={onTranslate} aria-label="Translate selected words">
-            Translate
-          </Button>
-        )}
-
-        {/* Translation results */}
         {state.showTranslation && (
-          <Box sx={{ width: '100%' }}>
+          <Box
+            sx={{
+              alignSelf: 'stretch',
+              display: 'flex',
+              flexDirection: 'column',
+              borderTop: `1px solid ${colors.divider}`,
+              textAlign: 'left',
+            }}
+          >
             {state.translationResults.length > 0 ? (
-              <Stack spacing={1}>
-                {state.translationResults.map((tw, i) => (
-                  <Paper
-                    key={`${tw.id}-${i}`}
-                    variant="outlined"
-                    sx={{
-                      p: '8px 12px',
-                      borderRadius: 2,
-                      bgcolor: '#f0f7f4',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <Typography
-                      lang="zh"
-                      sx={{ fontSize: '1.2rem', fontWeight: 500, letterSpacing: 1 }}
-                    >
-                      {tw[state.charSet]}
-                    </Typography>
-                    <Typography lang="zh-Latn" variant="body2" sx={{ color: 'text.secondary' }}>
-                      {tw.pinyin}
-                    </Typography>
-                    <Typography variant="body2">{parseMeanings(tw.meaning).join(' / ')}</Typography>
-                  </Paper>
-                ))}
-              </Stack>
+              state.translationResults.map((tw, i) => (
+                <Box
+                  key={`${tw.id}-${i}`}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.75,
+                    py: 1.25,
+                    px: 0.25,
+                    borderBottom:
+                      i === state.translationResults.length - 1
+                        ? 'none'
+                        : `1px solid ${colors.divider}`,
+                  }}
+                >
+                  <Box lang="zh" sx={hanziSx(30, { width: 64, flex: 'none' })}>
+                    {tw[state.charSet]}
+                  </Box>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                    <Box lang="zh-Latn" sx={{ fontSize: 15 }}>
+                      {toneMarks(tw.pinyin)}
+                    </Box>
+                    <Box sx={{ fontSize: 14, color: colors.textSecondary }}>
+                      {parseMeanings(tw.meaning).join(' · ')}
+                    </Box>
+                  </Box>
+                </Box>
+              ))
             ) : (
-              <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
-                No translation found
-              </Typography>
+              <Box sx={{ pt: 1.25, fontSize: 14, color: colors.textSecondary }}>
+                {copy.sentence.noTranslation}
+              </Box>
             )}
           </Box>
         )}
-
-        {/* Must-use word badge */}
-        <Box
-          sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 0.75,
-            px: 1.5,
-            py: 0.5,
-            borderRadius: 10,
-            bgcolor: 'primary.dark',
-            color: '#fff',
-          }}
-        >
-          <Typography variant="caption" sx={{ color: '#fff', lineHeight: 1 }}>
-            must use:
-          </Typography>
-          <Typography
-            lang="zh"
-            sx={{
-              fontWeight: 400,
-              fontSize: '1.1rem',
-              letterSpacing: 1,
-              lineHeight: 1,
-              color: '#fff',
-            }}
-          >
-            {currentWord?.[state.charSet]}
-          </Typography>
-        </Box>
-      </Paper>
-
-      {/* Hint text */}
-      <Typography
-        variant="caption"
-        sx={{ textAlign: 'center', color: 'text.secondary', display: 'block' }}
-      >
-        Tap English words for translation help
-      </Typography>
-
-      {/* Answer input */}
-      <Stack spacing={1.5} alignItems="center">
-        <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: 1 }}>
-          Your answer
-        </Typography>
-        <Input
-          id="answerInput"
-          aria-label="Type your Chinese answer"
-          autoComplete="off"
-          changed={(e) => updateState({ entered: e.target.value, message: '' })}
-          keyPressed={onInputKeyPress}
-          value={state.entered}
-          placeholder="Type your answer in Chinese…"
-          style={{ width: '100%' }}
+        {mustUse}
+      </StudyCard>
+      {speechAvailable && (
+        <MicButton
+          listening={state.listening}
+          onClick={() => (state.listening ? state.recognition?.abort() : onListenPinyin())}
+          sx={{ mt: 2.75 }}
         />
-        <Button
-          clicked={onSubmitAnswer}
-          disabled={state.entered.trim() === ''}
-          aria-label="Submit answer"
+      )}
+      {state.message && (
+        <StatusLine
+          tone="neutral"
+          icon={state.message === copy.test.status.listening ? 'dot' : undefined}
         >
-          Submit
-        </Button>
-        {speechAvailable && (
-          <Stack direction="row" alignItems="center" spacing={1} justifyContent="center">
-            {state.message && (
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {state.message}
-              </Typography>
-            )}
-            <PictureButton
-              type="secondary"
-              src={micPic}
-              aria-label="Record speech"
-              clicked={onListenPinyin}
-            />
-          </Stack>
-        )}
-      </Stack>
-    </Box>
+          {state.message}
+        </StatusLine>
+      )}
+      <Overline component="label" htmlFor="answerInput" sx={{ mt: 2.5 }}>
+        {copy.sentence.yourAnswer}
+      </Overline>
+      <Box
+        component="input"
+        id="answerInput"
+        lang="zh"
+        autoComplete="off"
+        value={state.entered}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+          updateState({ entered: e.target.value, message: '' })
+        }
+        onKeyPress={onInputKeyPress}
+        placeholder={copy.sentence.writePlaceholder}
+        sx={{
+          mt: 1,
+          height: 48,
+          boxSizing: 'border-box',
+          borderRadius: 1,
+          border: `1px solid ${colors.borderStrong}`,
+          bgcolor: colors.card,
+          px: 1.75,
+          fontFamily: fonts.hanzi,
+          fontSize: 22,
+          color: colors.text,
+          outline: 'none',
+          '&:focus': { border: `2px solid ${colors.primaryDark}`, px: '13px' },
+          '&::placeholder': { color: colors.placeholder },
+        }}
+      />
+      <Box sx={{ flex: 1, minHeight: 24 }} />
+      <StudyButton
+        variant="primary"
+        disabled={state.entered.trim() === ''}
+        onClick={onSubmitAnswer}
+      >
+        {copy.test.check}
+      </StudyButton>
+    </StudyScreen>
   );
 };
 

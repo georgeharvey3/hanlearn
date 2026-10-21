@@ -17,11 +17,28 @@ export const colors = {
   text: '#2b2622', // ink
   textSecondary: '#6b6158',
   error: '#cc0000',
-  success: '#00A86B',
+  // The brand green, so that "Correct" and the actions agree. It passes 4.5:1
+  // on the paper, which the old #00A86B did not.
+  success: '#1a5c40',
+  // A pale wash of the green: a pressed toggle, a correct answer field.
+  successSurface: '#eef4f0',
+  // A pale wash of the seal red: the pressed "No" grade, the mic's ring.
+  errorSurface: '#fbeced',
+  micRing: '#f6e3e4',
   // The amber of a lapse, and of the "Incorrect tones" feedback line. It is the
   // value MUI gave `warning.main` by default, named here so that a component
   // that reads `colors` and one that reads the palette agree.
   warning: '#ed6c02',
+  // The amber as text. #ed6c02 is too light for words on the paper.
+  warningText: '#b25000',
+  warningSurface: '#fbf0e6',
+  // Text on a control that is off.
+  disabledText: '#c9bfb3',
+  placeholder: '#9a8f82',
+  // The faint character of a stroke outline, and the guides of the
+  // handwriting box.
+  outline: '#e6dccf',
+  gridLine: '#e8b9bd',
   divider: '#e4d8c6',
   borderStrong: '#d6c8b4', // the outline of a control, where a divider is too faint
 } as const;

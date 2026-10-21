@@ -16,7 +16,16 @@ const FILES = [
   'components/Test/QuestionDisplay.tsx',
   'components/Test/TestActions.tsx',
   'components/Test/AnswerInput.tsx',
-  'components/Test/ProgressBar/ProgressBar.tsx',
+  'components/Test/Study/parts.tsx',
+  'components/Test/Study/StudyTop.tsx',
+  'components/Test/AudioSettingsDrawer/AudioSettingsDrawer.tsx',
+  'components/Test/Study/WordSheet.tsx',
+  'components/Test/SentenceRead/SentenceRead.tsx',
+  'components/Test/SentenceWrite/SentenceWrite.tsx',
+  'components/UI/SimilarityScore/SimilarityScore.tsx',
+  'components/Test/ComponentReview/ComponentReview.tsx',
+  'components/Test/ComponentReview/CharacterGlosses.tsx',
+  'components/Test/ComponentReview/ComponentTree.tsx',
 ];
 
 const USER_FACING_ATTRIBUTES = new Set(['aria-label', 'placeholder', 'alt', 'title']);

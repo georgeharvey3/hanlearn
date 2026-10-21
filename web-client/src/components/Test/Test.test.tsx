@@ -336,34 +336,29 @@ describe('useTestEngine — onToggleShowPinyin', () => {
 // ────────────────────────────────────────────────────────────────────────────
 
 describe('useTestEngine — showCharacter', () => {
-  it('sets result to chosenCharacter when result is currently empty', () => {
-    const result = renderEngineWithState({ chosenCharacter: '你', result: '' });
+  it('puts the character on the card', () => {
+    const result = renderEngineWithState({ chosenCharacter: '你', showQuestionCharacter: false });
 
     act(() => {
       result.current.showCharacter();
     });
 
-    expect(result.current.state.result).toBe('你');
+    expect(result.current.state.showQuestionCharacter).toBe(true);
   });
 
-  it('clears result when it already shows the chosenCharacter (toggle off)', () => {
-    const result = renderEngineWithState({ chosenCharacter: '你', result: '你' });
+  it('takes it off again, and leaves the status line alone', () => {
+    const result = renderEngineWithState({
+      chosenCharacter: '你',
+      showQuestionCharacter: true,
+      result: 'Try again',
+    });
 
     act(() => {
       result.current.showCharacter();
     });
 
-    expect(result.current.state.result).toBe('');
-  });
-
-  it('sets result to chosenCharacter even when result shows something else', () => {
-    const result = renderEngineWithState({ chosenCharacter: '你', result: 'Try again' });
-
-    act(() => {
-      result.current.showCharacter();
-    });
-
-    expect(result.current.state.result).toBe('你');
+    expect(result.current.state.showQuestionCharacter).toBe(false);
+    expect(result.current.state.result).toBe('Try again');
   });
 });
 

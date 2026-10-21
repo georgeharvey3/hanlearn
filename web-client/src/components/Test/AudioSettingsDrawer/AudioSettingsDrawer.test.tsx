@@ -44,7 +44,7 @@ describe('AudioSettingsDrawer', () => {
 
   it('renders the title', () => {
     render(<AudioSettingsDrawer {...defaultProps} />);
-    expect(screen.getByText('Test Settings')).toBeInTheDocument();
+    expect(screen.getByText('Test settings')).toBeInTheDocument();
   });
 
   it('disables text-to-speech checkbox when synthAvailable is false', () => {

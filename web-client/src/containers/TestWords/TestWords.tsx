@@ -13,6 +13,7 @@ import NewWords from '../../components/Test/NewWords/NewWords';
 import TestSummary from '../../components/Test/TestSummary/TestSummary';
 
 import ErrorBoundary from '../../components/ErrorBoundary/ErrorBoundary';
+import { useFocusMode } from '../../components/Layout/focusMode';
 import * as testLogic from '../../components/Test/Logic/TestLogic';
 import { RootState } from '../../types/store';
 import { Word, WordScore } from '../../types/models';
@@ -497,6 +498,14 @@ const TestWords: React.FC<Props> = ({
     });
   }, [activeListId, isDemo, state, userId]);
 
+  // A study stage fills the screen; its own bar has the way out. The Learn
+  // step, the summary and the prompts keep the app's navigation.
+  const studying =
+    !state.pendingResume &&
+    state.selectedWords.length > 0 &&
+    (state.stage === 'vocab' || state.stage === 'read' || state.stage === 'write');
+  useFocusMode(studying);
+
   // All dev stages require auth since they use real words from user's list
   // Wait for auth to initialize before redirecting
   if (devConfig && !authInitialized) {
@@ -703,7 +712,7 @@ const TestWords: React.FC<Props> = ({
 
   // Build progress stepper (only when a session is active)
   let stepper: React.ReactNode = null;
-  if (state.selectedWords.length > 0) {
+  if (state.selectedWords.length > 0 && !studying) {
     const steps: string[] = [];
     if (state.newWords.length > 0 && state.newWordsEnabled) steps.push('Learn');
     steps.push('Test');

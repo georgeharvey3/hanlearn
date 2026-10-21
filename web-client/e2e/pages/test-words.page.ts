@@ -16,14 +16,24 @@ export class TestWordsPage {
     return this.page.locator('#answer-input');
   }
 
-  /** Get the "I Don't Know" button */
+  /** Get the "I don't know" button */
   get idkButton(): Locator {
     return this.page.locator('#idk');
   }
 
-  /** Get the "Show Answer" button */
+  /** Get the "Show answer" button */
   get showAnswerButton(): Locator {
-    return this.page.getByRole('button', { name: 'Show Answer' });
+    return this.page.getByRole('button', { name: 'Show answer' });
+  }
+
+  /** Get the Continue button, which moves on from a graded question */
+  get continueButton(): Locator {
+    return this.page.locator('#continue');
+  }
+
+  /** Move on from a graded question, when it waits for Continue */
+  async continueIfHeld(): Promise<void> {
+    if (await this.continueButton.isVisible()) await this.continueButton.click();
   }
 
   /** Submit an answer by typing and pressing Enter */
@@ -32,7 +42,7 @@ export class TestWordsPage {
     await this.answerInput.press('Enter');
   }
 
-  /** Click "I Don't Know" to skip the current question */
+  /** Click "I don't know" to reveal the current question */
   async clickIDontKnow(): Promise<void> {
     await this.idkButton.click();
   }
@@ -44,12 +54,8 @@ export class TestWordsPage {
    * grades and the learner reports one of them.
    */
   async gradeFlashcard(grade: 'pass' | 'lapse' | 'fail'): Promise<void> {
-    const label = {
-      pass: 'I knew this',
-      lapse: 'I nearly knew this',
-      fail: "I didn't know this",
-    }[grade];
-    await this.page.locator(`[aria-label="${label}"]`).click();
+    const name = { pass: 'Yes', lapse: 'Nearly', fail: 'No' }[grade];
+    await this.page.getByRole('button', { name, exact: true }).click();
   }
 
   /** Wait for the test to reach the summary stage */
@@ -88,14 +94,14 @@ export class TestWordsPage {
    *
    * Test settings configure flashcard mode with MP (meaning answer,
    * pinyin question) as the only priority. Each question shows a
-   * "Show Answer" button, then like/dislike buttons.
+   * "Show answer" button, then the No / Nearly / Yes grades.
    *
-   * - "I knew this" (like) → onCorrectAnswer → removes the perm
-   * - "I didn't know this" (dislike) → onIDontKnow → keeps the perm,
-   *   adds to IDK list, auto-advances after 2s
+   * - "Yes" → onCorrectAnswer → removes the perm
+   * - "No" → onIDontKnow → keeps the perm, adds to IDK list,
+   *   auto-advances after 2s
    *
-   * @param targetIdkRounds Number of "I didn't know this" clicks before
-   *   switching to "I knew this" to finish. Use 0 for good scores, or
+   * @param targetIdkRounds Number of "No" clicks before switching to
+   *   "Yes" to finish. Use 0 for good scores, or
    *   a higher number (e.g. 8) for poor scores ("Weak"/"Very Weak").
    */
   async completeTestWithIDK(targetIdkRounds: number = 0): Promise<void> {
@@ -104,15 +110,22 @@ export class TestWordsPage {
       const summaryVisible = await this.page.getByText('Session Summary').isVisible();
       if (summaryVisible) return;
 
-      // Wait for "Show Answer" button (flashcard mode)
-      const showAnswer = this.page.getByRole('button', { name: 'Show Answer' });
+      // A graded question that waits for Continue
+      if (await this.continueButton.isVisible()) {
+        await this.continueButton.click();
+        await this.page.waitForTimeout(300);
+        continue;
+      }
+
+      // Wait for "Show answer" button (flashcard mode)
+      const showAnswer = this.page.getByRole('button', { name: 'Show answer' });
       if (await showAnswer.isVisible()) {
         await showAnswer.click();
         await this.page.waitForTimeout(300);
 
         if (idkRounds < targetIdkRounds) {
-          // Phase 1: Click "I didn't know this" to accumulate IDK counts
-          const dislike = this.page.locator('[aria-label="I didn\'t know this"]');
+          // Phase 1: Click "No" to accumulate IDK counts
+          const dislike = this.page.getByRole('button', { name: 'No', exact: true });
           if (await dislike.isVisible()) {
             await dislike.click();
             idkRounds++;
@@ -122,8 +135,8 @@ export class TestWordsPage {
           }
         }
 
-        // Phase 2: Click "I knew this" to remove the perm and finish
-        const like = this.page.locator('[aria-label="I knew this"]');
+        // Phase 2: Click "Yes" to remove the perm and finish
+        const like = this.page.getByRole('button', { name: 'Yes', exact: true });
         if (await like.isVisible()) {
           await like.click();
           // onCorrectAnswer removes perm, waits 1s, then next question
@@ -136,7 +149,7 @@ export class TestWordsPage {
       const idkVisible = await this.idkButton.isVisible();
       if (idkVisible && !(await this.idkButton.isDisabled())) {
         await this.idkButton.click();
-        await this.page.waitForTimeout(2500);
+        await this.page.waitForTimeout(500);
         idkRounds++;
         continue;
       }

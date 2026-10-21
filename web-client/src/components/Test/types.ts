@@ -95,6 +95,24 @@ export interface TestState {
   /** Whether the component breakdown of those characters is expanded. */
   showComponents: boolean;
   /**
+   * Whether a graded question is waiting for Continue. A typed, spoken or
+   * drawn answer holds the session on its reveal, and so does a question with
+   * components to review. A flashcard grade moves on by itself otherwise.
+   */
+  awaitingContinue: boolean;
+  /** The grade the current question got, or null while it is ungraded. */
+  outcome: DirectionResult | null;
+  /**
+   * The text the hint shows on the card: the initials of each syllable, or
+   * the pinyin of an example sentence when sound is off. Null for a hint that
+   * has no text, such as a sentence that plays aloud or a stroke outline.
+   */
+  hint: string | null;
+  /** Whether the character of a spoken pinyin question is on the card. */
+  showQuestionCharacter: boolean;
+  /** The character of the answer the learner is writing, counted from 0. */
+  writingIndex: number;
+  /**
    * The grade button the learner pressed on the current flashcard question, or
    * null while the question is ungraded. It styles the three buttons, so it is
    * set however the grade was given, by mouse or by keyboard.

@@ -1,26 +1,25 @@
 import React, { ChangeEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
-import {
-  Box,
-  CircularProgress,
-  IconButton,
-  Paper,
-  Stack,
-  Tooltip,
-  Typography,
-  Chip,
-} from '@mui/material';
+import { Box, CircularProgress } from '@mui/material';
+import { pinyin as toPinyin } from 'pinyin-pro';
 
-import { colors } from '../../../theme';
-import Button from '../../UI/Buttons/Button/Button';
-import Input from '../../UI/Input/Input';
-import PictureButton from '../../UI/Buttons/PictureButton/PictureButton';
-import Spinner from '../../UI/Spinner/Spinner';
+import { copy } from '../../../copy';
+import { colors, fonts } from '../../../theme';
 import SimilarityScore from '../../UI/SimilarityScore/SimilarityScore';
-
-import speakerPic from '../../../assets/images/speaker.png';
-import micPic from '../../../assets/images/microphone.png';
+import StudyScreen from '../Study/StudyScreen';
+import StudyTop from '../Study/StudyTop';
+import WordSheet from '../Study/WordSheet';
+import {
+  MicButton,
+  Overline,
+  PillToggle,
+  PlayButton,
+  StatusLine,
+  StudyButton,
+  StudyCard,
+  hanziSx,
+} from '../Study/parts';
 
 import { beep } from '../constants';
 
@@ -29,7 +28,6 @@ import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
 import { AppDispatch } from '../../../types/actions';
 import { getSegmentedSentence, takeSentenceStart } from '../../../services/sentenceService';
-import { parseMeanings } from '../../../utils/meaningUtils';
 import { resolveSentence, SentenceWord, ResolvedSentence } from '../../../utils/sentenceUtils';
 import * as ttsService from '../../../services/ttsService';
 import { getSimilarityScore } from '../../../services/similarityService';
@@ -45,9 +43,13 @@ interface SentenceReadState {
   synthLoading: boolean;
   useSound: boolean;
   showText: boolean;
-  openPopup: string;
+  /** The word whose definition is open, or null. */
+  popup: SentenceWord | null;
+  /** Whether the sentence for the current word failed to load. */
+  loadError: boolean;
   message: string;
   recognition: SpeechRecognition | null;
+  listening: boolean;
   score: number | null;
   scoreLoading: boolean;
 }
@@ -78,55 +80,8 @@ interface OwnProps {
 
 type Props = PropsFromRedux & OwnProps & RouteComponentProps;
 
-// Keyframes for subtle underline fade-in
-const tapAffordanceFadeIn = {
-  '@keyframes tapAffordanceFadeIn': {
-    '0%': { borderBottomColor: 'transparent' },
-    '100%': { borderBottomColor: 'rgba(26, 92, 64, 0.35)' },
-  },
-};
-
-// Popup styles
-const popupBaseSx = {
-  position: 'relative',
-  borderRadius: 1,
-  display: 'inline-block',
-  cursor: 'pointer',
-  userSelect: 'none',
-  height: 36,
-  boxSizing: 'border-box',
-  border: 'none',
-  borderBottom: '2px dotted rgba(26, 92, 64, 0.35)',
-  fontFamily: 'inherit',
-  fontSize: 'inherit',
-  width: 'auto',
-  color: 'primary.dark',
-  animation: 'tapAffordanceFadeIn 0.6s ease-in',
-  ...tapAffordanceFadeIn,
-  '&:hover': {
-    bgcolor: 'primary.dark',
-    color: 'common.white',
-    cursor: 'pointer',
-  },
-} as const;
-
-const popupTextStyle: React.CSSProperties = {
-  visibility: 'hidden',
-  backgroundColor: colors.divider,
-  width: 200,
-  color: colors.text,
-  fontSize: '0.7em',
-  textAlign: 'center',
-  borderRadius: 6,
-  boxSizing: 'border-box',
-  padding: 5,
-  position: 'absolute',
-  zIndex: 1,
-  top: '125%',
-  left: '50%',
-  marginLeft: -100,
-  boxShadow: '0 3px 6px rgba(0, 0, 0, 0.3)',
-};
+/** The speed of speech in slow mode. */
+const SLOW_SPEED = 0.7;
 
 const SentenceRead: React.FC<Props> = ({
   synthAvailable,
@@ -144,9 +99,6 @@ const SentenceRead: React.FC<Props> = ({
   const [slowMode, setSlowMode] = useState<boolean>(
     () => localStorage.getItem('slowMode') === 'true',
   );
-  const [showTapHint, setShowTapHint] = useState<boolean>(
-    () => localStorage.getItem('tapHintDismissed') !== 'true',
-  );
   const [state, setState] = useState<SentenceReadState>({
     sentence: null,
     charSet: (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad',
@@ -157,9 +109,11 @@ const SentenceRead: React.FC<Props> = ({
     synthLoading: false,
     useSound: true,
     showText: false,
-    openPopup: '',
+    popup: null,
+    loadError: false,
     message: '',
     recognition: null,
+    listening: false,
     score: null,
     scoreLoading: false,
   });
@@ -204,7 +158,7 @@ const SentenceRead: React.FC<Props> = ({
 
       updateState({ synthLoading: true });
       ttsService.speak(sentence, {
-        speed: slowModeRef.current ? 0.7 : 1.0,
+        speed: slowModeRef.current ? SLOW_SPEED : 1.0,
         fallbackVoice: voice,
         fallbackLang: lang || 'zh-CN',
         onStart: () => {
@@ -237,11 +191,12 @@ const SentenceRead: React.FC<Props> = ({
     });
 
     recognition.addEventListener('end', () => {
-      if (!result) updateState({ message: "Couldn't hear anything..." });
+      updateState({ listening: false });
+      if (!result) updateState({ message: copy.test.status.heardNothing });
     });
 
     recognition.addEventListener('audiostart', () => {
-      updateState({ message: 'Listening...' });
+      updateState({ message: copy.test.status.listening, listening: true });
     });
 
     recognition.start();
@@ -256,7 +211,7 @@ const SentenceRead: React.FC<Props> = ({
   }, [history, sentenceWriteEnabled, startSentenceWrite]);
 
   const fetchSentence = useCallback(async (): Promise<void> => {
-    updateState({ loading: true });
+    updateState({ loading: true, loadError: false });
 
     const currentWord = words[stateRef.current.wordIndex].simp;
     const offset = takeSentenceStart(currentWord);
@@ -295,7 +250,7 @@ const SentenceRead: React.FC<Props> = ({
         stateRef.current.recognition?.abort();
         ttsService.stopAll();
         ttsService.speak(resolved.chinese.sentence, {
-          speed: slowModeRef.current ? 0.7 : 1.0,
+          speed: slowModeRef.current ? SLOW_SPEED : 1.0,
           fallbackVoice: voice,
           fallbackLang: lang || 'zh-CN',
           onStart: () => {
@@ -312,25 +267,13 @@ const SentenceRead: React.FC<Props> = ({
     } catch (error) {
       console.error('Error fetching sentence:', error);
       reportError(error, { feature: 'sentence-read' });
-      if (stateRef.current.wordIndex >= words.length - 1) {
-        onEndStage();
-      } else {
-        setState((prevState) => ({ ...prevState, wordIndex: prevState.wordIndex + 1 }));
-      }
+      // The learner chooses: try the word again, or skip it.
+      updateState({ loading: false, loadError: true });
     }
   }, [onEndStage, updateState, words, voice, lang]);
 
-  const onYesClicked = (): void => {
-    if (stateRef.current.useSound) beep.play();
-
-    const currentWord = words[stateRef.current.wordIndex];
-    const currentSentence = stateRef.current.sentence;
-    seenOffsets.current[currentWord.simp] = {
-      offset: currentOffset.current,
-      text: currentSentence?.chinese.sentence ?? '',
-      english: currentSentence?.english.sentence ?? '',
-    };
-
+  /** Move to the next word, or end the stage after the last. */
+  const advance = (): void => {
     if (stateRef.current.wordIndex >= words.length - 1) {
       onEndStage();
     } else {
@@ -343,17 +286,32 @@ const SentenceRead: React.FC<Props> = ({
         showText: false,
         score: null,
         scoreLoading: false,
+        loadError: false,
       }));
     }
   };
 
-  const onInputChanged = (event: ChangeEvent<HTMLInputElement>): void => {
+  const onYesClicked = (): void => {
+    if (stateRef.current.useSound) beep.play();
+
+    const currentWord = words[stateRef.current.wordIndex];
+    const currentSentence = stateRef.current.sentence;
+    seenOffsets.current[currentWord.simp] = {
+      offset: currentOffset.current,
+      text: currentSentence?.chinese.sentence ?? '',
+      english: currentSentence?.english.sentence ?? '',
+    };
+    advance();
+  };
+
+  const onInputChanged = (event: ChangeEvent<HTMLTextAreaElement>): void => {
     updateState({ entered: event.target.value });
   };
 
   const onSubmit = (): void => {
     if (stateRef.current.entered === '') return;
-    updateState({ submitted: true, scoreLoading: true, score: null });
+    stateRef.current.recognition?.abort();
+    updateState({ submitted: true, scoreLoading: true, score: null, message: '' });
 
     const currentSentence = stateRef.current.sentence;
     if (currentSentence) {
@@ -368,21 +326,17 @@ const SentenceRead: React.FC<Props> = ({
     }
   };
 
-  const onKeyPressed = (event: KeyboardEvent<HTMLInputElement>): void => {
-    if (event.key !== 'Enter') return;
+  // Enter sends the translation; Shift+Enter is a new line.
+  const onKeyPressed = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (event.key !== 'Enter' || event.shiftKey) return;
+    event.preventDefault();
     onSubmit();
   };
 
   const onKeyUp = useCallback(
     (event: globalThis.KeyboardEvent): void => {
-      if ((event.target as HTMLElement).tagName.toLowerCase() === 'input') return;
-
-      if (event.key === 'Escape' && stateRef.current.openPopup !== '') {
-        document.querySelectorAll('[data-popup-text]').forEach((el) => {
-          (el as HTMLElement).style.visibility = 'hidden';
-        });
-        updateState({ openPopup: '' });
-      }
+      const tag = (event.target as HTMLElement).tagName.toLowerCase();
+      if (tag === 'input' || tag === 'textarea') return;
 
       if (event.ctrlKey && event.key === 'b') {
         document.getElementById('answerInput')?.focus();
@@ -399,43 +353,9 @@ const SentenceRead: React.FC<Props> = ({
     setState((prevState) => ({ ...prevState, showText: !prevState.showText }));
   };
 
-  const onShowPopup = (id: string, word: string): void => {
-    const vocabs = document.querySelectorAll('[data-popup-text]');
-    const popup = document.getElementById(id);
-
-    if (popup && popup.style.visibility !== 'visible') {
-      vocabs.forEach((el) => {
-        (el as HTMLElement).style.visibility = 'hidden';
-      });
-      if (stateRef.current.useSound) onSpeakPinyin(word);
-    }
-
-    if (popup) {
-      popup.style.visibility = popup.style.visibility === 'visible' ? 'hidden' : 'visible';
-    }
-    updateState({ openPopup: id });
-
-    // Dismiss first-use hint on first tap
-    if (showTapHint) {
-      setShowTapHint(false);
-      localStorage.setItem('tapHintDismissed', 'true');
-    }
-  };
-
-  const closePopup = (event: MouseEvent): void => {
-    const target = event.target as HTMLElement;
-    if (
-      stateRef.current.openPopup !== '' &&
-      !target.hasAttribute('data-popup') &&
-      !(
-        target.parentElement?.hasAttribute('data-popup-text') ||
-        target.hasAttribute('data-popup-text')
-      )
-    ) {
-      document.querySelectorAll('[data-popup-text]').forEach((el) => {
-        (el as HTMLElement).style.visibility = 'hidden';
-      });
-    }
+  const onShowPopup = (word: SentenceWord): void => {
+    if (stateRef.current.useSound) onSpeakPinyin(word[stateRef.current.charSet]);
+    updateState({ popup: word });
   };
 
   useEffect(() => {
@@ -445,10 +365,8 @@ const SentenceRead: React.FC<Props> = ({
       initialiseSettings();
     }
     document.addEventListener('keyup', onKeyUp);
-    document.addEventListener('click', closePopup);
     return () => {
       document.removeEventListener('keyup', onKeyUp);
-      document.removeEventListener('click', closePopup);
     };
   }, [fetchSentence, initialiseSettings, onKeyUp]);
 
@@ -460,373 +378,341 @@ const SentenceRead: React.FC<Props> = ({
     prevWordIndex.current = state.wordIndex;
   }, [fetchSentence, state.wordIndex]);
 
-  // ── Sentence display content ──────────────────────────────────────────────
-  let sentenceCardContent: React.ReactNode = <Spinner />;
+  // ── Render ────────────────────────────────────────────────────────────────
+  const onEnd = (): void => {
+    stateRef.current.recognition?.abort();
+    ttsService.stopAll();
+    history.push('/');
+  };
 
-  if (state.sentence && !state.loading) {
-    const currentSentence = state.sentence;
-    const targetIndex = currentSentence.chinese.targetIndex;
-    const currentTargetWord = words[state.wordIndex]?.[state.charSet] || '';
+  const currentWordText = words[state.wordIndex]?.[state.charSet] || '';
+  const isLast = state.wordIndex >= words.length - 1;
+  const top = (
+    <StudyTop
+      stage={copy.study.stageRead}
+      done={state.wordIndex + (state.submitted ? 1 : 0)}
+      position={state.wordIndex + 1}
+      total={words.length}
+      onEnd={onEnd}
+    />
+  );
 
-    if (state.useSound && !state.showText) {
-      // Audio mode: centred speaker button with hint
-      sentenceCardContent = (
-        <Stack alignItems="center" spacing={1}>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: 40,
-                width: 40,
-              }}
-            >
-              {state.synthLoading ? (
-                <CircularProgress size={24} color="primary" aria-label="Loading speech" />
-              ) : (
-                <PictureButton
-                  type="secondary"
-                  src={speakerPic}
-                  aria-label="Play sentence"
-                  clicked={() => onSpeakPinyin(currentSentence.chinese.sentence)}
-                />
-              )}
-            </Box>
-            <Tooltip title={slowMode ? 'Slow mode on' : 'Slow mode off'}>
-              <IconButton
-                aria-label="Toggle slow mode"
-                aria-pressed={slowMode}
-                onClick={onToggleSlowMode}
-                size="small"
-                sx={{
-                  fontSize: '1.2rem',
-                  color: slowMode ? 'primary.main' : 'text.disabled',
-                  bgcolor: slowMode ? 'primary.50' : 'transparent',
-                  border: '1px solid',
-                  borderColor: slowMode ? 'primary.main' : 'divider',
-                  '&:hover': {
-                    bgcolor: slowMode ? 'primary.100' : 'action.hover',
-                  },
-                }}
-              >
-                🐢
-              </IconButton>
-            </Tooltip>
-          </Stack>
-          <Typography variant="caption" sx={{ color: 'text.secondary', letterSpacing: 0.3 }}>
-            {state.synthLoading ? 'Loading audio…' : 'Tap to replay'}
-          </Typography>
-        </Stack>
-      );
-    } else {
-      // Text mode: render the segmented sentence
-      const renderedWords = currentSentence.chinese.words.map((word, index) => {
-        const isTarget = index === targetIndex;
-
-        if (isTarget) {
-          return (
-            <Box
-              component="span"
-              key={index}
-              sx={{
-                color: 'primary.dark',
-                bgcolor: 'primary.50',
-                px: 0.5,
-                borderRadius: 1,
-                lineHeight: 'inherit',
-              }}
-            >
-              {currentTargetWord}
-            </Box>
-          );
-        }
-
-        if (typeof word === 'string') {
-          return <React.Fragment key={index}>{word}</React.Fragment>;
-        }
-
-        // Helper to render a single clickable word with popup
-        const renderWordPopup = (w: SentenceWord, popupId: string, key: string | number) => (
-          <Box
-            component="span"
-            role="button"
-            tabIndex={0}
-            data-popup
-            aria-label={`${w[state.charSet]}: tap to see meaning`}
-            onClick={(event: React.MouseEvent) => {
-              if ((event.target as HTMLElement).hasAttribute('data-popup')) {
-                onShowPopup(popupId, w[state.charSet]);
-              }
-            }}
-            onKeyDown={(event: React.KeyboardEvent) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onShowPopup(popupId, w[state.charSet]);
-              }
-            }}
-            key={key}
-            sx={popupBaseSx}
-          >
-            {w[state.charSet]}
-            <Box component="span" data-popup-text id={popupId} style={popupTextStyle}>
-              <Typography variant="subtitle2" sx={{ m: 0, fontWeight: 'bold' }}>
-                Pinyin:
-              </Typography>
-              <Typography lang="zh-Latn" variant="body2">
-                {w.pinyin || '—'}
-              </Typography>
-              <Typography variant="subtitle2" sx={{ m: 0, fontWeight: 'bold' }}>
-                Meaning:
-              </Typography>
-              <Typography variant="body2">
-                {w.meaning ? parseMeanings(w.meaning).join(' / ') : 'No definition found'}
-              </Typography>
-              {w.id !== -1 &&
-                (addedWords.find((aw) => aw.id === w.id) ? (
-                  <Button disabled>Added!</Button>
-                ) : (
-                  <Button clicked={() => onPostWord(w as Word)}>Add to list</Button>
-                ))}
-            </Box>
-          </Box>
-        );
-
-        // Decomposed segment — render each sub-word as clickable
-        if (Array.isArray(word)) {
-          return (
-            <React.Fragment key={index}>
-              {word.map((subWord, subIndex) =>
-                renderWordPopup(
-                  subWord,
-                  `${subWord.id}-${index}-${subIndex}-popup`,
-                  `${index}-${subIndex}`,
-                ),
-              )}
-            </React.Fragment>
-          );
-        }
-
-        return renderWordPopup(word, `${word.id}-${index}-popup`, index);
-      });
-
-      sentenceCardContent = (
-        <Box lang="zh" sx={{ lineHeight: 1.8, fontSize: '1.5em', letterSpacing: 2 }}>
-          {renderedWords}
-        </Box>
-      );
-    }
-  }
-
-  // ── Main input / navigation area ──────────────────────────────────────────
-  let mainContent: React.ReactNode;
-
-  if (state.submitted) {
-    const currentSentence = state.sentence!;
-    let translation: React.ReactNode = currentSentence.english.sentence;
-
-    if (currentSentence.english.highlight.length > 0) {
-      const t = currentSentence.english.sentence;
-      const s = currentSentence.english.highlight[0][0];
-      const e = currentSentence.english.highlight[0][1];
-      translation = (
-        <>
-          {t.slice(0, s)}
-          <Box component="span" sx={{ color: 'primary.dark', fontWeight: 600 }}>
-            {t.slice(s, e)}
-          </Box>
-          {t.slice(e)}
-        </>
-      );
-    }
-
-    mainContent = (
-      <Stack spacing={2} alignItems="center">
-        <Stack spacing={1} sx={{ width: '100%' }}>
-          <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: 1 }}>
-            Your translation
-          </Typography>
-          <Paper
-            variant="outlined"
-            sx={{ p: '12px 16px', borderRadius: 2, bgcolor: '#f9f9f9', textAlign: 'left' }}
-          >
-            <Typography sx={{ color: 'text.primary', fontSize: '1em' }}>{state.entered}</Typography>
-          </Paper>
-        </Stack>
-
-        <Stack spacing={1} sx={{ width: '100%' }}>
-          <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: 1 }}>
-            Correct translation
-          </Typography>
-          <Paper
-            variant="outlined"
-            sx={{ p: '12px 16px', borderRadius: 2, bgcolor: '#f0f7f4', textAlign: 'left' }}
-          >
-            <Typography sx={{ color: 'text.primary', fontSize: '1em' }}>{translation}</Typography>
-          </Paper>
-        </Stack>
-
-        {state.scoreLoading ? (
-          <SimilarityScore score={0} loading />
-        ) : state.score !== null ? (
-          <SimilarityScore score={state.score} />
-        ) : (
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            Score unavailable
-          </Typography>
-        )}
-
-        <Button
-          clicked={onYesClicked}
-          aria-label={
-            state.wordIndex >= words.length - 1
-              ? sentenceWriteEnabled
-                ? 'Next stage'
-                : 'Finish'
-              : 'Next word'
-          }
-        >
-          {state.wordIndex >= words.length - 1
-            ? sentenceWriteEnabled
-              ? 'Next Stage'
-              : 'Finish'
-            : 'Next Word'}
-        </Button>
-      </Stack>
-    );
-  } else {
-    const micButton = speechAvailable ? (
-      <Stack direction="row" alignItems="center" spacing={1} justifyContent="center">
-        {state.message && (
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            {state.message}
-          </Typography>
-        )}
-        <PictureButton
-          type="secondary"
-          src={micPic}
-          aria-label="Record speech"
-          clicked={onListenPinyin}
-        />
-      </Stack>
-    ) : null;
-
-    mainContent = (
-      <Stack spacing={2} alignItems="center">
-        <Box sx={{ width: '100%' }}>
-          <Typography
-            variant="overline"
-            sx={{ color: 'text.secondary', letterSpacing: 1, display: 'block', mb: 0.5 }}
-          >
-            English translation
-          </Typography>
-          <Input
-            id="answerInput"
-            aria-label="English translation"
-            changed={onInputChanged}
-            keyPressed={onKeyPressed}
-            autoComplete="off"
-            value={state.entered}
-            placeholder="Type your translation…"
-            style={{ width: '100%' }}
-          />
-          <Button
-            clicked={onSubmit}
-            disabled={state.entered === ''}
-            aria-label="Submit translation"
-          >
-            Submit
-          </Button>
-        </Box>
-
-        {micButton}
-      </Stack>
-    );
-  }
-
-  return (
+  const highlight = (text: React.ReactNode, key?: React.Key) => (
     <Box
+      component="span"
+      key={key}
       sx={{
-        width: '90%',
-        maxWidth: 520,
-        mx: 'auto',
-        py: 4,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 3,
+        color: colors.primaryDark,
+        bgcolor: colors.successSurface,
+        borderRadius: '3px',
+        px: 0.5,
       }}
     >
-      {/* Header */}
-      <Typography
-        variant="overline"
-        sx={{ textAlign: 'center', color: 'text.secondary', letterSpacing: 2, display: 'block' }}
-      >
-        Listen &amp; translate
-      </Typography>
+      {text}
+    </Box>
+  );
 
-      <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary' }}>
-        Word {state.wordIndex + 1} of {words.length}
-      </Typography>
+  // The sentence as text: each word a button that opens its definition, and
+  // the word under study highlighted.
+  const renderSentence = (sentence: ResolvedSentence, tappable: boolean) =>
+    sentence.chinese.words.map((word, index) => {
+      if (index === sentence.chinese.targetIndex) return highlight(currentWordText, index);
+      if (typeof word === 'string') return <React.Fragment key={index}>{word}</React.Fragment>;
 
-      {/* Sentence card */}
-      <Paper
-        elevation={2}
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          minHeight: 110,
-          p: 3,
-          borderRadius: 3,
-          bgcolor: '#fff',
-          textAlign: 'center',
-        }}
-      >
+      const renderWord = (w: SentenceWord, key: React.Key) =>
+        tappable ? (
+          <Box
+            component="button"
+            key={key}
+            type="button"
+            aria-label={copy.sentence.wordMeaning(w[state.charSet])}
+            onClick={() => onShowPopup(w)}
+            sx={{
+              border: 'none',
+              background: state.popup === w ? colors.text : 'transparent',
+              color: state.popup === w ? colors.white : 'inherit',
+              borderRadius: '3px',
+              p: 0,
+              font: 'inherit',
+              letterSpacing: 'inherit',
+              cursor: 'pointer',
+              borderBottom: state.popup === w ? 'none' : `1px dotted ${colors.borderStrong}`,
+            }}
+          >
+            {w[state.charSet]}
+          </Box>
+        ) : (
+          <React.Fragment key={key}>{w[state.charSet]}</React.Fragment>
+        );
+
+      return Array.isArray(word) ? (
+        <React.Fragment key={index}>
+          {word.map((sub, subIndex) => renderWord(sub, `${index}-${subIndex}`))}
+        </React.Fragment>
+      ) : (
+        renderWord(word, index)
+      );
+    });
+
+  if (state.loadError) {
+    return (
+      <StudyScreen>
+        {top}
         <Box
           sx={{
-            flex: 1,
+            mt: 2.5,
+            height: 300,
+            boxSizing: 'border-box',
+            p: 3,
+            bgcolor: colors.card,
+            border: `1px dashed ${colors.borderStrong}`,
+            borderRadius: 1,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '100%',
-            minHeight: 72,
-          }}
-        >
-          {sentenceCardContent}
-        </Box>
-        {/* Helper text – always occupies space to prevent layout shift */}
-        <Typography
-          variant="caption"
-          data-testid="tap-hint"
-          sx={{
+            gap: 1.75,
             textAlign: 'center',
-            color: showTapHint ? 'primary.dark' : 'text.secondary',
-            fontWeight: showTapHint ? 600 : 400,
-            display: 'block',
-            mt: 1,
-            visibility:
-              (!state.useSound || state.showText) && !!state.sentence && !state.loading
-                ? 'visible'
-                : 'hidden',
           }}
         >
-          {showTapHint ? 'Tap any word for its definition' : 'Tap a word to reveal its meaning'}
-        </Typography>
-        {state.useSound && (
-          <Chip
-            label={state.showText ? 'Hide text' : 'Show text'}
-            onClick={onToggleText}
-            variant="outlined"
-            size="small"
-            aria-pressed={state.showText}
-            sx={{ cursor: 'pointer', borderColor: 'primary.dark', color: 'primary.dark', mt: 2 }}
-          />
-        )}
-      </Paper>
+          <Box lang="zh" sx={hanziSx(48, { color: colors.disabledText })}>
+            {currentWordText}
+          </Box>
+          <Box role="alert" sx={{ fontSize: 17, fontWeight: 600 }}>
+            {copy.sentence.loadFailed}
+          </Box>
+        </Box>
+        <Box sx={{ flex: 1 }} />
+        <StudyButton onClick={advance}>{copy.sentence.skipWord}</StudyButton>
+        <StudyButton variant="primary" onClick={() => fetchSentence()} sx={{ mt: 1.25 }}>
+          {copy.sentence.tryAgain}
+        </StudyButton>
+      </StudyScreen>
+    );
+  }
 
-      {/* Input / result area */}
-      {mainContent}
+  if (!state.sentence || state.loading) {
+    return (
+      <StudyScreen>
+        {top}
+        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <CircularProgress aria-label={copy.study.loading} sx={{ color: colors.primaryDark }} />
+        </Box>
+      </StudyScreen>
+    );
+  }
+
+  const sentence = state.sentence;
+
+  if (state.submitted) {
+    const english = sentence.english.sentence;
+    const [start, end] = sentence.english.highlight[0] ?? [0, 0];
+    const box = {
+      p: 1.75,
+      border: `1px solid ${colors.divider}`,
+      borderRadius: 1,
+      bgcolor: colors.card,
+      fontSize: 17,
+    };
+
+    return (
+      <StudyScreen>
+        {top}
+        <StudyCard seal={false} sx={{ mt: 2.5, px: 2.5, py: 2.25, gap: 0.75 }}>
+          <Box
+            component="p"
+            lang="zh"
+            sx={{
+              m: 0,
+              fontFamily: fonts.hanzi,
+              fontSize: 30,
+              lineHeight: 1.5,
+              letterSpacing: '0.04em',
+            }}
+          >
+            {renderSentence(sentence, false)}
+          </Box>
+          <Box
+            component="p"
+            lang="zh-Latn"
+            sx={{ m: 0, fontSize: 15, color: colors.textSecondary }}
+          >
+            {toPinyin(sentence.chinese.sentence, { nonZh: 'consecutive' })}
+          </Box>
+        </StudyCard>
+        <Overline sx={{ mt: 2.75, mb: 0.75 }}>{copy.sentence.yourTranslation}</Overline>
+        <Box sx={box}>{state.entered}</Box>
+        <Overline sx={{ mt: 2, mb: 0.75 }}>{copy.sentence.correctTranslation}</Overline>
+        <Box sx={box}>
+          {end > start ? (
+            <>
+              {english.slice(0, start)}
+              <Box component="span" sx={{ color: colors.primaryDark, fontWeight: 600 }}>
+                {english.slice(start, end)}
+              </Box>
+              {english.slice(end)}
+            </>
+          ) : (
+            english
+          )}
+        </Box>
+        <Box sx={{ mt: 2.75 }}>
+          {state.scoreLoading ? (
+            <SimilarityScore score={0} loading />
+          ) : state.score !== null ? (
+            <SimilarityScore score={state.score} />
+          ) : (
+            <Box sx={{ fontSize: 14, color: colors.textSecondary }}>
+              {copy.sentence.scoreUnavailable}
+            </Box>
+          )}
+        </Box>
+        <Box sx={{ flex: 1, minHeight: 24 }} />
+        <StudyButton variant="primary" onClick={onYesClicked}>
+          {isLast
+            ? sentenceWriteEnabled
+              ? copy.sentence.nextStage
+              : copy.sentence.finish
+            : copy.sentence.nextWord}
+        </StudyButton>
+      </StudyScreen>
+    );
+  }
+
+  const textShown = !state.useSound || state.showText;
+  const slowToggle = (size: number) => (
+    <Box
+      component="button"
+      type="button"
+      aria-label={copy.sentence.slowMode}
+      aria-pressed={slowMode}
+      onClick={onToggleSlowMode}
+      sx={{
+        width: size,
+        height: size,
+        borderRadius: `${size / 2}px`,
+        border: `1px solid ${slowMode ? colors.primaryDark : colors.borderStrong}`,
+        bgcolor: slowMode ? colors.successSurface : colors.card,
+        color: slowMode ? colors.primaryDark : colors.textSecondary,
+        fontFamily: fonts.body,
+        fontSize: 13,
+        fontWeight: 600,
+        cursor: 'pointer',
+        p: 0,
+      }}
+    >
+      {copy.sentence.slowLabel}
     </Box>
+  );
+  const play = () => onSpeakPinyin(sentence.chinese.sentence);
+
+  return (
+    <StudyScreen>
+      {top}
+      <Box sx={{ mt: 3, textAlign: 'center', fontSize: 15, color: colors.textSecondary }}>
+        {copy.sentence.readPrompt}
+        <Box
+          component="span"
+          lang="zh"
+          sx={{ fontFamily: fonts.hanzi, fontSize: 20, color: colors.primaryLight }}
+        >
+          {currentWordText}
+        </Box>
+      </Box>
+      <StudyCard
+        height={260}
+        seal={false}
+        sx={{ mt: 1.5, gap: 2, justifyContent: textShown ? 'flex-start' : 'center' }}
+      >
+        {state.useSound && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: textShown ? 1.25 : 1.75 }}>
+            <PlayButton
+              size={textShown ? 44 : 88}
+              loading={state.synthLoading}
+              onClick={play}
+              label={copy.sentence.playSentence}
+            />
+            {slowToggle(textShown ? 44 : 48)}
+          </Box>
+        )}
+        {textShown && (
+          <Box
+            component="p"
+            lang="zh"
+            sx={{
+              m: 0,
+              fontFamily: fonts.hanzi,
+              fontSize: 34,
+              lineHeight: 1.6,
+              letterSpacing: '0.04em',
+            }}
+          >
+            {renderSentence(sentence, true)}
+          </Box>
+        )}
+        {state.useSound && (
+          <PillToggle pressed={state.showText} onClick={onToggleText}>
+            {state.showText ? copy.sentence.hideText : copy.sentence.showText}
+          </PillToggle>
+        )}
+      </StudyCard>
+      {speechAvailable && (
+        <MicButton
+          listening={state.listening}
+          onClick={() => (state.listening ? state.recognition?.abort() : onListenPinyin())}
+          sx={{ mt: 2.75 }}
+        />
+      )}
+      {state.message && (
+        <StatusLine
+          tone="neutral"
+          icon={state.message === copy.test.status.listening ? 'dot' : undefined}
+        >
+          {state.message}
+        </StatusLine>
+      )}
+      <Overline component="label" htmlFor="answerInput" sx={{ mt: 2.5 }}>
+        {copy.sentence.englishTranslation}
+      </Overline>
+      <Box
+        component="textarea"
+        id="answerInput"
+        value={state.entered}
+        onChange={onInputChanged}
+        onKeyDown={onKeyPressed}
+        placeholder={copy.sentence.translationPlaceholder}
+        autoComplete="off"
+        sx={{
+          mt: 1,
+          height: 96,
+          boxSizing: 'border-box',
+          borderRadius: 1,
+          border: `1px solid ${colors.borderStrong}`,
+          bgcolor: colors.card,
+          px: 1.75,
+          py: 1.5,
+          fontFamily: fonts.body,
+          fontSize: 17,
+          color: colors.text,
+          outline: 'none',
+          resize: 'none',
+          '&:focus': { border: `2px solid ${colors.primaryDark}`, px: '13px', py: '11px' },
+          '&::placeholder': { color: colors.placeholder },
+        }}
+      />
+      <Box sx={{ flex: 1, minHeight: 24 }} />
+      <StudyButton variant="primary" disabled={state.entered === ''} onClick={onSubmit}>
+        {copy.test.check}
+      </StudyButton>
+      <WordSheet
+        word={state.popup}
+        charSet={state.charSet}
+        added={Boolean(state.popup && addedWords.find((w) => w.id === state.popup!.id))}
+        onClose={() => updateState({ popup: null })}
+        onSpeak={onSpeakPinyin}
+        onAdd={(w) => onPostWord(w as Word)}
+      />
+    </StudyScreen>
   );
 };
 

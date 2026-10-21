@@ -488,7 +488,7 @@ describe("useTestEngine — I-don't-know flow", () => {
     expect(result.current.state.idkDisabled).toBe(true);
   });
 
-  it('shows the correct answer in result text when IDK is triggered', () => {
+  it('reports the question as not known, and grades it a fail', () => {
     const pair = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
 
     const result = renderEngineWithState({
@@ -511,8 +511,8 @@ describe("useTestEngine — I-don't-know flow", () => {
       result.current.onIDontKnow();
     });
 
-    expect(result.current.state.result).toContain('nǐ hǎo');
-    expect(result.current.state.result).toContain('Answer was');
+    expect(result.current.state.result).toBe('Not known');
+    expect(result.current.state.outcome).toBe('fail');
   });
 
   it('accumulates one grade per direction of the same word', () => {
@@ -548,39 +548,43 @@ describe("useTestEngine — I-don't-know flow", () => {
 });
 
 describe('useTestEngine — onShowAnswer', () => {
-  it('shows a string answer in result', () => {
+  it('turns the card over, and leaves the status line empty', () => {
     const result = renderEngineWithState({
       answer: 'nǐ hǎo',
       answerCategory: 'pinyin',
       showAnswer: false,
+      result: '',
     });
 
     act(() => {
       result.current.onShowAnswer();
     });
 
-    expect(result.current.state.result).toContain('nǐ hǎo');
     expect(result.current.state.showAnswer).toBe(true);
+    expect(result.current.state.result).toBe('');
   });
 
-  it('joins meaning array with " / " in result', () => {
+  it('takes the hint off the card', () => {
     const result = renderEngineWithState({
       answer: ['hello', 'hi'],
       answerCategory: 'meaning',
       showAnswer: false,
+      showHint: true,
+      hint: 'ni3 hao3',
     });
 
     act(() => {
       result.current.onShowAnswer();
     });
 
-    expect(result.current.state.result).toContain('hello / hi');
     expect(result.current.state.showAnswer).toBe(true);
+    expect(result.current.state.showHint).toBe(false);
+    expect(result.current.state.hint).toBeNull();
   });
 });
 
 describe('useTestEngine — pinyin hint', () => {
-  it('shows a Hint: prefix with initial letters and underscores for each syllable', () => {
+  it('shows the initial letters, with underscores, for each syllable', () => {
     const result = renderEngineWithState({
       answerCategory: 'pinyin',
       answer: 'ni3 hao3',
@@ -591,7 +595,7 @@ describe('useTestEngine — pinyin hint', () => {
       result.current.onHint();
     });
 
-    expect(result.current.state.result).toMatch(/Hint:/);
+    expect(result.current.state.hint).toBe('n__ h__');
     expect(result.current.state.showHint).toBe(true);
   });
 
@@ -600,7 +604,7 @@ describe('useTestEngine — pinyin hint', () => {
       answerCategory: 'pinyin',
       answer: 'ni3 hao3',
       showHint: true,
-      result: 'Hint: ni3__ hao3__',
+      hint: 'n__ h__',
     });
 
     act(() => {
@@ -608,7 +612,7 @@ describe('useTestEngine — pinyin hint', () => {
     });
 
     expect(result.current.state.showHint).toBe(false);
-    expect(result.current.state.result).toBe('');
+    expect(result.current.state.hint).toBeNull();
   });
 });
 

@@ -47,28 +47,14 @@ beforeEach(() => {
 describe('ComponentReview', () => {
   it('renders nothing when the question offered no characters', () => {
     const { container } = render(
-      <ComponentReview
-        chars={[]}
-        charSet="trad"
-        open={false}
-        onToggle={vi.fn()}
-        onContinue={vi.fn()}
-      />,
+      <ComponentReview chars={[]} charSet="trad" open={false} onToggle={vi.fn()} />,
     );
 
     expect(container).toBeEmptyDOMElement();
   });
 
   it('shows the pinyin and meaning of every character without being asked', async () => {
-    render(
-      <ComponentReview
-        chars={['你', '好']}
-        charSet="trad"
-        open={false}
-        onToggle={vi.fn()}
-        onContinue={vi.fn()}
-      />,
-    );
+    render(<ComponentReview chars={['你', '好']} charSet="trad" open={false} onToggle={vi.fn()} />);
 
     expect(await screen.findByText('nǐ')).toBeInTheDocument();
     expect(await screen.findByText('you')).toBeInTheDocument();
@@ -79,15 +65,7 @@ describe('ComponentReview', () => {
   });
 
   it('says so when a character is not in the dictionary', async () => {
-    render(
-      <ComponentReview
-        chars={['〇']}
-        charSet="trad"
-        open={false}
-        onToggle={vi.fn()}
-        onContinue={vi.fn()}
-      />,
-    );
+    render(<ComponentReview chars={['〇']} charSet="trad" open={false} onToggle={vi.fn()} />);
 
     expect(await screen.findByText('Not in the dictionary')).toBeInTheDocument();
   });
@@ -95,69 +73,52 @@ describe('ComponentReview', () => {
   it('says so when the lookup fails', async () => {
     mockedSearchWord.mockRejectedValue(new Error('offline'));
 
-    render(
-      <ComponentReview
-        chars={['好']}
-        charSet="trad"
-        open={false}
-        onToggle={vi.fn()}
-        onContinue={vi.fn()}
-      />,
-    );
+    render(<ComponentReview chars={['好']} charSet="trad" open={false} onToggle={vi.fn()} />);
 
     expect(await screen.findByText('Definition unavailable')).toBeInTheDocument();
   });
 
   it('offers the breakdown without fetching it until it is asked for', async () => {
-    render(
-      <ComponentReview
-        chars={['好']}
-        charSet="trad"
-        open={false}
-        onToggle={vi.fn()}
-        onContinue={vi.fn()}
-      />,
-    );
+    render(<ComponentReview chars={['好']} charSet="trad" open={false} onToggle={vi.fn()} />);
 
-    expect(screen.getByRole('button', { name: 'Components' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show components' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
     await waitFor(() => expect(mockedSearchWord).toHaveBeenCalled());
     expect(decomposeCharacter).not.toHaveBeenCalled();
   });
 
   it('shows the components of every character of the word when open', async () => {
-    render(
-      <ComponentReview
-        chars={['你', '好']}
-        charSet="trad"
-        open
-        onToggle={vi.fn()}
-        onContinue={vi.fn()}
-      />,
-    );
+    render(<ComponentReview chars={['你', '好']} charSet="trad" open onToggle={vi.fn()} />);
 
     await waitFor(() => expect(decomposeCharacter).toHaveBeenCalledTimes(2));
     expect(decomposeCharacter).toHaveBeenCalledWith('你');
     expect(decomposeCharacter).toHaveBeenCalledWith('好');
   });
 
-  it('reports the toggle and the continue', async () => {
+  it('reports the toggle', async () => {
     const onToggle = vi.fn();
-    const onContinue = vi.fn();
-    render(
-      <ComponentReview
-        chars={['好']}
-        charSet="trad"
-        open={false}
-        onToggle={onToggle}
-        onContinue={onContinue}
-      />,
-    );
+    render(<ComponentReview chars={['好']} charSet="trad" open={false} onToggle={onToggle} />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Components' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Show components' }));
     expect(onToggle).toHaveBeenCalledTimes(1);
+  });
 
-    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    expect(onContinue).toHaveBeenCalledTimes(1);
+  it('opens the parts of a component that has no meaning of its own', async () => {
+    vi.mocked(decomposeCharacter).mockImplementation(async (char: string) =>
+      char === '脑'
+        ? [
+            { char: '月', meaning: 'flesh', pinyin: null },
+            { char: '㐫', meaning: null, pinyin: null },
+          ]
+        : char === '㐫'
+          ? [{ char: '凶', meaning: 'fierce', pinyin: null }]
+          : [],
+    );
+    render(<ComponentReview chars={['脑']} charSet="simp" open onToggle={vi.fn()} />);
+
+    expect(await screen.findByText('fierce')).toBeInTheDocument();
+    expect(decomposeCharacter).not.toHaveBeenCalledWith('月');
   });
 });

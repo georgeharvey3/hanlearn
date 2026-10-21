@@ -308,7 +308,7 @@ describe('TestWords — active session with due words', () => {
     });
   });
 
-  it('renders the stepper with Test and Done steps for level>1 words', async () => {
+  it('hides the stepper while the Test stage fills the screen', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -322,9 +322,9 @@ describe('TestWords — active session with due words', () => {
     });
     renderWithProviders(<TestWords />, { store });
     await waitFor(() => {
-      expect(screen.getByText('Test')).toBeInTheDocument();
-      expect(screen.getByText('Done')).toBeInTheDocument();
+      expect(screen.getByTestId('mock-test')).toBeInTheDocument();
     });
+    expect(screen.queryByText('Done')).not.toBeInTheDocument();
   });
 
   it('renders Learn step in stepper when level-1 words are included', async () => {
@@ -372,6 +372,7 @@ describe('TestWords — practice mode', () => {
 });
 
 describe('TestWords — cross-list (Test All) mode', () => {
+  // The stepper shows on the Learn step, so these sessions start with a new word.
   it('shows "Testing: All Lists" in stepper when activeListId is __all__', async () => {
     const store = createTestStore({
       ...authenticatedState(),
@@ -381,7 +382,7 @@ describe('TestWords — cross-list (Test All) mode', () => {
           { id: 'list-1', name: 'HSK 1', createdAt: '', order: 1 },
         ],
         activeListId: '__all__',
-        words: [dueWord(1, '你好', 2), dueWord(2, '学生', 2)],
+        words: [dueWord(1, '你好', 1), dueWord(2, '学生', 2)],
         listStats: { default: { due: 1, total: 3 }, 'list-1': { due: 1, total: 2 } },
         loading: false,
         error: false,
@@ -548,7 +549,7 @@ describe('TestWords — stage transitions', () => {
       addWords: {
         lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
         activeListId: 'default',
-        words: [dueWord(1, '你好', 2)],
+        words: [dueWord(1, '你好', 1)],
         listStats: {},
         loading: false,
         error: false,
@@ -699,7 +700,7 @@ describe('TestWords — other lists with due words', () => {
       addWords: {
         lists: [{ id: 'mylist', name: 'My Study List', createdAt: '', order: 0 }],
         activeListId: 'mylist',
-        words: [dueWord(1, '你好', 2)],
+        words: [dueWord(1, '你好', 1)],
         listStats: {},
         loading: false,
         error: false,

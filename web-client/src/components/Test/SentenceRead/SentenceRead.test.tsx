@@ -110,7 +110,7 @@ describe('SentenceRead — loading state', () => {
       <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
       { store: makeStore() },
     );
-    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Loading' })).toBeInTheDocument();
   });
 
   it('removes spinner after sentence loads', async () => {
@@ -119,7 +119,7 @@ describe('SentenceRead — loading state', () => {
       { store: makeStore() },
     );
     await waitFor(() => {
-      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+      expect(screen.queryByRole('progressbar', { name: 'Loading' })).not.toBeInTheDocument();
     });
   });
 });
@@ -180,7 +180,7 @@ describe('SentenceRead — submitting a translation', () => {
     // Similarity score should appear
     await waitFor(() => {
       expect(screen.getByText('85%')).toBeInTheDocument();
-      expect(screen.getByText('Great')).toBeInTheDocument();
+      expect(screen.getByText('Close match')).toBeInTheDocument();
     });
   });
 
@@ -194,7 +194,7 @@ describe('SentenceRead — submitting a translation', () => {
     const input = await screen.findByPlaceholderText(/type your translation/i);
     await user.type(input, 'Hello');
 
-    const submitBtn = screen.getByRole('button', { name: /submit translation/i });
+    const submitBtn = screen.getByRole('button', { name: /^check$/i });
     await user.click(submitBtn);
 
     await waitFor(() => {
@@ -210,7 +210,7 @@ describe('SentenceRead — submitting a translation', () => {
     );
 
     await waitFor(() => {
-      const submitBtn = screen.getByRole('button', { name: /submit translation/i });
+      const submitBtn = screen.getByRole('button', { name: /^check$/i });
       expect(submitBtn).toBeDisabled();
     });
   });
@@ -230,7 +230,7 @@ describe('SentenceRead — text mode (useSound=false)', () => {
     // Text mode: sentence segments should appear (non-target segments rendered)
     await waitFor(() => {
       // The sentence characters should be visible in text mode
-      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+      expect(screen.queryByRole('progressbar', { name: 'Loading' })).not.toBeInTheDocument();
     });
   });
 
@@ -255,7 +255,7 @@ describe('SentenceRead — text mode (useSound=false)', () => {
     // Wait for the word popup button to appear
     await waitFor(
       () => {
-        const popupBtn = screen.queryByRole('button', { name: /tap to see meaning/i });
+        const popupBtn = screen.queryByRole('button', { name: /show meaning/i });
         expect(popupBtn).toBeInTheDocument();
       },
       { timeout: 3000 },
@@ -287,7 +287,7 @@ describe('SentenceRead — text mode (useSound=false)', () => {
     await waitFor(
       () => {
         // Both sub-words should appear as clickable spans
-        const buttons = screen.queryAllByRole('button', { name: /tap to see meaning/i });
+        const buttons = screen.queryAllByRole('button', { name: /show meaning/i });
         expect(buttons.length).toBeGreaterThan(0);
       },
       { timeout: 3000 },
@@ -306,7 +306,7 @@ describe('SentenceRead — text mode (useSound=false)', () => {
 
     await waitFor(() => {
       // The target word 你好 appears as a highlighted span (not as a popup button)
-      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+      expect(screen.queryByRole('progressbar', { name: 'Loading' })).not.toBeInTheDocument();
     });
   });
 });
@@ -355,7 +355,7 @@ describe('SentenceRead — stage completion', () => {
     // Eventually the input should appear (the component moved to the next word)
     await waitFor(
       () => {
-        expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+        expect(screen.queryByRole('progressbar', { name: 'Loading' })).not.toBeInTheDocument();
         expect(screen.getByPlaceholderText(/type your translation/i)).toBeInTheDocument();
       },
       { timeout: 3000 },
@@ -399,28 +399,25 @@ describe('SentenceRead — word popup rendering', () => {
 
     // Wait for the sentence to load and word lookup to complete
     await waitFor(() => {
-      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+      expect(screen.queryByRole('progressbar', { name: 'Loading' })).not.toBeInTheDocument();
     });
 
     // The resolved segment '我是' should be rendered as an accessible button
     await waitFor(() => {
-      expect(screen.getByLabelText(/我是.*tap to see meaning/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/我是.*show meaning/i)).toBeInTheDocument();
     });
   });
 
-  it('shows pinyin and meaning in popup for a SentenceWord segment', async () => {
+  it('shows pinyin and meaning in the sheet for a tapped word', async () => {
     renderWithProviders(
       <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
       { store: makeStore() },
     );
 
-    await waitFor(() => {
-      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
-    });
+    fireEvent.click(await screen.findByLabelText(/我是.*show meaning/i, {}, { timeout: 5000 }));
 
     await waitFor(() => {
-      // Pinyin and meaning text appear in the popup (even though popup is hidden via CSS)
-      expect(screen.getByText('wo3 shi4')).toBeInTheDocument();
+      expect(screen.getByText('wǒ shì')).toBeInTheDocument();
       expect(screen.getByText('to be')).toBeInTheDocument();
     });
   });
@@ -432,11 +429,7 @@ describe('SentenceRead — word popup rendering', () => {
     );
 
     // Wait for the clickable popup span to appear (confirms segment resolved to SentenceWord)
-    const popupSpan = await screen.findByLabelText(
-      /我是.*tap to see meaning/i,
-      {},
-      { timeout: 5000 },
-    );
+    const popupSpan = await screen.findByLabelText(/我是.*show meaning/i, {}, { timeout: 5000 });
 
     // Click the word to open the popup (sets visibility:visible via onShowPopup)
     fireEvent.click(popupSpan);
@@ -445,10 +438,10 @@ describe('SentenceRead — word popup rendering', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /add to list/i })).toBeInTheDocument();
     });
-    expect(screen.queryByRole('button', { name: /added!/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^added$/i })).not.toBeInTheDocument();
   });
 
-  it('shows "Added!" after opening popup when the word is already in addedWords', async () => {
+  it('shows "Added" after opening popup when the word is already in addedWords', async () => {
     const storeWithWord = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -468,16 +461,12 @@ describe('SentenceRead — word popup rendering', () => {
     );
 
     // Wait for popup span and click to open it
-    const popupSpan = await screen.findByLabelText(
-      /我是.*tap to see meaning/i,
-      {},
-      { timeout: 5000 },
-    );
+    const popupSpan = await screen.findByLabelText(/我是.*show meaning/i, {}, { timeout: 5000 });
     fireEvent.click(popupSpan);
 
-    // word id=5 is in addedWords → shows disabled "Added!" button
+    // word id=5 is in addedWords → shows a disabled "Added" button
     await waitFor(() => {
-      const addedBtn = screen.getByRole('button', { name: /added!/i });
+      const addedBtn = screen.getByRole('button', { name: /^added$/i });
       expect(addedBtn).toBeInTheDocument();
       expect(addedBtn).toBeDisabled();
     });
@@ -503,7 +492,7 @@ describe('SentenceRead — slow mode toggle', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /toggle slow mode/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /slow speech/i })).toBeInTheDocument();
     });
   });
 
@@ -514,7 +503,7 @@ describe('SentenceRead — slow mode toggle', () => {
       { store: makeStoreWithSound() },
     );
 
-    const toggleBtn = await screen.findByRole('button', { name: /toggle slow mode/i });
+    const toggleBtn = await screen.findByRole('button', { name: /slow speech/i });
     expect(localStorage.getItem('slowMode')).not.toBe('true');
 
     await user.click(toggleBtn);
@@ -531,7 +520,7 @@ describe('SentenceRead — slow mode toggle', () => {
       { store: makeStoreWithSound() },
     );
 
-    const toggleBtn = await screen.findByRole('button', { name: /toggle slow mode/i });
+    const toggleBtn = await screen.findByRole('button', { name: /slow speech/i });
     expect(toggleBtn).toHaveAttribute('aria-pressed', 'true');
   });
 
@@ -570,82 +559,24 @@ describe('SentenceRead — slow mode toggle', () => {
   });
 });
 
-describe('SentenceRead — tap affordance', () => {
+describe('SentenceRead — tappable words', () => {
   const wordMatch = { id: 5, simp: '我是', trad: '我是', pinyin: 'wo3 shi4', meaning: 'to be' };
 
   beforeEach(() => {
-    localStorage.removeItem('tapHintDismissed');
     mockedSearchWord.mockImplementation((seg: string) => {
       if (seg === '我是') return Promise.resolve([wordMatch]);
       return Promise.resolve([]);
     });
   });
 
-  it('shows first-use hint text when tapHintDismissed is not set', async () => {
+  it('renders each dictionary word as a button', async () => {
     renderWithProviders(
       <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
       { store: makeStore() },
     );
 
-    await waitFor(() => {
-      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
-    });
-
-    expect(screen.getByText('Tap any word for its definition')).toBeInTheDocument();
-  });
-
-  it('shows default hint text when tapHintDismissed is already set', async () => {
-    localStorage.setItem('tapHintDismissed', 'true');
-    renderWithProviders(
-      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
-      { store: makeStore() },
-    );
-
-    await waitFor(() => {
-      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
-    });
-
-    expect(screen.getByText('Tap a word to reveal its meaning')).toBeInTheDocument();
-  });
-
-  it('dismisses first-use hint and sets localStorage when a word is tapped', async () => {
-    renderWithProviders(
-      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
-      { store: makeStore() },
-    );
-
-    const popupSpan = await screen.findByLabelText(
-      /我是.*tap to see meaning/i,
-      {},
-      { timeout: 5000 },
-    );
-
-    expect(screen.getByText('Tap any word for its definition')).toBeInTheDocument();
-
-    fireEvent.click(popupSpan);
-
-    await waitFor(() => {
-      expect(screen.getByText('Tap a word to reveal its meaning')).toBeInTheDocument();
-    });
-    expect(localStorage.getItem('tapHintDismissed')).toBe('true');
-  });
-
-  it('renders clickable word spans with dotted underline styling', async () => {
-    renderWithProviders(
-      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
-      { store: makeStore() },
-    );
-
-    const popupSpan = await screen.findByLabelText(
-      /我是.*tap to see meaning/i,
-      {},
-      { timeout: 5000 },
-    );
-
-    // The span should have the data-popup attribute (confirms it's a clickable word)
-    expect(popupSpan).toHaveAttribute('data-popup');
-    // The span should have role="button" (confirms it communicates interactivity)
-    expect(popupSpan).toHaveAttribute('role', 'button');
+    const word = await screen.findByLabelText(/我是.*show meaning/i, {}, { timeout: 5000 });
+    expect(word.tagName).toBe('BUTTON');
   });
 });
 
@@ -723,13 +654,13 @@ describe('SentenceRead — decomposed array word rendering', () => {
     );
 
     await waitFor(() => {
-      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+      expect(screen.queryByRole('progressbar', { name: 'Loading' })).not.toBeInTheDocument();
     });
 
     await waitFor(() => {
       // Both sub-words should be rendered as popup spans
-      expect(screen.getByLabelText(/學.*tap to see meaning/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/生.*tap to see meaning/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/學.*show meaning/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/生.*show meaning/i)).toBeInTheDocument();
     });
   });
 });
