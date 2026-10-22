@@ -40,7 +40,12 @@ const TabBar: React.FC<Props> = ({ onOpenShortcuts }) => {
   const [moreOpen, setMoreOpen] = useState(false);
 
   const tab = (to: string, label: string, icon: React.ReactNode) => (
-    <ButtonBase component={Link} to={to} sx={tabSx(isActive(pathname, to))}>
+    <ButtonBase
+      component={Link}
+      to={to}
+      aria-current={isActive(pathname, to) ? 'page' : undefined}
+      sx={tabSx(isActive(pathname, to))}
+    >
       {icon}
       <span>{label}</span>
     </ButtonBase>
@@ -57,7 +62,8 @@ const TabBar: React.FC<Props> = ({ onOpenShortcuts }) => {
           right: 0,
           bottom: 0,
           zIndex: 1100,
-          height: TAB_BAR_HEIGHT,
+          // A notched phone's inset adds to the bar, not into it.
+          height: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`,
           pb: 'env(safe-area-inset-bottom)',
           display: 'flex',
           alignItems: 'stretch',

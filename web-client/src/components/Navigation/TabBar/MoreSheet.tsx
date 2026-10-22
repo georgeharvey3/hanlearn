@@ -9,7 +9,7 @@ import { SettingsIcon, ShortcutsIcon, LogoutIcon } from '../icons';
 import { routes } from '../navLinks';
 import * as actions from '../../../store/actions/index';
 import { AppDispatch } from '../../../types/actions';
-import { colors, fonts } from '../../../theme';
+import { colors, fonts, scrim } from '../../../theme';
 import { copy } from '../../../copy';
 
 interface Props {
@@ -39,6 +39,7 @@ const MoreSheet: React.FC<Props> = ({ open, onClose, onOpenShortcuts }) => {
       anchor="bottom"
       open={open}
       onClose={onClose}
+      slotProps={{ backdrop: { sx: { bgcolor: scrim } } }}
       PaperProps={{
         role: 'dialog',
         'aria-label': copy.shell.more,

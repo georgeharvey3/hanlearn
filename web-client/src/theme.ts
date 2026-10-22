@@ -57,7 +57,11 @@ export const fonts = {
 
 export const shadows = {
   card: `0 1px 0 ${colors.divider}, 0 12px 32px -18px rgba(70, 50, 30, 0.35)`,
+  dialog: '0 20px 48px -20px rgba(70, 50, 30, 0.45)',
 } as const;
+
+// The ink wash behind a dialog or a sheet.
+export const scrim = 'rgba(43, 38, 34, 0.42)';
 
 const theme = createTheme({
   palette: {

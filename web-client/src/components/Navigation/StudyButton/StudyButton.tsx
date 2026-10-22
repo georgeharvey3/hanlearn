@@ -6,7 +6,11 @@ import { StudyIcon } from '../icons';
 import { colors } from '../../../theme';
 import { RootState } from '../../../types/store';
 
-/** Words due across all lists, as the list stats last counted them. */
+/**
+ * Words due across all lists, as the list stats last counted them. The shell
+ * does not load them itself: the list stats read every word, and Home, Add,
+ * Study and Stats load them already.
+ */
 export const useDueCount = (): number =>
   useSelector((state: RootState) =>
     Object.values(state.addWords.listStats).reduce((sum, stats) => sum + (stats?.due ?? 0), 0),
@@ -16,15 +20,13 @@ interface Props {
   due: number;
   /** The diameter of the green disc. */
   size: number;
-  /** The colour around the badge, so it reads as cut out of the bar. */
-  ring?: string;
 }
 
 /**
  * The round green Study button with the due count in a red badge. The tab bar
  * raises it in the middle of the tabs; the sidebar puts it at the top.
  */
-const StudyButton: React.FC<Props> = ({ due, size, ring = colors.primary }) => (
+const StudyButton: React.FC<Props> = ({ due, size }) => (
   <Box
     component="span"
     sx={{
@@ -55,7 +57,8 @@ const StudyButton: React.FC<Props> = ({ due, size, ring = colors.primary }) => (
           boxSizing: 'border-box',
           px: '6px',
           borderRadius: '11px',
-          border: `2px solid ${ring}`,
+          // The colour of the bars, so the badge reads as cut out of them.
+          border: `2px solid ${colors.primary}`,
           bgcolor: colors.primaryLight,
           color: colors.white,
           fontSize: 12,

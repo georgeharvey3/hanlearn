@@ -5,7 +5,7 @@ import ButtonBase from '@mui/material/ButtonBase';
 
 import { CloseIcon } from '../Navigation/icons';
 import { keyboardShortcuts } from '../../data/keyboardShortcuts';
-import { colors, fonts } from '../../theme';
+import { colors, fonts, shadows, scrim } from '../../theme';
 import { copy } from '../../copy';
 
 interface Props {
@@ -42,10 +42,10 @@ const KeyboardShortcutsDialog: React.FC<Props> = ({ open, onClose }) => {
           maxWidth: 560,
           maxHeight: 'min(640px, calc(100% - 64px))',
           borderRadius: 2,
-          boxShadow: '0 20px 48px -20px rgba(70,50,30,0.45)',
+          boxShadow: shadows.dialog,
         },
       }}
-      slotProps={{ backdrop: { sx: { bgcolor: 'rgba(43,38,34,0.42)' } } }}
+      slotProps={{ backdrop: { sx: { bgcolor: scrim } } }}
     >
       <Box
         sx={{

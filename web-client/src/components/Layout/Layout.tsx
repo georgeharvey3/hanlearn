@@ -1,5 +1,5 @@
-import React, { ReactNode, useCallback, useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { ReactNode, useCallback, useState } from 'react';
+import { useSelector } from 'react-redux';
 import Box from '@mui/material/Box';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
@@ -12,8 +12,6 @@ import SkipLink from './SkipLink';
 import { FocusModeProvider } from './focusMode';
 import KeyboardShortcutsDialog from '../KeyboardShortcutsDialog/KeyboardShortcutsDialog';
 import { useKeyboardShortcutsDialog } from '../KeyboardShortcutsDialog/useKeyboardShortcutsDialog';
-import * as actions from '../../store/actions/index';
-import { AppDispatch } from '../../types/actions';
 import { RootState } from '../../types/store';
 
 const COLLAPSED_KEY = 'hanlearn.sidebarCollapsed';
@@ -45,12 +43,7 @@ interface Props {
  * the top bar, with Log in and Sign up.
  */
 const Layout: React.FC<Props> = ({ children }) => {
-  const dispatch = useDispatch<AppDispatch>();
-  const userId = useSelector((state: RootState) => state.auth.userId);
-  const statsLoaded = useSelector(
-    (state: RootState) => Object.keys(state.addWords.listStats).length > 0,
-  );
-  const isAuth = userId !== null;
+  const isAuth = useSelector((state: RootState) => state.auth.userId !== null);
 
   const [focusRequested, setFocused] = useState(false);
   // Focus mode is for a phone, where the navigation costs the study screen
@@ -73,14 +66,6 @@ const Layout: React.FC<Props> = ({ children }) => {
     handleOpen: openShortcuts,
     handleClose: closeShortcuts,
   } = useKeyboardShortcutsDialog();
-
-  // The Study button shows the due count on every page, so the shell loads
-  // the list stats when a page has not.
-  useEffect(() => {
-    if (userId && !statsLoaded) dispatch(actions.initWordLists());
-    // Once per user: a user with no lists has empty stats, and must not loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, dispatch]);
 
   const showTopBar = !focused && (phone || !isAuth);
   const showTabBar = !focused && phone && isAuth;
@@ -124,8 +109,12 @@ const Layout: React.FC<Props> = ({ children }) => {
           height: '100%',
           ml: `${sidebarWidth}px`,
           px: `${gutter}px`,
-          pt: focused ? 0 : `${topBarHeight + gutter}px`,
-          pb: showTabBar ? `${TAB_BAR_HEIGHT + 16}px` : focused ? 0 : `${gutter}px`,
+          pt: focused ? 0 : `calc(${topBarHeight + gutter}px + env(safe-area-inset-top))`,
+          pb: showTabBar
+            ? `calc(${TAB_BAR_HEIGHT + 16}px + env(safe-area-inset-bottom))`
+            : focused
+              ? 0
+              : `${gutter}px`,
         }}
       >
         <Box sx={{ maxWidth: showSidebar ? 1100 : 1440, mx: 'auto', height: '100%' }}>

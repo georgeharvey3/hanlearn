@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 
+import { routes } from '../navLinks';
 import * as actions from '../../../store/actions/index';
 import { AppDispatch } from '../../../types/actions';
 import { colors, fonts } from '../../../theme';
@@ -34,7 +35,8 @@ const Toolbar: React.FC<Props> = ({ isAuth, phone }) => {
         left: 0,
         right: 0,
         zIndex: 1100,
-        height,
+        // A notched phone's inset adds to the bar, not into it.
+        height: `calc(${height}px + env(safe-area-inset-top))`,
         boxSizing: 'border-box',
         pl: phone ? 2 : 4,
         pr: phone ? 1 : 3,
@@ -49,7 +51,7 @@ const Toolbar: React.FC<Props> = ({ isAuth, phone }) => {
     >
       <Box
         component={Link}
-        to="/"
+        to={routes.home}
         sx={{
           fontFamily: fonts.brand,
           fontSize: phone ? 30 : 32,
