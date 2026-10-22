@@ -65,7 +65,8 @@ const MainBanner: React.FC<MainBannerProps> = ({ signUpClicked, tryOutClicked })
         position: 'relative',
         left: '50%',
         transform: 'translateX(-50%)',
-        mt: '-80px',
+        // Cancel the page's top gutter, so the banner meets the top bar.
+        mt: { xs: '-16px', sm: '-32px' },
         height: { xs: 'auto', sm: '300vh', md: '500vh' },
       }}
     >
@@ -73,7 +74,7 @@ const MainBanner: React.FC<MainBannerProps> = ({ signUpClicked, tryOutClicked })
         ref={ref}
         sx={{
           position: { xs: 'relative', sm: 'sticky' },
-          top: 0,
+          top: { xs: 0, sm: '56px' },
           overflow: 'hidden',
           height: { xs: '80vh', sm: '85vh', md: '100vh' },
           background: `linear-gradient(

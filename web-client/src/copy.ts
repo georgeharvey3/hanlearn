@@ -3,6 +3,38 @@
 // function. Screens move in here as they are restyled; `copy.test.ts` lists
 // the files that must read from it.
 export const copy = {
+  shell: {
+    brand: 'HanLearn',
+    // The seal of the collapsed sidebar.
+    brandSeal: '汉',
+    homeLink: 'HanLearn home',
+    mainNav: 'Main',
+    skipLink: 'Skip to main content',
+    home: 'Home',
+    add: 'Add',
+    addWords: 'Add words',
+    study: 'Study',
+    studyDue: (due: number) => `Study, ${due} due`,
+    stats: 'Stats',
+    settings: 'Settings',
+    more: 'More',
+    shortcuts: 'Shortcuts',
+    logout: 'Log out',
+    login: 'Log in',
+    signUp: 'Sign up',
+    collapse: 'Collapse',
+    expand: 'Expand',
+    // The loading mark, and the stamp of the error screen.
+    loading: 'Loading',
+    loadingMark: '学',
+    errorStamp: '错',
+    errorTitle: 'Something went wrong',
+    errorBody: "This page didn't load.",
+    tryAgain: 'Try again',
+    dismiss: 'Dismiss',
+    close: 'Close',
+    shortcutsTitle: 'Keyboard shortcuts',
+  },
   study: {
     endSession: 'End session',
     settings: 'Test settings',

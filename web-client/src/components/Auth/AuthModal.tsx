@@ -215,7 +215,7 @@ const AuthModal: React.FC<Props> = ({
         )}
 
         {loading ? (
-          <Spinner />
+          <Spinner size={48} />
         ) : (
           <form onSubmit={handleSubmit}>
             <FormInput

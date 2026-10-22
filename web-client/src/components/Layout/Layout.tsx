@@ -1,41 +1,50 @@
-import React, { ReactNode, useState } from 'react';
-import { connect, ConnectedProps } from 'react-redux';
-import Container from '@mui/material/Container';
+import React, { ReactNode, useCallback, useState } from 'react';
+import { useSelector } from 'react-redux';
+import Box from '@mui/material/Box';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 
-import Toolbar from '../Navigation/Toolbar/Toolbar';
-import SideDrawer from '../Navigation/SideDrawer/SideDrawer';
+import Toolbar, { TOP_BAR_HEIGHT } from '../Navigation/Toolbar/Toolbar';
+import TabBar, { TAB_BAR_HEIGHT } from '../Navigation/TabBar/TabBar';
 import Sidebar, { SIDEBAR_WIDTH } from '../Navigation/Sidebar/Sidebar';
+import NotificationSnackbar from '../NotificationSnackbar/NotificationSnackbar';
 import SkipLink from './SkipLink';
 import { FocusModeProvider } from './focusMode';
 import KeyboardShortcutsDialog from '../KeyboardShortcutsDialog/KeyboardShortcutsDialog';
 import { useKeyboardShortcutsDialog } from '../KeyboardShortcutsDialog/useKeyboardShortcutsDialog';
 import { RootState } from '../../types/store';
 
-interface LayoutState {
-  showSideDrawer: boolean;
-}
+const COLLAPSED_KEY = 'hanlearn.sidebarCollapsed';
 
-const mapStateToProps = (state: RootState) => {
-  return {
-    isAuthenticated: state.auth.userId !== null,
-  };
+// Storage can throw in a private window; the sidebar then starts open.
+const readCollapsed = (): boolean => {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === 'true';
+  } catch {
+    return false;
+  }
 };
 
-const connector = connect(mapStateToProps);
-type PropsFromRedux = ConnectedProps<typeof connector>;
+const writeCollapsed = (collapsed: boolean): void => {
+  try {
+    localStorage.setItem(COLLAPSED_KEY, String(collapsed));
+  } catch {
+    // The choice then lasts only for this visit.
+  }
+};
 
-interface OwnProps {
+interface Props {
   children?: ReactNode;
 }
 
-type Props = PropsFromRedux & OwnProps;
+/**
+ * The frame round every page. A phone gets a slim top bar and a bottom tab
+ * bar; a desktop gets a sidebar that collapses to a rail. A visitor gets only
+ * the top bar, with Log in and Sign up.
+ */
+const Layout: React.FC<Props> = ({ children }) => {
+  const isAuth = useSelector((state: RootState) => state.auth.userId !== null);
 
-const Layout: React.FC<Props> = ({ isAuthenticated, children }) => {
-  const [state, setState] = useState<LayoutState>({
-    showSideDrawer: false,
-  });
   const [focusRequested, setFocused] = useState(false);
   // Focus mode is for a phone, where the navigation costs the study screen
   // room it needs. On a wider screen the sidebar sits beside the session, so
@@ -43,58 +52,78 @@ const Layout: React.FC<Props> = ({ isAuthenticated, children }) => {
   const theme = useTheme();
   const phone = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
   const focused = focusRequested && phone;
+
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((was) => {
+      writeCollapsed(!was);
+      return !was;
+    });
+  }, []);
+
   const {
     open: shortcutsOpen,
     handleOpen: openShortcuts,
     handleClose: closeShortcuts,
   } = useKeyboardShortcutsDialog();
 
-  const sideDrawerClosedHandler = (): void => {
-    setState({ showSideDrawer: false });
-  };
+  const showTopBar = !focused && (phone || !isAuth);
+  const showTabBar = !focused && phone && isAuth;
+  const showSidebar = !phone && isAuth;
+  const sidebarWidth = showSidebar
+    ? collapsed
+      ? SIDEBAR_WIDTH.collapsed
+      : SIDEBAR_WIDTH.expanded
+    : 0;
+  const topBarHeight = showTopBar ? (phone ? TOP_BAR_HEIGHT.phone : TOP_BAR_HEIGHT.desktop) : 0;
+  const gutter = phone ? 16 : 32;
 
-  const sideDrawerToggleHandler = (): void => {
-    setState((prevState) => ({ showSideDrawer: !prevState.showSideDrawer }));
-  };
+  // A toast sits at the bottom centre of the page: above the tab bar on a
+  // phone, above the grade buttons in a session, and right of the sidebar on
+  // a desktop.
+  const toastBottom = showTabBar
+    ? `calc(${TAB_BAR_HEIGHT + 40}px + env(safe-area-inset-bottom))`
+    : focused
+      ? '140px'
+      : '24px';
+  const toastCentre = `calc(${sidebarWidth}px + (100% - ${sidebarWidth}px) / 2)`;
 
   return (
     <FocusModeProvider value={setFocused}>
       <SkipLink />
-      {!focused && (
-        <>
-          <Toolbar drawerToggleClicked={sideDrawerToggleHandler} isAuth={isAuthenticated} />
-          <SideDrawer
-            open={state.showSideDrawer}
-            closed={sideDrawerClosedHandler}
-            isAuth={isAuthenticated}
-            onOpenShortcuts={openShortcuts}
-          />
-          {isAuthenticated && <Sidebar onOpenShortcuts={openShortcuts} />}
-        </>
+      {showTopBar && <Toolbar isAuth={isAuth} phone={phone} />}
+      {showTabBar && <TabBar onOpenShortcuts={openShortcuts} />}
+      {showSidebar && (
+        <Sidebar
+          collapsed={collapsed}
+          onToggleCollapsed={toggleCollapsed}
+          onOpenShortcuts={openShortcuts}
+        />
       )}
       <KeyboardShortcutsDialog open={shortcutsOpen} onClose={closeShortcuts} />
-      <Container
+      <Box
         id="main-content"
         component="main"
-        maxWidth={false}
         sx={{
-          mt: focused ? 0 : '56px',
-          pt: focused ? 0 : 3,
+          boxSizing: 'border-box',
           height: '100%',
-          ...(focused
-            ? { maxWidth: '100%' }
-            : isAuthenticated
-              ? {
-                  ml: { xs: 0, sm: `${SIDEBAR_WIDTH}px` },
-                  maxWidth: { xs: '100%', sm: 1440 - SIDEBAR_WIDTH },
-                }
-              : { maxWidth: 1440 }),
+          ml: `${sidebarWidth}px`,
+          px: `${gutter}px`,
+          pt: focused ? 0 : `calc(${topBarHeight + gutter}px + env(safe-area-inset-top))`,
+          pb: showTabBar
+            ? `calc(${TAB_BAR_HEIGHT + 16}px + env(safe-area-inset-bottom))`
+            : focused
+              ? 0
+              : `${gutter}px`,
         }}
       >
-        {children}
-      </Container>
+        <Box sx={{ maxWidth: showSidebar ? 1100 : 1440, mx: 'auto', height: '100%' }}>
+          {children}
+        </Box>
+      </Box>
+      <NotificationSnackbar bottom={toastBottom} centre={toastCentre} />
     </FocusModeProvider>
   );
 };
 
-export default connector(Layout);
+export default Layout;

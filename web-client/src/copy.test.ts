@@ -12,6 +12,19 @@ import { describe, it, expect } from 'vitest';
 const srcDir = path.dirname(fileURLToPath(import.meta.url));
 
 const FILES = [
+  'components/Layout/Layout.tsx',
+  'components/Layout/SkipLink.tsx',
+  'components/Navigation/Toolbar/Toolbar.tsx',
+  'components/Navigation/TabBar/TabBar.tsx',
+  'components/Navigation/TabBar/MoreSheet.tsx',
+  'components/Navigation/Sidebar/Sidebar.tsx',
+  'components/Navigation/StudyButton/StudyButton.tsx',
+  'components/NotificationSnackbar/NotificationSnackbar.tsx',
+  'components/ErrorBoundary/ErrorBoundary.tsx',
+  'components/UI/PageState/PageState.tsx',
+  'components/UI/Spinner/Spinner.tsx',
+  'components/UI/Modal/Modal.tsx',
+  'components/KeyboardShortcutsDialog/KeyboardShortcutsDialog.tsx',
   'components/Test/Test.tsx',
   'components/Test/QuestionDisplay.tsx',
   'components/Test/TestActions.tsx',

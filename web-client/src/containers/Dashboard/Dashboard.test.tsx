@@ -60,7 +60,7 @@ describe('Dashboard container', () => {
     renderWithProviders(<Dashboard />, {
       store: createTestStore(authenticatedState()),
     });
-    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
   });
 
   it('loads the word lists so the list selector can render', async () => {
@@ -80,7 +80,7 @@ describe('Dashboard container', () => {
     });
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByTestId('list-selector')).toBeInTheDocument());
-    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
   });
 
   it('shows the spinner again while stats reload for another list', async () => {
@@ -102,11 +102,15 @@ describe('Dashboard container', () => {
     );
     store.dispatch({ type: 'SET_ACTIVE_LIST', listId: 'hsk3' });
 
-    await waitFor(() => expect(screen.getByRole('progressbar')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument(),
+    );
     expect(screen.getByTestId('list-selector')).toBeInTheDocument();
 
     resolveSecondLoad(sampleStats);
-    await waitFor(() => expect(screen.queryByRole('progressbar')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByRole('status', { name: 'Loading' })).not.toBeInTheDocument(),
+    );
     expect(mockGetDashboardStats).toHaveBeenLastCalledWith('test-user-123', 'hsk3');
   });
 
@@ -237,7 +241,9 @@ describe('Dashboard container', () => {
       store: createTestStore(unauthState),
     });
     // The spinner disappears once loading resolves to false.
-    await waitFor(() => expect(screen.queryByRole('progressbar')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByRole('status', { name: 'Loading' })).not.toBeInTheDocument(),
+    );
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
     expect(mockGetDashboardStats).not.toHaveBeenCalled();
   });

@@ -31,9 +31,11 @@ describe('ErrorBoundary', () => {
         <ThrowingComponent />
       </ErrorBoundary>,
     );
-    expect(screen.getByText('Something went wrong')).toBeTruthy();
-    expect(screen.getByText('Try Again')).toBeTruthy();
-    expect(screen.getByText('Home')).toBeTruthy();
+    const alert = screen.getByRole('alert');
+    expect(screen.getByRole('heading', { name: 'Something went wrong' })).toBeTruthy();
+    expect(alert).toHaveTextContent("This page didn't load.");
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
   });
 
   it('renders a custom fallback when provided', () => {
@@ -57,7 +59,7 @@ describe('ErrorBoundary', () => {
     expect(onError.mock.calls[0][0].message).toBe('Test render error');
   });
 
-  it('recovers when Try Again is clicked', () => {
+  it('recovers when Try again is clicked', () => {
     const { rerender } = render(
       <ErrorBoundary>
         <ThrowingComponent shouldThrow />
@@ -71,7 +73,7 @@ describe('ErrorBoundary', () => {
         <ThrowingComponent shouldThrow={false} />
       </ErrorBoundary>,
     );
-    fireEvent.click(screen.getByText('Try Again'));
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(screen.getByText('All good')).toBeTruthy();
   });
 });

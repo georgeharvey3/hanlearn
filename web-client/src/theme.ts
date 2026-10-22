@@ -45,6 +45,8 @@ export const colors = {
 
 export const fonts = {
   body: "'Cabin', sans-serif",
+  // The wordmark. Only "HanLearn" is set in it.
+  brand: "'Spell of Asia', 'Cabin', sans-serif",
   // The Arphic Kai faces that Hanzi Writer's strokes trace, so a printed
   // character matches the animated one. The app serves them
   // (public/fonts/hanzi, built by migration/build-hanzi-font.py); a character
@@ -55,7 +57,11 @@ export const fonts = {
 
 export const shadows = {
   card: `0 1px 0 ${colors.divider}, 0 12px 32px -18px rgba(70, 50, 30, 0.35)`,
+  dialog: '0 20px 48px -20px rgba(70, 50, 30, 0.45)',
 } as const;
+
+// The ink wash behind a dialog or a sheet.
+export const scrim = 'rgba(43, 38, 34, 0.42)';
 
 const theme = createTheme({
   palette: {
