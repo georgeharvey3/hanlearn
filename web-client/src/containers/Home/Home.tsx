@@ -48,6 +48,14 @@ const landingVariants = [
   { key: 'W', name: nameMoment },
 ];
 
+// `?state=` picks the colour behind the first screen's 学.
+const heroBackdrops = [
+  { key: '', name: 'Plain' },
+  { key: 'sun', name: 'Sun' },
+  { key: 'wash', name: 'Wash' },
+  { key: 'blossom', name: 'Blossom' },
+];
+
 const connector = connect(mapStateToProps, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 type Props = PropsFromRedux & RouteComponentProps;
@@ -119,7 +127,7 @@ const Home: React.FC<Props> = ({
     return (
       <>
         <LandingPaintingMoment />
-        <PrototypeSwitcher variants={landingVariants} />
+        <PrototypeSwitcher variants={landingVariants} states={heroBackdrops} />
       </>
     );
   }

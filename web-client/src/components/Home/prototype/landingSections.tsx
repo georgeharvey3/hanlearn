@@ -5,6 +5,8 @@ import React from 'react';
 import Box from '@mui/material/Box';
 
 import { getDailyChengyu, chengyus } from '../../../data/chengyus';
+import { usePrototypeParam } from '../../UI/PrototypeSwitcher/PrototypeSwitcher';
+import { BlossomBackdrop, SunBackdrop, WashBackdrop } from './heroBackdrops';
 import { colors, fonts, shadows } from '../../../theme';
 import {
   Ctas,
@@ -32,6 +34,7 @@ const HERO_DRAW_MS = 1800;
 export const BrushHero: React.FC = () => {
   const { phone, topBar } = useGutter();
   const [data] = useStrokeData([landingCopy.heroChar]);
+  const backdrop = usePrototypeParam('state');
   const [t, setT] = React.useState(prefersReducedMotion() ? 1 : 0);
 
   React.useEffect(() => {
@@ -66,18 +69,25 @@ export const BrushHero: React.FC = () => {
           gap: { xs: 2, md: 8 },
           px: 2,
           boxSizing: 'border-box',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
+        {backdrop === 'blossom' && <BlossomBackdrop t={t} mirror={!phone} />}
         <Box sx={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-          <StrokeChar
-            char={landingCopy.heroChar}
-            data={data}
-            progress={t}
-            id="hero"
-            size="100%"
-            grid={false}
-            outlineColor={null}
-          />
+          {backdrop === 'sun' && <SunBackdrop t={t} />}
+          {backdrop === 'wash' && <WashBackdrop t={t} />}
+          <Box sx={{ position: 'relative', zIndex: 1, width: '100%', height: '100%' }}>
+            <StrokeChar
+              char={landingCopy.heroChar}
+              data={data}
+              progress={t}
+              id="hero"
+              size="100%"
+              grid={false}
+              outlineColor={null}
+            />
+          </Box>
           <Seal
             size={phone ? 44 : 72}
             sx={{
@@ -91,6 +101,8 @@ export const BrushHero: React.FC = () => {
         </Box>
         <Box
           sx={{
+            position: 'relative',
+            zIndex: 1,
             maxWidth: 460,
             textAlign: { xs: 'center', md: 'left' },
             opacity: textIn,
