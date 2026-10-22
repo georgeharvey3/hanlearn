@@ -14,9 +14,10 @@ import FeatureHighlights from '../../components/Home/FeatureHighlights/FeatureHi
 import PrototypeSwitcher, {
   useStickyPrototypeParam,
 } from '../../components/UI/PrototypeSwitcher/PrototypeSwitcher';
-import LandingPainted, {
-  name as namePainted,
-} from '../../components/Home/prototype/LandingPainted';
+import LandingRed, { name as nameRed } from '../../components/Home/prototype/LandingRed';
+import LandingPaintingMoment, {
+  name as nameMoment,
+} from '../../components/Home/prototype/LandingPaintingMoment';
 
 import * as actions from '../../store/actions/index';
 import { RootState } from '../../types/store';
@@ -41,11 +42,12 @@ const mapDispatchToProps = {
   onDeleteList: actions.postDeleteWordList,
 };
 
-// PROTOTYPE (#402): `?variant=P` swaps the visitor's landing page for the
-// chosen design. No param renders the current page.
+// PROTOTYPE (#402): `?variant=R|W` swaps the visitor's landing page. No
+// param renders the current page.
 const landingVariants = [
   { key: '', name: 'Current' },
-  { key: 'P', name: namePainted },
+  { key: 'R', name: nameRed },
+  { key: 'W', name: nameMoment },
 ];
 
 const connector = connect(mapStateToProps, mapDispatchToProps);
@@ -118,7 +120,7 @@ const Home: React.FC<Props> = ({
   if (!isAuthenticated && variant) {
     return (
       <>
-        <LandingPainted />
+        {variant === 'W' ? <LandingPaintingMoment /> : <LandingRed />}
         <PrototypeSwitcher variants={landingVariants} />
       </>
     );

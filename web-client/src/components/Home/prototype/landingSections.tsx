@@ -1,20 +1,16 @@
-// PROTOTYPE (#402) "Painted": the chosen mix of the first round. The
-// five-ways demo (B) comes first, then today's chengyu written stroke by
-// stroke (A), then the four features. Behind both pinned sections the ink
-// painting of the old banner stays put while the scroll pans the view across
-// it, like a handscroll unrolled one view at a time. Throwaway.
+// PROTOTYPE (#402): the sections that the landing variants share: the
+// five-ways demo, today's chengyu, and the features with the close.
+// Throwaway; lives on the prototype/landing-402 branch only.
 import React from 'react';
 import Box from '@mui/material/Box';
 
-import mountains from '../../../assets/images/homepage/mountains.jpg';
 import { getDailyChengyu, chengyus } from '../../../data/chengyus';
 import { colors, fonts, shadows } from '../../../theme';
 import {
   Ctas,
   FullBleed,
-  LandingFooter,
-  LandingGlobals,
   Seal,
+  prefersReducedMotion,
   StrokeChar,
   easeOut,
   landingCopy,
@@ -24,76 +20,120 @@ import {
   useStrokeData,
 } from './landingShared';
 
-export const name = 'Painted';
+// --- The opening -----------------------------------------------------------
 
-const IMAGE_RATIO = 3000 / 2000;
+const HERO_DRAW_MS = 1800;
 
-// A rice-paper sheet laid on the painting: enough paper to read on, thin
-// enough that the ink shows through.
-const sheet = {
-  bgcolor: 'rgba(250, 248, 245, 0.82)',
-  backdropFilter: 'blur(6px)',
-  WebkitBackdropFilter: 'blur(6px)',
-  border: `1px solid rgba(214, 200, 180, 0.6)`,
-  borderRadius: 2,
-} as const;
+/**
+ * The first screen: one character, brushed across most of the screen as the
+ * page loads, not as it scrolls, so the first impression needs no input.
+ * Then the seal stamps and the words arrive.
+ */
+export const BrushHero: React.FC = () => {
+  const { phone, topBar } = useGutter();
+  const [data] = useStrokeData([landingCopy.heroChar]);
+  const [t, setT] = React.useState(prefersReducedMotion() ? 1 : 0);
 
-// --- The painting ---------------------------------------------------------
-
-// The camera moves one way only: it starts at the top of the painting, on
-// the peaks and the sun, and sinks at a steady pace to the water and the boat
-// as the whole journey scrolls. The zoom and the sideways framing stay fixed,
-// so nothing jumps where one section hands over to the next.
-const ZOOM = 1.3;
-// The share of the sideways slack to the left of the view. On a phone this
-// frames the sun at the top and the boat at the bottom.
-const FRAME_X = 0.8;
-const MIST = 0.18;
-
-const cameraAt = (p: number) => ({ x: FRAME_X, y: p, zoom: ZOOM, mist: MIST });
-
-const Painting: React.FC<{ progress: number; topBar: number }> = ({ progress, topBar }) => {
-  const [size, setSize] = React.useState({ w: window.innerWidth, h: window.innerHeight - topBar });
   React.useEffect(() => {
-    const onResize = () => setSize({ w: window.innerWidth, h: window.innerHeight - topBar });
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [topBar]);
+    if (!data || prefersReducedMotion()) return undefined;
+    let raf = 0;
+    const start = performance.now() + 250;
+    const tick = (now: number) => {
+      const next = Math.min(1, Math.max(0, (now - start) / HERO_DRAW_MS));
+      setT(next);
+      if (next < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [data]);
 
-  const cam = cameraAt(progress);
-  const imgH = Math.max(size.h, size.w / IMAGE_RATIO) * cam.zoom;
-  const imgW = imgH * IMAGE_RATIO;
-  const left = -(imgW - size.w) * cam.x;
-  const top = -(imgH - size.h) * cam.y;
+  const size = phone
+    ? 'min(calc(100vw - 48px), 46svh)'
+    : `min(48vw, calc(100svh - ${topBar + 120}px))`;
+  const sealIn = span(t, 0.92, 1);
+  const textIn = easeOut(span(t, 0.55, 1));
 
   return (
-    <Box
-      aria-hidden
-      sx={{
-        position: 'sticky',
-        top: topBar,
-        height: `calc(100svh - ${topBar}px)`,
-        // Pull what follows back up, so the sections scroll over the painting.
-        mb: `calc(-100svh + ${topBar}px)`,
-        overflow: 'hidden',
-        zIndex: 0,
-        bgcolor: colors.primary,
-      }}
-    >
+    <FullBleed cancelTop bg={colors.paper}>
       <Box
         sx={{
-          position: 'absolute',
-          inset: 0,
-          backgroundImage: `url(${mountains})`,
-          backgroundRepeat: 'no-repeat',
+          height: `calc(100svh - ${topBar}px)`,
+          minHeight: 560,
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: { xs: 2, md: 8 },
+          px: 2,
+          boxSizing: 'border-box',
         }}
-        style={{ backgroundSize: `${imgW}px ${imgH}px`, backgroundPosition: `${left}px ${top}px` }}
-      />
-      <Box
-        sx={{ position: 'absolute', inset: 0, bgcolor: colors.paper }}
-        style={{ opacity: cam.mist }}
-      />
-    </Box>
+      >
+        <Box sx={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+          <StrokeChar
+            char={landingCopy.heroChar}
+            data={data}
+            progress={t}
+            id="hero"
+            size="100%"
+            grid={false}
+            outlineColor={null}
+          />
+          <Seal
+            size={phone ? 44 : 72}
+            sx={{
+              position: 'absolute',
+              right: '2%',
+              bottom: '6%',
+              opacity: sealIn,
+              transform: `scale(${1.8 - 0.8 * easeOut(sealIn)}) rotate(-5deg)`,
+            }}
+          />
+        </Box>
+        <Box
+          sx={{
+            maxWidth: 460,
+            textAlign: { xs: 'center', md: 'left' },
+            opacity: textIn,
+            transform: `translateY(${(1 - textIn) * 16}px)`,
+          }}
+        >
+          <Box
+            sx={{ fontSize: { xs: 15, sm: 18 }, color: colors.textSecondary, mb: { xs: 1, sm: 2 } }}
+          >
+            <Box component="span" sx={{ color: colors.primaryDark, mr: 1 }}>
+              {landingCopy.heroPinyin}
+            </Box>
+            <Box component="span" sx={{ fontStyle: 'italic' }}>
+              {landingCopy.heroMeaning}
+            </Box>
+          </Box>
+          <Box
+            component="h1"
+            sx={{
+              m: 0,
+              fontSize: { xs: 30, sm: 52 },
+              lineHeight: 1.08,
+              fontWeight: 700,
+              color: colors.text,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            {landingCopy.heroHeadline}
+          </Box>
+          <Box
+            sx={{
+              mt: { xs: 1.5, sm: 2 },
+              mb: { xs: 2.5, sm: 4 },
+              fontSize: { xs: 15, sm: 19 },
+              color: colors.textSecondary,
+            }}
+          >
+            {landingCopy.heroSub}
+          </Box>
+          <Ctas align={phone ? 'center' : 'flex-start'} />
+        </Box>
+      </Box>
+    </FullBleed>
   );
 };
 
@@ -167,7 +207,7 @@ const LevelBar: React.FC<{ level: number; active: boolean }> = ({ level, active 
   </Box>
 );
 
-const FiveWays: React.FC = () => {
+export const FiveWays: React.FC = () => {
   const { phone, topBar } = useGutter();
   const { ref, progress: p } = useSectionProgress(topBar);
   const strokes = useStrokeData(WORD.char.split(''));
@@ -333,7 +373,7 @@ const FiveWays: React.FC = () => {
   );
 
   return (
-    <Box ref={ref} sx={{ height: phone ? '620vh' : '560vh', position: 'relative', zIndex: 1 }}>
+    <Box ref={ref} sx={{ height: phone ? '620vh' : '560vh', position: 'relative' }}>
       <Box
         sx={{
           position: 'sticky',
@@ -350,7 +390,6 @@ const FiveWays: React.FC = () => {
         {card}
         <Box
           sx={{
-            ...sheet,
             position: 'relative',
             width: { xs: 'min(100%, 340px)', md: 440 },
             p: { xs: 2, sm: 3 },
@@ -368,7 +407,7 @@ const FiveWays: React.FC = () => {
             }}
           >
             <Box
-              component="h1"
+              component="h2"
               sx={{
                 m: 0,
                 fontSize: { xs: 28, sm: 48 },
@@ -384,7 +423,6 @@ const FiveWays: React.FC = () => {
             >
               {landingCopy.directionsSub}
             </Box>
-            <Ctas align={phone ? 'center' : 'flex-start'} />
           </Box>
           {started && <Box sx={{ opacity: introOut }}>{rail}</Box>}
         </Box>
@@ -397,7 +435,13 @@ const FiveWays: React.FC = () => {
 
 const DRAW_END = 0.62;
 
-const ChengyuBrush: React.FC = () => {
+export const ChengyuBrush: React.FC<{ tone?: 'paper' | 'red' }> = ({ tone = 'paper' }) => {
+  const red = tone === 'red';
+  // On red the characters are written in ink, like a spring couplet; the
+  // muted text and the pinyin turn to the paper colour.
+  const ink = red ? '#1d1714' : colors.text;
+  const muted = red ? 'rgba(250, 248, 245, 0.78)' : colors.textSecondary;
+  const accent = red ? colors.paper : colors.primaryDark;
   const { phone, topBar } = useGutter();
   const { ref, progress: p } = useSectionProgress(topBar);
   const daily = React.useMemo(() => getDailyChengyu(), []);
@@ -413,7 +457,14 @@ const ChengyuBrush: React.FC = () => {
   const ctaIn = easeOut(span(p, 0.8, 0.92));
 
   return (
-    <Box ref={ref} sx={{ height: '360vh', position: 'relative', zIndex: 1 }}>
+    <Box
+      ref={ref}
+      sx={{
+        height: '360vh',
+        position: 'relative',
+        bgcolor: red ? colors.primaryLight : colors.paper,
+      }}
+    >
       <Box
         sx={{
           position: 'sticky',
@@ -428,7 +479,6 @@ const ChengyuBrush: React.FC = () => {
       >
         <Box
           sx={{
-            ...sheet,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -444,7 +494,7 @@ const ChengyuBrush: React.FC = () => {
             sx={{
               fontSize: { xs: 13, sm: 14 },
               letterSpacing: 2,
-              color: colors.textSecondary,
+              color: muted,
               textTransform: 'uppercase',
             }}
           >
@@ -456,20 +506,21 @@ const ChengyuBrush: React.FC = () => {
               const cp = charProgress(i);
               return (
                 <Box key={i} sx={{ textAlign: 'center' }}>
-                  <Box sx={{ bgcolor: colors.paper }}>
-                    <StrokeChar
-                      char={c}
-                      data={data[i]}
-                      progress={cp}
-                      id={`brush-${i}`}
-                      size={size}
-                    />
-                  </Box>
+                  <StrokeChar
+                    char={c}
+                    data={data[i]}
+                    progress={cp}
+                    id={`brush-${i}`}
+                    size={size}
+                    ink={ink}
+                    grid={!red}
+                    outlineColor={red ? 'rgba(0, 0, 0, 0.13)' : undefined}
+                  />
                   <Box
                     sx={{
                       mt: 1,
                       fontSize: { xs: 15, sm: 20 },
-                      color: colors.primaryDark,
+                      color: accent,
                       opacity: span(cp, 0.85, 1),
                       transform: `translateY(${(1 - span(cp, 0.85, 1)) * 8}px)`,
                     }}
@@ -480,6 +531,7 @@ const ChengyuBrush: React.FC = () => {
               );
             })}
             <Seal
+              inverse={red}
               size={phone ? 34 : 52}
               sx={{
                 position: 'absolute',
@@ -495,7 +547,7 @@ const ChengyuBrush: React.FC = () => {
             sx={{
               fontSize: { xs: 18, sm: 22 },
               fontStyle: 'italic',
-              color: colors.text,
+              color: red ? colors.paper : colors.text,
               textAlign: 'center',
               maxWidth: 520,
               minHeight: '1.5em',
@@ -513,7 +565,7 @@ const ChengyuBrush: React.FC = () => {
               transform: `translateY(${(1 - ctaIn) * 24}px)`,
               pointerEvents: ctaIn > 0.5 ? 'auto' : 'none',
               maxWidth: 560,
-              // The sheet grows to take the call to action, rather than
+              // The block grows to take the call to action, rather than
               // holding an empty space for it while the strokes draw.
               maxHeight: ctaIn * 360,
               overflow: 'hidden',
@@ -527,15 +579,15 @@ const ChengyuBrush: React.FC = () => {
                 fontSize: { xs: 26, sm: 38 },
                 lineHeight: 1.15,
                 fontWeight: 700,
-                color: colors.text,
+                color: red ? colors.paper : colors.text,
               }}
             >
               {landingCopy.brushHeadline}
             </Box>
-            <Box sx={{ mt: 1.5, mb: 3, fontSize: { xs: 15, sm: 17 }, color: colors.textSecondary }}>
+            <Box sx={{ mt: 1.5, mb: 3, fontSize: { xs: 15, sm: 17 }, color: muted }}>
               {landingCopy.brushSub}
             </Box>
-            <Ctas />
+            <Ctas inverse={red} />
           </Box>
         </Box>
       </Box>
@@ -543,74 +595,55 @@ const ChengyuBrush: React.FC = () => {
   );
 };
 
-// --- The page ---------------------------------------------------------------
+// --- Features and the close ------------------------------------------------
 
-const LandingPainted: React.FC = () => {
-  const { topBar } = useGutter();
-  // The camera follows the whole journey, so it pans on without a break
-  // where one pinned section hands over to the next.
-  const { ref, progress } = useSectionProgress(topBar);
-
-  return (
-    <>
-      <LandingGlobals />
-      <FullBleed cancelTop>
-        <Box ref={ref} sx={{ position: 'relative' }}>
-          <Painting progress={progress} topBar={topBar} />
-          <FiveWays />
-          <ChengyuBrush />
-        </Box>
-      </FullBleed>
-
-      {/* The four features, on plain paper: entries in a copybook. */}
-      <FullBleed bg={colors.paper} sx={{ zIndex: 1 }}>
-        <Box sx={{ maxWidth: 880, mx: 'auto', px: 2, py: { xs: 6, sm: 10 } }}>
-          {landingCopy.features.map((f, i) => (
+export const Features: React.FC = () => (
+  <>
+    {/* The four features, on plain paper: entries in a copybook. */}
+    <FullBleed bg={colors.paper}>
+      <Box sx={{ maxWidth: 880, mx: 'auto', px: 2, py: { xs: 6, sm: 10 } }}>
+        {landingCopy.features.map((f, i) => (
+          <Box
+            key={f.glyph}
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '72px 1fr', sm: '140px 1fr' },
+              alignItems: 'center',
+              gap: { xs: 2, sm: 4 },
+              py: { xs: 3, sm: 4 },
+              borderTop: i ? `1px solid ${colors.divider}` : 'none',
+            }}
+          >
             <Box
-              key={f.glyph}
               sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '72px 1fr', sm: '140px 1fr' },
-                alignItems: 'center',
-                gap: { xs: 2, sm: 4 },
-                py: { xs: 3, sm: 4 },
-                borderTop: i ? `1px solid ${colors.divider}` : 'none',
+                fontFamily: fonts.hanzi,
+                fontSize: { xs: 64, sm: 120 },
+                lineHeight: 1,
+                color: colors.text,
               }}
             >
-              <Box
-                sx={{
-                  fontFamily: fonts.hanzi,
-                  fontSize: { xs: 64, sm: 120 },
-                  lineHeight: 1,
-                  color: colors.text,
-                }}
-              >
-                {f.glyph}
+              {f.glyph}
+            </Box>
+            <Box>
+              <Box sx={{ fontSize: { xs: 20, sm: 26 }, fontWeight: 700, color: colors.text }}>
+                {f.title}
               </Box>
-              <Box>
-                <Box sx={{ fontSize: { xs: 20, sm: 26 }, fontWeight: 700, color: colors.text }}>
-                  {f.title}
-                </Box>
-                <Box sx={{ mt: 0.5, fontSize: { xs: 15, sm: 17 }, color: colors.textSecondary }}>
-                  {f.body}
-                </Box>
+              <Box sx={{ mt: 0.5, fontSize: { xs: 15, sm: 17 }, color: colors.textSecondary }}>
+                {f.body}
               </Box>
             </Box>
-          ))}
-        </Box>
-      </FullBleed>
-
-      <FullBleed bg={colors.primaryDark}>
-        <Box sx={{ py: { xs: 8, sm: 12 }, px: 2, textAlign: 'center', color: colors.white }}>
-          <Box component="h2" sx={{ m: 0, mb: 3, fontSize: { xs: 26, sm: 38 }, fontWeight: 700 }}>
-            {landingCopy.finalHeadline}
           </Box>
-          <Ctas inverse />
-        </Box>
-      </FullBleed>
-      <LandingFooter />
-    </>
-  );
-};
+        ))}
+      </Box>
+    </FullBleed>
 
-export default LandingPainted;
+    <FullBleed bg={colors.primaryDark}>
+      <Box sx={{ py: { xs: 8, sm: 12 }, px: 2, textAlign: 'center', color: colors.white }}>
+        <Box component="h2" sx={{ m: 0, mb: 3, fontSize: { xs: 26, sm: 38 }, fontWeight: 700 }}>
+          {landingCopy.finalHeadline}
+        </Box>
+        <Ctas inverse />
+      </Box>
+    </FullBleed>
+  </>
+);

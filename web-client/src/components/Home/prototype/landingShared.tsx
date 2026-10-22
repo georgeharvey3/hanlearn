@@ -18,6 +18,11 @@ import { loadCharData } from '../../../utils/charDataLoader';
 // Placeholder copy for every variant. The winner's strings move to copy.ts.
 export const landingCopy = {
   startFree: 'Start free',
+  heroChar: '学',
+  heroPinyin: 'xué',
+  heroMeaning: 'to learn',
+  heroHeadline: 'Learn the words. Keep them.',
+  heroSub: 'Chinese vocabulary, tested every way and asked again just before you forget.',
   trySession: 'Try a session',
   scroll: 'Scroll',
   todaysChengyu: '今日成语 · Today’s chengyu',
@@ -242,14 +247,18 @@ export const LandingFooter: React.FC = () => (
 );
 
 /** The seal stamp: two characters in a red square. */
-export const Seal: React.FC<{ size?: number; sx?: object }> = ({ size = 56, sx }) => (
+export const Seal: React.FC<{ size?: number; inverse?: boolean; sx?: object }> = ({
+  size = 56,
+  inverse,
+  sx,
+}) => (
   <Box
     aria-hidden
     sx={{
       width: size,
       height: size,
-      bgcolor: colors.primaryLight,
-      color: colors.paper,
+      bgcolor: inverse ? colors.paper : colors.primaryLight,
+      color: inverse ? colors.primaryLight : colors.paper,
       borderRadius: '6px',
       display: 'grid',
       gridTemplateColumns: '1fr',
@@ -313,10 +322,21 @@ export const StrokeChar: React.FC<{
   data: CharStrokes | null;
   progress: number;
   id: string;
-  size: number;
+  size: number | string;
   ink?: string;
   grid?: boolean;
-}> = ({ char, data, progress, id, size, ink = colors.text, grid = true }) => {
+  /** The colour of a stroke not yet drawn; null hides it. */
+  outlineColor?: string | null;
+}> = ({
+  char,
+  data,
+  progress,
+  id,
+  size,
+  ink = colors.text,
+  grid = true,
+  outlineColor = colors.outline,
+}) => {
   const lengths = React.useMemo(() => data?.medians.map(medianLength) ?? [], [data]);
   const total = lengths.reduce((a, b) => a + b, 0);
   const drawn = progress * total;
@@ -351,9 +371,9 @@ export const StrokeChar: React.FC<{
                 </clipPath>
               ))}
             </defs>
-            {data.strokes.map((s, i) => (
-              <path key={`o${i}`} d={s} fill={colors.outline} />
-            ))}
+            {data.strokes.map(
+              (s, i) => outlineColor && <path key={`o${i}`} d={s} fill={outlineColor} />,
+            )}
             {data.medians.map((m, i) => {
               const len = lengths[i];
               const show = Math.min(len, Math.max(0, drawn - starts[i]));
@@ -381,7 +401,7 @@ export const StrokeChar: React.FC<{
             textAnchor="middle"
             fontSize={820}
             fontFamily={fonts.hanzi}
-            fill={progress > 0.5 ? ink : colors.outline}
+            fill={progress > 0.5 ? ink : (outlineColor ?? 'transparent')}
           >
             {char}
           </text>
