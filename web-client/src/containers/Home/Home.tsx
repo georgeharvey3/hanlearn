@@ -14,10 +14,9 @@ import FeatureHighlights from '../../components/Home/FeatureHighlights/FeatureHi
 import PrototypeSwitcher, {
   useStickyPrototypeParam,
 } from '../../components/UI/PrototypeSwitcher/PrototypeSwitcher';
-import LandingVariantA, { name as nameA } from '../../components/Home/prototype/LandingVariantA';
-import LandingVariantB, { name as nameB } from '../../components/Home/prototype/LandingVariantB';
-import LandingVariantC, { name as nameC } from '../../components/Home/prototype/LandingVariantC';
-import LandingVariantD, { name as nameD } from '../../components/Home/prototype/LandingVariantD';
+import LandingPainted, {
+  name as namePainted,
+} from '../../components/Home/prototype/LandingPainted';
 
 import * as actions from '../../store/actions/index';
 import { RootState } from '../../types/store';
@@ -42,23 +41,12 @@ const mapDispatchToProps = {
   onDeleteList: actions.postDeleteWordList,
 };
 
-// PROTOTYPE (#402): `?variant=A|B|C|D` swaps the visitor's landing page.
-// No param renders the current page.
+// PROTOTYPE (#402): `?variant=P` swaps the visitor's landing page for the
+// chosen design. No param renders the current page.
 const landingVariants = [
   { key: '', name: 'Current' },
-  { key: 'A', name: nameA },
-  { key: 'B', name: nameB },
-  { key: 'C', name: nameC },
-  { key: 'D', name: nameD },
+  { key: 'P', name: namePainted },
 ];
-
-const LandingVariant: React.FC<{ variant: string }> = ({ variant }) => {
-  if (variant === 'A') return <LandingVariantA key="A" />;
-  if (variant === 'B') return <LandingVariantB key="B" />;
-  if (variant === 'C') return <LandingVariantC key="C" />;
-  if (variant === 'D') return <LandingVariantD key="D" />;
-  return null;
-};
 
 const connector = connect(mapStateToProps, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
@@ -130,7 +118,7 @@ const Home: React.FC<Props> = ({
   if (!isAuthenticated && variant) {
     return (
       <>
-        <LandingVariant variant={variant} />
+        <LandingPainted />
         <PrototypeSwitcher variants={landingVariants} />
       </>
     );
