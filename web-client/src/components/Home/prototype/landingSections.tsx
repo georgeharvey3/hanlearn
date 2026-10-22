@@ -5,20 +5,12 @@ import React from 'react';
 import Box from '@mui/material/Box';
 
 import { getDailyChengyu, chengyus } from '../../../data/chengyus';
-import { usePrototypeParam } from '../../UI/PrototypeSwitcher/PrototypeSwitcher';
-import {
-  CINNABAR,
-  HangingScroll,
-  HeroTreatment,
-  InscriptionAndSeals,
-  TeacherCircle,
-} from './heroTreatments';
+import { HeroPhone } from './HeroPhone';
 import { colors, fonts, shadows } from '../../../theme';
 import {
   Ctas,
   FullBleed,
   Seal,
-  prefersReducedMotion,
   StrokeChar,
   easeOut,
   landingCopy,
@@ -30,153 +22,96 @@ import {
 
 // --- The opening -----------------------------------------------------------
 
-const HERO_DRAW_MS = 1800;
-// The scroll lets down before the brush writes.
-const UNROLL_MS = 1100;
-// The time for what comes after the brush: the circle, or the seals.
-const AFTER_MS = 2000;
-
 /**
- * The first screen: one character, brushed across most of the screen as the
- * page loads, not as it scrolls, so the first impression needs no input.
- * Then the seal stamps and the words arrive. `?state=` dresses the character
- * in one of the calligraphy treatments.
+ * The first screen: the promise, the actions, and a phone that runs the study
+ * screen by itself until the visitor taps it and answers for real. Under it,
+ * the facts.
  */
-export const BrushHero: React.FC = () => {
+export const ProductHero: React.FC = () => {
   const { phone, topBar } = useGutter();
-  const [data] = useStrokeData([landingCopy.heroChar]);
-  const treatment = usePrototypeParam('state') as HeroTreatment;
-  const reduced = prefersReducedMotion();
-  const [elapsed, setElapsed] = React.useState(reduced ? Infinity : 0);
-  const delay = treatment === 'scroll' ? UNROLL_MS : 0;
-
-  React.useEffect(() => {
-    if (!data || reduced) return undefined;
-    let raf = 0;
-    const start = performance.now() + 250;
-    const end = delay + HERO_DRAW_MS + AFTER_MS;
-    const tick = (now: number) => {
-      const e = Math.max(0, now - start);
-      setElapsed(e);
-      if (e < end) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [data, reduced, delay]);
-
-  const unroll = Math.min(1, elapsed / UNROLL_MS);
-  const t = Math.min(1, Math.max(0, (elapsed - delay) / HERO_DRAW_MS));
-  const after = Math.min(1, Math.max(0, (elapsed - delay - HERO_DRAW_MS) / AFTER_MS));
-
-  const size = phone
-    ? 'min(calc(100vw - 48px), 46svh)'
-    : `min(48vw, calc(100svh - ${topBar + 120}px))`;
-  // The scroll's mounting takes room, so its character is smaller.
-  const charSize = treatment === 'scroll' ? `calc(${size} * ${phone ? 0.42 : 0.48})` : size;
-  const sealIn = span(t, 0.92, 1);
-  const textIn = easeOut(span(t, 0.55, 1));
-  const trace = treatment === 'trace';
-
-  const character = (
-    <Box sx={{ position: 'relative', width: charSize, height: charSize, flexShrink: 0 }}>
-      <Box sx={{ position: 'relative', zIndex: 1, width: '100%', height: '100%' }}>
-        <StrokeChar
-          char={landingCopy.heroChar}
-          data={data}
-          progress={t}
-          id="hero"
-          size="100%"
-          grid={trace}
-          gridColor={trace ? 'rgba(200, 56, 44, 0.55)' : undefined}
-          frameColor={trace ? CINNABAR : undefined}
-          outlineColor={trace ? 'rgba(200, 56, 44, 0.78)' : null}
-        />
-      </Box>
-      {trace && <TeacherCircle k={easeOut(span(after, 0, 0.45))} />}
-      {treatment === 'seals' && <InscriptionAndSeals k={after} size={charSize} />}
-      {treatment !== 'trace' && treatment !== 'seals' && (
-        <Seal
-          size={phone ? (treatment === 'scroll' ? 30 : 44) : treatment === 'scroll' ? 44 : 72}
-          sx={{
-            position: 'absolute',
-            right: treatment === 'scroll' ? '-4%' : '2%',
-            bottom: treatment === 'scroll' ? '-2%' : '6%',
-            opacity: sealIn,
-            transform: `scale(${1.8 - 0.8 * easeOut(sealIn)}) rotate(-5deg)`,
-          }}
-        />
-      )}
-    </Box>
-  );
-
   return (
     <FullBleed cancelTop bg={colors.paper}>
       <Box
         sx={{
-          height: `calc(100svh - ${topBar}px)`,
-          minHeight: 560,
-          display: 'flex',
-          flexDirection: { xs: 'column', md: 'row' },
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: { xs: 2, md: 8 },
-          px: 2,
+          minHeight: `calc(100svh - ${topBar}px)`,
           boxSizing: 'border-box',
-          position: 'relative',
-          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          px: 2,
+          pt: { xs: 4, md: 2 },
+          pb: { xs: 5, md: 3 },
         }}
       >
-        {treatment === 'scroll' ? (
-          <HangingScroll unroll={unroll} size={charSize}>
-            {character}
-          </HangingScroll>
-        ) : (
-          character
-        )}
         <Box
           sx={{
-            position: 'relative',
-            zIndex: 1,
-            maxWidth: 460,
-            textAlign: { xs: 'center', md: 'left' },
-            opacity: textIn,
-            transform: `translateY(${(1 - textIn) * 16}px)`,
+            width: '100%',
+            maxWidth: 1080,
+            mx: 'auto',
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: { xs: 5, md: 6 },
           }}
         >
-          <Box
-            sx={{ fontSize: { xs: 15, sm: 18 }, color: colors.textSecondary, mb: { xs: 1, sm: 2 } }}
-          >
-            <Box component="span" sx={{ color: colors.primaryDark, mr: 1 }}>
-              {landingCopy.heroPinyin}
+          <Box sx={{ maxWidth: 520, textAlign: { xs: 'center', md: 'left' } }}>
+            <Box
+              component="h1"
+              sx={{
+                m: 0,
+                fontSize: { xs: 36, sm: 60 },
+                lineHeight: 1.04,
+                fontWeight: 700,
+                letterSpacing: '-0.02em',
+                color: colors.text,
+              }}
+            >
+              {landingCopy.heroHeadline}
             </Box>
-            <Box component="span" sx={{ fontStyle: 'italic' }}>
-              {landingCopy.heroMeaning}
+            <Box
+              sx={{
+                mt: { xs: 2, sm: 2.5 },
+                mb: { xs: 3, sm: 4 },
+                fontSize: { xs: 17, sm: 20 },
+                lineHeight: 1.45,
+                color: colors.textSecondary,
+              }}
+            >
+              {landingCopy.heroSub}
             </Box>
+            <Ctas align={phone ? 'center' : 'flex-start'} />
           </Box>
-          <Box
-            component="h1"
-            sx={{
-              m: 0,
-              fontSize: { xs: 30, sm: 52 },
-              lineHeight: 1.08,
-              fontWeight: 700,
-              color: colors.text,
-              letterSpacing: '-0.01em',
-            }}
-          >
-            {landingCopy.heroHeadline}
-          </Box>
-          <Box
-            sx={{
-              mt: { xs: 1.5, sm: 2 },
-              mb: { xs: 2.5, sm: 4 },
-              fontSize: { xs: 15, sm: 19 },
-              color: colors.textSecondary,
-            }}
-          >
-            {landingCopy.heroSub}
-          </Box>
-          <Ctas align={phone ? 'center' : 'flex-start'} />
+          <HeroPhone width={phone ? 280 : 310} />
+        </Box>
+
+        <Box
+          component="ul"
+          sx={{
+            listStyle: 'none',
+            p: 0,
+            m: 0,
+            mt: { xs: 6, md: 3 },
+            mx: 'auto',
+            maxWidth: 1080,
+            width: '100%',
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' },
+            gap: { xs: 2.5, md: 0 },
+            borderTop: { md: `1px solid ${colors.divider}` },
+            pt: { md: 2.5 },
+          }}
+        >
+          {landingCopy.facts.map((f) => (
+            <Box component="li" key={f.label} sx={{ textAlign: 'center' }}>
+              <Box sx={{ fontSize: { xs: 22, sm: 26 }, fontWeight: 700, color: colors.text }}>
+                {f.value}
+              </Box>
+              <Box sx={{ fontSize: { xs: 13, sm: 14 }, color: colors.textSecondary }}>
+                {f.label}
+              </Box>
+            </Box>
+          ))}
         </Box>
       </Box>
     </FullBleed>

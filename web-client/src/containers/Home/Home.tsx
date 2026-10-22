@@ -48,14 +48,6 @@ const landingVariants = [
   { key: 'W', name: nameMoment },
 ];
 
-// `?state=` dresses the first screen's 学 in a calligraphy treatment.
-const heroBackdrops = [
-  { key: '', name: 'Plain' },
-  { key: 'trace', name: 'Trace' },
-  { key: 'scroll', name: 'Scroll' },
-  { key: 'seals', name: 'Seals' },
-];
-
 const connector = connect(mapStateToProps, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 type Props = PropsFromRedux & RouteComponentProps;
@@ -127,7 +119,7 @@ const Home: React.FC<Props> = ({
     return (
       <>
         <LandingPaintingMoment />
-        <PrototypeSwitcher variants={landingVariants} states={heroBackdrops} />
+        <PrototypeSwitcher variants={landingVariants} />
       </>
     );
   }

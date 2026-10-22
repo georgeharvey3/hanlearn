@@ -20,7 +20,7 @@ import {
   useGutter,
   useSectionProgress,
 } from './landingShared';
-import { BrushHero, ChengyuBrush, Features, FiveWays } from './landingSections';
+import { ProductHero, ChengyuBrush, Features, FiveWays } from './landingSections';
 
 export const name = 'Painting moment';
 
@@ -204,7 +204,7 @@ const LandingPaintingMoment: React.FC = () => {
   return (
     <>
       <LandingGlobals />
-      <BrushHero />
+      <ProductHero />
       <FullBleed bg={colors.paper}>
         <FiveWays />
       </FullBleed>
