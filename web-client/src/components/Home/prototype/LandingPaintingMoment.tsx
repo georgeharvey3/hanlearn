@@ -72,10 +72,9 @@ const PaintingMoment: React.FC = () => {
           aria-hidden
         >
           <defs>
-            {/* A soft, ragged edge: blur the disc, then push its edge about
-                with noise, so it spreads like ink in wet paper. */}
+            {/* A ragged edge: push the disc's edge about with noise, so it
+                spreads like ink in wet paper. */}
             <filter id="ink-bleed" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="40" />
               <feTurbulence
                 type="fractalNoise"
                 baseFrequency="0.006"
