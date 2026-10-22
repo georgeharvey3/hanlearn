@@ -328,6 +328,9 @@ export const StrokeChar: React.FC<{
   grid?: boolean;
   /** The colour of a stroke not yet drawn; null hides it. */
   outlineColor?: string | null;
+  /** The practice grid's guide lines and frame. */
+  gridColor?: string;
+  frameColor?: string;
 }> = ({
   char,
   data,
@@ -337,6 +340,8 @@ export const StrokeChar: React.FC<{
   ink = colors.text,
   grid = true,
   outlineColor = colors.outline,
+  gridColor = colors.gridLine,
+  frameColor = colors.outline,
 }) => {
   const lengths = React.useMemo(() => data?.medians.map(medianLength) ?? [], [data]);
   const total = lengths.reduce((a, b) => a + b, 0);
@@ -347,14 +352,14 @@ export const StrokeChar: React.FC<{
     <Box sx={{ position: 'relative', width: size, height: size }}>
       <svg viewBox="0 0 1024 1024" width={size} height={size} aria-label={char} role="img">
         {grid && (
-          <g stroke={colors.gridLine} strokeWidth={4} strokeDasharray="16 14" fill="none">
+          <g stroke={gridColor} strokeWidth={4} strokeDasharray="16 14" fill="none">
             <rect
               x={2}
               y={2}
               width={1020}
               height={1020}
               strokeDasharray="none"
-              stroke={colors.outline}
+              stroke={frameColor}
               strokeWidth={6}
             />
             <line x1={0} y1={512} x2={1024} y2={512} />

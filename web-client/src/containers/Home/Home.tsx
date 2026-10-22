@@ -48,12 +48,12 @@ const landingVariants = [
   { key: 'W', name: nameMoment },
 ];
 
-// `?state=` picks the colour behind the first screen's 学.
+// `?state=` dresses the first screen's 学 in a calligraphy treatment.
 const heroBackdrops = [
   { key: '', name: 'Plain' },
-  { key: 'sun', name: 'Sun' },
-  { key: 'wash', name: 'Wash' },
-  { key: 'blossom', name: 'Blossom' },
+  { key: 'trace', name: 'Trace' },
+  { key: 'scroll', name: 'Scroll' },
+  { key: 'seals', name: 'Seals' },
 ];
 
 const connector = connect(mapStateToProps, mapDispatchToProps);

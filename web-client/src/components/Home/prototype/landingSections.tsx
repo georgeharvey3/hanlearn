@@ -6,7 +6,13 @@ import Box from '@mui/material/Box';
 
 import { getDailyChengyu, chengyus } from '../../../data/chengyus';
 import { usePrototypeParam } from '../../UI/PrototypeSwitcher/PrototypeSwitcher';
-import { BlossomBackdrop, SunBackdrop, WashBackdrop } from './heroBackdrops';
+import {
+  CINNABAR,
+  HangingScroll,
+  HeroTreatment,
+  InscriptionAndSeals,
+  TeacherCircle,
+} from './heroTreatments';
 import { colors, fonts, shadows } from '../../../theme';
 import {
   Ctas,
@@ -25,36 +31,83 @@ import {
 // --- The opening -----------------------------------------------------------
 
 const HERO_DRAW_MS = 1800;
+// The scroll lets down before the brush writes.
+const UNROLL_MS = 1100;
+// The time for what comes after the brush: the circle, or the seals.
+const AFTER_MS = 2000;
 
 /**
  * The first screen: one character, brushed across most of the screen as the
  * page loads, not as it scrolls, so the first impression needs no input.
- * Then the seal stamps and the words arrive.
+ * Then the seal stamps and the words arrive. `?state=` dresses the character
+ * in one of the calligraphy treatments.
  */
 export const BrushHero: React.FC = () => {
   const { phone, topBar } = useGutter();
   const [data] = useStrokeData([landingCopy.heroChar]);
-  const backdrop = usePrototypeParam('state');
-  const [t, setT] = React.useState(prefersReducedMotion() ? 1 : 0);
+  const treatment = usePrototypeParam('state') as HeroTreatment;
+  const reduced = prefersReducedMotion();
+  const [elapsed, setElapsed] = React.useState(reduced ? Infinity : 0);
+  const delay = treatment === 'scroll' ? UNROLL_MS : 0;
 
   React.useEffect(() => {
-    if (!data || prefersReducedMotion()) return undefined;
+    if (!data || reduced) return undefined;
     let raf = 0;
     const start = performance.now() + 250;
+    const end = delay + HERO_DRAW_MS + AFTER_MS;
     const tick = (now: number) => {
-      const next = Math.min(1, Math.max(0, (now - start) / HERO_DRAW_MS));
-      setT(next);
-      if (next < 1) raf = requestAnimationFrame(tick);
+      const e = Math.max(0, now - start);
+      setElapsed(e);
+      if (e < end) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [data]);
+  }, [data, reduced, delay]);
+
+  const unroll = Math.min(1, elapsed / UNROLL_MS);
+  const t = Math.min(1, Math.max(0, (elapsed - delay) / HERO_DRAW_MS));
+  const after = Math.min(1, Math.max(0, (elapsed - delay - HERO_DRAW_MS) / AFTER_MS));
 
   const size = phone
     ? 'min(calc(100vw - 48px), 46svh)'
     : `min(48vw, calc(100svh - ${topBar + 120}px))`;
+  // The scroll's mounting takes room, so its character is smaller.
+  const charSize = treatment === 'scroll' ? `calc(${size} * ${phone ? 0.42 : 0.48})` : size;
   const sealIn = span(t, 0.92, 1);
   const textIn = easeOut(span(t, 0.55, 1));
+  const trace = treatment === 'trace';
+
+  const character = (
+    <Box sx={{ position: 'relative', width: charSize, height: charSize, flexShrink: 0 }}>
+      <Box sx={{ position: 'relative', zIndex: 1, width: '100%', height: '100%' }}>
+        <StrokeChar
+          char={landingCopy.heroChar}
+          data={data}
+          progress={t}
+          id="hero"
+          size="100%"
+          grid={trace}
+          gridColor={trace ? 'rgba(200, 56, 44, 0.55)' : undefined}
+          frameColor={trace ? CINNABAR : undefined}
+          outlineColor={trace ? 'rgba(200, 56, 44, 0.78)' : null}
+        />
+      </Box>
+      {trace && <TeacherCircle k={easeOut(span(after, 0, 0.45))} />}
+      {treatment === 'seals' && <InscriptionAndSeals k={after} size={charSize} />}
+      {treatment !== 'trace' && treatment !== 'seals' && (
+        <Seal
+          size={phone ? (treatment === 'scroll' ? 30 : 44) : treatment === 'scroll' ? 44 : 72}
+          sx={{
+            position: 'absolute',
+            right: treatment === 'scroll' ? '-4%' : '2%',
+            bottom: treatment === 'scroll' ? '-2%' : '6%',
+            opacity: sealIn,
+            transform: `scale(${1.8 - 0.8 * easeOut(sealIn)}) rotate(-5deg)`,
+          }}
+        />
+      )}
+    </Box>
+  );
 
   return (
     <FullBleed cancelTop bg={colors.paper}>
@@ -73,32 +126,13 @@ export const BrushHero: React.FC = () => {
           overflow: 'hidden',
         }}
       >
-        {backdrop === 'blossom' && <BlossomBackdrop t={t} mirror={!phone} />}
-        <Box sx={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-          {backdrop === 'sun' && <SunBackdrop t={t} />}
-          {backdrop === 'wash' && <WashBackdrop t={t} />}
-          <Box sx={{ position: 'relative', zIndex: 1, width: '100%', height: '100%' }}>
-            <StrokeChar
-              char={landingCopy.heroChar}
-              data={data}
-              progress={t}
-              id="hero"
-              size="100%"
-              grid={false}
-              outlineColor={null}
-            />
-          </Box>
-          <Seal
-            size={phone ? 44 : 72}
-            sx={{
-              position: 'absolute',
-              right: '2%',
-              bottom: '6%',
-              opacity: sealIn,
-              transform: `scale(${1.8 - 0.8 * easeOut(sealIn)}) rotate(-5deg)`,
-            }}
-          />
-        </Box>
+        {treatment === 'scroll' ? (
+          <HangingScroll unroll={unroll} size={charSize}>
+            {character}
+          </HangingScroll>
+        ) : (
+          character
+        )}
         <Box
           sx={{
             position: 'relative',
