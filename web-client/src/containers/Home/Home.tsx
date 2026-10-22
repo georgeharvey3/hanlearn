@@ -11,6 +11,14 @@ import Chengyu from '../../components/Home/Chengyu/Chengyu';
 import HowItWorks from '../../components/Home/HowItWorks/HowItWorks';
 import FeatureHighlights from '../../components/Home/FeatureHighlights/FeatureHighlights';
 
+import PrototypeSwitcher, {
+  useStickyPrototypeParam,
+} from '../../components/UI/PrototypeSwitcher/PrototypeSwitcher';
+import LandingVariantA, { name as nameA } from '../../components/Home/prototype/LandingVariantA';
+import LandingVariantB, { name as nameB } from '../../components/Home/prototype/LandingVariantB';
+import LandingVariantC, { name as nameC } from '../../components/Home/prototype/LandingVariantC';
+import LandingVariantD, { name as nameD } from '../../components/Home/prototype/LandingVariantD';
+
 import * as actions from '../../store/actions/index';
 import { RootState } from '../../types/store';
 
@@ -34,6 +42,24 @@ const mapDispatchToProps = {
   onDeleteList: actions.postDeleteWordList,
 };
 
+// PROTOTYPE (#402): `?variant=A|B|C|D` swaps the visitor's landing page.
+// No param renders the current page.
+const landingVariants = [
+  { key: '', name: 'Current' },
+  { key: 'A', name: nameA },
+  { key: 'B', name: nameB },
+  { key: 'C', name: nameC },
+  { key: 'D', name: nameD },
+];
+
+const LandingVariant: React.FC<{ variant: string }> = ({ variant }) => {
+  if (variant === 'A') return <LandingVariantA key="A" />;
+  if (variant === 'B') return <LandingVariantB key="B" />;
+  if (variant === 'C') return <LandingVariantC key="C" />;
+  if (variant === 'D') return <LandingVariantD key="D" />;
+  return null;
+};
+
 const connector = connect(mapStateToProps, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 type Props = PropsFromRedux & RouteComponentProps;
@@ -54,6 +80,7 @@ const Home: React.FC<Props> = ({
   onDeleteList,
   history,
 }) => {
+  const variant = useStickyPrototypeParam('variant');
   const numTot = words.length;
   const numDue = useMemo(() => {
     const now = new Date();
@@ -100,6 +127,15 @@ const Home: React.FC<Props> = ({
     history.push('/add-words');
   };
 
+  if (!isAuthenticated && variant) {
+    return (
+      <>
+        <LandingVariant variant={variant} />
+        <PrototypeSwitcher variants={landingVariants} />
+      </>
+    );
+  }
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <MainBanner
@@ -134,6 +170,7 @@ const Home: React.FC<Props> = ({
         <SignUpBanner signUpClicked={onClickSignUp} tryOutClicked={onTryOutClicked} />
       )}
       <Footer />
+      {!isAuthenticated && <PrototypeSwitcher variants={landingVariants} />}
     </Box>
   );
 };
