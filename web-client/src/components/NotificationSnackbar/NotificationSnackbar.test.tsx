@@ -1,60 +1,57 @@
-import { describe, it, expect, vi } from 'vitest';
-import { screen, act } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { screen, act, fireEvent } from '@testing-library/react';
 import { renderWithProviders, createTestStore } from '../../test/utils';
 import NotificationSnackbar from './NotificationSnackbar';
-import { SHOW_NOTIFICATION } from '../../store/actions/actionTypes';
+import { showNotification } from '../../store/actions/notifications';
+
+const renderWith = (...notifications: ReturnType<typeof showNotification>[]) => {
+  const store = createTestStore();
+  notifications.forEach((n) => store.dispatch(n));
+  renderWithProviders(<NotificationSnackbar bottom="24px" centre="50%" />, { store });
+  return store;
+};
 
 describe('NotificationSnackbar', () => {
-  it('renders nothing when queue is empty', () => {
-    renderWithProviders(<NotificationSnackbar />);
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('renders nothing when the queue is empty', () => {
+    renderWith();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('renders alert with correct message when queue has an item', () => {
-    const store = createTestStore();
-    store.dispatch({
-      type: SHOW_NOTIFICATION,
-      notification: { id: '1', message: 'Word added', severity: 'success' },
-    });
-    renderWithProviders(<NotificationSnackbar />, { store });
-    expect(screen.getByRole('alert')).toHaveTextContent('Word added');
-  });
-
-  it('renders with error severity', () => {
-    const store = createTestStore();
-    store.dispatch({
-      type: SHOW_NOTIFICATION,
-      notification: { id: '1', message: 'Failed to add word', severity: 'error' },
-    });
-    renderWithProviders(<NotificationSnackbar />, { store });
-    const alert = screen.getByRole('alert');
-    expect(alert).toHaveTextContent('Failed to add word');
-  });
-
-  it('dismisses notification on close and shows next', async () => {
+  it('closes a success toast after 4 seconds, then shows the next', () => {
     vi.useFakeTimers();
-    const store = createTestStore();
-    store.dispatch({
-      type: SHOW_NOTIFICATION,
-      notification: { id: '1', message: 'First', severity: 'success', duration: 100 },
-    });
-    store.dispatch({
-      type: SHOW_NOTIFICATION,
-      notification: { id: '2', message: 'Second', severity: 'info', duration: 100 },
-    });
+    const store = renderWith(
+      showNotification('Word added', 'success'),
+      showNotification('Second', 'info'),
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('Word added');
 
-    renderWithProviders(<NotificationSnackbar />, { store });
-    expect(screen.getByRole('alert')).toHaveTextContent('First');
+    act(() => {
+      vi.advanceTimersByTime(3900);
+    });
+    expect(store.getState().notifications.queue).toHaveLength(2);
 
-    // Advance past the auto-hide duration
     act(() => {
       vi.advanceTimersByTime(200);
     });
+    expect(store.getState().notifications.queue.map((n) => n.message)).toEqual(['Second']);
+  });
 
-    // After dismissal, the queue should have shifted
+  it('keeps an error toast until the learner dismisses it', () => {
+    vi.useFakeTimers();
+    const store = renderWith(showNotification('Failed to add word', 'error', 1000));
+    expect(screen.getByRole('alert')).toHaveTextContent('Failed to add word');
+
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
     expect(store.getState().notifications.queue).toHaveLength(1);
-    expect(store.getState().notifications.queue[0].message).toBe('Second');
 
-    vi.useRealTimers();
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(store.getState().notifications.queue).toHaveLength(0);
   });
 });

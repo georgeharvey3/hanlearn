@@ -1,8 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import * as Sentry from '@sentry/react';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
+
+import { PageError } from '../UI/PageState/PageState';
 
 interface Props {
   children: ReactNode;
@@ -54,35 +53,7 @@ class ErrorBoundary extends Component<Props, State> {
       return this.props.fallback;
     }
 
-    return (
-      <Box
-        role="alert"
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: 200,
-          p: 3,
-          textAlign: 'center',
-        }}
-      >
-        <Typography variant="h6" gutterBottom>
-          Something went wrong
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxWidth: 360 }}>
-          An unexpected error occurred. You can try again or go back to the home page.
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="contained" onClick={this.handleRetry}>
-            Try Again
-          </Button>
-          <Button variant="outlined" href="/">
-            Home
-          </Button>
-        </Box>
-      </Box>
-    );
+    return <PageError onRetry={this.handleRetry} />;
   }
 }
 

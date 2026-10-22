@@ -237,8 +237,7 @@ describe('AddWords — unauthenticated state', () => {
       settings: { speechAvailable: false, synthAvailable: false },
     });
     renderWithProviders(<AddWords />, { store });
-    // Spinner renders an SVG while auth initializes
-    expect(document.querySelector('svg')).toBeTruthy();
+    expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
   });
 });
 

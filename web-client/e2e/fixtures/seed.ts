@@ -224,8 +224,8 @@ export async function readWordFromFirestore(
 export async function loginViaUI(page: Page): Promise<void> {
   await page.goto('/');
 
-  // Click the "Login" button in the toolbar (single word, no space)
-  const loginButton = page.getByRole('button', { name: /^Login$/i });
+  // Click the "Log in" button in the top bar
+  const loginButton = page.getByRole('button', { name: /^Log in$/i });
   await loginButton.click();
 
   // Wait for the auth modal to appear (should open in login mode with "Welcome Back")

@@ -730,7 +730,7 @@ describe('TestWords — loading state', () => {
     renderWithProviders(<TestWords />, { store });
 
     await waitFor(() => {
-      expect(screen.getByRole('progressbar')).toBeInTheDocument();
+      expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
     });
   });
 

@@ -51,7 +51,7 @@ const MainBanner: React.FC<MainBannerProps> = ({
   );
 
   if (loading) {
-    button = <Spinner />;
+    button = <Spinner size={40} />;
   }
 
   const handleSubmit = (e: React.FormEvent): void => {
