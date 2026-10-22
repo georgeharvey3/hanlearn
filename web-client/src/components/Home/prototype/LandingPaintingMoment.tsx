@@ -1,18 +1,21 @@
-// PROTOTYPE (#402) W, "Painting moment": the same opening and demo as R, then
-// the ink painting of the old banner shown once, uncovered and full-bleed. It
-// bleeds out from the red sun like ink dropped in water, holds while the view
-// drifts back a little, and scrolls away. Then the chengyu on paper and the
-// features. Throwaway.
+// PROTOTYPE (#402) W, "Painting moment": the brushed 学, the five-ways demo,
+// today's chengyu and the features, all on paper. Then the finale: the ink
+// painting of the old banner, shown once, uncovered and full-bleed. It bleeds
+// out from the red sun like ink dropped in water, mist gathers at its centre,
+// and the HanLearn wordmark and a last call to sign up appear in the mist.
+// Throwaway.
 import React from 'react';
 import Box from '@mui/material/Box';
 
 import mountains from '../../../assets/images/homepage/mountains.jpg';
-import { colors } from '../../../theme';
+import { colors, fonts } from '../../../theme';
 import {
+  Ctas,
   FullBleed,
-  LandingFooter,
   LandingGlobals,
   easeInOut,
+  easeOut,
+  landingCopy,
   span,
   useGutter,
   useSectionProgress,
@@ -30,7 +33,7 @@ const SUN = { x: 0.78 * IW, y: 0.16 * IH };
 // ragged edge.
 const FULL_RADIUS = Math.hypot(SUN.x, IH - SUN.y) + 500;
 
-const PaintingMoment: React.FC = () => {
+const PaintingFinale: React.FC = () => {
   const { topBar } = useGutter();
   const { ref, progress: p } = useSectionProgress(topBar);
   const [aspect, setAspect] = React.useState(window.innerWidth / (window.innerHeight - topBar));
@@ -40,7 +43,10 @@ const PaintingMoment: React.FC = () => {
     return () => window.removeEventListener('resize', onResize);
   }, [topBar]);
 
-  const reveal = easeInOut(span(p, 0.05, 0.5));
+  const reveal = easeInOut(span(p, 0.02, 0.42));
+  const mistIn = easeOut(span(p, 0.4, 0.58));
+  const markIn = easeOut(span(p, 0.45, 0.62));
+  const ctaIn = easeOut(span(p, 0.56, 0.72));
   // The view drifts back from a little close to the whole frame.
   const zoom = 0.86 + 0.14 * span(p, 0, 1);
 
@@ -54,7 +60,7 @@ const PaintingMoment: React.FC = () => {
   const vbY = Math.min(IH - vbH, Math.max(0, 0.5 * IH - vbH / 2));
 
   return (
-    <Box ref={ref} sx={{ height: '300vh', position: 'relative', bgcolor: colors.paper }}>
+    <Box ref={ref} sx={{ height: '320vh', position: 'relative', bgcolor: colors.paper }}>
       <Box
         sx={{
           position: 'sticky',
@@ -103,27 +109,115 @@ const PaintingMoment: React.FC = () => {
           </defs>
           <image href={mountains} x="0" y="0" width={IW} height={IH} mask="url(#ink-mask)" />
         </svg>
+
+        {/* Mist that gathers at the centre, so the wordmark reads without a
+            panel over the painting. */}
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            background: `radial-gradient(ellipse 62% 34% at 50% 50%, ${colors.paper} 0%, rgba(250, 248, 245, 0.85) 40%, rgba(250, 248, 245, 0) 100%)`,
+          }}
+          style={{ opacity: mistIn }}
+        />
+
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            px: 2,
+            textAlign: 'center',
+          }}
+        >
+          <Box
+            sx={{
+              fontFamily: fonts.brand,
+              fontSize: { xs: 76, sm: 150 },
+              lineHeight: 1,
+              color: colors.text,
+            }}
+            style={{ opacity: markIn, transform: `translateY(${(1 - markIn) * 20}px)` }}
+          >
+            {landingCopy.brand}
+          </Box>
+          <Box
+            sx={{ mt: { xs: 2, sm: 3 } }}
+            style={{
+              opacity: ctaIn,
+              transform: `translateY(${(1 - ctaIn) * 16}px)`,
+              pointerEvents: ctaIn > 0.5 ? 'auto' : 'none',
+            }}
+          >
+            <Box
+              component="h2"
+              sx={{
+                m: 0,
+                mb: { xs: 2.5, sm: 3 },
+                fontSize: { xs: 22, sm: 30 },
+                fontWeight: 700,
+                color: colors.text,
+              }}
+            >
+              {landingCopy.finalHeadline}
+            </Box>
+            <Ctas />
+          </Box>
+        </Box>
+
+        {/* The footer sits in the painting, over the water, so the finale is
+            the last screen of the page. */}
+        <Box
+          component="footer"
+          sx={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 'calc(12px + env(safe-area-inset-bottom))',
+            textAlign: 'center',
+            fontSize: 13,
+            color: colors.textSecondary,
+          }}
+          style={{ opacity: ctaIn }}
+        >
+          {landingCopy.footer}{' '}
+          <Box
+            component="a"
+            href="https://github.com/georgeharvey3/hanlearn"
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{ color: 'inherit' }}
+          >
+            GitHub
+          </Box>
+        </Box>
       </Box>
     </Box>
   );
 };
 
-const LandingPaintingMoment: React.FC = () => (
-  <>
-    <LandingGlobals />
-    <BrushHero />
-    <FullBleed bg={colors.paper}>
-      <FiveWays />
-    </FullBleed>
-    <FullBleed>
-      <PaintingMoment />
-    </FullBleed>
-    <FullBleed bg={colors.paper}>
-      <ChengyuBrush />
-    </FullBleed>
-    <Features />
-    <LandingFooter />
-  </>
-);
+const LandingPaintingMoment: React.FC = () => {
+  const { gutter } = useGutter();
+  return (
+    <>
+      <LandingGlobals />
+      <BrushHero />
+      <FullBleed bg={colors.paper}>
+        <FiveWays />
+      </FullBleed>
+      <FullBleed bg={colors.paper}>
+        <ChengyuBrush />
+      </FullBleed>
+      <Features />
+      {/* Cancel the page's bottom gutter, so the painting meets the bottom edge. */}
+      <FullBleed sx={{ mb: `-${gutter}px` }}>
+        <PaintingFinale />
+      </FullBleed>
+    </>
+  );
+};
 
 export default LandingPaintingMoment;

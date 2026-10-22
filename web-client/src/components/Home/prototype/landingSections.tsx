@@ -595,7 +595,7 @@ export const ChengyuBrush: React.FC<{ tone?: 'paper' | 'red' }> = ({ tone = 'pap
   );
 };
 
-// --- Features and the close ------------------------------------------------
+// --- Features ------------------------------------------------
 
 export const Features: React.FC = () => (
   <>
@@ -634,15 +634,6 @@ export const Features: React.FC = () => (
             </Box>
           </Box>
         ))}
-      </Box>
-    </FullBleed>
-
-    <FullBleed bg={colors.primaryDark}>
-      <Box sx={{ py: { xs: 8, sm: 12 }, px: 2, textAlign: 'center', color: colors.white }}>
-        <Box component="h2" sx={{ m: 0, mb: 3, fontSize: { xs: 26, sm: 38 }, fontWeight: 700 }}>
-          {landingCopy.finalHeadline}
-        </Box>
-        <Ctas inverse />
       </Box>
     </FullBleed>
   </>

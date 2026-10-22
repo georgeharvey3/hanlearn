@@ -17,6 +17,7 @@ import { loadCharData } from '../../../utils/charDataLoader';
 
 // Placeholder copy for every variant. The winner's strings move to copy.ts.
 export const landingCopy = {
+  brand: 'HanLearn',
   startFree: 'Start free',
   heroChar: '学',
   heroPinyin: 'xué',
