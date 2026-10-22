@@ -16,7 +16,6 @@ import {
   LandingGlobals,
   Seal,
   StrokeChar,
-  easeInOut,
   easeOut,
   landingCopy,
   span,
@@ -41,30 +40,17 @@ const sheet = {
 
 // --- The painting ---------------------------------------------------------
 
-// The camera's path over the painting, against the progress of the whole
-// journey: where it looks (x, y from 0 to 1 across the slack) and how close.
-// The five-ways demo walks past the left mountain and the trees; the chengyu
-// rises toward the red sun.
-const camera: { at: number; x: number; y: number; zoom: number; mist: number }[] = [
-  { at: 0, x: 0.02, y: 0.62, zoom: 1.2, mist: 0.15 },
-  { at: 0.58, x: 0.5, y: 0.55, zoom: 1.12, mist: 0.15 },
-  { at: 0.7, x: 0.9, y: 0.1, zoom: 1.35, mist: 0.3 },
-  { at: 1, x: 1, y: 0.3, zoom: 1.05, mist: 0.2 },
-];
+// The camera moves one way only: it starts at the top of the painting, on
+// the peaks and the sun, and sinks at a steady pace to the water and the boat
+// as the whole journey scrolls. The zoom and the sideways framing stay fixed,
+// so nothing jumps where one section hands over to the next.
+const ZOOM = 1.3;
+// The share of the sideways slack to the left of the view. On a phone this
+// frames the sun at the top and the boat at the bottom.
+const FRAME_X = 0.8;
+const MIST = 0.18;
 
-const cameraAt = (p: number) => {
-  const i = Math.max(0, camera.findIndex((k) => k.at > p) - 1);
-  const a = camera[Math.min(i, camera.length - 1)];
-  const b = camera[Math.min(i + 1, camera.length - 1)];
-  const t = b.at === a.at ? 0 : easeInOut(span(p, a.at, b.at));
-  const lerp = (u: number, v: number) => u + (v - u) * t;
-  return {
-    x: lerp(a.x, b.x),
-    y: lerp(a.y, b.y),
-    zoom: lerp(a.zoom, b.zoom),
-    mist: lerp(a.mist, b.mist),
-  };
-};
+const cameraAt = (p: number) => ({ x: FRAME_X, y: p, zoom: ZOOM, mist: MIST });
 
 const Painting: React.FC<{ progress: number; topBar: number }> = ({ progress, topBar }) => {
   const [size, setSize] = React.useState({ w: window.innerWidth, h: window.innerHeight - topBar });
