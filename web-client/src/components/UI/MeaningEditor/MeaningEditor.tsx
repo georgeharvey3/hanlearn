@@ -9,6 +9,8 @@ interface MeaningEditorProps {
   onChange?: (value: string) => void;
   size?: 'small' | 'medium';
   readOnly?: boolean;
+  /** The label of the chip that adds a meaning. */
+  addLabel?: string;
 }
 
 const MeaningEditor: React.FC<MeaningEditorProps> = ({
@@ -16,6 +18,7 @@ const MeaningEditor: React.FC<MeaningEditorProps> = ({
   onChange,
   size = 'small',
   readOnly = false,
+  addLabel = 'Add',
 }) => {
   const meanings = parseMeanings(value);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -180,7 +183,7 @@ const MeaningEditor: React.FC<MeaningEditorProps> = ({
         ) : (
           <Chip
             icon={<AddIcon />}
-            label="Add"
+            label={addLabel}
             size={chipSize}
             variant="outlined"
             onClick={() => setIsAdding(true)}

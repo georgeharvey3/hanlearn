@@ -24,31 +24,9 @@ test.describe('Word management', () => {
 
     await addWords.searchWord('你好');
 
-    // Handle potential clash table (multiple entries), direct add modal,
-    // or "Word not found" (if Cloud Functions cold-start is slow)
-    const clashTable = page.getByText('Select entry for');
-    const addModal = page.getByText('Add to Word List?');
-    const notFoundModal = page.getByText('Word not found');
-
-    // Wait for any result modal to appear
-    await expect(clashTable.or(addModal).or(notFoundModal)).toBeVisible({ timeout: 30000 });
-
-    if (await clashTable.isVisible()) {
-      // Select the first entry from clash table
-      await addWords.selectClashEntry(0);
-      // After selecting, the add confirmation modal should appear
-      await addWords.confirmAddWord();
-      await addWords.expectWordVisible('你好');
-    } else if (await addModal.isVisible()) {
-      await addWords.confirmAddWord();
-      await addWords.expectWordVisible('你好');
-    } else {
-      // Word not found modal — add as custom word
-      const meaningInput = page.locator('#meaning');
-      await meaningInput.fill('hello');
-      await page.getByRole('button', { name: 'Submit' }).click();
-      await addWords.expectWordVisible('你好');
-    }
+    await addWords.addFirstResult('hello');
+    // The added word shows under "In your bank".
+    await addWords.expectWordVisible('你好');
   });
 
   test('view word list with pre-seeded words', async ({ page }) => {
@@ -71,14 +49,7 @@ test.describe('Word management', () => {
     // Search for a common word
     await addWords.searchWord('大');
 
-    // Should show some kind of result (add confirmation, clash table, not-found modal, or error alert)
-    // Cloud Functions dictionary search may have cold-start delay
-    await expect(
-      page
-        .getByText('Add to Word List?')
-        .or(page.getByText('Select entry for'))
-        .or(page.getByText('Word not found'))
-        .or(page.getByText('Could not search for word')),
-    ).toBeVisible({ timeout: 30000 });
+    // The results, the own-word form or an error take the place of the list.
+    await expect(addWords.searchOutcome.first()).toBeVisible();
   });
 });
