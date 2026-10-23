@@ -16,6 +16,7 @@ vi.mock('../../firebase/config', () => ({
 }));
 vi.mock('../../services/wordService');
 vi.mock('../../services/streakService');
+vi.mock('../../services/retentionService', () => ({ recordLevelSnapshot: vi.fn() }));
 vi.mock('../../services/performanceService', () => ({
   traceAsync: vi.fn((_name: string, fn: () => Promise<unknown>) => fn()),
 }));
@@ -351,17 +352,18 @@ describe('word action thunks', () => {
     ];
 
     it('calls wordService.finishTest, re-fetches words, and records streak', async () => {
-      const updatedWords = [{ ...sampleWord, level: 2, due_date: '2026/03/05' }];
+      const updatedWords = [{ ...sampleWord, level: 2, due_date: '2026/03/05', listId: 'default' }];
+      const otherList = { ...sampleWord, id: 9, listId: 'hsk3' };
       mockedWordService.finishTest.mockResolvedValue({ 你好: '2026/03/05' });
-      mockedWordService.getUserWords.mockResolvedValue(updatedWords);
+      mockedWordService.getUserWords.mockResolvedValue([...updatedWords, otherList]);
       mockedStreakService.recordTestCompletion.mockResolvedValue(undefined);
       const store = createTestStore(authenticatedState());
 
       await store.dispatch(wordActions.finishTest(results) as any);
 
       expect(mockedWordService.finishTest).toHaveBeenCalledWith('test-user-123', results);
-      expect(mockedWordService.getUserWords).toHaveBeenCalledWith('test-user-123', 'default');
-      // Verify the store was updated with refreshed words
+      expect(mockedWordService.getUserWords).toHaveBeenCalledWith('test-user-123');
+      // Verify the store was updated with the active list's refreshed words
       expect(store.getState().addWords.words).toEqual(updatedWords);
       expect(mockedStreakService.recordTestCompletion).toHaveBeenCalledWith('test-user-123');
     });

@@ -47,6 +47,13 @@ const FILES = [
   'components/Home/Landing/Features.tsx',
   'components/Home/Landing/layout.tsx',
   'components/Home/Landing/StrokeChar.tsx',
+  'containers/Dashboard/Dashboard.tsx',
+  'containers/Dashboard/widgets/parts.tsx',
+  'containers/Dashboard/widgets/TodayCard.tsx',
+  'containers/Dashboard/widgets/CalendarCard.tsx',
+  'containers/Dashboard/widgets/ProgressCard.tsx',
+  'containers/Dashboard/widgets/SkillsCard.tsx',
+  'containers/Dashboard/widgets/ChengyuCard.tsx',
 ];
 
 const USER_FACING_ATTRIBUTES = new Set(['aria-label', 'placeholder', 'alt', 'title']);

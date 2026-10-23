@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { RouteComponentProps, withRouter, Redirect } from 'react-router-dom';
+import { SessionLaunch, sizeBudget } from '../../utils/dashboard';
 
 import * as wordActions from '../../store/actions/index';
 
@@ -111,7 +112,10 @@ const TestWords: React.FC<Props> = ({
   onInitWords,
   onSwitchList,
   history,
+  location,
 }) => {
+  const launch = location.state as SessionLaunch | undefined;
+
   const getInitialStage = (): Stage => {
     if (devConfig) {
       // Map 'summary' to 'vocab' since summary is shown within Test component
@@ -166,13 +170,20 @@ const TestWords: React.FC<Props> = ({
    * The Learn step teaches `plan.newWords`, and the engine asks `plan.queue`.
    * Both come from this one call, so the two can never disagree.
    */
+  const launchSize = launch?.size;
   const planFor = useCallback(
-    (selectedWords: Word[], practiceMode = false): testLogic.SessionPlan =>
-      testLogic.planSession(selectedWords, {
-        ...testLogic.readSessionSettings(isDemo),
+    (selectedWords: Word[], practiceMode = false): testLogic.SessionPlan => {
+      const settings = testLogic.readSessionSettings(isDemo);
+      return testLogic.planSession(selectedWords, {
+        ...settings,
+        // The size the learner chose on the Dashboard, if they came from there.
+        budget: launchSize
+          ? sizeBudget(launchSize, settings.budget, selectedWords.length)
+          : settings.budget,
         practiceMode,
-      }),
-    [isDemo],
+      });
+    },
+    [isDemo, launchSize],
   );
 
   const setSelectedWords = useCallback((): void => {
@@ -374,6 +385,12 @@ const TestWords: React.FC<Props> = ({
       };
     });
   };
+
+  // Resume on the Dashboard already answered the offer, so it is not asked again.
+  const launchResume = launch?.resume === true;
+  useEffect(() => {
+    if (launchResume && state.pendingResume) onResumeSession();
+  }, [launchResume, state.pendingResume]);
 
   /** Discard the unfinished session and plan a new one. */
   const onDiscardSession = (): void => {
