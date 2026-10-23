@@ -40,7 +40,7 @@ test.describe('Accessibility — axe-core audits', () => {
     await loginViaUI(page);
 
     // Wait for the Chengyu component to render
-    await page.waitForSelector('text=Chengyu Of The Day', { timeout: 10000 });
+    await page.waitForSelector('text=今日成语', { timeout: 10000 });
 
     const zhElements = page.locator('[lang="zh"]');
     const count = await zhElements.count();

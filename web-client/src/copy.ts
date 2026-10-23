@@ -161,6 +161,94 @@ export const copy = {
       finished: 'Finished!',
     },
   },
+  // The first screen after sign-in. It shows counts only: a word seen here just
+  // before the test asks it primes the answer.
+  dashboard: {
+    title: 'Dashboard',
+    // A number not known yet.
+    none: '—',
+    // Dates, from a YYYY-MM-DD key: "Friday 23 October", "23 October", "23 Oct".
+    weekdayDate: (key: string) =>
+      new Date(`${key}T00:00:00`).toLocaleDateString('en-GB', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      }),
+    longDate: (key: string) =>
+      new Date(`${key}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' }),
+    shortDate: (key: string) =>
+      new Date(`${key}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+    today: 'Today',
+    allLists: 'All lists',
+    chooseList: (name: string) => `List: ${name}`,
+    size: 'Size',
+    sizes: { quick: 'Quick', usual: 'Usual', all: 'Everything' },
+    questions: (n: number) => `${n} question${n === 1 ? '' : 's'}`,
+    study: 'Study',
+    includesNew: (n: number) => `Includes ${n} new word${n === 1 ? '' : 's'}`,
+    nothingDue: 'Nothing due today',
+    addWords: 'Add words',
+    unfinished: (left: string) => `Unfinished · ${left}`,
+    resume: 'Resume',
+    startOver: 'Start over',
+    couldNotLoad: "Couldn't load",
+    tryAgain: 'Try again',
+    sections: {
+      calendar: 'Calendar',
+      progress: 'Progress',
+      chengyu: 'Chengyu',
+      skills: 'Five skills',
+    },
+    calendar: {
+      previous: 'Previous month',
+      next: 'Next month',
+      // "2026年 十月"
+      month: (year: number, month: number) =>
+        `${year}年 ${['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'][month]}月`,
+      weekdays: ['一', '二', '三', '四', '五', '六', '日'],
+      today: 'Today',
+      dayAria: (date: string, line: string) => `${date}, ${line}`,
+      reviewed: (n: number) => `${n} reviewed`,
+      due: (n: number) => `${n} due`,
+      reviewedAndDue: (reviewed: number, due: number) => `${reviewed} reviewed · ${due} due`,
+      reviewedAndUp: (reviewed: number, up: number) => `${reviewed} reviewed · ${up} moved up`,
+      noStudy: 'No study',
+      monthReviews: 'reviews this month',
+      monthPromoted: 'moved up a level',
+    },
+    progress: {
+      chart: (counts: { level: string; n: number }[]) =>
+        `Words by level: ${counts.map((c) => `${c.level} ${c.n}`).join(', ')}`,
+      weeks: 'Weeks',
+      weekAria: (date: string, counts: { level: string; n: number }[]) =>
+        `${date}: ${counts.map((c) => `${c.n} ${c.level}`).join(', ')}`,
+      today: 'Today',
+      change: (n: number) => `${n >= 0 ? '+' : '−'}${Math.abs(n)}`,
+      pastMonth: 'Past month',
+      noWords: 'No words yet',
+      noHistory: 'No history yet',
+    },
+    chengyu: {
+      label: '今日成语',
+      question: 'What does it mean?',
+      correct: 'Correct',
+      itMeans: 'It means',
+      addToWords: 'Add to my words',
+      added: 'Added',
+      noSentence: 'No example sentence',
+    },
+    skills: {
+      // The skill each direction trains, by its answer-first code.
+      names: { MC: 'Reading', MP: 'Listening', PM: 'Speaking', PC: 'Pronouncing', CM: 'Writing' },
+      strong: 'Familiar or better',
+      recall: 'Recalled, 30 days',
+      noWords: 'No words yet',
+      percent: (n: number | null) => (n === null ? '—' : `${n}%`),
+      chart: (shares: { name: string; percent: number | null }[]) =>
+        `Familiar or better: ${shares.map((s) => `${s.name} ${s.percent ?? '—'}%`).join(', ')}`,
+      corner: (name: string, label: string) => `${name}, ${label}`,
+    },
+  },
   // The page a visitor sees before an account exists.
   landing: {
     startLearning: 'Start learning',

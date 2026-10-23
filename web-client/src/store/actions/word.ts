@@ -20,6 +20,8 @@ import {
 import { ListStats } from '../../types/store';
 import * as wordService from '../../services/wordService';
 import { recordTestCompletion } from '../../services/streakService';
+import { recordLevelSnapshot } from '../../services/retentionService';
+import { levelCounts } from '../../utils/dashboard';
 import { traceAsync } from '../../services/performanceService';
 import { trackFeatureUsage } from '../../services/analyticsService';
 import { showNotification } from './notifications';
@@ -417,17 +419,27 @@ export const finishTest = (results: WordDirectionResults[]): AppThunk => {
       await traceAsync('finish_test', async () => {
         await wordService.finishTest(auth.userId!, results);
 
-        // Re-fetch words and stats so the local store has updated levels and due dates
+        // Re-fetch words and stats so the local store has updated levels and
+        // due dates. Every list is fetched, because the level snapshot counts
+        // the whole collection; the store keeps the active list's words.
         try {
-          const [updatedWords, stats] = await Promise.all([
-            wordService.getUserWords(
-              auth.userId!,
-              addWords.activeListId === '__all__' ? undefined : addWords.activeListId,
-            ),
+          const [allWords, stats] = await Promise.all([
+            wordService.getUserWords(auth.userId!),
             wordService.getListStats(auth.userId!),
           ]);
+          const updatedWords =
+            addWords.activeListId === '__all__'
+              ? allWords
+              : allWords.filter((word) => word.listId === addWords.activeListId);
           dispatch(setWords(updatedWords));
           dispatch(setListStats(stats));
+
+          try {
+            await recordLevelSnapshot(auth.userId!, levelCounts(allWords), new Date());
+          } catch (snapshotError) {
+            console.error('Failed to record level snapshot:', snapshotError);
+            Sentry.captureException(snapshotError);
+          }
         } catch (fetchError) {
           console.error('Failed to refresh words after test:', fetchError);
           Sentry.captureException(fetchError);

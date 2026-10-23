@@ -130,15 +130,34 @@ service cloud.firestore {
           && (!('CM' in dirs.keys()) || validTally(dirs.CM));
       }
 
+      function validLevelCount(levels, level) {
+        return !(level in levels.keys())
+          || (levels[level] is int && levels[level] >= 0);
+      }
+
+      // The words at each level when a session ended: the Dashboard's
+      // progress chart reads one per week.
+      function validLevels(levels) {
+        return levels is map
+          && levels.keys().hasOnly(['1', '2', '3', '4', '5'])
+          && validLevelCount(levels, '1')
+          && validLevelCount(levels, '2')
+          && validLevelCount(levels, '3')
+          && validLevelCount(levels, '4')
+          && validLevelCount(levels, '5');
+      }
+
       match /reviewStats/{dateId} {
         allow read: if request.auth != null && request.auth.uid == userId;
         allow write: if request.auth != null && request.auth.uid == userId
-          && request.resource.data.keys().hasOnly(['date', 'updatedAt', 'directions'])
+          && request.resource.data.keys().hasOnly(['date', 'updatedAt', 'directions', 'levels'])
           && request.resource.data.date is string
           && request.resource.data.date == dateId
           && request.resource.data.updatedAt is timestamp
           && (!('directions' in request.resource.data.keys())
-              || validTallies(request.resource.data.directions));
+              || validTallies(request.resource.data.directions))
+          && (!('levels' in request.resource.data.keys())
+              || validLevels(request.resource.data.levels));
       }
 
       // TestCompletions subcollection (streak tracking)

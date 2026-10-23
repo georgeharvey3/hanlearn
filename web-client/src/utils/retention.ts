@@ -37,10 +37,18 @@ export interface DirectionTally {
 /** The counters of every direction on one day. */
 export type DayTally = Record<Direction, DirectionTally>;
 
+/** How many words sit at each level, keyed by level 1 to 5. */
+export type LevelCounts = Record<number, number>;
+
 export interface ReviewStatsDay {
   /** The local date the session ran on, as YYYY-MM-DD. */
   date: string;
   directions: DayTally;
+  /**
+   * The words of the whole collection at each level, as the last session of
+   * the day left them. Days before the snapshot existed carry none.
+   */
+  levels?: LevelCounts;
 }
 
 /** What one graded question did, as `finishTest` observed it. */

@@ -41,7 +41,25 @@ export const colors = {
   gridLine: '#e8b9bd',
   divider: '#e4d8c6',
   borderStrong: '#d6c8b4', // the outline of a control, where a divider is too faint
+  // The pale block a widget shows in place of its content while it loads.
+  skeleton: '#efe9e1',
+  // A calendar day with no study, and a day ahead.
+  blankDay: '#f6f2ec',
 } as const;
+
+// The green ink of the five levels, palest for New and darkest for Mastered:
+// the level bar of the five skills. Each step is darker, so the levels differ
+// in lightness and not in hue alone.
+export const levelInk = ['#c5d8cc', '#9dbfad', '#6d9f86', '#3c7a5c', '#1a5c40'] as const;
+
+// The progress chart's line for levels 2 to 5. Mastered takes the seal red so
+// the top line stands out from the greens.
+export const levelLine: Record<number, string> = {
+  2: '#9a8f82',
+  3: '#6d9f86',
+  4: '#1a5c40',
+  5: '#b8323f',
+};
 
 export const fonts = {
   body: "'Cabin', sans-serif",

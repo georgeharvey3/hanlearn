@@ -3,27 +3,27 @@
   "name": "HanLearn",
   "icons": [
     {
-      "src": "hl.ico?v=3",
+      "src": "hl.ico?v=4",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
     },
     {
-      "src": "favicon.svg?v=3",
+      "src": "favicon.svg?v=4",
       "sizes": "any",
       "type": "image/svg+xml"
     },
     {
-      "src": "logo192.png?v=3",
+      "src": "logo192.png?v=4",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "logo512.png?v=3",
+      "src": "logo512.png?v=4",
       "type": "image/png",
       "sizes": "512x512"
     },
     {
-      "src": "logo-maskable-512.png?v=3",
+      "src": "logo-maskable-512.png?v=4",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "maskable"

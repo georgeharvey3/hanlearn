@@ -15,8 +15,8 @@ vi.mock('../../services/wordService', () => ({
   getListStats: vi.fn(),
 }));
 
-// Chengyu makes async calls to local data — mock it to keep tests focused
-vi.mock('../../components/Home/Chengyu/Chengyu', () => ({
+// The chengyu card reads local data and an AI sentence; it is not under test here.
+vi.mock('./widgets/ChengyuCard', () => ({
   default: () => React.createElement('div', { 'data-testid': 'chengyu-mock' }),
 }));
 
@@ -44,8 +44,14 @@ const sampleStats = {
     CM: { 1: 40, 2: 5, 3: 5, 4: 0, 5: 0 },
   },
   masteredCount: 10,
-  estimatedStudyTime: '~10 min',
-  weeklyStats: { sessions: 4, wordsReviewed: 38 },
+  estimatedStudyTime: '~6 min',
+  sessionSizes: {
+    quick: { questions: 10, newWords: 1, time: '~3 min' },
+    usual: { questions: 20, newWords: 3, time: '~6 min' },
+    all: { questions: 34, newWords: 5, time: '~10 min' },
+  },
+  forecast: [12, 4, 0, 7],
+  history: [],
 };
 
 describe('Dashboard container', () => {
@@ -70,7 +76,9 @@ describe('Dashboard container', () => {
     });
     await waitFor(() => expect(mockGetUserWordLists).toHaveBeenCalledWith('uid-lists'));
     expect(mockGetListStats).toHaveBeenCalledWith('uid-lists');
-    await waitFor(() => expect(screen.getByTestId('list-selector')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'List: General' })).toBeInTheDocument(),
+    );
   });
 
   it('keeps the heading and list selector visible while the stats load', async () => {
@@ -79,7 +87,9 @@ describe('Dashboard container', () => {
       store: createTestStore(authenticatedState()),
     });
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByTestId('list-selector')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'List: General' })).toBeInTheDocument(),
+    );
     expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
   });
 
@@ -91,7 +101,7 @@ describe('Dashboard container', () => {
     });
     renderWithProviders(<Dashboard />, { store });
 
-    await waitFor(() => expect(screen.getByText('Words Due')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Study' })).toBeInTheDocument());
 
     let resolveSecondLoad: (value: typeof sampleStats) => void = () => {};
     mockGetDashboardStats.mockImplementationOnce(
@@ -105,7 +115,7 @@ describe('Dashboard container', () => {
     await waitFor(() =>
       expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument(),
     );
-    expect(screen.getByTestId('list-selector')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^List:/ })).toBeInTheDocument();
 
     resolveSecondLoad(sampleStats);
     await waitFor(() =>
@@ -114,16 +124,20 @@ describe('Dashboard container', () => {
     expect(mockGetDashboardStats).toHaveBeenLastCalledWith('test-user-123', 'hsk3');
   });
 
-  it('renders the heading and stat cards after a successful load', async () => {
+  it('renders the heading and the session sizes after a successful load', async () => {
     mockGetDashboardStats.mockResolvedValue(sampleStats);
     renderWithProviders(<Dashboard />, {
       store: createTestStore(authenticatedState()),
     });
-    await waitFor(() => expect(screen.getByText('Dashboard')).toBeInTheDocument());
-    expect(screen.getByText('12')).toBeInTheDocument(); // dueWords
-    expect(screen.getByText('Words Due')).toBeInTheDocument();
-    expect(screen.getByText(/out of 50 total/i)).toBeInTheDocument();
-    expect(screen.getByText('5')).toBeInTheDocument(); // streak
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument(),
+    );
+    expect(await screen.findByRole('button', { name: /Usual/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByText('20 questions')).toBeInTheDocument();
+    expect(screen.getByText('Includes 3 new words')).toBeInTheDocument();
   });
 
   it('calls getDashboardStats with the correct userId', async () => {
@@ -162,9 +176,7 @@ describe('Dashboard container', () => {
     renderWithProviders(<Dashboard />, {
       store: createTestStore(authenticatedState()),
     });
-    await waitFor(() =>
-      expect(screen.getByText(/could not load dashboard data/i)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load"));
     expect(screen.getByText(/try again/i)).toBeInTheDocument();
   });
 
@@ -181,7 +193,7 @@ describe('Dashboard container', () => {
     await waitFor(() => expect(screen.getByText(/try again/i)).toBeInTheDocument());
     await user.click(screen.getByText(/try again/i));
 
-    await waitFor(() => expect(screen.getByText('Dashboard')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Study' })).toBeInTheDocument());
     expect(mockGetDashboardStats).toHaveBeenCalledTimes(2);
   });
 
@@ -248,95 +260,29 @@ describe('Dashboard container', () => {
     expect(mockGetDashboardStats).not.toHaveBeenCalled();
   });
 
-  it('shows the "Test Now" link when words are due', async () => {
+  it('offers the three sizes of session and starts the chosen one', async () => {
+    const user = userEvent.setup();
     mockGetDashboardStats.mockResolvedValue(sampleStats);
+    window.history.pushState({}, '', '/');
     renderWithProviders(<Dashboard />, {
       store: createTestStore(authenticatedState()),
     });
-    await waitFor(() => expect(screen.getByText('Test Now')).toBeInTheDocument());
+
+    await user.click(await screen.findByRole('button', { name: /Quick/ }));
+    await user.click(screen.getByRole('button', { name: 'Study' }));
+
+    expect(window.location.pathname).toBe('/test-words');
+    // BrowserRouter keeps the route state under `state` in the history entry.
+    expect(window.history.state.state).toEqual({ size: 'quick' });
   });
 
-  it('hides the "Test Now" link when no words are due', async () => {
-    mockGetDashboardStats.mockResolvedValue({
-      ...sampleStats,
-      dueWords: 0,
-      estimatedStudyTime: null,
-    });
-    renderWithProviders(<Dashboard />, {
-      store: createTestStore(authenticatedState()),
-    });
-    await waitFor(() => expect(screen.getByText('Dashboard')).toBeInTheDocument());
-    expect(screen.queryByText('Test Now')).not.toBeInTheDocument();
-  });
-
-  it('displays estimated study time when words are due', async () => {
-    mockGetDashboardStats.mockResolvedValue(sampleStats);
-    renderWithProviders(<Dashboard />, {
-      store: createTestStore(authenticatedState()),
-    });
-    await waitFor(() => expect(screen.getByText('~10 min')).toBeInTheDocument());
-  });
-
-  it('renders weekly stats card with sessions and words reviewed', async () => {
-    mockGetDashboardStats.mockResolvedValue(sampleStats);
-    renderWithProviders(<Dashboard />, {
-      store: createTestStore(authenticatedState()),
-    });
-    await waitFor(() => expect(screen.getByText('Dashboard')).toBeInTheDocument());
-    expect(screen.getByText('4')).toBeInTheDocument();
-    expect(screen.getByText('sessions')).toBeInTheDocument();
-    expect(screen.getByText('38')).toBeInTheDocument();
-    expect(screen.getByText('words reviewed')).toBeInTheDocument();
-    expect(screen.getByText('Last 7 days')).toBeInTheDocument();
-  });
-
-  it('shows singular "session" when weekly sessions is 1', async () => {
-    mockGetDashboardStats.mockResolvedValue({
-      ...sampleStats,
-      weeklyStats: { sessions: 1, wordsReviewed: 10 },
-    });
-    renderWithProviders(<Dashboard />, {
-      store: createTestStore(authenticatedState()),
-    });
-    await waitFor(() => expect(screen.getByText('session')).toBeInTheDocument());
-  });
-
-  it('hides estimated study time when no words are due', async () => {
-    mockGetDashboardStats.mockResolvedValue({
-      ...sampleStats,
-      dueWords: 0,
-      estimatedStudyTime: null,
-    });
-    renderWithProviders(<Dashboard />, {
-      store: createTestStore(authenticatedState()),
-    });
-    await waitFor(() => expect(screen.getByText('Dashboard')).toBeInTheDocument());
-    expect(screen.queryByText(/min/)).not.toBeInTheDocument();
-  });
-
-  it('shows the strength of each direction, not just one level per word', async () => {
-    mockGetDashboardStats.mockResolvedValue(sampleStats);
+  it('offers to add words when the list has none', async () => {
+    mockGetDashboardStats.mockResolvedValue({ ...sampleStats, totalWords: 0, dueWords: 0 });
     renderWithProviders(<Dashboard />, {
       store: createTestStore(authenticatedState()),
     });
 
-    await waitFor(() =>
-      expect(screen.getByRole('region', { name: 'Strength by question type' })).toBeInTheDocument(),
-    );
-    expect(
-      screen.getByLabelText(
-        'Meaning → Character: 40 New, 5 Learning, 5 Familiar, 0 Known, 0 Mastered',
-      ),
-    ).toBeInTheDocument();
-  });
-
-  it('shows mastery over the whole word list alongside the breakdown', async () => {
-    mockGetDashboardStats.mockResolvedValue(sampleStats);
-    renderWithProviders(<Dashboard />, {
-      store: createTestStore(authenticatedState()),
-    });
-
-    await waitFor(() => expect(screen.getByText('Mastery')).toBeInTheDocument());
-    expect(screen.getByText('10 of 50 mastered')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Add words' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Study' })).not.toBeInTheDocument();
   });
 });

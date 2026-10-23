@@ -247,6 +247,28 @@ describe('reviewStats', () => {
     );
   });
 
+  it('accepts the level snapshot the end of a session writes', async () => {
+    const write = () =>
+      setDoc(
+        ref(db, path),
+        { ...base(), levels: { 1: 12, 2: 30, 3: 18, 4: 6, 5: 2 } },
+        { merge: true },
+      );
+
+    await assertSucceeds(write());
+    // A second session of the day replaces the snapshot.
+    await assertSucceeds(write());
+  });
+
+  it('rejects a level that is not one of the five', async () => {
+    await assertFails(setDoc(ref(db, path), { ...base(), levels: { 6: 1 } }, { merge: true }));
+  });
+
+  it('rejects a negative or fractional level count', async () => {
+    await assertFails(setDoc(ref(db, path), { ...base(), levels: { 1: -1 } }, { merge: true }));
+    await assertFails(setDoc(ref(db, path), { ...base(), levels: { 1: 1.5 } }, { merge: true }));
+  });
+
   it("keeps one user out of another user's rollups", async () => {
     await assertFails(
       setDoc(ref(otherDb, path), { ...base(), directions: {} }, { merge: true }),

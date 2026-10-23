@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getDashboardStats } from './dashboardService';
 import * as wordService from './wordService';
-import * as streakService from './streakService';
+import * as retentionService from './retentionService';
 import { Word } from '../types/models';
 import { makeDirections } from '../utils/directions';
 
@@ -14,13 +14,14 @@ vi.mock('../firebase/config', () => ({
   analytics: null,
 }));
 vi.mock('./wordService');
-vi.mock('./streakService');
+vi.mock('./retentionService');
+vi.mock('./errorReporting', () => ({ reportError: vi.fn() }));
 vi.mock('./performanceService', () => ({
   traceAsync: vi.fn((_name: string, fn: () => Promise<unknown>) => fn()),
 }));
 
 const mockedWordService = vi.mocked(wordService);
-const mockedStreakService = vi.mocked(streakService);
+const mockedRetentionService = vi.mocked(retentionService);
 
 function makeWord(id: number, level: number): Word {
   return {
@@ -38,14 +39,7 @@ describe('getDashboardStats', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
-    // calculateStreak is a real function imported by dashboardService;
-    // mock it to return a fixed value for determinism
-    mockedStreakService.calculateStreak.mockReturnValue(3);
-    mockedStreakService.getStreakData.mockResolvedValue([
-      { date: '2026-02-25', testsCount: 1 },
-      { date: '2026-02-26', testsCount: 1 },
-      { date: '2026-02-27', testsCount: 1 },
-    ]);
+    mockedRetentionService.getReviewStats.mockResolvedValue([]);
   });
 
   it('returns correct totalWords count', async () => {
@@ -145,16 +139,6 @@ describe('getDashboardStats', () => {
     expect(stats.levelDistribution[1]).toBe(1);
   });
 
-  it('returns streak from streakService', async () => {
-    mockedWordService.getUserWords.mockResolvedValue([]);
-    mockedWordService.getDueUserWords.mockResolvedValue([]);
-    mockedStreakService.calculateStreak.mockReturnValue(5);
-
-    const stats = await getDashboardStats('user-1');
-
-    expect(stats.streak).toBe(5);
-  });
-
   it('masteredCount is 0 when no words are at level 5', async () => {
     const allWords = [makeWord(1, 1), makeWord(2, 2), makeWord(3, 3)];
     mockedWordService.getUserWords.mockResolvedValue(allWords);
@@ -168,18 +152,16 @@ describe('getDashboardStats', () => {
   it('returns zero stats for empty word list', async () => {
     mockedWordService.getUserWords.mockResolvedValue([]);
     mockedWordService.getDueUserWords.mockResolvedValue([]);
-    mockedStreakService.calculateStreak.mockReturnValue(0);
 
     const stats = await getDashboardStats('user-1');
 
     expect(stats.totalWords).toBe(0);
     expect(stats.dueWords).toBe(0);
     expect(stats.masteredCount).toBe(0);
-    expect(stats.streak).toBe(0);
     expect(stats.levelDistribution).toEqual({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
   });
 
-  it('calls all three services in parallel with the given userId', async () => {
+  it('reads the words of the list and the history of the account', async () => {
     mockedWordService.getUserWords.mockResolvedValue([]);
     mockedWordService.getDueUserWords.mockResolvedValue([]);
 
@@ -187,7 +169,10 @@ describe('getDashboardStats', () => {
 
     expect(mockedWordService.getUserWords).toHaveBeenCalledWith('user-abc', undefined);
     expect(mockedWordService.getDueUserWords).toHaveBeenCalledWith('user-abc', undefined);
-    expect(mockedStreakService.getStreakData).toHaveBeenCalledWith('user-abc');
+    expect(mockedRetentionService.getReviewStats).toHaveBeenCalledWith(
+      'user-abc',
+      expect.any(String),
+    );
   });
 
   it('returns null estimatedStudyTime when no words are due', async () => {
@@ -298,5 +283,30 @@ describe('getDashboardStats', () => {
     // The cap admits 5 of the 20, and no review word is due to take the rest of
     // the budget: 5 questions at 8s and 25s of the Learn step.
     expect(stats.estimatedStudyTime).toBe('~2 min');
+  });
+
+  it('plans each size of session from the due words', async () => {
+    localStorage.setItem('questionsPerSession', '15');
+    localStorage.setItem('newWords', 'false');
+    const dueWords = Array.from({ length: 30 }, (_, i) => makeWord(i + 1, 2));
+    mockedWordService.getUserWords.mockResolvedValue(dueWords);
+    mockedWordService.getDueUserWords.mockResolvedValue(dueWords);
+
+    const stats = await getDashboardStats('user-1');
+
+    expect(stats.sessionSizes.quick.questions).toBe(10);
+    expect(stats.sessionSizes.usual.questions).toBe(15);
+    expect(stats.sessionSizes.all.questions).toBe(30);
+  });
+
+  it('keeps the Dashboard up when the history fails to load', async () => {
+    mockedWordService.getUserWords.mockResolvedValue([makeWord(1, 1)]);
+    mockedWordService.getDueUserWords.mockResolvedValue([]);
+    mockedRetentionService.getReviewStats.mockRejectedValue(new Error('offline'));
+
+    const stats = await getDashboardStats('user-1');
+
+    expect(stats.totalWords).toBe(1);
+    expect(stats.history).toEqual([]);
   });
 });

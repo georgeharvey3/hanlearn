@@ -5,6 +5,7 @@ import {
   increment,
   orderBy,
   query,
+  setDoc,
   where,
   Timestamp,
   type WriteBatch,
@@ -16,6 +17,7 @@ import {
   emptyDayTally,
   tallyOutcomes,
   type DirectionTally,
+  type LevelCounts,
   type ReviewOutcome,
   type ReviewStatsDay,
 } from '../utils/retention';
@@ -87,6 +89,28 @@ export function addSessionToBatch(
 }
 
 /**
+ * Record the words of the whole collection at each level, in today's rollup.
+ *
+ * A level moves only when a session ends, so the snapshot of the last session
+ * of a day is the state of that day, and the Dashboard's progress chart reads
+ * one a week. The snapshot is not part of the scheduling batch: it counts the
+ * words after the batch has moved them, and a lost snapshot costs one point of
+ * a chart, not a measurement. A later session of the day replaces it.
+ */
+export const recordLevelSnapshot = async (
+  userId: string,
+  levels: LevelCounts,
+  now: Date,
+): Promise<void> => {
+  const date = dayKey(now);
+  await setDoc(
+    doc(db, 'users', userId, 'reviewStats', date),
+    { date, updatedAt: Timestamp.fromDate(now), levels },
+    { merge: true },
+  );
+};
+
+/**
  * Read the daily rollups from a date onwards, oldest first.
  *
  * `date` holds the same value as the document id, so the range is a query on
@@ -99,15 +123,17 @@ export const getReviewStats = async (userId: string, from: string): Promise<Revi
   const snapshot = await getDocs(query(colRef, where('date', '>=', from), orderBy('date')));
 
   return snapshot.docs.map((d) => {
-    const stored = (
-      d.data() as { directions?: Partial<Record<Direction, Partial<DirectionTally>>> }
-    ).directions;
+    const data = d.data() as {
+      directions?: Partial<Record<Direction, Partial<DirectionTally>>>;
+      levels?: LevelCounts;
+    };
+    const stored = data.directions;
     const directions = emptyDayTally();
     for (const direction of DIRECTIONS) {
       const entry = stored?.[direction];
       if (!entry) continue;
       directions[direction] = { ...directions[direction], ...entry };
     }
-    return { date: d.id, directions };
+    return { date: d.id, directions, ...(data.levels ? { levels: data.levels } : {}) };
   });
 };
