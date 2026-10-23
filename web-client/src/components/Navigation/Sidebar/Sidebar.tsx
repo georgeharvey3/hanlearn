@@ -107,7 +107,7 @@ const Sidebar: React.FC<Props> = ({ collapsed, onToggleCollapsed, onOpenShortcut
               display: 'flex',
               alignItems: 'center',
               gap: 1.25,
-              fontSize: 32,
+              fontSize: 27,
               textDecoration: 'none',
             }}
           >

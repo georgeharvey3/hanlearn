@@ -68,6 +68,7 @@ export const Wordmark: React.FC<{ text: string; color?: string }> = ({
     component="span"
     sx={{
       fontFamily: fonts.brand,
+      letterSpacing: '-0.01em',
       lineHeight: 1,
       color,
       '&::after': { content: '"."', color: colors.primaryLight },

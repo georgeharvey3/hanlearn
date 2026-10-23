@@ -57,7 +57,7 @@ const Toolbar: React.FC<Props> = ({ isAuth, phone }) => {
           display: 'flex',
           alignItems: 'center',
           gap: 1,
-          fontSize: phone ? 30 : 32,
+          fontSize: phone ? 25 : 27,
           textDecoration: 'none',
         }}
       >
