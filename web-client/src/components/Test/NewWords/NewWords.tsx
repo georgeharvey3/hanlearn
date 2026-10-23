@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Box, Typography } from '@mui/material';
 
@@ -6,6 +6,15 @@ import Button from '../../UI/Buttons/Button/Button';
 import NewWord from './NewWord/NewWord';
 
 import { Word } from '../../../types/models';
+// PROTOTYPE (#413): three variants of the new-word introduction, picked by
+// ?variant=A|B|C on /test-words or /tryout. No param shows the current screen.
+import PrototypeSwitcher, {
+  useStickyPrototypeParam,
+} from '../../UI/PrototypeSwitcher/PrototypeSwitcher';
+import VariantA from './prototype/VariantA';
+import VariantB from './prototype/VariantB';
+import VariantC from './prototype/VariantC';
+import { sampleWords } from './prototype/shared';
 
 interface NewWordsProps {
   words: Word[];
@@ -13,7 +22,7 @@ interface NewWordsProps {
   startTest?: () => void;
 }
 
-const NewWords: React.FC<NewWordsProps> = ({ words, isDemo, startTest }) => {
+const CurrentNewWords: React.FC<NewWordsProps> = ({ words, isDemo, startTest }) => {
   const [wordIndex, setWordIndex] = useState(0);
 
   const onChangeWord = useCallback((direction: number): void => {
@@ -85,6 +94,37 @@ const NewWords: React.FC<NewWordsProps> = ({ words, isDemo, startTest }) => {
         </Button>
       </Box>
     </Box>
+  );
+};
+
+const VARIANTS = [
+  { key: '', name: 'Current' },
+  { key: 'A', name: 'Card and tiles' },
+  { key: 'B', name: 'Tabbed card' },
+  { key: 'C', name: 'Guided steps' },
+];
+
+const NewWords: React.FC<NewWordsProps> = (props) => {
+  const variant = useStickyPrototypeParam('variant');
+  // The /tryout demo has one word; page through three instead.
+  const words = useMemo(
+    () => (props.isDemo ? sampleWords() : props.words),
+    [props.isDemo, props.words],
+  );
+  const shared = { words, startTest: props.startTest };
+  return (
+    <>
+      {variant === 'A' ? (
+        <VariantA {...shared} />
+      ) : variant === 'B' ? (
+        <VariantB {...shared} />
+      ) : variant === 'C' ? (
+        <VariantC {...shared} />
+      ) : (
+        <CurrentNewWords {...props} words={words} />
+      )}
+      <PrototypeSwitcher variants={VARIANTS} />
+    </>
   );
 };
 

@@ -520,7 +520,11 @@ const TestWords: React.FC<Props> = ({
   const studying =
     !state.pendingResume &&
     state.selectedWords.length > 0 &&
-    (state.stage === 'vocab' || state.stage === 'read' || state.stage === 'write');
+    (state.stage === 'vocab' ||
+      state.stage === 'read' ||
+      state.stage === 'write' ||
+      // PROTOTYPE (#413): the new-word variants carry the session bar.
+      (state.stage === 'new' && !!new URLSearchParams(location.search).get('variant')));
   useFocusMode(studying);
 
   // All dev stages require auth since they use real words from user's list
