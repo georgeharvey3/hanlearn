@@ -71,11 +71,11 @@ const VariantL: React.FC<DashboardVariantProps> = (props) => {
         display: 'flex',
         flexDirection: 'column',
         gap: 2,
-        pb: 24,
+        pb: props.bare ? 0 : 24,
         textAlign: 'left',
       }}
     >
-      <SessionStrip {...props} />
+      {!props.bare && <SessionStrip {...props} />}
 
       <Box sx={{ position: 'relative', width: SIZE, height: SIZE, mx: 'auto', mt: 1 }}>
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>

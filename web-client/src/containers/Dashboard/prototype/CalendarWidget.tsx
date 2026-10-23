@@ -76,11 +76,11 @@ const VariantI: React.FC<DashboardVariantProps> = (props) => {
         display: 'flex',
         flexDirection: 'column',
         gap: 2.5,
-        pb: 24,
+        pb: props.bare ? 0 : 24,
         textAlign: 'left',
       }}
     >
-      <SessionStrip {...props} />
+      {!props.bare && <SessionStrip {...props} />}
 
       <Box sx={{ bgcolor: colors.card, boxShadow: shadows.card, borderRadius: 2, p: 2 }}>
         {/* Month header. */}

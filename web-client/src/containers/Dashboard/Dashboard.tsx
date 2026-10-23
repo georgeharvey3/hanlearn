@@ -34,26 +34,25 @@ import {
   sampleHistory,
   sampleStats,
 } from './prototype/dashboardShared';
-import VariantH, { name as nameH } from './prototype/VariantH';
-import VariantI, { name as nameI } from './prototype/VariantI';
-import VariantJ, { name as nameJ } from './prototype/VariantJ';
-import VariantK, { name as nameK } from './prototype/VariantK';
-import VariantL, { name as nameL } from './prototype/VariantL';
+import VariantM, { name as nameM } from './prototype/VariantM';
+import VariantN, { name as nameN } from './prototype/VariantN';
+import VariantO, { name as nameO } from './prototype/VariantO';
+import VariantP, { name as nameP } from './prototype/VariantP';
 import { loadAhead, sampleWords } from './prototype/dashboardWords';
 import { getReviewStats } from '../../services/retentionService';
 import { lookbackFrom } from '../../utils/retention';
 import { DIRECTIONS } from '../../types/models';
 
-// PROTOTYPE (#403): `?variant=H|I|J|K|L` swaps the Dashboard, and `?state=`
-// forces a preview state. No variant param renders the current page. Variants
-// A to G are in this branch's history.
+// PROTOTYPE (#403): `?variant=M|N|O|P` swaps the Dashboard's headline, and
+// `?state=` forces a preview state. No variant param renders the current page.
+// Every variant has the chosen widgets (chengyu, five skills, calendar) below
+// its headline. Variants A to L are in this branch's history.
 const dashboardVariants = [
   { key: '', name: 'Current' },
-  { key: 'H', name: nameH },
-  { key: 'I', name: nameI },
-  { key: 'J', name: nameJ },
-  { key: 'K', name: nameK },
-  { key: 'L', name: nameL },
+  { key: 'M', name: nameM },
+  { key: 'N', name: nameN },
+  { key: 'O', name: nameO },
+  { key: 'P', name: nameP },
 ];
 
 const mapStateToProps = (state: RootState) => ({
@@ -207,11 +206,10 @@ const Dashboard: React.FC<PropsFromRedux> = ({
     };
     return (
       <>
-        {variant === 'H' && <VariantH {...props} />}
-        {variant === 'I' && <VariantI {...props} />}
-        {variant === 'J' && <VariantJ {...props} />}
-        {variant === 'K' && <VariantK {...props} />}
-        {variant === 'L' && <VariantL {...props} />}
+        {variant === 'M' && <VariantM {...props} />}
+        {variant === 'N' && <VariantN {...props} />}
+        {variant === 'O' && <VariantO {...props} />}
+        {variant === 'P' && <VariantP {...props} />}
         <PrototypeSwitcher variants={dashboardVariants} states={prototypeStates} />
       </>
     );

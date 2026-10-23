@@ -54,6 +54,8 @@ export interface DashboardVariantProps {
   onStartOver: () => void;
   onAddWords: () => void;
   onRetry: () => void;
+  /** Rendered as a widget under a headline: no session strip, no page padding. */
+  bare?: boolean;
 }
 
 export const prototypeStates = [
