@@ -43,7 +43,7 @@ const FILES = [
   'components/Test/NewWords/StepRail.tsx',
   'components/Test/NewWords/WordCard.tsx',
   'components/Test/NewWords/UnderstandStep.tsx',
-  'components/Test/NewWords/SayStep.tsx',
+  'components/Test/NewWords/SpeakStep.tsx',
   'components/Test/NewWords/WriteStep.tsx',
   'components/Logo/Logo.tsx',
   'components/Home/Landing/Landing.tsx',

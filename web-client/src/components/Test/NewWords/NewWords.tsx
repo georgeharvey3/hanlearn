@@ -4,9 +4,9 @@ import { useSelector } from 'react-redux';
 import { Box, ButtonBase } from '@mui/material';
 
 import StepRail from './StepRail';
-import { STEPS } from './steps';
+import { STEPS, StepKey } from './steps';
 import UnderstandStep from './UnderstandStep';
-import SayStep from './SayStep';
+import SpeakStep from './SpeakStep';
 import WriteStep from './WriteStep';
 import StudyScreen from '../Study/StudyScreen';
 import StudyTop from '../Study/StudyTop';
@@ -24,7 +24,7 @@ interface NewWordsProps {
   startTest?: () => void;
 }
 
-const NO_STEPS_DONE = [false, false, false];
+const NO_STEPS_DONE: Record<StepKey, boolean> = { understand: false, speak: false, write: false };
 
 /** Play a text through the app's TTS, with a flag while the audio loads. */
 function useSpeak(): { speak: (text: string) => void; loading: boolean } {
@@ -68,7 +68,7 @@ const NewWords: React.FC<NewWordsProps> = ({ words, startTest }) => {
   const [index, setIndex] = useState(0);
   const [step, setStep] = useState(0);
   // The steps of this word the learner finished, not skipped.
-  const [done, setDone] = useState<boolean[]>(NO_STEPS_DONE);
+  const [done, setDone] = useState(NO_STEPS_DONE);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { speak, loading } = useSpeak();
 
@@ -84,12 +84,9 @@ const NewWords: React.FC<NewWordsProps> = ({ words, startTest }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [word]);
 
-  const markDone = useCallback(
-    (i: number) => setDone((prev) => prev.map((value, k) => (k === i ? true : value))),
-    [],
-  );
-  const onSaid = useCallback(() => markDone(1), [markDone]);
-  const onTraced = useCallback(() => markDone(2), [markDone]);
+  const markDone = useCallback((key: StepKey) => setDone((prev) => ({ ...prev, [key]: true })), []);
+  const onSpoken = useCallback(() => markDone('speak'), [markDone]);
+  const onTraced = useCallback(() => markDone('write'), [markDone]);
 
   const advance = useCallback(() => {
     if (step < STEPS.length - 1) setStep(step + 1);
@@ -99,9 +96,9 @@ const NewWords: React.FC<NewWordsProps> = ({ words, startTest }) => {
 
   // Understand has nothing to finish, so Continue is always on. Speak and
   // Write wait for the learner, or for Skip.
-  const canContinue = current === 'understand' || done[step];
+  const canContinue = current === 'understand' || done[current];
   const onContinue = useCallback(() => {
-    if (current === 'understand') markDone(0);
+    if (current === 'understand') markDone('understand');
     advance();
   }, [advance, current, markDone]);
 
@@ -122,7 +119,7 @@ const NewWords: React.FC<NewWordsProps> = ({ words, startTest }) => {
         ? copy.newWords.startTest
         : copy.newWords.nextWord;
   // The bar fills by step; a traced word fills its last third.
-  const stepsPassed = step + (current === 'write' && done[2] ? 1 : 0);
+  const stepsPassed = step + (current === 'write' && done.write ? 1 : 0);
 
   return (
     <StudyScreen>
@@ -139,19 +136,25 @@ const NewWords: React.FC<NewWordsProps> = ({ words, startTest }) => {
       {current === 'understand' && (
         <UnderstandStep key={index} word={word} charSet={charSet} speak={speak} loading={loading} />
       )}
-      {current === 'say' && (
-        <SayStep
+      {current === 'speak' && (
+        <SpeakStep
           key={index}
           word={word}
           charSet={charSet}
           speechAvailable={speechAvailable}
           speak={speak}
           loading={loading}
-          onSaid={onSaid}
+          onSpoken={onSpoken}
         />
       )}
       {current === 'write' && (
-        <WriteStep key={index} word={word} charSet={charSet} onTraced={onTraced} />
+        <WriteStep
+          key={index}
+          word={word}
+          charSet={charSet}
+          traced={done.write}
+          onTraced={onTraced}
+        />
       )}
 
       <Box sx={{ flex: 1, minHeight: 24 }} />

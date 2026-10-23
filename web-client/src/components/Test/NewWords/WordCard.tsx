@@ -32,34 +32,39 @@ const WordCard: React.FC<WordCardProps> = ({
   speak,
   loading,
   highlight = null,
-}) => (
-  <StudyCard
-    height={compact ? 150 : 200}
-    sx={{ mt: compact ? 1.25 : 2, pt: 4, gap: compact ? 1 : 1.5 }}
-    corner={
-      <Box sx={{ position: 'absolute', top: 12, right: 12 }}>
-        <PlayButton size={44} loading={loading} onClick={speak} />
+}) => {
+  const syllables = word.pinyin.trim().split(/\s+/);
+  // A syllable turns red only when each character has one, as in most words.
+  const syllableHighlight = syllables.length === word[charSet].length ? highlight : null;
+  return (
+    <StudyCard
+      height={compact ? 150 : 200}
+      sx={{ mt: compact ? 1.25 : 2, pt: 4, gap: compact ? 1 : 1.5 }}
+      corner={
+        <Box sx={{ position: 'absolute', top: 12, right: 12 }}>
+          <PlayButton size={44} loading={loading} onClick={speak} />
+        </Box>
+      }
+    >
+      <Box lang="zh" sx={hanziSx(hanziSize(word[charSet], compact ? 'small' : 'medium'))}>
+        {word[charSet].split('').map((char, i) => (
+          <Box component="span" key={i} sx={highlightSx(highlight, i)}>
+            {char}
+          </Box>
+        ))}
       </Box>
-    }
-  >
-    <Box lang="zh" sx={hanziSx(hanziSize(word[charSet], compact ? 'small' : 'medium'))}>
-      {word[charSet].split('').map((char, i) => (
-        <Box component="span" key={i} sx={highlightSx(highlight, i)}>
-          {char}
-        </Box>
-      ))}
-    </Box>
-    <Box lang="zh-Latn" sx={{ fontSize: 20, display: 'flex', gap: 0.75 }}>
-      {word.pinyin.split(/\s+/).map((syllable, i) => (
-        <Box component="span" key={i} sx={highlightSx(highlight, i)}>
-          {toneMarks(syllable)}
-        </Box>
-      ))}
-    </Box>
-    <Box sx={{ fontSize: 16, color: colors.textSecondary }}>
-      {parseMeanings(word.meaning).join(' · ')}
-    </Box>
-  </StudyCard>
-);
+      <Box lang="zh-Latn" sx={{ fontSize: 20, display: 'flex', gap: 0.75 }}>
+        {syllables.map((syllable, i) => (
+          <Box component="span" key={i} sx={highlightSx(syllableHighlight, i)}>
+            {toneMarks(syllable)}
+          </Box>
+        ))}
+      </Box>
+      <Box sx={{ fontSize: 16, color: colors.textSecondary }}>
+        {parseMeanings(word.meaning).join(' · ')}
+      </Box>
+    </StudyCard>
+  );
+};
 
 export default WordCard;

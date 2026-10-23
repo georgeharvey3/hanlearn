@@ -4,9 +4,10 @@ import { searchWord } from '../../../services/dictionaryService';
 import { reportError } from '../../../services/errorReporting';
 import { CharacterGloss } from './characterGloss';
 import { readGloss, writeGloss } from './glossCache';
+import { copy } from '../../../copy';
 
 /**
- * Look up each character of the missed word.
+ * Look up each character of a word: the missed word of a review, or a new word.
  *
  * The answers of this word live in state keyed by the word, so a lookup that
  * lands after the session has moved on is dropped. A character with no answer
@@ -16,6 +17,8 @@ import { readGloss, writeGloss } from './glossCache';
 export const useCharacterGlosses = (
   chars: string[],
   charSet: 'simp' | 'trad',
+  // Where the lookup ran, for the error report.
+  phase: 'review' | 'new-words' = 'review',
 ): ((char: string) => CharacterGloss | undefined) => {
   const charsKey = chars.join('');
   const [fetched, setFetched] = useState<{
@@ -47,7 +50,7 @@ export const useCharacterGlosses = (
       } catch (error) {
         // The learner only sees that the definition is unavailable, so the
         // cause has to go somewhere.
-        reportError(error, { feature: 'character-lookup', context: { char, phase: 'review' } });
+        reportError(error, { feature: 'character-lookup', context: { char, phase } });
         record(char, { pinyins: [], meanings: [], failed: true });
       }
     });
@@ -55,7 +58,7 @@ export const useCharacterGlosses = (
     return () => {
       cancelled = true;
     };
-  }, [charsKey, charSet]);
+  }, [charsKey, charSet, phase]);
 
   return (char: string): CharacterGloss | undefined => {
     const cached = readGloss(char, charSet);
@@ -72,4 +75,11 @@ export function senses(gloss: CharacterGloss): string {
   return Array.from(new Set(all.filter(Boolean)))
     .slice(0, SENSES_SHOWN)
     .join(' · ');
+}
+
+/** The line under a character: its first senses, or why there are none. */
+export function glossLine(gloss: CharacterGloss | undefined): string | undefined {
+  if (gloss?.failed) return copy.test.definitionFailed;
+  if (gloss && gloss.meanings.length === 0) return copy.test.notInDictionary;
+  return gloss && senses(gloss);
 }

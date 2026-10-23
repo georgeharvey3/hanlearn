@@ -3,7 +3,7 @@ import React from 'react';
 import { Box, CircularProgress } from '@mui/material';
 
 import { CharacterGloss } from './characterGloss';
-import { senses, useCharacterGlosses } from './useCharacterGlosses';
+import { glossLine, useCharacterGlosses } from './useCharacterGlosses';
 import { copy } from '../../../copy';
 import { colors } from '../../../theme';
 import { toneMarks } from '../../../utils/pinyinMarks';
@@ -18,11 +18,7 @@ interface CharacterGlossRowProps {
 }
 
 const CharacterGlossRow: React.FC<CharacterGlossRowProps> = ({ char, gloss, last, children }) => {
-  const meaning = gloss?.failed
-    ? copy.test.definitionFailed
-    : gloss && gloss.meanings.length === 0
-      ? copy.test.notInDictionary
-      : gloss && senses(gloss);
+  const meaning = glossLine(gloss);
 
   return (
     <Box

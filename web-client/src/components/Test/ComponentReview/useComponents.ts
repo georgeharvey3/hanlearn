@@ -10,7 +10,11 @@ export type Load =
   | { status: 'failed' }
   | { status: 'done'; components: Component[] };
 
-export const useComponents = (char: string): [Load, () => void] => {
+export const useComponents = (
+  char: string,
+  // Where the lookup ran, for the error report.
+  phase: 'review' | 'new-words' = 'review',
+): [Load, () => void] => {
   const [load, setLoad] = useState<Load>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
 
@@ -19,13 +23,13 @@ export const useComponents = (char: string): [Load, () => void] => {
     decomposeCharacter(char)
       .then((components) => !cancelled && setLoad({ status: 'done', components }))
       .catch((error) => {
-        reportError(error, { feature: 'decomposition', context: { char, phase: 'review' } });
+        reportError(error, { feature: 'decomposition', context: { char, phase } });
         if (!cancelled) setLoad({ status: 'failed' });
       });
     return () => {
       cancelled = true;
     };
-  }, [char, attempt]);
+  }, [char, attempt, phase]);
 
   const retry = useCallback(() => {
     setLoad({ status: 'loading' });

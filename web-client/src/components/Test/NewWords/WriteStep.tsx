@@ -74,14 +74,16 @@ const TraceBox: React.FC<{ char: string; onDone: () => void }> = ({ char, onDone
 interface WriteStepProps {
   word: Word;
   charSet: 'simp' | 'trad';
+  /** The learner traced the word before, so the step opens as traced. */
+  traced: boolean;
   /** The learner traced every character. The step records no result. */
   onTraced: () => void;
 }
 
 /** Step 3: trace each character of the word in turn. */
-const WriteStep: React.FC<WriteStepProps> = ({ word, charSet, onTraced }) => {
+const WriteStep: React.FC<WriteStepProps> = ({ word, charSet, traced: tracedBefore, onTraced }) => {
   const chars = useMemo(() => word[charSet].split(''), [word, charSet]);
-  const [at, setAt] = useState(0);
+  const [at, setAt] = useState(tracedBefore ? chars.length : 0);
   const traced = at >= chars.length;
 
   useEffect(() => {

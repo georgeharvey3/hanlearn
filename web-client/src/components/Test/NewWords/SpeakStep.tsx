@@ -33,24 +33,24 @@ type Attempt =
   | { status: 'nothing' }
   | { status: 'heard'; syllables: HeardSyllable[]; result: SyllableMatch };
 
-interface SayStepProps {
+interface SpeakStepProps {
   word: Word;
   charSet: 'simp' | 'trad';
   speechAvailable: boolean;
   speak: (text: string) => void;
   loading: boolean;
   /** The learner said the word, right or wrong. The step records no result. */
-  onSaid: () => void;
+  onSpoken: () => void;
 }
 
 /** Step 2: hear the word, then say it and see each syllable that was heard. */
-const SayStep: React.FC<SayStepProps> = ({
+const SpeakStep: React.FC<SpeakStepProps> = ({
   word,
   charSet,
   speechAvailable,
   speak,
   loading,
-  onSaid,
+  onSpoken,
 }) => {
   const [attempt, setAttempt] = useState<Attempt>({ status: 'idle' });
   const recognition = useRef<SpeechRecognition | null>(null);
@@ -58,8 +58,9 @@ const SayStep: React.FC<SayStepProps> = ({
   useEffect(() => () => recognition.current?.abort(), []);
 
   const listen = useCallback(() => {
-    if (attempt.status === 'listening') {
-      recognition.current?.stop();
+    // A second tap stops the recognizer, also before it hears any audio.
+    if (recognition.current) {
+      recognition.current.stop();
       return;
     }
     const recognizer = new window.webkitSpeechRecognition();
@@ -73,13 +74,14 @@ const SayStep: React.FC<SayStepProps> = ({
         status: 'heard',
         ...compareSpeech(event.results[0][0].transcript, word.pinyin),
       });
-      onSaid();
+      onSpoken();
     });
     recognizer.addEventListener('end', () => {
+      recognition.current = null;
       if (!heard) setAttempt({ status: 'nothing' });
     });
     recognizer.start();
-  }, [attempt.status, onSaid, word.pinyin]);
+  }, [onSpoken, word.pinyin]);
 
   const listening = attempt.status === 'listening';
   let status: React.ReactNode = null;
@@ -102,7 +104,7 @@ const SayStep: React.FC<SayStepProps> = ({
   return (
     <>
       <Box sx={{ mt: 3, textAlign: 'center', fontSize: 15, color: colors.textSecondary }}>
-        {copy.newWords.sayPrompt}
+        {copy.newWords.speakPrompt}
       </Box>
       <WordCard
         word={word}
@@ -143,4 +145,4 @@ const SayStep: React.FC<SayStepProps> = ({
   );
 };
 
-export default SayStep;
+export default SpeakStep;

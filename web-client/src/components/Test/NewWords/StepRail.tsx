@@ -2,14 +2,14 @@ import React from 'react';
 import { Box, ButtonBase } from '@mui/material';
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 
-import { STEPS } from './steps';
+import { STEPS, StepKey } from './steps';
 import { copy } from '../../../copy';
 import { colors, fonts } from '../../../theme';
 
 interface StepRailProps {
   at: number;
   /** The steps of this word the learner finished, not skipped. */
-  done: boolean[];
+  done: Record<StepKey, boolean>;
   onPick: (step: number) => void;
 }
 
@@ -33,10 +33,14 @@ const StepRail: React.FC<StepRailProps> = ({ at, done, onPick }) => (
             fontWeight: current ? 600 : 400,
             border: `1px solid ${current ? colors.primaryDark : colors.divider}`,
             bgcolor: current ? colors.successSurface : 'transparent',
-            color: current ? colors.primaryDark : done[i] ? colors.text : colors.textSecondary,
+            color: current
+              ? colors.primaryDark
+              : done[step.key]
+                ? colors.text
+                : colors.textSecondary,
           }}
         >
-          {done[i] && !current && (
+          {done[step.key] && !current && (
             <CheckRoundedIcon sx={{ fontSize: 16, color: colors.primaryDark }} />
           )}
           {step.label}

@@ -144,6 +144,17 @@ describe('NewWords — Understand', () => {
     expect(within(row).getByText('diàn')).toBeInTheDocument();
   });
 
+  it("shows the word's own reading of a character, not every reading", async () => {
+    vi.mocked(searchWord).mockResolvedValue([
+      makeWord(12, '行', 'xing2', 'to walk'),
+      makeWord(13, '行', 'hang2', 'row'),
+    ]);
+    render([makeWord(3, '银行', 'yin2 hang2', 'bank')]);
+    const row = screen.getByRole('button', { name: /^行/ });
+    expect(await within(row).findByText('to walk · row')).toBeInTheDocument();
+    expect(within(row).getByText('háng')).toBeInTheDocument();
+  });
+
   it('a tap on a character opens its parts in place', async () => {
     const user = userEvent.setup();
     render([diannao]);
@@ -259,6 +270,20 @@ describe('NewWords — Write', () => {
     await user.click(screen.getByRole('button', { name: 'Next word' }));
     expect(screen.getByText('2 / 2')).toBeInTheDocument();
     expect(currentStep()).toBe('Understand');
+  });
+
+  it('keeps a traced word traced after a jump to another step', async () => {
+    const user = userEvent.setup();
+    render([diannao, xiuxi]);
+    await toWrite(user);
+    act(() => completeTrace());
+    act(() => completeTrace());
+
+    await user.click(screen.getByRole('button', { name: 'Understand' }));
+    await toWrite(user);
+
+    expect(screen.getByText('Traced')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next word' })).toBeEnabled();
   });
 
   it('Skip on the last word starts the test', async () => {

@@ -4,7 +4,7 @@ import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 
 import WordCard from './WordCard';
 import { Overline, hanziSx } from '../Study/parts';
-import { senses, useCharacterGlosses } from '../ComponentReview/useCharacterGlosses';
+import { glossLine, useCharacterGlosses } from '../ComponentReview/useCharacterGlosses';
 import { CharacterGloss } from '../ComponentReview/characterGloss';
 import { useComponents } from '../ComponentReview/useComponents';
 import { copy } from '../../../copy';
@@ -16,7 +16,7 @@ const skeletonSx = { bgcolor: colors.skeleton, borderRadius: '3px' };
 
 /** The first level of a character's parts. The strokes belong to the Write step. */
 const Parts: React.FC<{ char: string }> = ({ char }) => {
-  const [load, retry] = useComponents(char);
+  const [load, retry] = useComponents(char, 'new-words');
 
   if (load.status === 'loading') {
     return (
@@ -82,18 +82,18 @@ const Parts: React.FC<{ char: string }> = ({ char }) => {
 
 interface CharRowProps {
   char: string;
+  /** The reading the word gives this character, in tone numbers, if known. */
+  syllable: string | undefined;
   gloss: CharacterGloss | undefined;
   open: boolean;
   onToggle: () => void;
 }
 
 /** One character of the word. It opens in place, so the word card stays in view. */
-const CharRow: React.FC<CharRowProps> = ({ char, gloss, open, onToggle }) => {
-  const meaning = gloss?.failed
-    ? copy.test.definitionFailed
-    : gloss && gloss.meanings.length === 0
-      ? copy.test.notInDictionary
-      : gloss && senses(gloss);
+const CharRow: React.FC<CharRowProps> = ({ char, syllable, gloss, open, onToggle }) => {
+  const meaning = glossLine(gloss);
+  // The word's own reading, so that 行 in 银行 reads háng, not every reading.
+  const pinyin = syllable ? toneMarks(syllable) : gloss?.pinyins.map(toneMarks).join(' / ');
 
   return (
     <Box
@@ -122,7 +122,7 @@ const CharRow: React.FC<CharRowProps> = ({ char, gloss, open, onToggle }) => {
         </Box>
         <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0.25 }}>
           <Box lang="zh-Latn" sx={{ fontSize: 16 }}>
-            {gloss?.pinyins.map(toneMarks).join(' / ')}
+            {pinyin}
           </Box>
           <Box
             sx={{
@@ -164,7 +164,11 @@ interface UnderstandStepProps {
 /** Step 1: the word, then each character with its pinyin, senses and parts. */
 const UnderstandStep: React.FC<UnderstandStepProps> = ({ word, charSet, speak, loading }) => {
   const chars = useMemo(() => word[charSet].split(''), [word, charSet]);
-  const glossOf = useCharacterGlosses(chars, charSet);
+  const glossOf = useCharacterGlosses(chars, charSet, 'new-words');
+  const syllables = useMemo(() => {
+    const split = word.pinyin.trim().split(/\s+/);
+    return split.length === chars.length ? split : [];
+  }, [word.pinyin, chars.length]);
   const [openRow, setOpenRow] = useState<number | null>(null);
 
   return (
@@ -182,6 +186,7 @@ const UnderstandStep: React.FC<UnderstandStepProps> = ({ word, charSet, speak, l
           <CharRow
             key={i}
             char={char}
+            syllable={syllables[i]}
             gloss={glossOf(char)}
             open={openRow === i}
             onToggle={() => {
