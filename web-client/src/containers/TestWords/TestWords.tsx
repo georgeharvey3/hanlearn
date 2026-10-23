@@ -13,7 +13,7 @@ import SentenceRead from '../../components/Test/SentenceRead/SentenceRead';
 import NewWords from '../../components/Test/NewWords/NewWords';
 import TestSummary from '../../components/Test/TestSummary/TestSummary';
 // PROTOTYPE (#414): three variants of the session summary and the empty state,
-// picked by ?variant=A|B|C on /test-words or /tryout. ?state= previews a screen
+// picked by ?variant=A|B|C|D on /test-words or /tryout. ?state= previews a screen
 // with sample data. No param shows the current screens.
 import PrototypeSwitcher, {
   usePrototypeParam,
@@ -22,6 +22,7 @@ import PrototypeSwitcher, {
 import ProtoA from '../../components/Test/TestSummary/prototype/VariantA';
 import ProtoB from '../../components/Test/TestSummary/prototype/VariantB';
 import ProtoC from '../../components/Test/TestSummary/prototype/VariantC';
+import ProtoD from '../../components/Test/TestSummary/prototype/VariantD';
 import ProtoCurrent from '../../components/Test/TestSummary/prototype/VariantCurrent';
 import {
   VariantModule,
@@ -62,6 +63,7 @@ const PROTO_VARIANTS = [
   { key: 'A', name: 'Score first' },
   { key: 'B', name: 'By direction' },
   { key: 'C', name: 'Word tiles' },
+  { key: 'D', name: 'Score and tiles' },
 ];
 const PROTO_STATES = [
   { key: '', name: 'Live' },
@@ -70,7 +72,12 @@ const PROTO_STATES = [
   { key: 'empty-lists', name: 'Other lists' },
   { key: 'empty-new', name: 'No words' },
 ];
-const PROTO_MODULES: Record<string, VariantModule> = { A: ProtoA, B: ProtoB, C: ProtoC };
+const PROTO_MODULES: Record<string, VariantModule> = {
+  A: ProtoA,
+  B: ProtoB,
+  C: ProtoC,
+  D: ProtoD,
+};
 
 type Stage = 'new' | 'vocab' | 'read' | 'write' | 'summary';
 
