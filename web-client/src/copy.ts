@@ -192,6 +192,41 @@ export const copy = {
     nextWord: 'Next word',
     startTest: 'Start test',
   },
+  // The end of a session: the score, and a tile for each question.
+  summary: {
+    stage: 'Done',
+    outOf: (total: number) => `/ ${total}`,
+    questionsWords: (questions: number, words: number) =>
+      `${questions} question${questions === 1 ? '' : 's'} · ${words} word${words === 1 ? '' : 's'}`,
+    practiceNote: 'Practice · due dates unchanged',
+    results: { pass: 'Known', lapse: 'Nearly', fail: 'Not known' },
+    count: (n: number, result: string) => `${n} ${result}`,
+    tile: (char: string, result: string) => `${char}, ${result}`,
+    turnedTile: (char: string, result: string, pinyin: string, meaning: string) =>
+      `${char}, ${result}: ${pinyin}, ${meaning}`,
+    practiceMissed: 'Practise missed words',
+    backToDashboard: 'Back to Dashboard',
+  },
+  // The Test page when no word is due. Counts only, never a due word.
+  nothingDue: {
+    // A seal of 休, "rest". Decoration only, hidden from screen readers.
+    seal: '休',
+    title: (list: string) => `Nothing due in ${list}`,
+    allLists: 'All lists',
+    noWords: 'No words yet',
+    nextDue: (n: number, days: number) =>
+      days === 0
+        ? `${n} due later today`
+        : days === 1
+          ? `${n} due tomorrow`
+          : `${n} due in ${days} days`,
+    nothingThisWeek: 'Nothing due this week',
+    otherLists: 'Other lists',
+    due: (n: number) => `${n} due`,
+    testAll: (n: number) => `Test all lists · ${n}`,
+    practice: 'Practise',
+    addWords: 'Add words',
+  },
   // The first screen after sign-in. It shows counts only: a word seen here just
   // before the test asks it primes the answer.
   dashboard: {

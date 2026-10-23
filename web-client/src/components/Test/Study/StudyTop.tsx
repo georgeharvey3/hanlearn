@@ -17,13 +17,23 @@ interface StudyTopProps {
   onEnd: () => void;
   /** Opens the test settings. A stage without settings leaves it out. */
   onSettings?: () => void;
+  /** Leaves out the count, while the session's size is not known yet. */
+  hideCount?: boolean;
 }
 
 /**
  * The bar at the top of every study screen. A session hides the app's own
  * navigation, so the close button here is the way out.
  */
-const StudyTop: React.FC<StudyTopProps> = ({ stage, done, total, position, onEnd, onSettings }) => {
+const StudyTop: React.FC<StudyTopProps> = ({
+  stage,
+  done,
+  total,
+  position,
+  onEnd,
+  onSettings,
+  hideCount,
+}) => {
   const percent = total > 0 ? Math.round((done / total) * 100) : 0;
   const iconSx = { width: 44, height: 44, color: colors.textSecondary };
 
@@ -63,9 +73,11 @@ const StudyTop: React.FC<StudyTopProps> = ({ stage, done, total, position, onEnd
           >
             {stage}
           </Box>
-          <Box component="span" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-            {copy.study.progressCount(position ?? done, total)}
-          </Box>
+          {!hideCount && (
+            <Box component="span" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+              {copy.study.progressCount(position ?? done, total)}
+            </Box>
+          )}
         </Box>
         <LinearProgress
           variant="determinate"

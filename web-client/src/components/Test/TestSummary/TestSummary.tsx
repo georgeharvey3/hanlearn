@@ -1,123 +1,148 @@
-import React from 'react';
-import { withRouter, RouteComponentProps } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Box } from '@mui/material';
 
-import { Box, Button as MuiButton, Chip, Typography } from '@mui/material';
-import HomeIcon from '@mui/icons-material/Home';
+import { copy } from '../../../copy';
+import { colors } from '../../../theme';
+import { DirectionResult, Word, WordScore } from '../../../types/models';
+import StudyScreen from '../Study/StudyScreen';
+import StudyTop from '../Study/StudyTop';
+import { StudyButton } from '../Study/parts';
+import ScoreCard from './ScoreCard';
+import WordTile from './WordTile';
+import { missedWords, summaryRows, tally } from './summary';
 
-import { DirectionResult, WordScore } from '../../../types/models';
-import { DIRECTION_LABELS } from '../../../utils/directions';
-
-const resultConfig: Record<
-  DirectionResult,
-  { color: 'success' | 'warning' | 'error'; label: string }
-> = {
-  pass: { color: 'success', label: 'Known' },
-  lapse: { color: 'warning', label: 'Nearly' },
-  fail: { color: 'error', label: 'Not known' },
-};
-
-interface TestSummaryProps extends RouteComponentProps {
-  scores?: WordScore[];
+interface TestSummaryProps {
+  scores: WordScore[];
+  /** The session's words, for the pinyin and meaning on the back of each tile. */
+  words: Word[];
+  practiceMode: boolean;
+  onHome: () => void;
+  /** Starts a practice session of the words with a Nearly or Not known question. */
+  onPracticeMissed: (words: Word[]) => void;
 }
 
-const TestSummary: React.FC<TestSummaryProps> = ({ history, scores }) => {
-  const homePressed = (): void => {
-    history.push('/');
-  };
+/**
+ * The end of a session: the score card, then one tile for each question with
+ * the missed ones first. The session bar and the buttons stay put, and the
+ * card and tiles scroll between them when a long session overflows.
+ */
+const TestSummary: React.FC<TestSummaryProps> = ({
+  scores,
+  words,
+  practiceMode,
+  onHome,
+  onPracticeMissed,
+}) => {
+  const rows = useMemo(() => summaryRows(scores, words), [scores, words]);
+  const counts = tally(rows);
+  const [filter, setFilter] = useState<DirectionResult | null>(null);
+  // The index in `rows` of the turned tile: one at a time.
+  const [turned, setTurned] = useState<number | null>(null);
 
-  // One row is one question, so the counts are per direction, not per word.
-  // A lapse is not counted correct: it did not succeed on the attempt that
-  // carries the grade. See docs/adr/0007-grade-the-first-attempt.md.
-  const total = scores?.length ?? 0;
-  const correct = scores?.filter((s) => s.result === 'pass').length ?? 0;
-  const wordCount = new Set(scores?.map((s) => s.char)).size;
-  const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
-  const accuracyColor = pct >= 70 ? 'success.main' : pct >= 40 ? 'warning.main' : 'error.main';
+  // Whether the tiles overflow, and whether more of them lie below the fold:
+  // the buttons get a rule above them, and the foot of the list a fade.
+  const scroller = useRef<HTMLDivElement>(null);
+  const [overflow, setOverflow] = useState({ scrolls: false, more: false });
+  const measure = useCallback(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const scrolls = el.scrollHeight > el.clientHeight + 1;
+    const more = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+    setOverflow((prev) =>
+      prev.scrolls === scrolls && prev.more === more ? prev : { scrolls, more },
+    );
+  }, []);
+  useEffect(() => {
+    measure();
+    const el = scroller.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [measure, filter]);
+
+  const missed = counts.fail + counts.lapse > 0;
 
   return (
-    <Box sx={{ textAlign: 'center' }}>
-      <Typography variant="h5" component="h3" sx={{ fontWeight: 700, mb: 0.5 }}>
-        Session Summary
-      </Typography>
-      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
-        {total} question{total !== 1 ? 's' : ''} across {wordCount} word
-        {wordCount !== 1 ? 's' : ''}
-      </Typography>
-      {total > 0 && (
-        <Typography
-          variant="subtitle1"
-          data-testid="session-accuracy"
-          sx={{ fontWeight: 600, color: accuracyColor, mb: 2.5 }}
+    <StudyScreen fixed>
+      <StudyTop
+        stage={copy.summary.stage}
+        done={counts.total}
+        total={counts.total}
+        onEnd={onHome}
+      />
+      <Box sx={{ position: 'relative', flex: 1, minHeight: 0, mx: -2 }}>
+        <Box
+          ref={scroller}
+          onScroll={measure}
+          sx={{ height: '100%', overflowY: 'auto', px: 2, pb: 2, boxSizing: 'border-box' }}
         >
-          {correct} / {total} correct ({pct}%)
-        </Typography>
-      )}
-
+          <ScoreCard
+            tally={counts}
+            practiceMode={practiceMode}
+            filter={filter}
+            onFilter={(next) => {
+              setFilter(next);
+              setTurned(null);
+            }}
+          />
+          <Box
+            sx={{
+              mt: 2,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              gap: 1,
+            }}
+          >
+            {rows.map((row, i) =>
+              filter && row.result !== filter ? null : (
+                <WordTile
+                  key={i}
+                  row={row}
+                  turned={turned === i}
+                  onClick={() => setTurned(turned === i ? null : i)}
+                />
+              ),
+            )}
+          </Box>
+        </Box>
+        {overflow.more && (
+          <Box
+            aria-hidden="true"
+            sx={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 56,
+              background: `linear-gradient(to bottom, ${colors.paper}00, ${colors.paper})`,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+      </Box>
       <Box
         sx={{
-          maxHeight: { xs: 'calc(100vh - 280px)', sm: 'calc(100vh - 320px)' },
-          overflowY: 'auto',
-          mx: { xs: 0, sm: 2 },
-          mb: 3,
+          mx: -2,
+          px: 2,
+          pt: 1.5,
+          borderTop: `1px solid ${overflow.scrolls ? colors.divider : 'transparent'}`,
           display: 'flex',
           flexDirection: 'column',
-          gap: 0.75,
+          gap: 1.25,
         }}
       >
-        {scores?.map((row, index) => {
-          const config = resultConfig[row.result];
-          return (
-            <Box
-              key={index}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 1,
-                px: 2,
-                py: 1,
-                borderRadius: 1,
-                bgcolor: 'grey.50',
-                border: '1px solid',
-                borderColor: 'grey.200',
-              }}
-            >
-              <Box sx={{ minWidth: 0, textAlign: 'left' }}>
-                <Typography lang="zh" sx={{ fontSize: '1.1rem', fontWeight: 500 }}>
-                  {row.char}
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  {DIRECTION_LABELS[row.direction]}
-                </Typography>
-              </Box>
-              <Chip
-                label={config.label}
-                color={config.color}
-                size="small"
-                variant="outlined"
-                sx={{ fontWeight: 600, minWidth: 90, flexShrink: 0 }}
-              />
-            </Box>
-          );
-        })}
+        {missed && (
+          <StudyButton onClick={() => onPracticeMissed(missedWords(rows, words))}>
+            {copy.summary.practiceMissed}
+          </StudyButton>
+        )}
+        <StudyButton variant="primary" onClick={onHome}>
+          {copy.summary.backToDashboard}
+        </StudyButton>
       </Box>
-
-      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-        <MuiButton
-          variant="outlined"
-          onClick={homePressed}
-          startIcon={<HomeIcon />}
-          sx={{
-            borderColor: 'grey.300',
-            color: 'text.primary',
-            '&:hover': { borderColor: 'grey.400', bgcolor: 'grey.50' },
-          }}
-        >
-          Home
-        </MuiButton>
-      </Box>
-    </Box>
+    </StudyScreen>
   );
 };
 
-export default withRouter(TestSummary);
+export default TestSummary;

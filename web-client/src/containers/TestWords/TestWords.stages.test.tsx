@@ -217,21 +217,6 @@ describe('TestWords — newWordsEnabled=false skips Learn stage', () => {
     });
     expect(screen.queryByTestId('mock-new-words')).not.toBeInTheDocument();
   });
-
-  it('does not show Learn step in stepper when newWords is disabled', async () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
-      if (key === 'newWords') return 'false';
-      return null;
-    });
-
-    const store = makeStore({ words: [dueWord(1, '你好', 1)] });
-    renderWithProviders(<TestWords />, { store });
-
-    await waitFor(() => {
-      expect(screen.getByTestId('mock-test')).toBeInTheDocument();
-    });
-    expect(screen.queryByText('Learn')).not.toBeInTheDocument();
-  });
 });
 
 describe('TestWords — practice mode with level-1 words', () => {
@@ -242,7 +227,7 @@ describe('TestWords — practice mode with level-1 words', () => {
     const store = makeStore({ words: [futureWord(1, '你好', 1)] });
     renderWithProviders(<TestWords />, { store });
 
-    const practiceBtn = await screen.findByRole('button', { name: /practice/i });
+    const practiceBtn = await screen.findByRole('button', { name: 'Practise' });
     await user.click(practiceBtn);
 
     await waitFor(() => {
@@ -260,7 +245,7 @@ describe('TestWords — practice mode with level-1 words', () => {
     const store = makeStore({ words: [futureWord(1, '你好', 1)] });
     renderWithProviders(<TestWords />, { store });
 
-    const practiceBtn = await screen.findByRole('button', { name: /practice/i });
+    const practiceBtn = await screen.findByRole('button', { name: 'Practise' });
     await user.click(practiceBtn);
 
     await waitFor(() => {
@@ -405,7 +390,7 @@ describe('TestWords — practiceMode prop', () => {
     const store = makeStore({ words: [futureWord(1, '你好', 2)] });
     renderWithProviders(<TestWords />, { store });
 
-    const practiceBtn = await screen.findByRole('button', { name: /practice/i });
+    const practiceBtn = await screen.findByRole('button', { name: 'Practise' });
     await user.click(practiceBtn);
 
     await waitFor(() => {

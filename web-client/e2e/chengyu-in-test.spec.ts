@@ -35,15 +35,15 @@ test.describe('Chengyus in main test', () => {
     const testPage = new TestWordsPage(page);
     await testPage.navigateTo();
 
-    // Should see the test UI — not "No words due"
-    await expect(
-      page.getByText(/pinyin|character|meaning/i).first(),
-    ).toBeVisible({ timeout: 15000 });
+    // Should see the test UI — not "Nothing due"
+    await expect(page.getByText(/pinyin|character|meaning/i).first()).toBeVisible({
+      timeout: 15000,
+    });
 
     // Complete the test
     await testPage.completeTestWithIDK();
     await testPage.waitForSummary();
-    await expect(page.getByText('Session Summary')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Back to Dashboard' })).toBeVisible();
   });
 
   test('mixed regular words and chengyus appear together in test', async ({ page }) => {
@@ -73,9 +73,9 @@ test.describe('Chengyus in main test', () => {
     await testPage.navigateTo();
 
     // Test should load with both words
-    await expect(
-      page.getByText(/pinyin|character|meaning/i).first(),
-    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/pinyin|character|meaning/i).first()).toBeVisible({
+      timeout: 15000,
+    });
 
     // Complete the entire test and reach summary
     await testPage.completeTestWithIDK();
@@ -102,8 +102,10 @@ test.describe('Chengyus in main test', () => {
     const testPage = new TestWordsPage(page);
     await testPage.navigateTo();
 
-    // Should show "No words due" with Practice button (not just Add Words)
-    await expect(page.getByText(/No words due/i).first()).toBeVisible({ timeout: 15000 });
-    await expect(page.getByRole('button', { name: 'Practice' })).toBeVisible();
+    // Should show "Nothing due" with Practice button (not just Add Words)
+    await expect(page.getByText(/Nothing due in|No words yet/i).first()).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page.getByRole('button', { name: 'Practise' })).toBeVisible();
   });
 });

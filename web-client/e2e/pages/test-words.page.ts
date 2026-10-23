@@ -60,12 +60,14 @@ export class TestWordsPage {
 
   /** Wait for the test to reach the summary stage */
   async waitForSummary(): Promise<void> {
-    await expect(this.page.getByText('Session Summary')).toBeVisible({ timeout: 30000 });
+    await expect(this.page.getByRole('button', { name: 'Back to Dashboard' })).toBeVisible({
+      timeout: 30000,
+    });
   }
 
   /** Check if we're on the summary page */
   async isOnSummary(): Promise<boolean> {
-    return this.page.getByText('Session Summary').isVisible();
+    return this.page.getByRole('button', { name: 'Back to Dashboard' }).isVisible();
   }
 
   /** Get session accuracy text from summary */
@@ -74,17 +76,17 @@ export class TestWordsPage {
     return (await el.textContent()) || '';
   }
 
-  /** Check if the "No words due" screen is shown */
+  /** Check if the "Nothing due" screen is shown */
   async isNoWordsDue(): Promise<boolean> {
-    return this.page.getByText(/No words due/i).isVisible();
+    return this.page.getByText(/Nothing due in|No words yet/i).isVisible();
   }
 
-  /** Click Practice button on the "no words due" screen */
+  /** Click Practise button on the "nothing due" screen */
   async clickPractice(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Practice' }).click();
+    await this.page.getByRole('button', { name: 'Practise' }).click();
   }
 
-  /** Click Add Words button on the "no words due" screen */
+  /** Click Add Words button on the "nothing due" screen */
   async clickAddWords(): Promise<void> {
     await this.page.getByRole('button', { name: 'Add Words' }).click();
   }
@@ -107,7 +109,9 @@ export class TestWordsPage {
   async completeTestWithIDK(targetIdkRounds: number = 0): Promise<void> {
     let idkRounds = 0;
     for (let i = 0; i < 100; i++) {
-      const summaryVisible = await this.page.getByText('Session Summary').isVisible();
+      const summaryVisible = await this.page
+        .getByRole('button', { name: 'Back to Dashboard' })
+        .isVisible();
       if (summaryVisible) return;
 
       // A graded question that waits for Continue
