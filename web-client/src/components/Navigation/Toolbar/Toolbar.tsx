@@ -9,6 +9,7 @@ import * as actions from '../../../store/actions/index';
 import { AppDispatch } from '../../../types/actions';
 import { colors, fonts } from '../../../theme';
 import { copy } from '../../../copy';
+import { LogoMark, Wordmark } from '../../Logo/Logo';
 
 export const TOP_BAR_HEIGHT = { phone: 48, desktop: 56 } as const;
 
@@ -53,14 +54,15 @@ const Toolbar: React.FC<Props> = ({ isAuth, phone }) => {
         component={Link}
         to={routes.home}
         sx={{
-          fontFamily: fonts.brand,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
           fontSize: phone ? 30 : 32,
-          lineHeight: 1,
-          color: colors.text,
           textDecoration: 'none',
         }}
       >
-        {copy.shell.brand}
+        <LogoMark size={phone ? 30 : 34} />
+        <Wordmark text={copy.shell.brand} />
       </Box>
       {!isAuth && (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: phone ? 0.5 : 1 }}>

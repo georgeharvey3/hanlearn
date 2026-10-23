@@ -5,8 +5,6 @@
 export const copy = {
   shell: {
     brand: 'HanLearn',
-    // The seal of the collapsed sidebar.
-    brandSeal: '汉',
     homeLink: 'HanLearn home',
     mainNav: 'Main',
     skipLink: 'Skip to main content',

@@ -1,24 +1,78 @@
 import React from 'react';
 import Box from '@mui/material/Box';
 
-import hanLearnLogo from '../../assets/images/hlclearsq.png';
-import hanLearnLogoRed from '../../assets/images/hlclearredsq.png';
+import { colors, fonts } from '../../theme';
 
-interface LogoProps {
-  colour?: 'red';
+// 汉 in Ma Shan Zheng (OFL), traced to a path in the mark's 100 x 100 box, so
+// the mark draws the same everywhere without loading the font. The favicons
+// in public/ are drawn from this same path.
+const HAN_PATH =
+  'M34.6 48.8Q36.6 45.6 36.6 46.8Q36.6 47 36.6 47.4Q36.1 49.6 35.5 51.3Q35 52.6 34.3 54.2Q33.5 55.9 33.3 56Q33.1 56.1 32.5 58.1Q31.8 60 31.7 60.5Q30.5 63.7 30.1 67.7Q29.9 69.6 29.7 69.9Q29.5 70.3 29.2 71.5Q29 72.3 28.8 72.5Q28.6 72.8 27.9 72.8Q27 72.9 25.8 72.2Q24.6 71.4 23.8 70.2Q23.1 69.1 22.8 69.1Q22.6 69.1 22.2 68.7Q21.8 68.3 21.6 67.8Q21.5 67.3 21.6 66.3Q21.8 65.3 22.1 65.3Q24 64.6 26.5 61Q29.4 57.3 30.4 55.5L31.2 54.1Q32.8 51.7 33 51.2Q33.1 51 34.6 48.8ZM21.7 42.2Q22 41.7 22 41.2Q22 40.6 22.9 40.2Q23.8 39.8 24.5 40Q25.1 40.3 26.1 40.3Q27.1 40.3 28.2 40.9Q28.8 41.3 29.1 41.6Q29.3 42 29.4 42.9Q29.7 46.1 27.7 46.7Q26.8 47 25.9 46.5Q25 46.1 23.4 44.6Q22.2 43.4 21.9 42.9Q21.5 42.4 21.7 42.2ZM50.4 33.5Q55.1 32.8 57.6 33.4Q58.6 33.7 59 33.9Q59.4 34.1 59.9 34.9Q60.5 35.7 60.7 36.2Q60.9 36.7 60.9 37.9Q60.9 39.7 60.6 39.8Q60.2 39.9 59.7 41.1Q57.5 46.2 57.2 46.5Q56.9 46.6 56.9 47Q56.9 47.4 56.1 48.4Q55.3 49.5 55.3 49.7Q55.3 50 55 50.2Q54.4 50.6 54.4 51.3Q54.3 52 54.6 52.4Q55.5 53.4 61.4 56.4Q63.4 57.5 67.5 58.9Q71.7 60.3 73.5 61Q75.4 61.8 76.5 62.1Q77.9 62.5 78.2 62.9Q78.5 63.2 78.4 64.4Q78.4 65.7 78.2 66Q77.9 66.2 74.9 66.3Q72.8 66.3 72.1 66.5Q71.3 66.6 70.1 67.3Q68.3 68.1 67.8 68.1Q67.4 68.2 65 67.4Q62.7 66.6 60.8 65.2Q58.9 63.7 58.8 63.5Q58.6 63.4 57.4 62.6Q55.3 61.2 52.3 58.4Q50.9 57.2 50.8 57.2Q50.6 57.2 50.1 57.7Q49.6 58.2 49.4 58.5Q49.3 58.7 47.4 60.2Q45.6 61.7 45 62Q44.3 62.4 43.8 62.7Q43.2 63.2 39.5 64.4Q35.8 65.7 35.1 65.5Q34.3 65.4 34.3 65.1Q34.3 64.9 36.3 63.4Q38.6 61.5 41.8 58.7Q44.9 55.8 46.4 54.1Q47.1 53.2 47.2 53Q47.3 52.8 47 52.5Q46.6 52 46.6 51.8Q46.6 51.6 45.9 51Q45.4 50.4 43.9 48.3Q42.5 46.3 42.5 46Q42.5 45.8 42.2 45.6Q41.6 45.1 41.6 43.3Q41.6 41.5 42.2 41.5Q42.5 41.5 43.3 42.4Q44.2 43.2 47.4 46.5Q49.5 48.7 49.8 48.7Q50.3 48.7 51.8 45.4Q52.8 42.8 53.7 39.9Q54.5 36.9 54.2 36.7Q53.9 36.3 50.9 36.7Q47.9 37.1 46.5 37.6Q45 38.1 44.1 38Q43.5 38 43.4 37.8Q43.2 37.6 43.3 37Q43.5 35.6 45 34.8Q46.5 34 50.4 33.5ZM30.9 27.5Q31.8 27.1 32.6 27.2L34.7 27.7Q36.6 28.1 37.2 29Q37.9 29.8 37.7 31.5Q37.5 33 37 33.6Q36.5 34.2 35.3 34.3Q34.1 34.4 33.2 33.8Q32.2 33.2 32.1 32.9Q32 32.5 30.9 31Q28.8 28.4 30.9 27.5Z';
+
+interface MarkProps {
+  // Pixels, or '100%' to fill a sized parent.
+  size: number | string;
+  // Leave it out where text beside the mark already names the app.
+  label?: string;
 }
 
-const Logo: React.FC<LogoProps> = (props) => {
-  let logoVer = hanLearnLogo;
+/**
+ * The mark: 汉 brushed into a practice square, its 米 guides dashed in seal
+ * red, on a paper tile.
+ */
+export const LogoMark: React.FC<MarkProps> = ({ size, label }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 100 100"
+    {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })}
+    style={{ display: 'block', flexShrink: 0 }}
+  >
+    <rect
+      x="0.5"
+      y="0.5"
+      width="99"
+      height="99"
+      rx="22"
+      fill={colors.primary}
+      stroke={colors.text}
+      strokeOpacity="0.06"
+    />
+    <g stroke={colors.primaryLight} strokeOpacity="0.5" strokeWidth="0.9" strokeDasharray="2.5 2">
+      <line x1="15" y1="50" x2="85" y2="50" />
+      <line x1="50" y1="15" x2="50" y2="85" />
+      <line x1="15" y1="15" x2="85" y2="85" />
+      <line x1="85" y1="15" x2="15" y2="85" />
+    </g>
+    <rect
+      x="15"
+      y="15"
+      width="70"
+      height="70"
+      rx="3"
+      fill="none"
+      stroke={colors.primaryLight}
+      strokeWidth="2.2"
+    />
+    <path d={HAN_PATH} fill={colors.text} />
+  </svg>
+);
 
-  if (props.colour === 'red') {
-    logoVer = hanLearnLogoRed;
-  }
-  return (
-    <Box sx={{ p: 1, height: '100%', boxSizing: 'border-box', '& img': { height: '100%' } }}>
-      <img src={logoVer} alt="HanLearn" />
-    </Box>
-  );
-};
-
-export default Logo;
+/** The wordmark: "HanLearn" in the brand face, with a seal-red full stop. */
+export const Wordmark: React.FC<{ text: string; color?: string }> = ({
+  text,
+  color = colors.text,
+}) => (
+  // The stop is drawn, not typed, so the link's name stays "HanLearn".
+  <Box
+    component="span"
+    sx={{
+      fontFamily: fonts.brand,
+      lineHeight: 1,
+      color,
+      '&::after': { content: '"."', color: colors.primaryLight },
+    }}
+  >
+    {text}
+  </Box>
+);
