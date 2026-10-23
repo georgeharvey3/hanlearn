@@ -7,7 +7,7 @@ import NewWord from './NewWord/NewWord';
 
 import { Word } from '../../../types/models';
 // PROTOTYPE (#413): three variants of the new-word introduction, picked by
-// ?variant=A|B|C|D on /test-words or /tryout. No param shows the current screen.
+// ?variant=A|B|C|D|E on /test-words or /tryout. No param shows the current screen.
 import PrototypeSwitcher, {
   useStickyPrototypeParam,
 } from '../../UI/PrototypeSwitcher/PrototypeSwitcher';
@@ -15,6 +15,7 @@ import VariantA from './prototype/VariantA';
 import VariantB from './prototype/VariantB';
 import VariantC from './prototype/VariantC';
 import VariantD from './prototype/VariantD';
+import VariantE from './prototype/VariantE';
 import { sampleWords } from './prototype/shared';
 
 interface NewWordsProps {
@@ -104,6 +105,7 @@ const VARIANTS = [
   { key: 'B', name: 'Tabbed card' },
   { key: 'C', name: 'Guided steps' },
   { key: 'D', name: 'Card and rows' },
+  { key: 'E', name: 'Guided word' },
 ];
 
 const NewWords: React.FC<NewWordsProps> = (props) => {
@@ -124,6 +126,8 @@ const NewWords: React.FC<NewWordsProps> = (props) => {
         <VariantC {...shared} />
       ) : variant === 'D' ? (
         <VariantD {...shared} />
+      ) : variant === 'E' ? (
+        <VariantE {...shared} />
       ) : (
         <CurrentNewWords {...props} words={words} />
       )}
