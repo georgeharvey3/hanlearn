@@ -134,7 +134,7 @@ const PaintingFinale: React.FC = () => {
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: { xs: 2, sm: 3 },
-                fontSize: { xs: 76, sm: 150 },
+                fontSize: { xs: 63, sm: 125 },
               }}
               style={{ opacity: markIn, transform: `translateY(${(1 - markIn) * 20}px)` }}
             >

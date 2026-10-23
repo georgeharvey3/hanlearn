@@ -63,8 +63,9 @@ export const levelLine: Record<number, string> = {
 
 export const fonts = {
   body: "'Cabin', sans-serif",
-  // The wordmark. Only "HanLearn" is set in it.
-  brand: "'Spell of Asia', 'Cabin', sans-serif",
+  // The wordmark. Only "HanLearn" is set in it, so index.html loads just those
+  // glyphs (Google Fonts' `text=`).
+  brand: "'Young Serif', Georgia, serif",
   // The Arphic Kai faces that Hanzi Writer's strokes trace, so a printed
   // character matches the animated one. The app serves them
   // (public/fonts/hanzi, built by migration/build-hanzi-font.py); a character
