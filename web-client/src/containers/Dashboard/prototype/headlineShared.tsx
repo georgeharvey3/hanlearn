@@ -55,7 +55,10 @@ export const summarisePlan = (words: Word[], options: PlanOptions = {}): PlanSum
 
 type Widget = 'skills' | 'calendar' | 'chengyu';
 
-const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+export const Section: React.FC<{ title: string; children: React.ReactNode }> = ({
+  title,
+  children,
+}) => (
   <Box component="section">
     <Typography
       variant="caption"

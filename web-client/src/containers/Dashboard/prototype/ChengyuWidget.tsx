@@ -117,7 +117,11 @@ const VariantJ: React.FC<DashboardVariantProps> = (props) => {
                 {syllables[i]}
               </Typography>
               <Typography
-                sx={{ fontFamily: fonts.hanzi, fontSize: { xs: 64, sm: 80 }, lineHeight: 1.1 }}
+                sx={{
+                  fontFamily: fonts.hanzi,
+                  fontSize: { xs: 64, sm: 80, md: 44, lg: 72 },
+                  lineHeight: 1.1,
+                }}
               >
                 {c}
               </Typography>

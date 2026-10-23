@@ -133,7 +133,7 @@ const VariantI: React.FC<DashboardVariantProps> = (props) => {
                 key={i}
                 onClick={() => setPicked(key)}
                 sx={{
-                  aspectRatio: '1',
+                  aspectRatio: { xs: '1', md: '1.4' },
                   borderRadius: 1,
                   position: 'relative',
                   flexDirection: 'column',
@@ -219,22 +219,25 @@ const VariantI: React.FC<DashboardVariantProps> = (props) => {
         </Box>
       )}
 
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          borderTop: `1px solid ${colors.divider}`,
-          pt: 2,
-        }}
-      >
-        <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: '0.1em' }}>
-          今日成语
-        </Typography>
-        <Typography sx={{ fontFamily: fonts.hanzi, fontSize: 24, letterSpacing: '0.1em' }}>
-          {charSet === 'simp' ? daily.chengyu : daily.tradChengyu}
-        </Typography>
-      </Box>
+      {/* Under a headline the chengyu has its own widget. */}
+      {!props.bare && (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
+            borderTop: `1px solid ${colors.divider}`,
+            pt: 2,
+          }}
+        >
+          <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: '0.1em' }}>
+            今日成语
+          </Typography>
+          <Typography sx={{ fontFamily: fonts.hanzi, fontSize: 24, letterSpacing: '0.1em' }}>
+            {charSet === 'simp' ? daily.chengyu : daily.tradChengyu}
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 };
