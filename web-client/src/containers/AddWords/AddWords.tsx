@@ -28,6 +28,13 @@ import { RootState } from '../../types/store';
 import { Word } from '../../types/models';
 import * as wordService from '../../services/wordService';
 import { reportError } from '../../services/errorReporting';
+// PROTOTYPE (#405): three word bank variants, picked by ?variant=A|B|C.
+// ?state= gives them sample data. No param shows the current page.
+import PrototypeSwitcher, {
+  usePrototypeParam,
+  useStickyPrototypeParam,
+} from '../../components/UI/PrototypeSwitcher/PrototypeSwitcher';
+import ProtoHost, { PROTO_STATES, PROTO_VARIANTS } from '../../components/AddWords/prototype/Host';
 import {
   searchInputSchema,
   customWordTextSchema,
@@ -128,6 +135,9 @@ const AddWords: React.FC<Props> = ({
       pendingMeaning: '',
     };
   });
+
+  const protoVariant = useStickyPrototypeParam('variant');
+  const protoState = usePrototypeParam('state');
 
   const updateState = useCallback((partial: Partial<AddWordsState>) => {
     setState((prev) => ({ ...prev, ...partial }));
@@ -412,6 +422,21 @@ const AddWords: React.FC<Props> = ({
     [state.clashWords, state.charSet, handleSearchResult, updateState],
   );
 
+  // PROTOTYPE (#405): a sample state needs no sign-in; the live one does.
+  if (protoVariant && (protoState || (authInitialized && userId !== null))) {
+    return (
+      <ProtoHost
+        variant={protoVariant}
+        state={protoState}
+        liveWords={words}
+        liveLists={lists}
+        liveListId={activeListId}
+        charSet={state.charSet}
+        onStudy={onTestHandler}
+      />
+    );
+  }
+
   // Wait for auth to initialize before redirecting
   if (!authInitialized) {
     return <Spinner />;
@@ -579,6 +604,7 @@ const AddWords: React.FC<Props> = ({
           Add words to start learning
         </Typography>
       )}
+      <PrototypeSwitcher variants={PROTO_VARIANTS} states={PROTO_STATES} />
     </>
   );
 };
