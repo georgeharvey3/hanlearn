@@ -27,11 +27,6 @@ function niceStep(n: number): number {
   return [1, 2, 5, 10].map((m) => m * power).find((step) => step >= n) ?? 10 * power;
 }
 
-const shortDate = (key: string) =>
-  new Date(`${key}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-const longDate = (key: string) =>
-  new Date(`${key}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
-
 export interface ProgressCardProps {
   loading: boolean;
   empty: boolean;
@@ -60,11 +55,7 @@ const ProgressCard: React.FC<ProgressCardProps> = ({ loading, empty, history }) 
   }));
 
   const countsOf = (i: number) =>
-    LEVELS.map((l) => `${weeks[i].levels?.[l] ?? 0} ${BANK_LABELS[l]}`).join(', ');
-  const latest = weeks[PROGRESS_WEEKS - 1];
-  const summary = hasHistory
-    ? LEVELS.map((l) => `${BANK_LABELS[l]} ${latest.levels?.[l] ?? 0}`).join(', ')
-    : text.noHistory;
+    LEVELS.map((l) => ({ level: BANK_LABELS[l], n: weeks[i].levels?.[l] ?? 0 }));
 
   const sel = weeks[picked];
   const before = picked >= CHANGE_WEEKS ? weeks[picked - CHANGE_WEEKS] : null;
@@ -124,7 +115,7 @@ const ProgressCard: React.FC<ProgressCardProps> = ({ loading, empty, history }) 
                 viewBox={`0 0 ${W} ${H}`}
                 preserveAspectRatio="none"
                 role="img"
-                aria-label={text.chart(summary)}
+                aria-label={hasHistory ? text.chart(countsOf(PROGRESS_WEEKS - 1)) : text.noHistory}
                 style={{ position: 'absolute', inset: 0, display: 'block' }}
               >
                 {[0, 50, 100, 150].map((gy) => (
@@ -184,7 +175,7 @@ const ProgressCard: React.FC<ProgressCardProps> = ({ loading, empty, history }) 
                   <ButtonBase
                     key={w.date}
                     aria-pressed={i === picked}
-                    aria-label={text.weekAria(longDate(w.date), countsOf(i))}
+                    aria-label={text.weekAria(copy.dashboard.longDate(w.date), countsOf(i))}
                     onClick={() => setPicked(i)}
                   />
                 ))}
@@ -204,7 +195,7 @@ const ProgressCard: React.FC<ProgressCardProps> = ({ loading, empty, history }) 
           >
             {weeks.map((w, i) => (
               <span key={w.date} style={{ whiteSpace: 'nowrap' }}>
-                {i % 4 === 0 || i === PROGRESS_WEEKS - 1 ? shortDate(w.date) : ''}
+                {i % 4 === 0 || i === PROGRESS_WEEKS - 1 ? copy.dashboard.shortDate(w.date) : ''}
               </span>
             ))}
           </Box>
@@ -219,9 +210,7 @@ const ProgressCard: React.FC<ProgressCardProps> = ({ loading, empty, history }) 
                 sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}
               >
                 <Typography sx={{ fontSize: 16, fontWeight: 600 }}>
-                  {picked === PROGRESS_WEEKS - 1
-                    ? copy.dashboard.calendar.today
-                    : longDate(sel.date)}
+                  {picked === PROGRESS_WEEKS - 1 ? text.today : copy.dashboard.longDate(sel.date)}
                 </Typography>
                 <Typography sx={{ fontSize: 12, color: colors.textSecondary }}>
                   {text.pastMonth}
@@ -243,13 +232,13 @@ const ProgressCard: React.FC<ProgressCardProps> = ({ loading, empty, history }) 
                         {BANK_LABELS[l]}
                       </Box>
                       <Box component="span" sx={{ fontWeight: 700 }}>
-                        {sel.levels ? n : '—'}
+                        {sel.levels ? n : copy.dashboard.none}
                       </Box>
                       <Box
                         component="span"
                         sx={{ width: 72, textAlign: 'right', color: colors.primaryDark }}
                       >
-                        {change === null ? '—' : `${change >= 0 ? '+' : '−'}${Math.abs(change)}`}
+                        {change === null ? copy.dashboard.none : text.change(change)}
                       </Box>
                     </Box>
                   );

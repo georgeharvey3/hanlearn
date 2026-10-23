@@ -165,6 +165,19 @@ export const copy = {
   // before the test asks it primes the answer.
   dashboard: {
     title: 'Dashboard',
+    // A number not known yet.
+    none: '—',
+    // Dates, from a YYYY-MM-DD key: "Friday 23 October", "23 October", "23 Oct".
+    weekdayDate: (key: string) =>
+      new Date(`${key}T00:00:00`).toLocaleDateString('en-GB', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      }),
+    longDate: (key: string) =>
+      new Date(`${key}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' }),
+    shortDate: (key: string) =>
+      new Date(`${key}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
     today: 'Today',
     allLists: 'All lists',
     chooseList: (name: string) => `List: ${name}`,
@@ -204,9 +217,13 @@ export const copy = {
       monthPromoted: 'moved up a level',
     },
     progress: {
-      chart: (summary: string) => `Words by level: ${summary}`,
+      chart: (counts: { level: string; n: number }[]) =>
+        `Words by level: ${counts.map((c) => `${c.level} ${c.n}`).join(', ')}`,
       weeks: 'Weeks',
-      weekAria: (date: string, counts: string) => `${date}: ${counts}`,
+      weekAria: (date: string, counts: { level: string; n: number }[]) =>
+        `${date}: ${counts.map((c) => `${c.n} ${c.level}`).join(', ')}`,
+      today: 'Today',
+      change: (n: number) => `${n >= 0 ? '+' : '−'}${Math.abs(n)}`,
       pastMonth: 'Past month',
       noWords: 'No words yet',
       noHistory: 'No history yet',
@@ -227,7 +244,9 @@ export const copy = {
       recall: 'Recalled, 30 days',
       noWords: 'No words yet',
       percent: (n: number | null) => (n === null ? '—' : `${n}%`),
-      chart: (summary: string) => `Familiar or better: ${summary}`,
+      chart: (shares: { name: string; percent: number | null }[]) =>
+        `Familiar or better: ${shares.map((s) => `${s.name} ${s.percent ?? '—'}%`).join(', ')}`,
+      corner: (name: string, label: string) => `${name}, ${label}`,
     },
   },
   // The page a visitor sees before an account exists.

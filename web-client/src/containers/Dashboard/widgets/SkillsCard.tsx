@@ -82,7 +82,7 @@ const SkillsCard: React.FC<SkillsCardProps> = ({ loading, empty, distribution, h
     );
   }
 
-  const summary = DIRECTIONS.map((d) => `${text.names[d]} ${percent(strength[d])}%`).join(', ');
+  const shares = DIRECTIONS.map((d) => ({ name: text.names[d], percent: percent(strength[d]) }));
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -92,7 +92,7 @@ const SkillsCard: React.FC<SkillsCardProps> = ({ loading, empty, distribution, h
           height={SIZE}
           viewBox={`0 0 ${SIZE} ${SIZE}`}
           role="img"
-          aria-label={text.chart(summary)}
+          aria-label={text.chart(shares)}
           style={{ display: 'block' }}
         >
           {[0.25, 0.5, 0.75, 1].map((f) => (
@@ -110,7 +110,8 @@ const SkillsCard: React.FC<SkillsCardProps> = ({ loading, empty, distribution, h
           })}
           <polygon
             points={polygon((d) => R * Math.max(0.04, strength[d]))}
-            fill="rgba(26, 92, 64, 0.18)"
+            fill={colors.primaryDark}
+            fillOpacity={0.18}
             stroke={colors.primaryDark}
             strokeWidth={2}
             strokeLinejoin="round"
@@ -136,7 +137,7 @@ const SkillsCard: React.FC<SkillsCardProps> = ({ loading, empty, distribution, h
             <Tooltip key={d} title={DIRECTION_LABELS[d]} placement="top">
               <ButtonBase
                 aria-pressed={on}
-                aria-label={`${text.names[d]}, ${DIRECTION_LABELS[d]}`}
+                aria-label={text.corner(text.names[d], DIRECTION_LABELS[d])}
                 onClick={() => setPicked(d)}
                 sx={{
                   position: 'absolute',

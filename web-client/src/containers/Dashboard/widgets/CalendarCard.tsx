@@ -7,7 +7,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
 import { copy } from '../../../copy';
-import { colors, fonts } from '../../../theme';
+import { colors, fonts, levelInk } from '../../../theme';
 import { CalendarDay, HISTORY_DAYS, calendarMonth } from '../../../utils/dashboard';
 import { dayKey, type ReviewStatsDay } from '../../../utils/retention';
 import { Card, Figure } from './parts';
@@ -22,17 +22,10 @@ const text = copy.dashboard.calendar;
 function ink(reviewed: number): { bg: string; fg: string } {
   if (reviewed === 0) return { bg: colors.blankDay, fg: colors.textSecondary };
   if (reviewed < 30) return { bg: '#d5e4da', fg: colors.primaryDark };
-  if (reviewed < 40) return { bg: '#9dbfad', fg: '#10301f' };
-  if (reviewed < 50) return { bg: '#3c7a5c', fg: colors.white };
+  if (reviewed < 40) return { bg: levelInk[1], fg: '#10301f' };
+  if (reviewed < 50) return { bg: levelInk[3], fg: colors.white };
   return { bg: colors.primaryDark, fg: colors.white };
 }
-
-const longDate = (key: string): string =>
-  new Date(`${key}T00:00:00`).toLocaleDateString('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
 
 /** What one day did, or what it holds ahead, in a line. */
 function dayLine(cell: CalendarDay): string {
@@ -57,6 +50,13 @@ const CalendarCard: React.FC<CalendarCardProps> = ({ loading, history, forecast 
   const [picked, setPicked] = useState(dayKey(now));
 
   const shown = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  // A month picks today when it holds it, else its 1st, so the line below the
+  // grid always reads a day on screen.
+  const showMonth = (next: number) => {
+    setOffset(next);
+    const first = new Date(now.getFullYear(), now.getMonth() + next, 1);
+    setPicked(next === 0 ? dayKey(now) : dayKey(first));
+  };
   const month = useMemo(
     () => calendarMonth(shown, history, forecast, now),
     // `shown` is derived from `offset`.
@@ -72,7 +72,7 @@ const CalendarCard: React.FC<CalendarCardProps> = ({ loading, history, forecast 
           <IconButton
             aria-label={text.previous}
             disabled={offset <= -MONTHS_BACK}
-            onClick={() => setOffset((o) => o - 1)}
+            onClick={() => showMonth(offset - 1)}
             sx={{ width: 44, height: 44, color: colors.textSecondary }}
           >
             <ChevronLeftIcon />
@@ -87,7 +87,7 @@ const CalendarCard: React.FC<CalendarCardProps> = ({ loading, history, forecast 
           <IconButton
             aria-label={text.next}
             disabled={offset >= 1}
-            onClick={() => setOffset((o) => o + 1)}
+            onClick={() => showMonth(offset + 1)}
             sx={{ width: 44, height: 44, color: colors.textSecondary }}
           >
             <ChevronRightIcon />
@@ -136,7 +136,7 @@ const CalendarCard: React.FC<CalendarCardProps> = ({ loading, history, forecast 
               <ButtonBase
                 key={cell.date}
                 aria-pressed={cell.date === picked}
-                aria-label={text.dayAria(longDate(cell.date), dayLine(cell))}
+                aria-label={text.dayAria(copy.dashboard.weekdayDate(cell.date), dayLine(cell))}
                 onClick={() => setPicked(cell.date)}
                 sx={{
                   height: { xs: 44, md: 52 },
@@ -175,7 +175,7 @@ const CalendarCard: React.FC<CalendarCardProps> = ({ loading, history, forecast 
           }}
         >
           <Typography sx={{ fontSize: 16, fontWeight: 600 }}>
-            {pickedCell?.isToday ? text.today : longDate(picked)}
+            {pickedCell?.isToday ? text.today : copy.dashboard.weekdayDate(picked)}
           </Typography>
           <Typography sx={{ fontSize: 15, color: colors.textSecondary }}>
             {loading || !pickedCell ? '' : dayLine(pickedCell)}
@@ -184,8 +184,8 @@ const CalendarCard: React.FC<CalendarCardProps> = ({ loading, history, forecast 
       </Card>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 2 }}>
-        <Figure value={loading ? '—' : month.reviews} label={text.monthReviews} />
-        <Figure value={loading ? '—' : month.promoted} label={text.monthPromoted} />
+        <Figure value={loading ? copy.dashboard.none : month.reviews} label={text.monthReviews} />
+        <Figure value={loading ? copy.dashboard.none : month.promoted} label={text.monthPromoted} />
       </Box>
     </Box>
   );

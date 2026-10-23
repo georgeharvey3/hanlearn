@@ -1,19 +1,8 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import {
-  assertSucceeds,
-  assertFails,
-  type RulesTestEnvironment,
-} from "@firebase/rules-unit-testing";
-import {
-  doc,
-  setDoc,
-  updateDoc,
-  increment,
-  Timestamp,
-  type Firestore,
-} from "firebase/firestore";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { assertSucceeds, assertFails, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
+import { doc, setDoc, updateDoc, increment, Timestamp, type Firestore } from 'firebase/firestore';
 
-import { loadRules, asUser } from "./helpers";
+import { loadRules, asUser } from './helpers';
 
 /**
  * The Firestore rules, exercised against the emulator.
@@ -25,14 +14,13 @@ import { loadRules, asUser } from "./helpers";
  * against, so each case here writes the shape the app actually writes.
  */
 
-const DIRECTIONS = ["MC", "MP", "PM", "PC", "CM"] as const;
+const DIRECTIONS = ['MC', 'MP', 'PM', 'PC', 'CM'] as const;
 
 let env: RulesTestEnvironment;
 let db: Firestore;
 let otherDb: Firestore;
 
-const ref = (d: Firestore, p: string) =>
-  doc(d, ...(p.split("/") as [string, ...string[]]));
+const ref = (d: Firestore, p: string) => doc(d, ...(p.split('/') as [string, ...string[]]));
 
 /** A full directions map, as `finishTest` writes one. */
 function directionsMap(extra: Record<string, unknown> = {}) {
@@ -52,8 +40,8 @@ function directionsMap(extra: Record<string, unknown> = {}) {
 
 beforeAll(async () => {
   env = await loadRules();
-  db = asUser(env, "user-1");
-  otherDb = asUser(env, "user-2");
+  db = asUser(env, 'user-1');
+  otherDb = asUser(env, 'user-2');
 });
 
 afterAll(async () => {
@@ -64,31 +52,25 @@ beforeEach(async () => {
   await env.clearFirestore();
 });
 
-describe("userWords", () => {
+describe('userWords', () => {
   /** A word document in place, written past the rules so a test can update it. */
   async function seedWord() {
     await env.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(
-        ref(
-          ctx.firestore() as unknown as Firestore,
-          "users/user-1/userWords/1",
-        ),
-        {
-          wordData: { simp: "好", trad: "好", pinyin: "hǎo", meaning: "good" },
-          amendedMeaning: null,
-          bank: 3,
-          dueDate: Timestamp.now(),
-          addedAt: Timestamp.now(),
-        },
-      );
+      await setDoc(ref(ctx.firestore() as unknown as Firestore, 'users/user-1/userWords/1'), {
+        wordData: { simp: '好', trad: '好', pinyin: 'hǎo', meaning: 'good' },
+        amendedMeaning: null,
+        bank: 3,
+        dueDate: Timestamp.now(),
+        addedAt: Timestamp.now(),
+      });
     });
   }
 
-  it("accepts the directions map a reschedule writes", async () => {
+  it('accepts the directions map a reschedule writes', async () => {
     await seedWord();
 
     await assertSucceeds(
-      updateDoc(ref(db, "users/user-1/userWords/1"), {
+      updateDoc(ref(db, 'users/user-1/userWords/1'), {
         directions: directionsMap(),
         bank: 2,
         dueDate: Timestamp.now(),
@@ -96,13 +78,13 @@ describe("userWords", () => {
     );
   });
 
-  it("accepts a direction carrying a lapse count", async () => {
+  it('accepts a direction carrying a lapse count', async () => {
     // The regression: ADR 0010 added `lapses` and the rules did not follow, so
     // every reschedule after a failed retrieval was rejected.
     await seedWord();
 
     await assertSucceeds(
-      updateDoc(ref(db, "users/user-1/userWords/1"), {
+      updateDoc(ref(db, 'users/user-1/userWords/1'), {
         directions: directionsMap({ lapses: 2 }),
         bank: 2,
         dueDate: Timestamp.now(),
@@ -110,11 +92,11 @@ describe("userWords", () => {
     );
   });
 
-  it("accepts a direction carrying a tone error count", async () => {
+  it('accepts a direction carrying a tone error count', async () => {
     await seedWord();
 
     await assertSucceeds(
-      updateDoc(ref(db, "users/user-1/userWords/1"), {
+      updateDoc(ref(db, 'users/user-1/userWords/1'), {
         directions: directionsMap({ toneErrors: 4 }),
         bank: 2,
         dueDate: Timestamp.now(),
@@ -122,36 +104,27 @@ describe("userWords", () => {
     );
   });
 
-  it("accepts a buried sibling that moved only its due date", async () => {
+  it('accepts a buried sibling that moved only its due date', async () => {
     // ADR 0016: a pass moves the due date of the directions the session did not
     // ask, and leaves the rest of each record as it was. A sibling that no
     // session has asked since the release holds only a bank and a due date.
     await seedWord();
-    const buried = {
-      bank: 1,
-      dueDate: Timestamp.fromDate(new Date(Date.now() + 3 * 864e5)),
-    };
+    const buried = { bank: 1, dueDate: Timestamp.fromDate(new Date(Date.now() + 3 * 864e5)) };
 
     await assertSucceeds(
-      updateDoc(ref(db, "users/user-1/userWords/1"), {
-        directions: {
-          ...directionsMap(),
-          MP: buried,
-          PM: buried,
-          PC: buried,
-          CM: buried,
-        },
+      updateDoc(ref(db, 'users/user-1/userWords/1'), {
+        directions: { ...directionsMap(), MP: buried, PM: buried, PC: buried, CM: buried },
         bank: 1,
         dueDate: buried.dueDate,
       }),
     );
   });
 
-  it("rejects a negative lapse count", async () => {
+  it('rejects a negative lapse count', async () => {
     await seedWord();
 
     await assertFails(
-      updateDoc(ref(db, "users/user-1/userWords/1"), {
+      updateDoc(ref(db, 'users/user-1/userWords/1'), {
         directions: directionsMap({ lapses: -1 }),
         bank: 2,
         dueDate: Timestamp.now(),
@@ -159,48 +132,42 @@ describe("userWords", () => {
     );
   });
 
-  it("rejects a bank outside 1 to 5", async () => {
+  it('rejects a bank outside 1 to 5', async () => {
     await seedWord();
 
-    await assertFails(
-      updateDoc(ref(db, "users/user-1/userWords/1"), { bank: 6 }),
-    );
+    await assertFails(updateDoc(ref(db, 'users/user-1/userWords/1'), { bank: 6 }));
   });
 
-  it("rejects a field the app does not write", async () => {
+  it('rejects a field the app does not write', async () => {
     await seedWord();
 
     await assertFails(
-      updateDoc(ref(db, "users/user-1/userWords/1"), {
+      updateDoc(ref(db, 'users/user-1/userWords/1'), {
         directions: directionsMap({ streak: 3 }),
       }),
     );
   });
 
-  it("rejects a partial directions map", async () => {
+  it('rejects a partial directions map', async () => {
     await seedWord();
     const partial = directionsMap();
     delete partial.CM;
 
-    await assertFails(
-      updateDoc(ref(db, "users/user-1/userWords/1"), { directions: partial }),
-    );
+    await assertFails(updateDoc(ref(db, 'users/user-1/userWords/1'), { directions: partial }));
   });
 
   it("keeps one user out of another user's words", async () => {
     await seedWord();
 
-    await assertFails(
-      updateDoc(ref(otherDb, "users/user-1/userWords/1"), { bank: 1 }),
-    );
+    await assertFails(updateDoc(ref(otherDb, 'users/user-1/userWords/1'), { bank: 1 }));
   });
 });
 
-describe("reviewStats", () => {
-  const path = "users/user-1/reviewStats/2026-09-02";
-  const base = () => ({ date: "2026-09-02", updatedAt: Timestamp.now() });
+describe('reviewStats', () => {
+  const path = 'users/user-1/reviewStats/2026-09-02';
+  const base = () => ({ date: '2026-09-02', updatedAt: Timestamp.now() });
 
-  it("accepts the rollup a session writes", async () => {
+  it('accepts the rollup a session writes', async () => {
     await assertSucceeds(
       setDoc(
         ref(db, path),
@@ -222,7 +189,7 @@ describe("reviewStats", () => {
     );
   });
 
-  it("lets a second session of the day merge into the same document", async () => {
+  it('lets a second session of the day merge into the same document', async () => {
     const write = () =>
       setDoc(
         ref(db, path),
@@ -234,17 +201,17 @@ describe("reviewStats", () => {
     await assertSucceeds(write());
   });
 
-  it("rejects a document id that disagrees with its date", async () => {
+  it('rejects a document id that disagrees with its date', async () => {
     await assertFails(
       setDoc(
-        ref(db, "users/user-1/reviewStats/2026-09-03"),
+        ref(db, 'users/user-1/reviewStats/2026-09-03'),
         { ...base(), directions: {} },
         { merge: true },
       ),
     );
   });
 
-  it("rejects a direction that is not one of the five", async () => {
+  it('rejects a direction that is not one of the five', async () => {
     await assertFails(
       setDoc(
         ref(db, path),
@@ -254,7 +221,7 @@ describe("reviewStats", () => {
     );
   });
 
-  it("rejects a counter the metrics do not read", async () => {
+  it('rejects a counter the metrics do not read', async () => {
     await assertFails(
       setDoc(
         ref(db, path),
@@ -264,7 +231,7 @@ describe("reviewStats", () => {
     );
   });
 
-  it("rejects a negative counter", async () => {
+  it('rejects a negative counter', async () => {
     await assertFails(
       setDoc(
         ref(db, path),
@@ -274,17 +241,13 @@ describe("reviewStats", () => {
     );
   });
 
-  it("rejects an extra top-level field", async () => {
+  it('rejects an extra top-level field', async () => {
     await assertFails(
-      setDoc(
-        ref(db, path),
-        { ...base(), directions: {}, notes: "x" },
-        { merge: true },
-      ),
+      setDoc(ref(db, path), { ...base(), directions: {}, notes: 'x' }, { merge: true }),
     );
   });
 
-  it("accepts the level snapshot the end of a session writes", async () => {
+  it('accepts the level snapshot the end of a session writes', async () => {
     const write = () =>
       setDoc(
         ref(db, path),
@@ -297,37 +260,27 @@ describe("reviewStats", () => {
     await assertSucceeds(write());
   });
 
-  it("rejects a level that is not one of the five", async () => {
-    await assertFails(
-      setDoc(ref(db, path), { ...base(), levels: { 6: 1 } }, { merge: true }),
-    );
+  it('rejects a level that is not one of the five', async () => {
+    await assertFails(setDoc(ref(db, path), { ...base(), levels: { 6: 1 } }, { merge: true }));
   });
 
-  it("rejects a negative or fractional level count", async () => {
-    await assertFails(
-      setDoc(ref(db, path), { ...base(), levels: { 1: -1 } }, { merge: true }),
-    );
-    await assertFails(
-      setDoc(ref(db, path), { ...base(), levels: { 1: 1.5 } }, { merge: true }),
-    );
+  it('rejects a negative or fractional level count', async () => {
+    await assertFails(setDoc(ref(db, path), { ...base(), levels: { 1: -1 } }, { merge: true }));
+    await assertFails(setDoc(ref(db, path), { ...base(), levels: { 1: 1.5 } }, { merge: true }));
   });
 
   it("keeps one user out of another user's rollups", async () => {
     await assertFails(
-      setDoc(
-        ref(otherDb, path),
-        { ...base(), directions: {} },
-        { merge: true },
-      ),
+      setDoc(ref(otherDb, path), { ...base(), directions: {} }, { merge: true }),
     );
   });
 });
 
-describe("testCompletions", () => {
-  it("accepts the streak document a finished session writes", async () => {
+describe('testCompletions', () => {
+  it('accepts the streak document a finished session writes', async () => {
     await assertSucceeds(
       setDoc(
-        ref(db, "users/user-1/testCompletions/2026-09-02"),
+        ref(db, 'users/user-1/testCompletions/2026-09-02'),
         { testsCount: increment(1), completedAt: Timestamp.now() },
         { merge: true },
       ),
@@ -337,7 +290,7 @@ describe("testCompletions", () => {
   it("keeps one user out of another user's streak", async () => {
     await assertFails(
       setDoc(
-        ref(otherDb, "users/user-1/testCompletions/2026-09-02"),
+        ref(otherDb, 'users/user-1/testCompletions/2026-09-02'),
         { testsCount: 1, completedAt: Timestamp.now() },
         { merge: true },
       ),

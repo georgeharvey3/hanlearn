@@ -16,6 +16,7 @@ import {
   getChengyuExampleSentence,
 } from '../../../services/chengyuSentenceService';
 import { reportError } from '../../../services/errorReporting';
+import { dayKey } from '../../../utils/retention';
 import { Card } from './parts';
 
 const text = copy.dashboard.chengyu;
@@ -23,7 +24,8 @@ const text = copy.dashboard.chengyu;
 /** Today's answer, so a return visit shows the result rather than asking again. */
 const ANSWER_KEY = 'chengyuAnswer';
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
+// The local day, as the rest of the Dashboard keys a day.
+const todayIso = () => dayKey(new Date());
 
 function readAnswer(): { correct: boolean } | null {
   try {
@@ -112,7 +114,7 @@ const ChengyuCard: React.FC<Props> = ({ loading, userId, words, onSaveWord }) =>
           {text.label}
         </Typography>
         <Typography sx={{ fontSize: 14, color: colors.textSecondary }}>
-          {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+          {copy.dashboard.longDate(dayKey(new Date()))}
         </Typography>
       </Box>
 
