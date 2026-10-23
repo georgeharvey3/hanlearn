@@ -22,6 +22,7 @@ import PrototypeSwitcher, {
 import ProtoA from '../../components/Test/TestSummary/prototype/VariantA';
 import ProtoB from '../../components/Test/TestSummary/prototype/VariantB';
 import ProtoC from '../../components/Test/TestSummary/prototype/VariantC';
+import ProtoCurrent from '../../components/Test/TestSummary/prototype/VariantCurrent';
 import {
   VariantModule,
   protoCopy,
@@ -795,19 +796,21 @@ const TestWords: React.FC<Props> = ({
   }
 
   // PROTOTYPE (#414): a ?state= preview replaces whatever the page shows.
-  if (Proto && protoState) {
+  if (protoState) {
+    // "Current" previews the current screens, so all four compare on one state.
+    const Preview = Proto ?? ProtoCurrent;
     const goHome = () => history.push('/');
     const stub = (what: string) => () => window.alert(`PROTOTYPE: ${what}`);
     content =
       protoState === 'summary' ? (
-        <Proto.Summary
+        <Preview.Summary
           rows={sampleRows()}
           practiceMode={false}
           onHome={goHome}
           onPracticeMissed={stub(protoCopy.stubPractice)}
         />
       ) : (
-        <Proto.Empty
+        <Preview.Empty
           {...sampleEmpty(protoState as 'empty' | 'empty-lists' | 'empty-new')}
           onSwitchList={(id) => window.alert(`PROTOTYPE: would switch to list ${id}`)}
           onTestAll={stub('would test all lists')}
@@ -820,7 +823,7 @@ const TestWords: React.FC<Props> = ({
 
   // Build progress stepper (only when a session is active)
   let stepper: React.ReactNode = null;
-  if (state.selectedWords.length > 0 && !studying && !protoScreen) {
+  if (state.selectedWords.length > 0 && !studying && !protoScreen && !protoState) {
     const steps: string[] = [];
     if (state.newWords.length > 0 && state.newWordsEnabled) steps.push('Learn');
     steps.push('Test');
