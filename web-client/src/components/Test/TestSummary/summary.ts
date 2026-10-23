@@ -74,6 +74,12 @@ export function missedWords(rows: SummaryRow[], words: Word[]): Word[] {
   return words.filter((w) => ids.has(w.id));
 }
 
+/** How many words fall due, and how many days ahead: 0 is later today. */
+export interface NextDue {
+  count: number;
+  days: number;
+}
+
 // "Nothing due this week" past this many days.
 const AHEAD_DAYS = 7;
 
@@ -82,7 +88,7 @@ const AHEAD_DAYS = 7;
  * later today, for a word due after now. Counts only, never the words: a word
  * seen here just before the test asks it primes the answer.
  */
-export function nextDue(words: Word[], now: Date): { count: number; days: number } | null {
+export function nextDue(words: Word[], now: Date): NextDue | null {
   // isDue counts a word due by `now`, so what is left of today is not due yet.
   const upcoming = words.filter((w) => {
     const due = w.due_date ? parseDueDate(w.due_date) : null;

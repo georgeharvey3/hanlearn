@@ -204,7 +204,7 @@ export const copy = {
     tile: (char: string, result: string) => `${char}, ${result}`,
     turnedTile: (char: string, result: string, pinyin: string, meaning: string) =>
       `${char}, ${result}: ${pinyin}, ${meaning}`,
-    practiseMissed: 'Practise missed words',
+    practiceMissed: 'Practise missed words',
     backToDashboard: 'Back to Dashboard',
   },
   // The Test page when no word is due. Counts only, never a due word.
@@ -224,7 +224,7 @@ export const copy = {
     otherLists: 'Other lists',
     due: (n: number) => `${n} due`,
     testAll: (n: number) => `Test all lists · ${n}`,
-    practise: 'Practise',
+    practice: 'Practise',
     addWords: 'Add words',
   },
   // The first screen after sign-in. It shows counts only: a word seen here just

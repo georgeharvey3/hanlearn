@@ -17,7 +17,7 @@ const renderEmpty = (props: Partial<React.ComponentProps<typeof NothingDue>> = {
   const handlers = {
     onSwitchList: vi.fn(),
     onTestAll: vi.fn(),
-    onPractise: vi.fn(),
+    onPractice: vi.fn(),
     onAddWords: vi.fn(),
     onHome: vi.fn(),
   };
@@ -54,10 +54,10 @@ describe('NothingDue', () => {
 
   it('offers Practise and Add words', async () => {
     const user = userEvent.setup();
-    const { onPractise, onAddWords } = renderEmpty();
+    const { onPractice, onAddWords } = renderEmpty();
     await user.click(screen.getByRole('button', { name: 'Practise' }));
     await user.click(screen.getByRole('button', { name: 'Add words' }));
-    expect(onPractise).toHaveBeenCalled();
+    expect(onPractice).toHaveBeenCalled();
     expect(onAddWords).toHaveBeenCalled();
   });
 

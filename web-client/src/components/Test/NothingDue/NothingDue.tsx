@@ -6,6 +6,7 @@ import { colors } from '../../../theme';
 import StudyScreen from '../Study/StudyScreen';
 import StudyTop from '../Study/StudyTop';
 import { Overline, StudyButton, StudyCard, hanziSx } from '../Study/parts';
+import { NextDue } from '../TestSummary/summary';
 
 export interface OtherList {
   id: string;
@@ -18,14 +19,14 @@ interface NothingDueProps {
   listName: string;
   hasWords: boolean;
   /** The first day ahead with words due, or null for none this week. */
-  next: { count: number; days: number } | null;
+  next: NextDue | null;
   /** The other lists with words due. */
   otherLists: OtherList[];
   /** Due across all lists, when "Test all lists" applies; 0 hides it. */
   totalDue: number;
   onSwitchList: (id: string) => void;
   onTestAll: () => void;
-  onPractise: () => void;
+  onPractice: () => void;
   onAddWords: () => void;
   onHome: () => void;
 }
@@ -42,7 +43,7 @@ const NothingDue: React.FC<NothingDueProps> = ({
   totalDue,
   onSwitchList,
   onTestAll,
-  onPractise,
+  onPractice,
   onAddWords,
   onHome,
 }) => {
@@ -114,8 +115,8 @@ const NothingDue: React.FC<NothingDueProps> = ({
           </StudyButton>
         )}
         {hasWords && (
-          <StudyButton variant={testAll ? 'ghost' : 'primary'} onClick={onPractise}>
-            {copy.nothingDue.practise}
+          <StudyButton variant={testAll ? 'ghost' : 'primary'} onClick={onPractice}>
+            {copy.nothingDue.practice}
           </StudyButton>
         )}
         <StudyButton variant={hasWords ? 'ghost' : 'primary'} onClick={onAddWords}>

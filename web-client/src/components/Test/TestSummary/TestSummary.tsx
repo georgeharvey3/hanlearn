@@ -115,7 +115,7 @@ const TestSummary: React.FC<TestSummaryProps> = ({
               right: 0,
               bottom: 0,
               height: 56,
-              background: `linear-gradient(to bottom, rgba(250,248,245,0), ${colors.paper})`,
+              background: `linear-gradient(to bottom, ${colors.paper}00, ${colors.paper})`,
               pointerEvents: 'none',
             }}
           />
@@ -134,7 +134,7 @@ const TestSummary: React.FC<TestSummaryProps> = ({
       >
         {missed && (
           <StudyButton onClick={() => onPracticeMissed(missedWords(rows, words))}>
-            {copy.summary.practiseMissed}
+            {copy.summary.practiceMissed}
           </StudyButton>
         )}
         <StudyButton variant="primary" onClick={onHome}>

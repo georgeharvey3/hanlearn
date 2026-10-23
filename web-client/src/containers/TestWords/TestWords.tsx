@@ -359,7 +359,7 @@ const TestWords: React.FC<Props> = ({
    * Practise the words the session just missed. They were asked a moment ago,
    * so the session goes straight to the test, with no new-word steps.
    */
-  const onPractiseMissed = (missed: Word[]): void => {
+  const onPracticeMissed = (missed: Word[]): void => {
     const plan = planFor(missed, true);
     setState((prev) => ({
       ...prev,
@@ -638,7 +638,7 @@ const TestWords: React.FC<Props> = ({
             words={state.selectedWords}
             practiceMode={state.practiceMode}
             onHome={goHome}
-            onPracticeMissed={onPractiseMissed}
+            onPracticeMissed={onPracticeMissed}
           />
         );
         break;
@@ -698,7 +698,7 @@ const TestWords: React.FC<Props> = ({
         totalDue={!isAllLists && hasMultipleLists ? totalDueAcrossLists : 0}
         onSwitchList={handleSwitchAndTest}
         onTestAll={handleTestAll}
-        onPractise={onStartPractice}
+        onPractice={onStartPractice}
         onAddWords={onClickAddWords}
         onHome={goHome}
       />
