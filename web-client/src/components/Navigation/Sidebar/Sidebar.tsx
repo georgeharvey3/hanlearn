@@ -20,6 +20,7 @@ import * as actions from '../../../store/actions/index';
 import { AppDispatch } from '../../../types/actions';
 import { colors, fonts } from '../../../theme';
 import { copy } from '../../../copy';
+import { LogoMark, Wordmark } from '../../Logo/Logo';
 
 export const SIDEBAR_WIDTH = { expanded: 248, collapsed: 72 } as const;
 
@@ -94,35 +95,24 @@ const Sidebar: React.FC<Props> = ({ collapsed, onToggleCollapsed, onOpenShortcut
             component={Link}
             to={routes.home}
             aria-label={copy.shell.homeLink}
-            sx={{
-              width: 40,
-              height: 40,
-              borderRadius: 1,
-              bgcolor: colors.primaryLight,
-              color: colors.white,
-              fontFamily: fonts.hanzi,
-              fontSize: 26,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              textDecoration: 'none',
-            }}
+            sx={{ display: 'flex', borderRadius: '9px' }}
           >
-            <span lang="zh">{copy.shell.brandSeal}</span>
+            <LogoMark size={40} />
           </Box>
         ) : (
           <Box
             component={Link}
             to={routes.home}
             sx={{
-              fontFamily: fonts.brand,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.25,
               fontSize: 32,
-              lineHeight: 1,
-              color: colors.text,
               textDecoration: 'none',
             }}
           >
-            {copy.shell.brand}
+            <LogoMark size={36} />
+            <Wordmark text={copy.shell.brand} />
           </Box>
         )}
       </Box>

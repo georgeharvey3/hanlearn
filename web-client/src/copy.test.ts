@@ -39,6 +39,14 @@ const FILES = [
   'components/Test/ComponentReview/ComponentReview.tsx',
   'components/Test/ComponentReview/CharacterGlosses.tsx',
   'components/Test/ComponentReview/ComponentTree.tsx',
+  'components/Logo/Logo.tsx',
+  'components/Home/Landing/Landing.tsx',
+  'components/Home/Landing/ProductHero.tsx',
+  'components/Home/Landing/HeroPhone.tsx',
+  'components/Home/Landing/FiveWays.tsx',
+  'components/Home/Landing/Features.tsx',
+  'components/Home/Landing/layout.tsx',
+  'components/Home/Landing/StrokeChar.tsx',
 ];
 
 const USER_FACING_ATTRIBUTES = new Set(['aria-label', 'placeholder', 'alt', 'title']);
