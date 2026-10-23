@@ -161,6 +161,37 @@ export const copy = {
       finished: 'Finished!',
     },
   },
+  // The introduction of new words, before the test. Each word goes through
+  // three steps, and none of them records a result.
+  newWords: {
+    stage: 'New words',
+    steps: 'Steps',
+    stepUnderstand: 'Understand',
+    stepSay: 'Speak',
+    stepWrite: 'Write',
+    characters: 'Characters',
+    parts: 'Parts',
+    partsLoading: 'Loading parts',
+    partsFailed: 'Parts didn’t load',
+    noParts: 'No parts',
+    tryAgain: 'Try again',
+    sayPrompt: 'Say the word',
+    heard: 'Heard',
+    listening: 'Listening…',
+    wellSaid: 'Well said',
+    checkTones: 'Check the tones',
+    notQuite: 'Not quite. Try again.',
+    heardNothing: 'Heard nothing. Try again.',
+    noSpeech: 'Speech input is not available',
+    writePrompt: 'Trace the word: ',
+    traceHere: (char: string) => `Trace ${char} here`,
+    traced: 'Traced',
+    skip: 'Skip',
+    skipToTest: 'Skip to test',
+    continue: 'Continue',
+    nextWord: 'Next word',
+    startTest: 'Start test',
+  },
   // The first screen after sign-in. It shows counts only: a word seen here just
   // before the test asks it primes the answer.
   dashboard: {

@@ -1,49 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import { Box, ButtonBase, CircularProgress } from '@mui/material';
 
-import { decomposeCharacter } from '../../../services/decompositionService';
-import { reportError } from '../../../services/errorReporting';
 import { copy } from '../../../copy';
 import { colors, fonts } from '../../../theme';
 import { hanziSx } from '../Study/parts';
-
-type Component = Awaited<ReturnType<typeof decomposeCharacter>>[number];
+import { useComponents } from './useComponents';
 
 /**
  * How deep the tree opens by itself. A component with no meaning of its own,
  * such as 㐫, says nothing until its parts show, so its parts open with it.
  */
 const MAX_DEPTH = 2;
-
-type Load =
-  | { status: 'loading' }
-  | { status: 'failed' }
-  | { status: 'done'; components: Component[] };
-
-const useComponents = (char: string): [Load, () => void] => {
-  const [load, setLoad] = useState<Load>({ status: 'loading' });
-  const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    decomposeCharacter(char)
-      .then((components) => !cancelled && setLoad({ status: 'done', components }))
-      .catch((error) => {
-        reportError(error, { feature: 'decomposition', context: { char, phase: 'review' } });
-        if (!cancelled) setLoad({ status: 'failed' });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [char, attempt]);
-
-  const retry = useCallback(() => {
-    setLoad({ status: 'loading' });
-    setAttempt((n) => n + 1);
-  }, []);
-
-  return [load, retry];
-};
 
 const Branch: React.FC<{ char: string; depth: number }> = ({ char, depth }) => {
   const [load, retry] = useComponents(char);

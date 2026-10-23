@@ -1,90 +1,193 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useHistory } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { Box, ButtonBase } from '@mui/material';
 
-import { Box, Typography } from '@mui/material';
-
-import Button from '../../UI/Buttons/Button/Button';
-import NewWord from './NewWord/NewWord';
-
+import StepRail from './StepRail';
+import { STEPS } from './steps';
+import UnderstandStep from './UnderstandStep';
+import SayStep from './SayStep';
+import WriteStep from './WriteStep';
+import StudyScreen from '../Study/StudyScreen';
+import StudyTop from '../Study/StudyTop';
+import { StudyButton } from '../Study/parts';
+import AudioSettingsDrawer from '../AudioSettingsDrawer/AudioSettingsDrawer';
+import * as ttsService from '../../../services/ttsService';
+import { getAudioSettings } from '../../../utils/audioSettings';
+import { copy } from '../../../copy';
+import { colors, fonts } from '../../../theme';
+import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
 
 interface NewWordsProps {
   words: Word[];
-  isDemo?: boolean;
   startTest?: () => void;
 }
 
-const NewWords: React.FC<NewWordsProps> = ({ words, isDemo, startTest }) => {
-  const [wordIndex, setWordIndex] = useState(0);
+const NO_STEPS_DONE = [false, false, false];
 
-  const onChangeWord = useCallback((direction: number): void => {
-    setWordIndex((prevState) => prevState + direction);
-  }, []);
-
-  const onKeyDown = useCallback(
-    (event: KeyboardEvent): void => {
-      if (event.key === 'ArrowLeft') {
-        if (wordIndex > 0) {
-          onChangeWord(-1);
-        }
-      }
-
-      if (event.key === 'ArrowRight') {
-        if (wordIndex < words.length - 1) {
-          onChangeWord(1);
-        } else {
-          startTest?.();
-        }
+/** Play a text through the app's TTS, with a flag while the audio loads. */
+function useSpeak(): { speak: (text: string) => void; loading: boolean } {
+  const voice = useSelector((state: RootState) => state.settings.voice);
+  const lang = useSelector((state: RootState) => state.settings.lang);
+  const [loading, setLoading] = useState(false);
+  const speak = useCallback(
+    (text: string) => {
+      setLoading(true);
+      try {
+        ttsService.speak(text, {
+          fallbackVoice: voice,
+          fallbackLang: lang || 'zh-CN',
+          onStart: () => setLoading(false),
+          onEnd: () => setLoading(false),
+          onError: () => setLoading(false),
+        });
+      } catch {
+        // Speech can fail on a phone; the word stays on screen.
+        setLoading(false);
       }
     },
-    [onChangeWord, startTest, wordIndex, words.length],
+    [lang, voice],
   );
+  return { speak, loading };
+}
+
+/**
+ * The introduction of new words, before the test. Each word goes through three
+ * steps that echo the directions of the test: Understand (meaning), Speak
+ * (sound) and Write (characters). Every step can be skipped, and so can the
+ * rest of the introduction. Nothing here records a result.
+ */
+const NewWords: React.FC<NewWordsProps> = ({ words, startTest }) => {
+  const history = useHistory();
+  const speechAvailable = useSelector((state: RootState) => state.settings.speechAvailable);
+  const synthAvailable = useSelector((state: RootState) => state.settings.synthAvailable);
+  const [charSet] = useState<'simp' | 'trad'>(
+    () => (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad',
+  );
+  const [index, setIndex] = useState(0);
+  const [step, setStep] = useState(0);
+  // The steps of this word the learner finished, not skipped.
+  const [done, setDone] = useState<boolean[]>(NO_STEPS_DONE);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { speak, loading } = useSpeak();
+
+  const word = words[index];
+  const lastWord = index === words.length - 1;
+  const current = STEPS[step].key;
 
   useEffect(() => {
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
+    setStep(0);
+    setDone(NO_STEPS_DONE);
+    if (word && getAudioSettings().useSound) speak(word[charSet]);
+    // Only a new word plays itself; a change of voice does not.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [word]);
+
+  const markDone = useCallback(
+    (i: number) => setDone((prev) => prev.map((value, k) => (k === i ? true : value))),
+    [],
+  );
+  const onSaid = useCallback(() => markDone(1), [markDone]);
+  const onTraced = useCallback(() => markDone(2), [markDone]);
+
+  const advance = useCallback(() => {
+    if (step < STEPS.length - 1) setStep(step + 1);
+    else if (!lastWord) setIndex(index + 1);
+    else startTest?.();
+  }, [index, lastWord, startTest, step]);
+
+  // Understand has nothing to finish, so Continue is always on. Speak and
+  // Write wait for the learner, or for Skip.
+  const canContinue = current === 'understand' || done[step];
+  const onContinue = useCallback(() => {
+    if (current === 'understand') markDone(0);
+    advance();
+  }, [advance, current, markDone]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowRight' && canContinue) onContinue();
     };
-  }, [onKeyDown]);
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [canContinue, onContinue]);
+
+  if (!word) return null;
+
+  const primaryLabel =
+    current !== 'write'
+      ? copy.newWords.continue
+      : lastWord
+        ? copy.newWords.startTest
+        : copy.newWords.nextWord;
+  // The bar fills by step; a traced word fills its last third.
+  const stepsPassed = step + (current === 'write' && done[2] ? 1 : 0);
 
   return (
-    <Box
-      sx={{
-        width: '90%',
-        maxWidth: 400,
-        textAlign: 'center',
-        mx: 'auto',
-        py: '30px',
-        color: 'text.primary',
-      }}
-    >
-      <Typography variant="h5" component="h2" sx={{ fontWeight: 600, mb: 0.5 }}>
-        New Words
-      </Typography>
-      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
-        Word {wordIndex + 1} of {words.length}
-      </Typography>
-      <Typography variant="subtitle1" component="h4" sx={{ color: 'text.secondary', mb: 2 }}>
-        Tap a character to see information
-      </Typography>
-      <NewWord word={words[wordIndex]} isDemo={isDemo}></NewWord>
-      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 2 }}>
-        <Button type="ghost" clicked={() => onChangeWord(-1)} disabled={wordIndex < 1}>
-          Previous Word
-        </Button>
-        <Button
-          type="primary"
-          clicked={() => {
-            if (wordIndex < words.length - 1) {
-              onChangeWord(1);
-            } else {
-              startTest?.();
-            }
-          }}
-        >
-          {wordIndex < words.length - 1 ? 'Next Word' : 'Start Test'}
-        </Button>
+    <StudyScreen>
+      <StudyTop
+        stage={copy.newWords.stage}
+        done={index + stepsPassed / STEPS.length}
+        position={index + 1}
+        total={words.length}
+        onEnd={() => history.push('/')}
+        onSettings={() => setSettingsOpen(true)}
+      />
+      <StepRail at={step} done={done} onPick={setStep} />
+
+      {current === 'understand' && (
+        <UnderstandStep key={index} word={word} charSet={charSet} speak={speak} loading={loading} />
+      )}
+      {current === 'say' && (
+        <SayStep
+          key={index}
+          word={word}
+          charSet={charSet}
+          speechAvailable={speechAvailable}
+          speak={speak}
+          loading={loading}
+          onSaid={onSaid}
+        />
+      )}
+      {current === 'write' && (
+        <WriteStep key={index} word={word} charSet={charSet} onTraced={onTraced} />
+      )}
+
+      <Box sx={{ flex: 1, minHeight: 24 }} />
+      <ButtonBase
+        onClick={() => startTest?.()}
+        sx={{
+          alignSelf: 'center',
+          mb: 1,
+          height: 40,
+          px: 1.5,
+          fontFamily: fonts.body,
+          fontSize: 14,
+          color: colors.textSecondary,
+          textDecoration: 'underline',
+          textUnderlineOffset: 3,
+        }}
+      >
+        {copy.newWords.skipToTest}
+      </ButtonBase>
+      <Box sx={{ display: 'flex', gap: 1.25 }}>
+        {!canContinue && (
+          <StudyButton onClick={advance} sx={{ flex: '0 0 35%' }}>
+            {copy.newWords.skip}
+          </StudyButton>
+        )}
+        <StudyButton variant="primary" disabled={!canContinue} onClick={onContinue}>
+          {primaryLabel}
+        </StudyButton>
       </Box>
-    </Box>
+      <AudioSettingsDrawer
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        speechAvailable={speechAvailable}
+        synthAvailable={synthAvailable}
+      />
+    </StudyScreen>
   );
 };
 

@@ -515,12 +515,15 @@ const TestWords: React.FC<Props> = ({
     });
   }, [activeListId, isDemo, state, userId]);
 
-  // On a phone a study stage fills the screen; its own bar has the way out. The Learn
-  // step, the summary and the prompts keep the app's navigation.
+  // On a phone a study stage fills the screen; its own bar has the way out. The
+  // summary and the prompts keep the app's navigation.
   const studying =
     !state.pendingResume &&
     state.selectedWords.length > 0 &&
-    (state.stage === 'vocab' || state.stage === 'read' || state.stage === 'write');
+    (state.stage === 'new' ||
+      state.stage === 'vocab' ||
+      state.stage === 'read' ||
+      state.stage === 'write');
   useFocusMode(studying);
 
   // All dev stages require auth since they use real words from user's list
@@ -556,11 +559,7 @@ const TestWords: React.FC<Props> = ({
       case 'new':
         content = (
           <ErrorBoundary>
-            <NewWords
-              words={state.newWords}
-              startTest={onStartVocab}
-              isDemo={isDemo || !!devConfig}
-            />
+            <NewWords words={state.newWords} startTest={onStartVocab} />
           </ErrorBoundary>
         );
         break;
