@@ -34,6 +34,11 @@ import {
 import VariantA, { name as nameA } from './prototype/VariantA';
 import VariantB, { name as nameB } from './prototype/VariantB';
 import VariantC, { name as nameC } from './prototype/VariantC';
+import VariantD, { name as nameD } from './prototype/VariantD';
+import VariantE, { name as nameE } from './prototype/VariantE';
+import VariantF, { name as nameF } from './prototype/VariantF';
+import VariantG, { name as nameG } from './prototype/VariantG';
+import { sampleWords } from './prototype/dashboardWords';
 
 // PROTOTYPE (#403): `?variant=A|B|C` swaps the Dashboard, and `?state=` forces
 // a preview state. No variant param renders the current page.
@@ -42,6 +47,10 @@ const dashboardVariants = [
   { key: 'A', name: nameA },
   { key: 'B', name: nameB },
   { key: 'C', name: nameC },
+  { key: 'D', name: nameD },
+  { key: 'E', name: nameE },
+  { key: 'F', name: nameF },
+  { key: 'G', name: nameG },
 ];
 
 const mapStateToProps = (state: RootState) => ({
@@ -49,10 +58,12 @@ const mapStateToProps = (state: RootState) => ({
   lists: state.addWords.lists,
   activeListId: state.addWords.activeListId,
   listStats: state.addWords.listStats,
+  words: state.addWords.words,
 });
 
 const mapDispatchToProps = {
   onInitWordLists: wordActions.initWordLists,
+  onInitWords: wordActions.initWords,
   onSwitchList: wordActions.switchActiveList,
   onCreateList: wordActions.postCreateWordList,
   onRenameList: wordActions.postRenameWordList,
@@ -67,7 +78,9 @@ const Dashboard: React.FC<PropsFromRedux> = ({
   lists,
   activeListId,
   listStats,
+  words,
   onInitWordLists,
+  onInitWords,
   onSwitchList,
   onCreateList,
   onRenameList,
@@ -114,6 +127,11 @@ const Dashboard: React.FC<PropsFromRedux> = ({
   const variant = useStickyPrototypeParam('variant');
   const previewState = usePrototypeParam('state');
 
+  // Variants D to G show the words themselves, which the Dashboard does not load.
+  useEffect(() => {
+    if (variant && userId) onInitWords();
+  }, [variant, userId, activeListId, onInitWords]);
+
   if (variant) {
     const saved = readSavedSession();
     const realResume =
@@ -130,6 +148,8 @@ const Dashboard: React.FC<PropsFromRedux> = ({
       stats: shownStats,
       loading: previewState === 'loading' || (loading && !previewState),
       error: previewState === 'error' || (error && !previewState),
+      words: previewState === 'empty' ? [] : words.length ? words : sampleWords,
+      charSet: localStorage.getItem('charSet') === 'simp' ? 'simp' : 'trad',
       resumeLabel:
         previewState === 'resume' ? '12 questions left' : previewState ? null : realResume,
       lists,
@@ -152,6 +172,10 @@ const Dashboard: React.FC<PropsFromRedux> = ({
         {variant === 'A' && <VariantA {...props} />}
         {variant === 'B' && <VariantB {...props} />}
         {variant === 'C' && <VariantC {...props} />}
+        {variant === 'D' && <VariantD {...props} />}
+        {variant === 'E' && <VariantE {...props} />}
+        {variant === 'F' && <VariantF {...props} />}
+        {variant === 'G' && <VariantG {...props} />}
         <PrototypeSwitcher variants={dashboardVariants} states={prototypeStates} />
       </>
     );

@@ -4,7 +4,7 @@ import React from 'react';
 import Box from '@mui/material/Box';
 
 import { DashboardStats } from '../../../services/dashboardService';
-import { WordList } from '../../../types/models';
+import { Word, WordList } from '../../../types/models';
 import { ListStats } from '../../../types/store';
 import { DIRECTIONS, Direction } from '../../../types/models';
 import { BankCounts } from '../../../utils/directions';
@@ -16,6 +16,9 @@ export interface DashboardVariantProps {
   error: boolean;
   /** "12 questions left", or null when there is nothing to resume. */
   resumeLabel: string | null;
+  /** The active list's words, for the variants that show words, not counts. */
+  words: Word[];
+  charSet: 'simp' | 'trad';
   lists: WordList[];
   activeListId: string;
   listStats: Record<string, ListStats>;
