@@ -76,7 +76,7 @@ const TestSummary: React.FC<TestSummaryProps> = ({ history, scores }) => {
                 gap: 1,
                 px: 2,
                 py: 1,
-                borderRadius: 1.5,
+                borderRadius: 1,
                 bgcolor: 'grey.50',
                 border: '1px solid',
                 borderColor: 'grey.200',

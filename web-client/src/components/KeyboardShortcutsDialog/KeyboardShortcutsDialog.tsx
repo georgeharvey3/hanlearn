@@ -41,7 +41,7 @@ const KeyboardShortcutsDialog: React.FC<Props> = ({ open, onClose }) => {
         sx: {
           maxWidth: 560,
           maxHeight: 'min(640px, calc(100% - 64px))',
-          borderRadius: 2,
+          borderRadius: 1,
           boxShadow: shadows.dialog,
         },
       }}

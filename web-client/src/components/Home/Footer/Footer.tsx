@@ -15,7 +15,7 @@ const Footer: React.FC = () => (
       py: 3,
       px: 2,
       mt: 2,
-      borderRadius: '.5rem .5rem 0 0',
+      borderRadius: '4px 4px 0 0',
     }}
   >
     <Typography variant="body2" sx={{ mb: 1 }}>

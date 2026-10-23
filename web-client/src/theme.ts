@@ -100,6 +100,9 @@ const theme = createTheme({
       paper: colors.card,
     },
   },
+  // The one corner radius of the app: a card, a sheet, a dialog, a button and
+  // a pill all use it (`borderRadius: 1` in sx). Only a circle, such as the
+  // microphone, and a thin bar round further.
   shape: { borderRadius: 4 },
   typography: {
     fontFamily: fonts.body,
@@ -149,7 +152,7 @@ const theme = createTheme({
         paper: {
           backgroundColor: colors.card,
           color: colors.text,
-          borderRadius: 8,
+          borderRadius: 4,
         },
       },
     },

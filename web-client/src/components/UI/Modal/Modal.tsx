@@ -21,7 +21,7 @@ const Modal: React.FC<ModalProps> = (props) => {
       maxWidth="sm"
       fullWidth
       PaperProps={{
-        sx: { borderRadius: 2, boxShadow: shadows.dialog },
+        sx: { borderRadius: 1, boxShadow: shadows.dialog },
       }}
       slotProps={{ backdrop: { sx: { bgcolor: scrim } } }}
     >

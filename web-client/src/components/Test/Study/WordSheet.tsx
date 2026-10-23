@@ -30,7 +30,7 @@ const WordSheet: React.FC<WordSheetProps> = ({ word, charSet, added, onClose, on
       'aria-label': word?.[charSet],
       sx: {
         m: 2,
-        borderRadius: 2,
+        borderRadius: 1,
         p: 2.5,
         maxWidth: 408,
         mx: 'auto',

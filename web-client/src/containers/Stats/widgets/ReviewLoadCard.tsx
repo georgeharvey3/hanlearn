@@ -24,7 +24,7 @@ const ReviewLoadCard: React.FC<ReviewLoadCardProps> = ({ load }) => {
   return (
     <Paper
       elevation={2}
-      sx={{ p: 2, borderRadius: 2, height: '100%' }}
+      sx={{ p: 2, borderRadius: 1, height: '100%' }}
       role="region"
       aria-label="Review load ahead"
     >

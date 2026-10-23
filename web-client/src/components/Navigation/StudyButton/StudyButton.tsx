@@ -56,7 +56,7 @@ const StudyButton: React.FC<Props> = ({ due, size }) => (
           height: 22,
           boxSizing: 'border-box',
           px: '6px',
-          borderRadius: '11px',
+          borderRadius: '4px',
           // The colour of the bars, so the badge reads as cut out of them.
           border: `2px solid ${colors.primary}`,
           bgcolor: colors.primaryLight,

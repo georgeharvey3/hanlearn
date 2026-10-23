@@ -44,7 +44,7 @@ const MoreSheet: React.FC<Props> = ({ open, onClose, onOpenShortcuts }) => {
         role: 'dialog',
         'aria-label': copy.shell.more,
         sx: {
-          borderRadius: '16px 16px 0 0',
+          borderRadius: '4px 4px 0 0',
           bgcolor: colors.paper,
           boxShadow: '0 -12px 32px -16px rgba(70,50,30,0.45)',
           pb: 'calc(16px + env(safe-area-inset-bottom))',
@@ -56,7 +56,7 @@ const MoreSheet: React.FC<Props> = ({ open, onClose, onOpenShortcuts }) => {
         sx={{
           width: 40,
           height: 4,
-          borderRadius: 2,
+          borderRadius: 1,
           bgcolor: colors.borderStrong,
           mx: 'auto',
           mt: 1.5,

@@ -69,7 +69,7 @@ const ComponentRow: React.FC<ComponentRowProps> = ({ component, depth }) => {
           p: '10px 12px',
           border: '1px solid',
           borderColor: 'divider',
-          borderRadius: 2.5,
+          borderRadius: 1,
           mb: 1,
           bgcolor: 'background.paper',
         }}

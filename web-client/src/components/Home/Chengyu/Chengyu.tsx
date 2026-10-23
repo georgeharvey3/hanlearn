@@ -165,7 +165,7 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
             sx={{
               listStyle: 'none',
               backgroundColor: 'action.hover',
-              borderRadius: '8px',
+              borderRadius: 1,
               p: 2,
               mt: 2,
             }}
@@ -265,7 +265,7 @@ const Chengyu: React.FC<PropsFromRedux> = ({ userId, words, onSaveWord }) => {
               aria-disabled={isHidden || undefined}
               sx={{
                 listStyle: 'none',
-                borderRadius: '5px',
+                borderRadius: 1,
                 color: finished && isCorrect ? 'common.white' : 'text.primary',
                 opacity: isHidden ? 0 : 1,
                 maxHeight: isHidden ? 0 : '50px',

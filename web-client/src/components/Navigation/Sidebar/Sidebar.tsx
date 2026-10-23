@@ -50,7 +50,7 @@ const Sidebar: React.FC<Props> = ({ collapsed, onToggleCollapsed, onOpenShortcut
   const itemSx = (active = false) => ({
     height: 44,
     flexShrink: 0,
-    borderRadius: 2,
+    borderRadius: 1,
     gap: 1.5,
     fontFamily: fonts.body,
     fontSize: 15,
@@ -124,7 +124,7 @@ const Sidebar: React.FC<Props> = ({ collapsed, onToggleCollapsed, onOpenShortcut
         sx={{
           my: 1.5,
           flexShrink: 0,
-          borderRadius: 2,
+          borderRadius: 1,
           textDecoration: 'none',
           ...(collapsed
             ? { width: 56, height: 56 }

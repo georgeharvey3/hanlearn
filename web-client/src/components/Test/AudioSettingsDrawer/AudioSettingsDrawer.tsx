@@ -120,7 +120,7 @@ const AudioSettingsDrawer: React.FC<AudioSettingsDrawerProps> = ({
           alignSelf: 'center',
           width: 36,
           height: 4,
-          borderRadius: 2,
+          borderRadius: 1,
           bgcolor: colors.borderStrong,
           mb: 1.75,
         }}
