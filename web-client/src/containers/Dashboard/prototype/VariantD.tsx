@@ -1,7 +1,8 @@
-// PROTOTYPE (#403) variant D, "Practice sheet": today's session shown as the
-// words in it, written into 田字格 practice squares. The learner sees what they
-// are about to study, not a count. The chengyu is four red squares at the foot.
-// Throwaway.
+// PROTOTYPE (#403) variant D, "Practice sheet": today's session as a blank
+// 田字格 sheet, one square for each character the session will ask. The words
+// stay hidden, so the Dashboard never reminds the learner of a word just before
+// the test asks it; the sheet shows only the session's size and shape. A
+// resumed session fills in the words it has asked. Throwaway.
 import React, { useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -79,9 +80,15 @@ const WordCells: React.FC<{ text: string; faded?: boolean; done?: boolean; ink?:
   done,
   ink,
 }) => (
-  <Box sx={{ position: 'relative', display: 'flex' }}>
-    {Array.from(text).map((c, i) => (
-      <Cell key={i} char={c} faded={faded || done} ink={ink} />
+  <Box sx={{ position: 'relative', display: 'flex', opacity: faded ? 0.45 : 1 }}>
+    {Array.from(text).map((_, i) => (
+      // The squares, never the characters: a due word must not show.
+      <Box
+        key={i}
+        sx={{ bgcolor: done ? colors.successSurface : 'transparent', ml: i ? '-1.5px' : 0 }}
+      >
+        <Cell ink={ink} frame={done ? colors.primaryDark : undefined} />
+      </Box>
     ))}
     {done && (
       // A small red tick stamped over a word the session already asked.
@@ -93,7 +100,7 @@ const WordCells: React.FC<{ text: string; faded?: boolean; done?: boolean; ink?:
           width: 20,
           height: 20,
           borderRadius: '50%',
-          bgcolor: colors.primaryLight,
+          bgcolor: colors.primaryDark,
           color: colors.white,
           fontSize: 13,
           display: 'flex',

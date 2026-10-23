@@ -1,3 +1,5 @@
+// A word due within two days shows as a blank card: its lapses, never its
+// characters (see HIDE_WITHIN_DAYS).
 // PROTOTYPE (#403) variant F, "Coach": the Dashboard says what is going wrong
 // and what is going right. The words that keep slipping come first, as cards;
 // the five directions are ranked weakest first; the mastered words close the
@@ -21,7 +23,9 @@ import { DIRECTION_LABELS } from '../../../utils/directions';
 import { toneMarks } from '../../../utils/pinyinMarks';
 import { DashboardVariantProps } from './dashboardShared';
 import {
+  daysUntil,
   isDue,
+  isHidden,
   lapsesOf,
   levelOf,
   strengthByDirection,
@@ -78,7 +82,7 @@ const VariantF: React.FC<DashboardVariantProps> = ({
   );
   const strength = useMemo(() => strengthByDirection(words), [words]);
   const ranked = [...DIRECTIONS].sort((a, b) => strength[a] - strength[b]);
-  const mastered = useMemo(() => words.filter((w) => levelOf(w) >= 5), [words]);
+  const mastered = useMemo(() => words.filter((w) => levelOf(w) >= 5 && !isHidden(w)), [words]);
 
   return (
     <Box
@@ -191,6 +195,7 @@ const VariantF: React.FC<DashboardVariantProps> = ({
             {slipping.map((w) => {
               const lapses = lapsesOf(w);
               const weak = weakestDirectionOf(w);
+              const hidden = isHidden(w);
               return (
                 <Box
                   key={w.id}
@@ -201,32 +206,58 @@ const VariantF: React.FC<DashboardVariantProps> = ({
                     borderRadius: 2,
                     p: 1.75,
                     borderTop: `3px solid ${lapses >= 8 ? colors.primaryLight : colors.warning}`,
+                    ...(hidden && {
+                      bgcolor: 'transparent',
+                      boxShadow: 'none',
+                      outline: `1px dashed ${colors.borderStrong}`,
+                    }),
                   }}
                 >
-                  <Typography
-                    sx={{
-                      fontFamily: fonts.hanzi,
-                      fontSize: 40,
-                      lineHeight: 1.1,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {text(w)}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {toneMarks(w.pinyin)}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      mt: 0.5,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {w.meaning}
-                  </Typography>
+                  {hidden ? (
+                    <>
+                      <Typography
+                        sx={{
+                          fontFamily: fonts.hanzi,
+                          fontSize: 40,
+                          lineHeight: 1.1,
+                          color: colors.outline,
+                        }}
+                      >
+                        {'□'.repeat(Array.from(text(w)).length)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        Due {daysUntil(w) === 0 ? 'today' : 'tomorrow'}
+                      </Typography>
+                      <Typography variant="body2">&nbsp;</Typography>
+                    </>
+                  ) : (
+                    <>
+                      <Typography
+                        sx={{
+                          fontFamily: fonts.hanzi,
+                          fontSize: 40,
+                          lineHeight: 1.1,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {text(w)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {toneMarks(w.pinyin)}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          mt: 0.5,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {w.meaning}
+                      </Typography>
+                    </>
+                  )}
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '3px', mt: 1.25 }}>
                     {Array.from({ length: Math.min(lapses, 10) }, (_, i) => (
                       <Box

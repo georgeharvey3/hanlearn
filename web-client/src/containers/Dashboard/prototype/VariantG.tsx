@@ -1,3 +1,5 @@
+// A word due within two days is a blank tile: the wall shows where it is and
+// how long it is, never its characters (see HIDE_WITHIN_DAYS).
 // PROTOTYPE (#403) variant G, "Ink wall": the whole collection is the
 // Dashboard. Every word is one tile; the ink darkens as the word's level rises,
 // and a red dot marks a word due today. The learner sees their vocabulary grow,
@@ -23,7 +25,7 @@ import { DIRECTION_LABELS } from '../../../utils/directions';
 import { BANK_LABELS } from '../../../utils/scheduling';
 import { toneMarks } from '../../../utils/pinyinMarks';
 import { DashboardVariantProps } from './dashboardShared';
-import { isDue, levelOf } from './dashboardWords';
+import { isDue, isHidden, levelOf } from './dashboardWords';
 
 export const name = 'Ink wall';
 
@@ -232,14 +234,17 @@ const VariantG: React.FC<DashboardVariantProps> = ({
             <ButtonBase
               key={w.id}
               onClick={() => setPicked(w)}
+              disabled={isHidden(w)}
               sx={{
                 position: 'relative',
                 px: 1,
                 height: 48,
                 minWidth: 40,
                 borderRadius: 1,
-                bgcolor: colors.card,
-                border: `1px solid ${colors.divider}`,
+                bgcolor: isHidden(w) ? 'transparent' : colors.card,
+                border: isHidden(w)
+                  ? `1px dashed ${colors.borderStrong}`
+                  : `1px solid ${colors.divider}`,
               }}
             >
               <Typography
@@ -249,6 +254,8 @@ const VariantG: React.FC<DashboardVariantProps> = ({
                   lineHeight: 1,
                   color: colors.text,
                   opacity: inkOpacity[levelOf(w)] ?? 0.22,
+                  // Keeps the tile's width, hides the word.
+                  visibility: isHidden(w) ? 'hidden' : 'visible',
                 }}
               >
                 {text(w)}

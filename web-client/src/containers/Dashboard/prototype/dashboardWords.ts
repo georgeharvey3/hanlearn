@@ -24,6 +24,16 @@ export const isDue = (w: Word, now = new Date()): boolean => dueDay(w) <= startO
 export const daysUntil = (w: Word, now = new Date()): number =>
   Math.max(0, Math.round((dueDay(w).getTime() - startOfDay(now).getTime()) / DAY));
 
+/**
+ * A word due within this many days never shows its characters on the
+ * Dashboard. Seeing a word just before the test asks it primes the answer,
+ * and the scheduler then reads a recall that was not real.
+ */
+export const HIDE_WITHIN_DAYS = 2;
+
+export const isHidden = (w: Word, now = new Date()): boolean =>
+  daysUntil(w, now) < HIDE_WITHIN_DAYS;
+
 export const levelOf = (w: Word): number => w.level ?? 1;
 
 export const lapsesOf = (w: Word): number =>
@@ -71,7 +81,7 @@ const RAW: [string, string, string, string, number, number, number][] = [
   ['环境', '環境', 'huan2 jing4', 'environment', 1, 0, 9],
   ['经验', '經驗', 'jing1 yan4', 'experience', 2, 0, 2],
   ['机会', '機會', 'ji1 hui4', 'opportunity', 3, 2, 0],
-  ['危险', '危險', 'wei1 xian3', 'danger', 1, 0, 8],
+  ['危险', '危險', 'wei1 xian3', 'danger', 1, 3, 8],
   ['旅游', '旅遊', 'lü3 you2', 'to travel', 5, 64, 0],
   ['安静', '安靜', 'an1 jing4', 'quiet', 4, 30, 0],
   ['决定', '決定', 'jue2 ding4', 'to decide', 2, 0, 4],
@@ -81,7 +91,7 @@ const RAW: [string, string, string, string, number, number, number][] = [
   ['重要', '重要', 'zhong4 yao4', 'important', 5, 70, 0],
   ['感冒', '感冒', 'gan3 mao4', 'to catch a cold', 3, 3, 0],
   ['礼物', '禮物', 'li3 wu4', 'gift', 4, 20, 0],
-  ['影响', '影響', 'ying3 xiang3', 'influence', 1, 0, 10],
+  ['影响', '影響', 'ying3 xiang3', 'influence', 1, 4, 10],
   ['选择', '選擇', 'xuan3 ze2', 'to choose', 2, 0, 2],
   ['满意', '滿意', 'man3 yi4', 'satisfied', 3, 4, 0],
   ['检查', '檢查', 'jian3 cha2', 'to inspect', 2, 1, 1],
@@ -90,7 +100,7 @@ const RAW: [string, string, string, string, number, number, number][] = [
   ['担心', '擔心', 'dan1 xin1', 'to worry', 4, 40, 0],
   ['准备', '準備', 'zhun3 bei4', 'to prepare', 5, 120, 0],
   ['努力', '努力', 'nu3 li4', 'to strive', 5, 80, 0],
-  ['解释', '解釋', 'jie3 shi4', 'to explain', 1, 0, 6],
+  ['解释', '解釋', 'jie3 shi4', 'to explain', 1, 2, 6],
   ['参加', '參加', 'can1 jia1', 'to take part', 3, 2, 0],
   ['空调', '空調', 'kong1 tiao2', 'air conditioner', 2, 3, 0],
   ['比赛', '比賽', 'bi3 sai4', 'competition', 4, 15, 0],
