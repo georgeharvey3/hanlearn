@@ -1,178 +1,167 @@
 /**
- * Tests for TestSummary component — the end-of-session score screen.
- *
- * Focus areas:
- * - Renders "Session Summary" heading
- * - Counts questions and the distinct words they came from
- * - Lists one row per direction, with the word, the direction and the result
- * - Result chips carry the right MUI color variant
- * - Home button navigates to '/'
+ * Tests for TestSummary — the end-of-session screen: a score card over one
+ * tile for each question.
  */
 import { vi, describe, it, expect } from 'vitest';
 
 vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
 
 import React from 'react';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import TestSummary from './TestSummary';
 import { renderWithProviders } from '../../../test/utils';
-import { DIRECTIONS, WordScore } from '../../../types/models';
-import { DIRECTION_LABELS } from '../../../utils/directions';
+import { Word, WordScore } from '../../../types/models';
 
-/** One word asked in all five directions, with handwriting failed. */
-const allScores: WordScore[] = DIRECTIONS.map((direction) => ({
-  char: '你',
-  direction,
-  result: direction === 'CM' ? ('fail' as const) : ('pass' as const),
-}));
+const word = (id: number, simp: string, pinyin: string, meaning: string): Word => ({
+  id,
+  simp,
+  trad: simp,
+  pinyin,
+  meaning,
+});
 
-describe('TestSummary — heading and word count', () => {
-  it('renders "Session Summary" heading', () => {
-    renderWithProviders(<TestSummary scores={allScores} />);
-    expect(screen.getByRole('heading', { name: /session summary/i })).toBeInTheDocument();
+const words = [
+  word(1, '银行', 'yin2 hang2', 'bank'),
+  word(2, '护照', 'hu4 zhao4', 'passport'),
+  word(3, '安静', 'an1 jing4', 'quiet'),
+];
+
+const scores: WordScore[] = [
+  { char: '银行', direction: 'MC', result: 'pass' },
+  { char: '银行', direction: 'PM', result: 'pass' },
+  { char: '护照', direction: 'CM', result: 'fail' },
+  { char: '安静', direction: 'MP', result: 'lapse' },
+];
+
+const renderSummary = (props: Partial<React.ComponentProps<typeof TestSummary>> = {}) => {
+  const onHome = vi.fn();
+  const onPracticeMissed = vi.fn();
+  renderWithProviders(
+    <TestSummary
+      scores={scores}
+      words={words}
+      practiceMode={false}
+      onHome={onHome}
+      onPracticeMissed={onPracticeMissed}
+      {...props}
+    />,
+  );
+  return { onHome, onPracticeMissed };
+};
+
+const tiles = () => screen.getAllByRole('button', { name: /, (Known|Nearly|Not known)/ });
+
+describe('TestSummary — score card', () => {
+  it('shows the known questions out of all of them', () => {
+    renderSummary();
+    expect(screen.getByTestId('summary-score')).toHaveTextContent('2/ 4');
   });
 
-  it('counts the questions and the words they came from', () => {
-    renderWithProviders(<TestSummary scores={allScores} />);
-    expect(screen.getByText(/5 questions across 1 word/i)).toBeInTheDocument();
+  it('counts the questions and the distinct words', () => {
+    renderSummary();
+    expect(screen.getByText('4 questions · 3 words')).toBeInTheDocument();
   });
 
-  it('uses the singular for a session of one question', () => {
-    renderWithProviders(<TestSummary scores={[{ char: '你', direction: 'MC', result: 'pass' }]} />);
-    expect(screen.getByText(/1 question across 1 word/i)).toBeInTheDocument();
+  it('says a practice session changed no due dates', () => {
+    renderSummary({ practiceMode: true });
+    expect(screen.getByText('Practice · due dates unchanged')).toBeInTheDocument();
+    expect(screen.queryByText('4 questions · 3 words')).not.toBeInTheDocument();
   });
 
-  it('counts distinct words, not rows', () => {
-    const scores: WordScore[] = [
-      { char: '一', direction: 'MC', result: 'pass' },
-      { char: '一', direction: 'CM', result: 'fail' },
-      { char: '二', direction: 'MC', result: 'pass' },
-    ];
-    renderWithProviders(<TestSummary scores={scores} />);
-    expect(screen.getByText(/3 questions across 2 words/i)).toBeInTheDocument();
+  it('counts each result', () => {
+    renderSummary();
+    expect(screen.getByRole('button', { name: '2 Known' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '1 Nearly' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '1 Not known' })).toBeInTheDocument();
   });
 
-  it('handles an empty scores array without crashing', () => {
-    renderWithProviders(<TestSummary scores={[]} />);
-    expect(screen.getByText(/0 questions across 0 words/i)).toBeInTheDocument();
-  });
-
-  it('renders without crashing when scores is undefined', () => {
-    renderWithProviders(<TestSummary />);
-    expect(screen.getByRole('heading', { name: /session summary/i })).toBeInTheDocument();
-  });
-
-  it('shows a zero count when scores is undefined', () => {
-    renderWithProviders(<TestSummary />);
-    expect(screen.getByText(/0 questions across 0 words/i)).toBeInTheDocument();
+  it('disables a count of zero', () => {
+    renderSummary({ scores: scores.filter((s) => s.result === 'pass') });
+    expect(screen.getByRole('button', { name: '0 Not known' })).toBeDisabled();
   });
 });
 
-describe('TestSummary — session accuracy', () => {
-  it('counts a pass in every direction, not the word as a whole', () => {
-    renderWithProviders(<TestSummary scores={allScores} />);
-    // Four directions passed, handwriting failed.
-    expect(screen.getByTestId('session-accuracy')).toHaveTextContent('4 / 5 correct (80%)');
+describe('TestSummary — tiles', () => {
+  it('shows one tile for each question, the missed ones first', () => {
+    renderSummary();
+    expect(tiles().map((t) => t.getAttribute('aria-label'))).toEqual([
+      '护照, Not known',
+      '安静, Nearly',
+      '银行, Known',
+      '银行, Known',
+    ]);
   });
 
-  it('shows 100% when every direction passed', () => {
-    const scores: WordScore[] = [
-      { char: '一', direction: 'MC', result: 'pass' },
-      { char: '二', direction: 'PC', result: 'pass' },
-    ];
-    renderWithProviders(<TestSummary scores={scores} />);
-    expect(screen.getByTestId('session-accuracy')).toHaveTextContent('2 / 2 correct (100%)');
-  });
-
-  it('does not count a lapse as correct', () => {
-    const scores: WordScore[] = [
-      { char: '一', direction: 'MC', result: 'pass' },
-      { char: '二', direction: 'MC', result: 'lapse' },
-    ];
-    renderWithProviders(<TestSummary scores={scores} />);
-    expect(screen.getByTestId('session-accuracy')).toHaveTextContent('1 / 2 correct (50%)');
-  });
-
-  it('shows 0% when every direction failed', () => {
-    const scores: WordScore[] = [
-      { char: '一', direction: 'MC', result: 'fail' },
-      { char: '二', direction: 'PC', result: 'fail' },
-      { char: '三', direction: 'CM', result: 'fail' },
-    ];
-    renderWithProviders(<TestSummary scores={scores} />);
-    expect(screen.getByTestId('session-accuracy')).toHaveTextContent('0 / 3 correct (0%)');
-  });
-
-  it('does not show accuracy line when scores is empty', () => {
-    renderWithProviders(<TestSummary scores={[]} />);
-    expect(screen.queryByTestId('session-accuracy')).not.toBeInTheDocument();
-  });
-
-  it('does not show accuracy line when scores is undefined', () => {
-    renderWithProviders(<TestSummary />);
-    expect(screen.queryByTestId('session-accuracy')).not.toBeInTheDocument();
-  });
-});
-
-describe('TestSummary — one row per direction', () => {
-  it('repeats the word once per direction it was asked in', () => {
-    renderWithProviders(<TestSummary scores={allScores} />);
-    expect(screen.getAllByText('你')).toHaveLength(DIRECTIONS.length);
-  });
-
-  it('names the direction of every row', () => {
-    renderWithProviders(<TestSummary scores={allScores} />);
-    for (const direction of DIRECTIONS) {
-      expect(screen.getByText(DIRECTION_LABELS[direction])).toBeInTheDocument();
-    }
-  });
-
-  it('marks the failed direction and only that one', () => {
-    renderWithProviders(<TestSummary scores={allScores} />);
-    expect(screen.getAllByText('Known')).toHaveLength(4);
-    expect(screen.getAllByText('Not known')).toHaveLength(1);
-  });
-
-  it('names a lapse "Nearly" and keeps it apart from the other two grades', () => {
-    const scores: WordScore[] = [
-      { char: '一', direction: 'MC', result: 'pass' },
-      { char: '二', direction: 'MC', result: 'lapse' },
-      { char: '三', direction: 'MC', result: 'fail' },
-    ];
-    renderWithProviders(<TestSummary scores={scores} />);
-    expect(screen.getByText('Known')).toBeInTheDocument();
-    expect(screen.getByText('Nearly')).toBeInTheDocument();
-    expect(screen.getByText('Not known')).toBeInTheDocument();
-  });
-
-  it('keeps two words with the same direction apart', () => {
-    const scores: WordScore[] = [
-      { char: '一', direction: 'MC', result: 'pass' },
-      { char: '二', direction: 'MC', result: 'fail' },
-    ];
-    renderWithProviders(<TestSummary scores={scores} />);
-    expect(screen.getByText('一')).toBeInTheDocument();
-    expect(screen.getByText('二')).toBeInTheDocument();
-    expect(screen.getAllByText(DIRECTION_LABELS.MC)).toHaveLength(2);
-    expect(screen.getByText('Known')).toBeInTheDocument();
-    expect(screen.getByText('Not known')).toBeInTheDocument();
-  });
-});
-
-describe('TestSummary — Home button', () => {
-  it('renders a Home button', () => {
-    renderWithProviders(<TestSummary scores={allScores} />);
-    expect(screen.getByRole('button', { name: /home/i })).toBeInTheDocument();
-  });
-
-  it('navigates to "/" when Home is clicked', async () => {
+  it('turns a tile to its pinyin and meaning on a tap, one tile at a time', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<TestSummary scores={allScores} />);
+    renderSummary();
+    await user.click(screen.getByRole('button', { name: '护照, Not known' }));
+    const turned = screen.getByRole('button', { name: /护照, Not known: hù zhào/ });
+    expect(turned).toHaveAttribute('aria-pressed', 'true');
+    expect(within(turned).getByText('passport')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /home/i }));
-    // BrowserRouter in test env — location should be /
-    expect(window.location.pathname).toBe('/');
+    await user.click(screen.getByRole('button', { name: '安静, Nearly' }));
+    expect(screen.getByRole('button', { name: '护照, Not known' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    expect(screen.getByText('quiet')).toBeInTheDocument();
+  });
+
+  it('turns a tile back on a second tap', async () => {
+    const user = userEvent.setup();
+    renderSummary();
+    await user.click(screen.getByRole('button', { name: '护照, Not known' }));
+    await user.click(screen.getByRole('button', { name: /护照, Not known: / }));
+    expect(screen.queryByText('passport')).not.toBeInTheDocument();
+  });
+
+  it('filters the tiles by a count, and shows all again on a second tap', async () => {
+    const user = userEvent.setup();
+    renderSummary();
+    const count = screen.getByRole('button', { name: '2 Known' });
+    await user.click(count);
+    expect(count).toHaveAttribute('aria-pressed', 'true');
+    expect(tiles().map((t) => t.getAttribute('aria-label'))).toEqual([
+      '银行, Known',
+      '银行, Known',
+    ]);
+    await user.click(count);
+    expect(tiles()).toHaveLength(4);
+  });
+});
+
+describe('TestSummary — buttons', () => {
+  it('goes back to the Dashboard', async () => {
+    const user = userEvent.setup();
+    const { onHome } = renderSummary();
+    await user.click(screen.getByRole('button', { name: 'Back to Dashboard' }));
+    expect(onHome).toHaveBeenCalled();
+  });
+
+  it('closes from the session bar', async () => {
+    const user = userEvent.setup();
+    const { onHome } = renderSummary();
+    await user.click(screen.getByRole('button', { name: 'End session' }));
+    expect(onHome).toHaveBeenCalled();
+  });
+
+  it('practises the missed words', async () => {
+    const user = userEvent.setup();
+    const { onPracticeMissed } = renderSummary();
+    await user.click(screen.getByRole('button', { name: 'Practise missed words' }));
+    expect(onPracticeMissed.mock.calls[0][0].map((w: Word) => w.id)).toEqual([2, 3]);
+  });
+
+  it('has no "Practise missed words" when every question was known', () => {
+    renderSummary({ scores: scores.filter((s) => s.result === 'pass') });
+    expect(screen.queryByRole('button', { name: 'Practise missed words' })).not.toBeInTheDocument();
+  });
+
+  it('has no test settings in the session bar', () => {
+    renderSummary();
+    expect(screen.queryByRole('button', { name: 'Test settings' })).not.toBeInTheDocument();
   });
 });

@@ -3,11 +3,11 @@
  *
  * Focus areas:
  * - Auth guard (redirect when unauthenticated)
- * - "No words due" empty state with Add Words / Practice buttons
+ * - "Nothing due" screen with Add words / Practise buttons
  * - Demo mode bypass (no auth required, fixed demo words)
  * - initWords called on mount for authenticated users
- * - Practice mode starts when Practice button clicked
- * - Stage transitions via stepper labels
+ * - Practice mode starts when Practise is clicked
+ * - "Practise missed words" on the summary practises those words only
  */
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
@@ -27,7 +27,7 @@ vi.mock('howler', () => ({
 
 // Module-level refs for capturing props from mocked child components
 let capturedTestProps: Record<string, unknown> = {};
-let capturedStartTest: (() => void) | undefined;
+let capturedSummaryProps: Record<string, unknown> = {};
 
 // Heavy child components that require their own service deps — mock them out
 vi.mock('../../components/Test/Test', () => ({
@@ -38,8 +38,7 @@ vi.mock('../../components/Test/Test', () => ({
   },
 }));
 vi.mock('../../components/Test/NewWords/NewWords', () => ({
-  default: ({ words, startTest }: { words: { simp: string }[]; startTest?: () => void }) => {
-    capturedStartTest = startTest;
+  default: ({ words }: { words: { simp: string }[] }) => {
     return <div data-testid="mock-new-words">NewWords: {words.map((w) => w.simp).join(',')}</div>;
   },
 }));
@@ -50,7 +49,10 @@ vi.mock('../../components/Test/SentenceWrite/SentenceWrite', () => ({
   default: () => <div data-testid="mock-sentence-write">SentenceWrite</div>,
 }));
 vi.mock('../../components/Test/TestSummary/TestSummary', () => ({
-  default: () => <div data-testid="mock-test-summary">TestSummary</div>,
+  default: (props: Record<string, unknown>) => {
+    capturedSummaryProps = props;
+    return <div data-testid="mock-test-summary">TestSummary</div>;
+  },
 }));
 
 import React from 'react';
@@ -64,22 +66,18 @@ import * as wordActions from '../../store/actions/index';
 
 const mockedInitWords = vi.mocked(wordActions.initWords);
 
-/**
- * A study stage fills the screen with its own session bar, so the stepper shows
- * only on the summary. Walk the session there: the new words, then the test.
- */
-async function reachSummary(): Promise<void> {
-  await waitFor(() => expect(screen.getByTestId('mock-new-words')).toBeInTheDocument());
-  act(() => capturedStartTest?.());
+/** Walk the session to the summary: the test, then its scores. */
+async function reachSummary(scores: unknown[]): Promise<void> {
   await waitFor(() => expect(screen.getByTestId('mock-test')).toBeInTheDocument());
-  act(() => (capturedTestProps.onVocabComplete as (scores: unknown[]) => void)([]));
+  act(() => (capturedTestProps.onVocabComplete as (scores: unknown[]) => void)(scores));
+  await waitFor(() => expect(screen.getByTestId('mock-test-summary')).toBeInTheDocument());
 }
 
 // Clear all mock state before every test to avoid cross-test contamination
 beforeEach(() => {
   vi.clearAllMocks();
   capturedTestProps = {};
-  capturedStartTest = undefined;
+  capturedSummaryProps = {};
   mockedInitWords.mockReturnValue(() => {});
   // Each test starts a session, and a session that does not finish is saved so
   // that it can be resumed. Without this, every test after the first would be
@@ -145,13 +143,13 @@ describe('TestWords — auth guard', () => {
     });
     renderWithProviders(<TestWords />, { store });
     // BrowserRouter rewrites to /, so the TestWords content should not be visible
-    expect(screen.queryByText(/no words due/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/nothing due/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /add words/i })).not.toBeInTheDocument();
   });
 });
 
 describe('TestWords — empty list / no words due', () => {
-  it('shows "No words due in active list" when word list is empty', async () => {
+  it('shows "No words yet" when the word list is empty', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -168,11 +166,11 @@ describe('TestWords — empty list / no words due', () => {
       store.dispatch({ type: 'SET_WORDS', words: [] });
     });
     await waitFor(() => {
-      expect(screen.getByText(/no words due in \u201c/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'No words yet' })).toBeInTheDocument();
     });
   });
 
-  it('shows Add Words button when no words are due', async () => {
+  it('shows Add words when no words are due', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -193,7 +191,7 @@ describe('TestWords — empty list / no words due', () => {
     });
   });
 
-  it('does NOT show Practice button when list is empty', async () => {
+  it('does NOT show Practise when the list is empty', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -210,12 +208,12 @@ describe('TestWords — empty list / no words due', () => {
       store.dispatch({ type: 'SET_WORDS', words: [] });
     });
     await waitFor(() => {
-      expect(screen.getByText(/no words due in \u201c/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'No words yet' })).toBeInTheDocument();
     });
-    expect(screen.queryByRole('button', { name: /practice/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Practise' })).not.toBeInTheDocument();
   });
 
-  it('shows Practice button when there are words in list but none due', async () => {
+  it('shows Practise when there are words in list but none due', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -229,7 +227,7 @@ describe('TestWords — empty list / no words due', () => {
     });
     renderWithProviders(<TestWords />, { store });
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /practice/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Practise' })).toBeInTheDocument();
     });
   });
 });
@@ -340,27 +338,10 @@ describe('TestWords — active session with due words', () => {
     });
     expect(screen.queryByText('Done')).not.toBeInTheDocument();
   });
-
-  it('renders Learn step in stepper when level-1 words are included', async () => {
-    const store = createTestStore({
-      ...authenticatedState(),
-      addWords: {
-        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
-        activeListId: 'default',
-        words: [dueWord(1, '你好', 1)],
-        listStats: {},
-        loading: false,
-        error: false,
-      },
-    });
-    renderWithProviders(<TestWords />, { store });
-    await reachSummary();
-    expect(screen.getByText('Learn')).toBeInTheDocument();
-  });
 });
 
 describe('TestWords — practice mode', () => {
-  it('starts practice mode (Test stage) when Practice button clicked', async () => {
+  it('starts practice mode (Test stage) when Practise is clicked', async () => {
     const user = userEvent.setup();
     const store = createTestStore({
       ...authenticatedState(),
@@ -375,7 +356,7 @@ describe('TestWords — practice mode', () => {
     });
     renderWithProviders(<TestWords />, { store });
 
-    const practiceBtn = await screen.findByRole('button', { name: /practice/i });
+    const practiceBtn = await screen.findByRole('button', { name: 'Practise' });
     await user.click(practiceBtn);
 
     await waitFor(() => {
@@ -384,29 +365,58 @@ describe('TestWords — practice mode', () => {
   });
 });
 
-describe('TestWords — cross-list (Test All) mode', () => {
-  // The stepper shows on the Learn step, so these sessions start with a new word.
-  it('shows "Testing: All Lists" in stepper when activeListId is __all__', async () => {
+describe('TestWords — summary', () => {
+  it('hands the summary the scores, the words and the practice flag', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
-        lists: [
-          { id: 'default', name: 'General', createdAt: '', order: 0 },
-          { id: 'list-1', name: 'HSK 1', createdAt: '', order: 1 },
-        ],
-        activeListId: '__all__',
-        words: [dueWord(1, '你好', 1), dueWord(2, '学生', 2)],
-        listStats: { default: { due: 1, total: 3 }, 'list-1': { due: 1, total: 2 } },
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord(1, '你好', 2)],
+        listStats: {},
         loading: false,
         error: false,
       },
     });
     renderWithProviders(<TestWords />, { store });
-    await reachSummary();
-    expect(screen.getByText('Testing: All Lists')).toBeInTheDocument();
+    const scores = [{ char: '你好', direction: 'MC', result: 'fail' }];
+    await reachSummary(scores);
+    expect(capturedSummaryProps.scores).toEqual(scores);
+    expect((capturedSummaryProps.words as { simp: string }[]).map((w) => w.simp)).toEqual(['你好']);
+    expect(capturedSummaryProps.practiceMode).toBe(false);
   });
 
-  it('shows "No words due" with "All Lists" when __all__ is active and no words due', async () => {
+  it('"Practise missed words" starts a practice test of those words only', async () => {
+    const words = [dueWord(1, '你好', 2), dueWord(2, '学生', 2)];
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words,
+        listStats: {},
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+    await reachSummary([
+      { char: '你好', direction: 'MC', result: 'pass' },
+      { char: '学生', direction: 'MC', result: 'fail' },
+    ]);
+
+    act(() => (capturedSummaryProps.onPracticeMissed as (w: unknown[]) => void)([words[1]]));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test')).toHaveTextContent('Test: 学生');
+    });
+    expect(capturedTestProps.practiceMode).toBe(true);
+    expect(screen.queryByTestId('mock-new-words')).not.toBeInTheDocument();
+  });
+});
+
+describe('TestWords — cross-list (Test All) mode', () => {
+  it('names "All lists" when __all__ is active and no words are due', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -423,14 +433,14 @@ describe('TestWords — cross-list (Test All) mode', () => {
     });
     renderWithProviders(<TestWords />, { store });
     await act(async () => {
-      store.dispatch({ type: 'SET_WORDS', words: [] });
+      store.dispatch({ type: 'SET_WORDS', words: [futureWord(1, '你好')] });
     });
     await waitFor(() => {
-      expect(screen.getByText(/no words due in \u201cAll Lists\u201d/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Nothing due in All lists' })).toBeInTheDocument();
     });
   });
 
-  it('shows "Test All Lists" chip when viewing single list with due words in other lists', async () => {
+  it('shows "Test all lists" when viewing one list with due words in other lists', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -450,7 +460,7 @@ describe('TestWords — cross-list (Test All) mode', () => {
       store.dispatch({ type: 'SET_WORDS', words: [] });
     });
     await waitFor(() => {
-      expect(screen.getByText(/Test All Lists/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Test all lists · 2' })).toBeInTheDocument();
     });
   });
 });
@@ -555,24 +565,6 @@ describe('TestWords — stage transitions', () => {
     });
   });
 
-  it('shows Sentences step in stepper when sentenceReadEnabled=true', async () => {
-    const store = createTestStore({
-      ...authenticatedState(),
-      addWords: {
-        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
-        activeListId: 'default',
-        words: [dueWord(1, '你好', 1)],
-        listStats: {},
-        loading: false,
-        error: false,
-      },
-    });
-    renderWithProviders(<TestWords />, { store });
-    await reachSummary();
-    // The Sentences step appears in the stepper (sentenceRead is on by default)
-    expect(screen.getByText('Sentences')).toBeInTheDocument();
-  });
-
   it('renders the Read stage with the Write stage off', async () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
       if (key === 'sentenceWrite') return 'false';
@@ -610,7 +602,7 @@ describe('TestWords — stage transitions', () => {
 });
 
 describe('TestWords — other lists with due words', () => {
-  it('shows chips for other lists that have due words', async () => {
+  it('lists the other lists that have due words', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -635,17 +627,16 @@ describe('TestWords — other lists with due words', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/no words due in \u201c/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'No words yet' })).toBeInTheDocument();
     });
 
-    // Should show HSK 1 chip (has due words) but NOT HSK 2 (0 due)
-    expect(screen.getByText('HSK 1 (3 due)')).toBeInTheDocument();
+    // HSK 1 has due words; HSK 2 has none
+    expect(screen.getByText('Other lists')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'HSK 13 due' })).toBeInTheDocument();
     expect(screen.queryByText(/HSK 2/)).not.toBeInTheDocument();
-    // Should show "Other lists with words due:" text
-    expect(screen.getByText(/other lists with words due/i)).toBeInTheDocument();
   });
 
-  it('shows "No words due in any list" when no other lists have due words', async () => {
+  it('shows no other lists and no "Test all lists" when nothing is due anywhere', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -668,11 +659,13 @@ describe('TestWords — other lists with due words', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/no words due in any list/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'No words yet' })).toBeInTheDocument();
     });
+    expect(screen.queryByText('Other lists')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Test all lists/ })).not.toBeInTheDocument();
   });
 
-  it('calls switchActiveList when a list chip is clicked', async () => {
+  it('calls switchActiveList when another list is clicked', async () => {
     const user = userEvent.setup();
     const mockedSwitchList = vi.mocked(wordActions.switchActiveList);
     mockedSwitchList.mockReturnValue({ type: 'SWITCH_LIST_NOOP' } as any);
@@ -698,32 +691,15 @@ describe('TestWords — other lists with due words', () => {
       store.dispatch({ type: 'SET_WORDS', words: [] });
     });
 
-    const chip = await screen.findByText('HSK 1 (5 due)');
+    const chip = await screen.findByRole('button', { name: 'HSK 15 due' });
     await user.click(chip);
 
     expect(mockedSwitchList).toHaveBeenCalledWith('hsk1');
   });
-
-  it('shows active list name in stepper header', async () => {
-    const store = createTestStore({
-      ...authenticatedState(),
-      addWords: {
-        lists: [{ id: 'mylist', name: 'My Study List', createdAt: '', order: 0 }],
-        activeListId: 'mylist',
-        words: [dueWord(1, '你好', 1)],
-        listStats: {},
-        loading: false,
-        error: false,
-      },
-    });
-    renderWithProviders(<TestWords />, { store });
-    await reachSummary();
-    expect(screen.getByText(/Testing: My Study List/)).toBeInTheDocument();
-  });
 });
 
 describe('TestWords — loading state', () => {
-  it('shows spinner when words are loading and no words selected yet', async () => {
+  it('shows the loading screen when words are loading and no words selected yet', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -738,13 +714,13 @@ describe('TestWords — loading state', () => {
     renderWithProviders(<TestWords />, { store });
 
     await waitFor(() => {
-      expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
+      expect(screen.getByRole('progressbar', { name: 'Loading' })).toBeInTheDocument();
     });
   });
 
-  it('does not flash "No words due" while words are being initialised', async () => {
+  it('does not flash "Nothing due" while words are being initialised', async () => {
     // Simulate words already loaded but not yet processed into selectedWords.
-    // Before the fix this would briefly show the "No words due" screen.
+    // Before the fix this would briefly show the "Nothing due" screen.
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -758,17 +734,17 @@ describe('TestWords — loading state', () => {
     });
     renderWithProviders(<TestWords />, { store });
 
-    // The test component should appear (after initialization), never the "no words due" text
+    // The test component should appear (after initialization), never the "nothing due" text
     await waitFor(() => {
       expect(screen.getByTestId('mock-test')).toBeInTheDocument();
     });
-    // Verify "No words due" was never shown
-    expect(screen.queryByText(/no words due/i)).not.toBeInTheDocument();
+    // Verify "Nothing due" was never shown
+    expect(screen.queryByText(/nothing due/i)).not.toBeInTheDocument();
   });
 });
 
-describe('TestWords — Test All Lists chip interaction', () => {
-  it('calls switchActiveList with __all__ when Test All Lists chip is clicked', async () => {
+describe('TestWords — Test all lists', () => {
+  it('calls switchActiveList with __all__ when "Test all lists" is clicked', async () => {
     const user = userEvent.setup();
     const mockedSwitchList = vi.mocked(wordActions.switchActiveList);
     mockedSwitchList.mockReturnValue({ type: 'SWITCH_LIST_NOOP' } as any);
@@ -792,7 +768,7 @@ describe('TestWords — Test All Lists chip interaction', () => {
       store.dispatch({ type: 'SET_WORDS', words: [] });
     });
 
-    const chip = await screen.findByText(/Test All Lists/);
+    const chip = await screen.findByRole('button', { name: 'Test all lists · 2' });
     await user.click(chip);
 
     expect(mockedSwitchList).toHaveBeenCalledWith('__all__');
@@ -841,7 +817,7 @@ describe('TestWords — chengyus in main test', () => {
     expect(testEl.textContent).toContain('一举两得');
   });
 
-  it('shows Practice button when only chengyu words are in list', async () => {
+  it('shows Practise when only chengyu words are in list', async () => {
     const store = createTestStore({
       ...authenticatedState(),
       addWords: {
@@ -855,7 +831,7 @@ describe('TestWords — chengyus in main test', () => {
     });
     renderWithProviders(<TestWords />, { store });
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /practice/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Practise' })).toBeInTheDocument();
     });
   });
 });

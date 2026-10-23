@@ -12,6 +12,10 @@ import SentenceWrite from '../../components/Test/SentenceWrite/SentenceWrite';
 import SentenceRead from '../../components/Test/SentenceRead/SentenceRead';
 import NewWords from '../../components/Test/NewWords/NewWords';
 import TestSummary from '../../components/Test/TestSummary/TestSummary';
+import { nextDue } from '../../components/Test/TestSummary/summary';
+import NothingDue from '../../components/Test/NothingDue/NothingDue';
+import SessionLoading from '../../components/Test/NothingDue/SessionLoading';
+import { copy } from '../../copy';
 
 import ErrorBoundary from '../../components/ErrorBoundary/ErrorBoundary';
 import { useFocusMode } from '../../components/Layout/focusMode';
@@ -33,7 +37,7 @@ import {
   VocabProgress,
 } from '../../utils/savedSession';
 
-import { Box, Chip, Stepper, Step, StepLabel, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 
 // Dev test mode config - loaded once on mount
 const devConfig: DevTestConfig | null = getDevTestConfig();
@@ -351,6 +355,32 @@ const TestWords: React.FC<Props> = ({
     }));
   };
 
+  /**
+   * Practise the words the session just missed. They were asked a moment ago,
+   * so the session goes straight to the test, with no new-word steps.
+   */
+  const onPractiseMissed = (missed: Word[]): void => {
+    const plan = planFor(missed, true);
+    setState((prev) => ({
+      ...prev,
+      stage: 'vocab',
+      newWords: [],
+      plan,
+      selectedWords: missed,
+      practiceMode: true,
+      wordScores: [],
+      sentenceReadWords: [],
+      sentenceWriteWords: [],
+      seenOffsets: {},
+      resume: null,
+      vocabProgress: null,
+    }));
+  };
+
+  const goHome = (): void => {
+    history.push('/');
+  };
+
   const onStartVocab = (): void => {
     setState((prev) => ({ ...prev, stage: 'vocab' }));
   };
@@ -515,16 +545,10 @@ const TestWords: React.FC<Props> = ({
     });
   }, [activeListId, isDemo, state, userId]);
 
-  // On a phone a study stage fills the screen; its own bar has the way out. The
-  // summary and the prompts keep the app's navigation.
-  const studying =
-    !state.pendingResume &&
-    state.selectedWords.length > 0 &&
-    (state.stage === 'new' ||
-      state.stage === 'vocab' ||
-      state.stage === 'read' ||
-      state.stage === 'write');
-  useFocusMode(studying);
+  // On a phone every screen of the session fills it, the summary and the
+  // "nothing due" screen too; the session bar has the way out. Only the offer
+  // to resume keeps the app's navigation.
+  useFocusMode(!state.pendingResume);
 
   // All dev stages require auth since they use real words from user's list
   // Wait for auth to initialize before redirecting
@@ -609,9 +633,13 @@ const TestWords: React.FC<Props> = ({
         break;
       case 'summary':
         content = (
-          <Box sx={{ width: '90%', maxWidth: 400, mx: 'auto', py: 4 }}>
-            <TestSummary scores={state.wordScores} />
-          </Box>
+          <TestSummary
+            scores={state.wordScores}
+            words={state.selectedWords}
+            practiceMode={state.practiceMode}
+            onHome={goHome}
+            onPracticeMissed={onPractiseMissed}
+          />
         );
         break;
       default:
@@ -631,30 +659,27 @@ const TestWords: React.FC<Props> = ({
     }
   } else if (wordsLoading || !state.wordsInitialized) {
     // Still loading words, or words arrived but haven't been selected yet
-    content = <Spinner />;
+    content = <SessionLoading onHome={goHome} />;
   } else {
-    // Check if user has words in list (even if none due)
-    const hasWordsInList = words.length > 0;
-
     const isAllLists = activeListId === '__all__';
     const activeListName = isAllLists
-      ? 'All Lists'
+      ? copy.nothingDue.allLists
       : (lists || []).find((l) => l.id === activeListId)?.name || 'General';
 
-    // Find other lists that have due words
+    // Other lists that have due words
     const otherListsWithDue = isAllLists
       ? []
       : (lists || [])
           .filter((l) => l.id !== activeListId && (listStats[l.id]?.due ?? 0) > 0)
-          .map((l) => ({ ...l, due: listStats[l.id].due }));
+          .map((l) => ({ id: l.id, name: l.name, due: listStats[l.id].due }));
 
-    // Total due across all lists (for suggesting "Test All")
+    // Total due across all lists, for "Test all lists"
     const totalDueAcrossLists = Object.values(listStats).reduce((sum, s) => sum + (s?.due ?? 0), 0);
     const hasMultipleLists = (lists || []).filter((l) => l.id !== 'default').length > 0;
 
     const handleSwitchAndTest = (listId: string) => {
       onSwitchList(listId);
-      // Navigate home so the user sees the updated list and can tap Test
+      // Navigate home so the user sees the updated list and can tap Study
       history.push('/');
     };
 
@@ -665,115 +690,22 @@ const TestWords: React.FC<Props> = ({
     };
 
     content = (
-      <Box sx={{ width: '90%', maxWidth: 400, mx: 'auto', py: 8, textAlign: 'center' }}>
-        <Typography variant="h6" sx={{ mb: 1, color: 'text.secondary' }}>
-          No words due in &ldquo;{activeListName}&rdquo;
-        </Typography>
-
-        {!isAllLists && otherListsWithDue.length > 0 && (
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
-              Other lists with words due:
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
-              {otherListsWithDue.map((l) => (
-                <Chip
-                  key={l.id}
-                  label={`${l.name} (${l.due} due)`}
-                  onClick={() => handleSwitchAndTest(l.id)}
-                  color="primary"
-                  variant="outlined"
-                  clickable
-                />
-              ))}
-            </Box>
-          </Box>
-        )}
-
-        {!isAllLists && hasMultipleLists && totalDueAcrossLists > 0 && (
-          <Box sx={{ mb: 3 }}>
-            <Chip
-              label={`Test All Lists (${totalDueAcrossLists} due)`}
-              onClick={handleTestAll}
-              color="primary"
-              variant="filled"
-              clickable
-            />
-          </Box>
-        )}
-
-        {otherListsWithDue.length === 0 && !isAllLists && (
-          <Typography variant="body2" sx={{ mb: 3, color: 'text.disabled' }}>
-            No words due in any list
-          </Typography>
-        )}
-
-        {isAllLists && (
-          <Typography variant="body2" sx={{ mb: 3, color: 'text.disabled' }}>
-            No words due in any list
-          </Typography>
-        )}
-
-        <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center' }}>
-          <Button clicked={onClickAddWords}>Add Words</Button>
-          {hasWordsInList && (
-            <Button type="ghost" clicked={onStartPractice}>
-              Practice
-            </Button>
-          )}
-        </Box>
-      </Box>
+      <NothingDue
+        listName={activeListName}
+        hasWords={words.length > 0}
+        next={nextDue(words, new Date())}
+        otherLists={otherListsWithDue}
+        totalDue={!isAllLists && hasMultipleLists ? totalDueAcrossLists : 0}
+        onSwitchList={handleSwitchAndTest}
+        onTestAll={handleTestAll}
+        onPractise={onStartPractice}
+        onAddWords={onClickAddWords}
+        onHome={goHome}
+      />
     );
   }
 
-  // Build progress stepper (only when a session is active)
-  let stepper: React.ReactNode = null;
-  if (state.selectedWords.length > 0 && !studying) {
-    const steps: string[] = [];
-    if (state.newWords.length > 0 && state.newWordsEnabled) steps.push('Learn');
-    steps.push('Test');
-    if (state.sentenceReadEnabled || state.sentenceWriteEnabled) steps.push('Sentences');
-    steps.push('Done');
-
-    const stageToStep: Partial<Record<Stage, number>> = {
-      new: steps.indexOf('Learn'),
-      vocab: steps.indexOf('Test'),
-      read: steps.indexOf('Sentences'),
-      write: steps.indexOf('Sentences'),
-      summary: steps.indexOf('Done'),
-    };
-    const activeStep = stageToStep[state.stage] ?? 0;
-
-    const activeListNameForStepper =
-      activeListId === '__all__'
-        ? 'All Lists'
-        : (lists || []).find((l) => l.id === activeListId)?.name || 'General';
-
-    stepper = (
-      <Box>
-        <Typography
-          variant="caption"
-          sx={{ display: 'block', textAlign: 'center', pt: 1.5, color: 'text.secondary' }}
-        >
-          Testing: {activeListNameForStepper}
-        </Typography>
-        <Stepper activeStep={activeStep} alternativeLabel sx={{ pt: 1, pb: 1 }}>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-      </Box>
-    );
-  }
-
-  return (
-    <>
-      {stepper}
-      {content}
-    </>
-  );
+  return <>{content}</>;
 };
 
 export default withRouter(connector(TestWords));

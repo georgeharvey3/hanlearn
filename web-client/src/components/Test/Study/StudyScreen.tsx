@@ -9,14 +9,20 @@ import { colors, fonts } from '../../../theme';
  * navigation, so this is the whole screen. A wider screen keeps the toolbar
  * (56px) and the main area's top padding (24px), so the column is that much
  * shorter and the page does not scroll.
+ *
+ * A `fixed` screen is exactly that tall rather than at least that tall, so a
+ * part of it can scroll between the bar and the buttons.
  */
-const StudyScreen: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+const StudyScreen: React.FC<{ fixed?: boolean; children: React.ReactNode }> = ({
+  fixed,
+  children,
+}) => (
   <Box
     sx={{
       width: '100%',
       maxWidth: 440,
       mx: 'auto',
-      minHeight: { xs: '100dvh', sm: 'calc(100dvh - 80px)' },
+      [fixed ? 'height' : 'minHeight']: { xs: '100dvh', sm: 'calc(100dvh - 80px)' },
       boxSizing: 'border-box',
       px: 2,
       pb: 3,

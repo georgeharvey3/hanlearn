@@ -102,7 +102,7 @@ test.describe('Dashboard due count accuracy', () => {
     // Navigate to test page and verify it also sees the same words as due
     await page.goto('/test-words');
     // The test page should load and show test UI (meaning words are due)
-    // If it showed "No words due" that would indicate a mismatch
+    // If it showed "Nothing due" that would indicate a mismatch
     await expect(page.getByText(/pinyin|character|meaning/i).first()).toBeVisible({
       timeout: 15000,
     });
