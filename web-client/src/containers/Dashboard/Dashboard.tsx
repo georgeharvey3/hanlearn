@@ -18,6 +18,32 @@ import Chengyu from '../../components/Home/Chengyu/Chengyu';
 import ErrorBoundary from '../../components/ErrorBoundary/ErrorBoundary';
 import { reportError } from '../../services/errorReporting';
 
+import { useHistory } from 'react-router-dom';
+import PrototypeSwitcher, {
+  usePrototypeParam,
+  useStickyPrototypeParam,
+} from '../../components/UI/PrototypeSwitcher/PrototypeSwitcher';
+import { describeSavedSession, readSavedSession } from '../../utils/savedSession';
+import { dayKey } from '../../utils/retention';
+import {
+  DashboardVariantProps,
+  emptyStats,
+  prototypeStates,
+  sampleStats,
+} from './prototype/dashboardShared';
+import VariantA, { name as nameA } from './prototype/VariantA';
+import VariantB, { name as nameB } from './prototype/VariantB';
+import VariantC, { name as nameC } from './prototype/VariantC';
+
+// PROTOTYPE (#403): `?variant=A|B|C` swaps the Dashboard, and `?state=` forces
+// a preview state. No variant param renders the current page.
+const dashboardVariants = [
+  { key: '', name: 'Current' },
+  { key: 'A', name: nameA },
+  { key: 'B', name: nameB },
+  { key: 'C', name: nameC },
+];
+
 const mapStateToProps = (state: RootState) => ({
   userId: state.auth.userId,
   lists: state.addWords.lists,
@@ -83,6 +109,53 @@ const Dashboard: React.FC<PropsFromRedux> = ({
       onInitWordLists();
     }
   }, [userId, onInitWordLists]);
+
+  const history = useHistory();
+  const variant = useStickyPrototypeParam('variant');
+  const previewState = usePrototypeParam('state');
+
+  if (variant) {
+    const saved = readSavedSession();
+    const realResume =
+      saved &&
+      saved.userId === userId &&
+      saved.date === dayKey(new Date()) &&
+      saved.listId === activeListId
+        ? describeSavedSession(saved)
+        : null;
+    // A signed-in account with no words still shows a full page in Normal.
+    const shownStats =
+      previewState === 'empty' ? emptyStats : stats && stats.totalWords > 0 ? stats : sampleStats;
+    const props: DashboardVariantProps = {
+      stats: shownStats,
+      loading: previewState === 'loading' || (loading && !previewState),
+      error: previewState === 'error' || (error && !previewState),
+      resumeLabel:
+        previewState === 'resume' ? '12 questions left' : previewState ? null : realResume,
+      lists,
+      activeListId,
+      listStats,
+      activeListName:
+        activeListId === '__all__'
+          ? 'All lists'
+          : lists.find((l) => l.id === activeListId)?.name || 'General',
+      onSwitchList,
+      onStart: () => history.push('/test-words'),
+      // Prototype: the Test page asks resume or start over itself.
+      onResume: () => history.push('/test-words'),
+      onStartOver: () => history.push('/test-words'),
+      onAddWords: () => history.push('/add-words'),
+      onRetry: loadStats,
+    };
+    return (
+      <>
+        {variant === 'A' && <VariantA {...props} />}
+        {variant === 'B' && <VariantB {...props} />}
+        {variant === 'C' && <VariantC {...props} />}
+        <PrototypeSwitcher variants={dashboardVariants} states={prototypeStates} />
+      </>
+    );
+  }
 
   const errorContent = (
     <Box sx={{ textAlign: 'center', py: 4 }} role="alert">
@@ -159,6 +232,7 @@ const Dashboard: React.FC<PropsFromRedux> = ({
           </ErrorBoundary>
         </>
       )}
+      <PrototypeSwitcher variants={dashboardVariants} states={prototypeStates} />
     </Box>
   );
 };
