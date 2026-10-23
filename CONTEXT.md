@@ -172,12 +172,18 @@ with more due pairs than its share stays due, and a later session reaches it.
 A word whose five directions are all at bank 1, that is, one that has never been
 answered correctly in any direction.
 
-The session teaches a new word in the Learn step, then asks it once, in one
-direction like any other word. The five directions of a new word share one due
+The session teaches a new word in the **new word introduction**, then asks it
+once, in one direction like any other word. The five directions of a new word share one due
 date, so the queue treats them as tied. The four directions that the session
 does not ask stay at bank 1, buried for a few days, and a later session reaches
 them. See
 [docs/adr/0005-new-words-take-one-direction.md](docs/adr/0005-new-words-take-one-direction.md).
+
+The introduction comes before the test. Each new word goes through three
+**steps**: Understand (the meaning and the parts of each character), Speak (the
+learner says the word) and Write (the learner traces each character). The steps
+record no result, and the learner can skip each one. The Write step is not the
+Write stage of the sentences, which comes after the test.
 
 A new word holds no place of its own in the queue. Its due date ranks it against
 every other word, within the direction shares, and a word with no due date is

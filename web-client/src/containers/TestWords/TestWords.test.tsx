@@ -27,6 +27,7 @@ vi.mock('howler', () => ({
 
 // Module-level refs for capturing props from mocked child components
 let capturedTestProps: Record<string, unknown> = {};
+let capturedStartTest: (() => void) | undefined;
 
 // Heavy child components that require their own service deps — mock them out
 vi.mock('../../components/Test/Test', () => ({
@@ -37,9 +38,10 @@ vi.mock('../../components/Test/Test', () => ({
   },
 }));
 vi.mock('../../components/Test/NewWords/NewWords', () => ({
-  default: ({ words }: { words: { simp: string }[] }) => (
-    <div data-testid="mock-new-words">NewWords: {words.map((w) => w.simp).join(',')}</div>
-  ),
+  default: ({ words, startTest }: { words: { simp: string }[]; startTest?: () => void }) => {
+    capturedStartTest = startTest;
+    return <div data-testid="mock-new-words">NewWords: {words.map((w) => w.simp).join(',')}</div>;
+  },
 }));
 vi.mock('../../components/Test/SentenceRead/SentenceRead', () => ({
   default: () => <div data-testid="mock-sentence-read">SentenceRead</div>,
@@ -62,10 +64,22 @@ import * as wordActions from '../../store/actions/index';
 
 const mockedInitWords = vi.mocked(wordActions.initWords);
 
+/**
+ * A study stage fills the screen with its own session bar, so the stepper shows
+ * only on the summary. Walk the session there: the new words, then the test.
+ */
+async function reachSummary(): Promise<void> {
+  await waitFor(() => expect(screen.getByTestId('mock-new-words')).toBeInTheDocument());
+  act(() => capturedStartTest?.());
+  await waitFor(() => expect(screen.getByTestId('mock-test')).toBeInTheDocument());
+  act(() => (capturedTestProps.onVocabComplete as (scores: unknown[]) => void)([]));
+}
+
 // Clear all mock state before every test to avoid cross-test contamination
 beforeEach(() => {
   vi.clearAllMocks();
   capturedTestProps = {};
+  capturedStartTest = undefined;
   mockedInitWords.mockReturnValue(() => {});
   // Each test starts a session, and a session that does not finish is saved so
   // that it can be resumed. Without this, every test after the first would be
@@ -340,9 +354,8 @@ describe('TestWords — active session with due words', () => {
       },
     });
     renderWithProviders(<TestWords />, { store });
-    await waitFor(() => {
-      expect(screen.getByText('Learn')).toBeInTheDocument();
-    });
+    await reachSummary();
+    expect(screen.getByText('Learn')).toBeInTheDocument();
   });
 });
 
@@ -389,9 +402,8 @@ describe('TestWords — cross-list (Test All) mode', () => {
       },
     });
     renderWithProviders(<TestWords />, { store });
-    await waitFor(() => {
-      expect(screen.getByText('Testing: All Lists')).toBeInTheDocument();
-    });
+    await reachSummary();
+    expect(screen.getByText('Testing: All Lists')).toBeInTheDocument();
   });
 
   it('shows "No words due" with "All Lists" when __all__ is active and no words due', async () => {
@@ -556,11 +568,9 @@ describe('TestWords — stage transitions', () => {
       },
     });
     renderWithProviders(<TestWords />, { store });
-
-    await waitFor(() => {
-      // The Sentences step appears in the stepper (sentenceRead is on by default)
-      expect(screen.getByText('Sentences')).toBeInTheDocument();
-    });
+    await reachSummary();
+    // The Sentences step appears in the stepper (sentenceRead is on by default)
+    expect(screen.getByText('Sentences')).toBeInTheDocument();
   });
 
   it('renders the Read stage with the Write stage off', async () => {
@@ -707,10 +717,8 @@ describe('TestWords — other lists with due words', () => {
       },
     });
     renderWithProviders(<TestWords />, { store });
-
-    await waitFor(() => {
-      expect(screen.getByText(/Testing: My Study List/)).toBeInTheDocument();
-    });
+    await reachSummary();
+    expect(screen.getByText(/Testing: My Study List/)).toBeInTheDocument();
   });
 });
 
@@ -870,7 +878,7 @@ describe('TestWords — new words enabled stage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('mock-new-words')).toBeInTheDocument();
     });
-    // Learn step should be in stepper
-    expect(screen.getByText('Learn')).toBeInTheDocument();
+    // The stage has its own session bar, so the stepper is hidden
+    expect(screen.queryByText('Learn')).not.toBeInTheDocument();
   });
 });
