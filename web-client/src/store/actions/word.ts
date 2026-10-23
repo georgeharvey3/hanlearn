@@ -26,6 +26,7 @@ import { traceAsync } from '../../services/performanceService';
 import { trackFeatureUsage } from '../../services/analyticsService';
 import { showNotification } from './notifications';
 import { writeActiveList } from '../../utils/activeList';
+import { copy } from '../../copy';
 
 export const addWord = (word: Word): AddWordAction => {
   return {
@@ -291,7 +292,7 @@ export const postWord = (word: Word): AppThunk => {
       const targetListId = addWords.activeListId === '__all__' ? 'default' : addWords.activeListId;
       await wordService.addWordToList(auth.userId, word, targetListId);
       dispatch(addWord({ ...word, listId: targetListId }));
-      dispatch(showNotification(`"${word.simp}" added to your list`));
+      dispatch(showNotification(copy.wordBank.toastAdded(word.simp)));
       trackFeatureUsage('word_added');
     } catch (error) {
       console.error('Failed to add word:', error);
@@ -323,7 +324,7 @@ export const postCustomWord = (word: {
         targetListId,
       );
       dispatch(addCustomWord(newWord));
-      dispatch(showNotification(`"${word.text}" added to your list`));
+      dispatch(showNotification(copy.wordBank.toastAdded(word.text)));
     } catch (error) {
       console.error('Failed to add custom word:', error);
       Sentry.captureException(error);

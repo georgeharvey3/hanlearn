@@ -25,28 +25,12 @@ test.describe('Notification toasts', () => {
     await addWords.searchWord('你好');
 
     // Handle clash table or direct add modal
-    const clashTable = page.getByText('Select entry for');
-    const addModal = page.getByText('Add to Word List?');
-    const notFoundModal = page.getByText('Word not found');
-
-    await expect(clashTable.or(addModal).or(notFoundModal)).toBeVisible({ timeout: 30000 });
-
-    if (await clashTable.isVisible()) {
-      await addWords.selectClashEntry(0);
-      await addWords.confirmAddWord();
-    } else if (await addModal.isVisible()) {
-      await addWords.confirmAddWord();
-    } else {
-      // Word not found — add as custom word
-      const meaningInput = page.locator('#meaning');
-      await meaningInput.fill('hello');
-      await page.getByRole('button', { name: 'Submit' }).click();
-    }
+    await addWords.addFirstResult('hello');
 
     // Assert toast notification appears
     const toast = page.getByRole('alert');
     await expect(toast).toBeVisible({ timeout: 10000 });
-    await expect(toast).toContainText('added to your list');
+    await expect(toast).toContainText('Added');
   });
 
   test('toast appears when deleting a word', async ({ page }) => {
@@ -59,9 +43,9 @@ test.describe('Notification toasts', () => {
     // Wait for word to appear
     await addWords.expectWordVisible(TEST_WORDS[0].simp);
 
-    // Click the remove button on the word card
-    const removeButton = page.getByRole('button', { name: /remove word/i });
-    await removeButton.first().click();
+    // Open the word's row, then remove it
+    await page.getByText(TEST_WORDS[0].simp, { exact: true }).first().click();
+    await page.getByRole('button', { name: 'Remove' }).click();
 
     // Assert toast notification appears
     const toast = page.getByRole('alert');
@@ -75,22 +59,7 @@ test.describe('Notification toasts', () => {
 
     await addWords.searchWord('你好');
 
-    const clashTable = page.getByText('Select entry for');
-    const addModal = page.getByText('Add to Word List?');
-    const notFoundModal = page.getByText('Word not found');
-
-    await expect(clashTable.or(addModal).or(notFoundModal)).toBeVisible({ timeout: 30000 });
-
-    if (await clashTable.isVisible()) {
-      await addWords.selectClashEntry(0);
-      await addWords.confirmAddWord();
-    } else if (await addModal.isVisible()) {
-      await addWords.confirmAddWord();
-    } else {
-      const meaningInput = page.locator('#meaning');
-      await meaningInput.fill('hello');
-      await page.getByRole('button', { name: 'Submit' }).click();
-    }
+    await addWords.addFirstResult('hello');
 
     // Toast should appear
     const toast = page.getByRole('alert');

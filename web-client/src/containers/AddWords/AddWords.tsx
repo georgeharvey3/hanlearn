@@ -1,61 +1,48 @@
-import React, {
-  ChangeEvent,
-  KeyboardEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
-import { RouteComponentProps, withRouter, Redirect } from 'react-router-dom';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import TableRow from '@mui/material/TableRow';
-import TableCell from '@mui/material/TableCell';
-import WordCard from '../../components/AddWords/WordCard';
+import { Redirect, useHistory } from 'react-router-dom';
+import {
+  Box,
+  ButtonBase,
+  IconButton,
+  Menu,
+  MenuItem,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material';
+import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded';
 
-import Modal from '../../components/UI/Modal/Modal';
-import MainBanner from '../../components/AddWords/MainBanner';
-import Table from '../../components/UI/Table/Table';
-import Button from '../../components/UI/Buttons/Button/Button';
-import * as wordActions from '../../store/actions/index';
+import SearchField from '../../components/AddWords/SearchField';
+import ListChips, { Chip } from '../../components/AddWords/ListChips';
+import WordRow from '../../components/AddWords/WordRow';
+import SearchResults, { EntryState, SearchStatus } from '../../components/AddWords/SearchResults';
+import { DeleteListDialog, ListNameDialog } from '../../components/AddWords/ListDialogs';
+import { BankEmpty, BankLoadError, BankLoading } from '../../components/AddWords/BankStates';
+import { Overline } from '../../components/Test/Study/parts';
 import Spinner from '../../components/UI/Spinner/Spinner';
-import Input from '../../components/UI/Input/Input';
-
-import NewWord from '../../components/Test/NewWords/NewWord/NewWord';
-import ListSelector from '../../components/UI/ListSelector/ListSelector';
-import { RootState } from '../../types/store';
-import { Word } from '../../types/models';
+import * as wordActions from '../../store/actions/index';
 import * as wordService from '../../services/wordService';
 import { reportError } from '../../services/errorReporting';
+import { copy } from '../../copy';
+import { colors, fonts } from '../../theme';
+import { RootState } from '../../types/store';
+import { Word } from '../../types/models';
+import { findInBank, isCovered, matchesBank } from '../../utils/wordBank';
 import {
-  searchInputSchema,
-  customWordTextSchema,
   customWordMeaningSchema,
+  customWordTextSchema,
+  searchInputSchema,
 } from '../../validation/schemas';
 
-interface AddWordsState {
-  newWord: string;
-  errorMessage: string;
-  showErrorMessage: boolean;
-  clashChar: string;
-  clashWords: Word[];
-  showClashTable: boolean;
-  charSet: 'simp' | 'trad';
-  loading: boolean;
-  addError: boolean;
-  showWords: boolean;
-  pendingWord: Word | null;
-  meaning: string;
-  meaningInputDisabled: boolean;
-  showMeaningInput: boolean;
-  showConfirmModal: boolean;
-  pendingMeaning: string;
-}
+const ALL_LISTS = '__all__';
+const DEFAULT_LIST = 'default';
 
-interface OwnProps {
-  isDemo?: boolean;
-}
+// The pause after typing before the dictionary is asked. Enter asks at once.
+const SEARCH_DELAY_MS = 400;
+
+// The dictionary function looks up characters only, so a query with no Han
+// character filters the bank and does not ask it.
+const HAN = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
 
 const mapStateToProps = (state: RootState) => ({
   words: state.addWords.words,
@@ -82,505 +69,379 @@ const mapDispatchToProps = {
 };
 
 const connector = connect(mapStateToProps, mapDispatchToProps);
-type PropsFromRedux = ConnectedProps<typeof connector>;
-type Props = PropsFromRedux & OwnProps & RouteComponentProps;
+type Props = ConnectedProps<typeof connector>;
 
+/**
+ * The word bank. One search field filters the bank and asks the dictionary;
+ * its results take the place of the word list. The lists are chips under the
+ * field, and a word row opens in place.
+ */
 const AddWords: React.FC<Props> = ({
   words,
   error,
   loading,
   userId,
   authInitialized,
-  onInitWords,
+  lists,
+  activeListId,
+  listStats,
   onPostWord,
   onPostCustomWord,
   onDeleteWord,
+  onInitWords,
   onPostMeaningUpdate,
   onMoveWord,
   onSwitchList,
   onCreateList,
   onRenameList,
   onDeleteList,
-  lists,
-  activeListId,
-  listStats,
-  history,
-  isDemo,
 }) => {
-  const [state, setState] = useState<AddWordsState>(() => {
-    const charSet = (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad';
-    return {
-      newWord: '',
-      errorMessage: '',
-      showErrorMessage: false,
-      clashChar: '',
-      clashWords: [],
-      showClashTable: false,
-      charSet: charSet,
-      loading: false,
-      addError: false,
-      showWords: true,
-      pendingWord: null,
-      meaning: '',
-      meaningInputDisabled: false,
-      showMeaningInput: false,
-      showConfirmModal: false,
-      pendingMeaning: '',
-    };
-  });
-
-  const updateState = useCallback((partial: Partial<AddWordsState>) => {
-    setState((prev) => ({ ...prev, ...partial }));
-  }, []);
-
-  const dismissModal = useCallback((): void => {
-    updateState({ showErrorMessage: false, newWord: '' });
-  }, [updateState]);
-
-  const dismissClashTable = useCallback((): void => {
-    updateState({ showClashTable: false, newWord: '' });
-  }, [updateState]);
-
-  const dismissMeaningInput = useCallback((): void => {
-    updateState({ showMeaningInput: false, newWord: '' });
-    const mainInput = document.querySelector('#addInput') as HTMLInputElement | null;
-
-    if (mainInput) {
-      mainInput.focus();
-    }
-  }, [updateState]);
-
-  const dismissConfirmModal = useCallback((): void => {
-    updateState({ showConfirmModal: false, pendingWord: null, pendingMeaning: '' });
-    const input = document.querySelector('#addInput') as HTMLInputElement | null;
-    if (input) {
-      input.focus();
-    }
-  }, [updateState]);
-
-  const confirmAddWord = useCallback((): void => {
-    if (!state.pendingWord) return;
-
-    const editedMeaning = state.pendingMeaning.trim();
-
-    if (editedMeaning && editedMeaning !== state.pendingWord.meaning) {
-      onPostWord({ ...state.pendingWord, meaning: editedMeaning });
-    } else {
-      onPostWord(state.pendingWord);
-    }
-
-    updateState({ showConfirmModal: false, pendingWord: null, pendingMeaning: '' });
-    const input = document.querySelector('#addInput') as HTMLInputElement | null;
-    if (input) {
-      input.focus();
-    }
-  }, [state.pendingWord, state.pendingMeaning, onPostWord, updateState]);
-
-  const onKeyUp = useCallback(
-    (event: globalThis.KeyboardEvent): void => {
-      if (event.key === 'Escape') {
-        if (state.showErrorMessage) {
-          dismissModal();
-        }
-
-        if (state.showClashTable) {
-          dismissClashTable();
-        }
-
-        if (state.showMeaningInput) {
-          dismissMeaningInput();
-        }
-
-        if (state.showConfirmModal) {
-          dismissConfirmModal();
-        }
-      }
-    },
-    [
-      dismissClashTable,
-      dismissMeaningInput,
-      dismissModal,
-      dismissConfirmModal,
-      state.showClashTable,
-      state.showErrorMessage,
-      state.showMeaningInput,
-      state.showConfirmModal,
-    ],
+  const history = useHistory();
+  const theme = useTheme();
+  const desktop = useMediaQuery(theme.breakpoints.up('sm'), { noSsr: true });
+  const [charSet] = useState<'simp' | 'trad'>(
+    () => (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad',
   );
 
-  // Initialize words when userId becomes available
+  const [query, setQueryText] = useState('');
+  const [status, setStatus] = useState<SearchStatus>('idle');
+  const [results, setResults] = useState<Word[]>([]);
+  const [openId, setOpenId] = useState<number | null>(null);
+  // The kind of dialog stays set while it closes, so its title and fields do
+  // not change during the exit transition.
+  const [dialogKind, setDialogKind] = useState<'new' | 'rename' | 'delete'>('new');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const openDialog = useCallback((kind: 'new' | 'rename' | 'delete') => {
+    setDialogKind(kind);
+    setDialogOpen(true);
+  }, []);
+  const closeDialog = useCallback(() => setDialogOpen(false), []);
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+  // Each search takes a number, so an answer that comes back after a newer
+  // search started is dropped.
+  const searchSeq = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
   useEffect(() => {
-    if (userId !== null) {
-      onInitWords();
-    }
+    if (userId !== null) onInitWords();
   }, [onInitWords, userId]);
 
-  // Separate effect for keyup listener to avoid re-fetching words when modal state changes
-  useEffect(() => {
-    document.addEventListener('keyup', onKeyUp);
-    return () => {
-      document.removeEventListener('keyup', onKeyUp);
-    };
-  }, [onKeyUp]);
+  useEffect(() => () => clearTimeout(timer.current), []);
 
-  const onInputChangedHandler = useCallback(
-    (event: ChangeEvent<HTMLInputElement>): void => {
-      updateState({ newWord: event.target.value, addError: false });
-    },
-    [updateState],
-  );
-
-  const handleSearchResult = useCallback(
-    (res: Word[], searchedWord: string): void => {
-      if (res.length === 0) {
-        (document.getElementById('addInput') as HTMLInputElement | null)?.blur();
-        updateState({
-          errorMessage: `The word ${searchedWord} could not be found`,
-          showMeaningInput: true,
-        });
-
-        const input = document.querySelector('#meaning') as HTMLInputElement | null;
-        if (!input) {
-          return;
-        }
-        setTimeout(() => {
-          input.focus();
-        }, 1);
+  const runSearch = useCallback(
+    async (text: string) => {
+      clearTimeout(timer.current);
+      const seq = ++searchSeq.current;
+      const parsed = searchInputSchema.safeParse(text);
+      if (!parsed.success || !HAN.test(parsed.data)) {
+        setStatus('idle');
+        setResults([]);
         return;
       }
-      if (res.length === 1) {
-        const word = res[0];
-        for (let i = 0; i < words.length; i++) {
-          if (words[i].id === word.id) {
-            updateState({
-              errorMessage: `The word ${searchedWord} is already in your list`,
-              showErrorMessage: true,
-            });
-            return;
-          }
-        }
-        updateState({
-          newWord: '',
-          pendingWord: word,
-          pendingMeaning: word.meaning,
-          showConfirmModal: true,
-        });
-      }
-
-      if (res.length > 1) {
-        updateState({
-          clashChar: res[0][state.charSet],
-          clashWords: res,
-          showClashTable: true,
-        });
-      }
-    },
-    [words, state.charSet, updateState],
-  );
-
-  const searchForWord = useCallback(
-    async (e: React.FormEvent): Promise<void> => {
-      e.preventDefault();
-      if (state.newWord === '') {
-        return;
-      }
-
-      const parsed = searchInputSchema.safeParse(state.newWord);
-      if (!parsed.success) {
-        return;
-      }
-
-      updateState({ loading: true });
+      setStatus('searching');
       try {
-        const words = await wordService.searchWord(parsed.data, state.charSet);
-        updateState({
-          loading: false,
-          addError: false,
-        });
-        handleSearchResult(words, state.newWord);
-      } catch (error) {
-        console.error('Failed to search for word:', error);
-        reportError(error, { feature: 'add-words-search' });
-        updateState({
-          loading: false,
-          addError: true,
-          newWord: '',
-        });
+        const found = await wordService.searchWord(parsed.data, charSet);
+        if (seq !== searchSeq.current) return;
+        setResults(found);
+        setStatus('done');
+      } catch (err) {
+        if (seq !== searchSeq.current) return;
+        console.error('Failed to search for word:', err);
+        reportError(err, { feature: 'add-words-search' });
+        setStatus('error');
       }
     },
-    [state.newWord, state.charSet, updateState, handleSearchResult],
+    [charSet],
   );
 
-  const onTestHandler = useCallback((): void => {
-    // Navigate to test page - practice mode is available there if no words are due
-    history.push('/test-words');
-  }, [history]);
+  const setQuery = useCallback(
+    (text: string) => {
+      setQueryText(text);
+      clearTimeout(timer.current);
+      if (HAN.test(text)) {
+        setStatus('searching');
+        timer.current = setTimeout(() => runSearch(text), SEARCH_DELAY_MS);
+      } else {
+        searchSeq.current++;
+        setStatus('idle');
+        setResults([]);
+      }
+    },
+    [runSearch],
+  );
 
-  const toggleWords = useCallback((): void => {
-    setState((prevState) => ({
-      ...prevState,
-      showWords: !prevState.showWords,
-    }));
+  const clearSearch = useCallback(() => {
+    clearTimeout(timer.current);
+    searchSeq.current++;
+    setQueryText('');
+    setStatus('idle');
+    setResults([]);
+    document.getElementById('addInput')?.focus();
   }, []);
 
-  const meaningChanged = useCallback(
-    (event: ChangeEvent<HTMLInputElement>): void => {
-      updateState({ meaning: event.target.value });
+  const trySuggestion = useCallback(
+    (text: string) => {
+      setQueryText(text);
+      runSearch(text);
     },
-    [updateState],
+    [runSearch],
   );
 
-  const meaningSubmitClicked = useCallback((): void => {
-    const textResult = customWordTextSchema.safeParse(state.newWord);
-    const meaningResult = customWordMeaningSchema.safeParse(state.meaning);
-    if (!textResult.success || !meaningResult.success) {
-      return;
-    }
-
-    onPostCustomWord({
-      text: textResult.data,
-      meaning: meaningResult.data,
-      charSet: state.charSet,
-    });
-    updateState({
-      showMeaningInput: false,
-      meaning: '',
-      newWord: '',
-    });
-    const mainInput = document.querySelector('#addInput') as HTMLInputElement | null;
-
-    if (mainInput) {
-      mainInput.focus();
-    }
-  }, [onPostCustomWord, state.newWord, state.meaning, state.charSet, updateState]);
-
-  const meaningKeyPressed = useCallback(
-    (event: KeyboardEvent<HTMLInputElement>): void => {
-      if (event.key === 'Enter') {
-        meaningSubmitClicked();
-      }
+  const addOwnWord = useCallback(
+    (meaning: string) => {
+      const text = customWordTextSchema.safeParse(query);
+      const parsedMeaning = customWordMeaningSchema.safeParse(meaning);
+      if (!text.success || !parsedMeaning.success) return;
+      onPostCustomWord({ text: text.data, meaning: parsedMeaning.data, charSet });
+      clearSearch();
     },
-    [meaningSubmitClicked],
+    [query, charSet, onPostCustomWord, clearSearch],
   );
 
-  const wordCards = useMemo(
-    () =>
-      words.map((row) => (
-        <WordCard
-          key={row.id}
-          word={row}
-          charSet={state.charSet}
-          lists={lists}
-          onDeleteWord={onDeleteWord}
-          onPostMeaningUpdate={onPostMeaningUpdate}
-          onMoveWord={onMoveWord}
+  const toggle = useCallback((id: number) => setOpenId((open) => (open === id ? null : id)), []);
+
+  const moveWord = useCallback(
+    (id: number, listId: string, label: string) => {
+      onMoveWord(id, listId, label);
+      setOpenId(null);
+    },
+    [onMoveWord],
+  );
+
+  const removeWord = useCallback(
+    (id: number) => {
+      onDeleteWord(id);
+      setOpenId(null);
+    },
+    [onDeleteWord],
+  );
+
+  const totalWords = useMemo(
+    () => Object.values(listStats).reduce((sum, s) => sum + (s?.total ?? 0), 0),
+    [listStats],
+  );
+  const totalDue = useMemo(
+    () => Object.values(listStats).reduce((sum, s) => sum + (s?.due ?? 0), 0),
+    [listStats],
+  );
+
+  const chips: Chip[] = useMemo(() => {
+    // The active list counts its loaded words, which are fresher than the
+    // stats after an add or a remove.
+    const count = (id: string) =>
+      id === activeListId && !loading ? words.length : (listStats[id]?.total ?? 0);
+    const own = lists.map((l) => ({ id: l.id, name: l.name, count: count(l.id) }));
+    if (lists.length < 2) return own;
+    const all = activeListId === ALL_LISTS && !loading ? words.length : totalWords;
+    return [{ id: ALL_LISTS, name: copy.wordBank.allLists, count: all }, ...own];
+  }, [lists, listStats, activeListId, words.length, loading, totalWords]);
+
+  // Wait for auth to initialize before redirecting.
+  if (!authInitialized) return <Spinner />;
+  if (userId === null) return <Redirect to="/" />;
+
+  const searching = query.trim().length > 0;
+  const bankMatches = searching ? words.filter((w) => matchesBank(w, query)) : [];
+  const activeList = lists.find((l) => l.id === activeListId);
+  const listName = activeListId === ALL_LISTS ? copy.wordBank.allLists : (activeList?.name ?? '');
+  const canEditList = activeListId !== ALL_LISTS && activeListId !== DEFAULT_LIST && !!activeList;
+  const due = activeListId === ALL_LISTS ? totalDue : (listStats[activeListId]?.due ?? 0);
+  // The first load has no stats yet, so the chips are grey blocks too.
+  const firstLoad = loading && Object.keys(listStats).length === 0;
+
+  const row = (w: Word) => (
+    <WordRow
+      key={w.id}
+      word={w}
+      charSet={charSet}
+      lists={lists}
+      open={openId === w.id}
+      onToggle={() => toggle(w.id)}
+      onMeaningChange={onPostMeaningUpdate}
+      onMove={moveWord}
+      onRemove={removeWord}
+    />
+  );
+
+  let body: React.ReactNode;
+  if (searching) {
+    body = (
+      <Box sx={{ mt: 0.5 }}>
+        <SearchResults
+          query={query.trim()}
+          status={status}
+          results={results}
+          charSet={charSet}
+          stateOf={(entry): EntryState => {
+            const held = findInBank(entry, words);
+            return !held ? 'new' : isCovered(held) ? 'covered' : 'added';
+          }}
+          onAdd={onPostWord}
+          onAddOwn={addOwnWord}
+          onRetry={() => runSearch(query)}
         />
-      )),
-    [words, state.charSet, lists, onDeleteWord, onPostMeaningUpdate, onMoveWord],
-  );
-
-  const clashTableRows = useMemo(
-    () =>
-      state.clashWords.map((word, index) => {
-        const selectWord = () => {
-          handleSearchResult([word], word[state.charSet]);
-          updateState({
-            clashChar: '',
-            clashWords: [],
-            showClashTable: false,
-          });
-        };
-        return (
-          <TableRow
-            key={index}
-            hover
-            tabIndex={0}
-            sx={{ cursor: 'pointer' }}
-            onClick={selectWord}
-            onKeyDown={(e: React.KeyboardEvent) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                selectWord();
-              }
-            }}
-          >
-            <TableCell>{word.pinyin}</TableCell>
-            <TableCell>{word.meaning}</TableCell>
-          </TableRow>
-        );
-      }),
-    [state.clashWords, state.charSet, handleSearchResult, updateState],
-  );
-
-  // Wait for auth to initialize before redirecting
-  if (!authInitialized) {
-    return <Spinner />;
-  }
-  if (userId === null) {
-    return <Redirect to="/" />;
-  }
-
-  let table: React.ReactNode = loading ? <Spinner /> : null;
-
-  if (words) {
-    table = (
-      <Box
-        sx={{
-          width: '100%',
-          maxWidth: 700,
-          mx: 'auto',
-        }}
-      >
-        {wordCards}
+        {status === 'idle' && bankMatches.length === 0 && (
+          <Box component="p" sx={{ my: 1, fontSize: 15, color: colors.textSecondary }}>
+            {copy.wordBank.noMatch}
+          </Box>
+        )}
+        {bankMatches.length > 0 && (
+          <>
+            <Overline component="h2" sx={{ m: 0, mt: status === 'idle' ? 0 : 3, mb: 0.5 }}>
+              {copy.wordBank.inBank}
+            </Overline>
+            {bankMatches.map(row)}
+          </>
+        )}
+      </Box>
+    );
+  } else if (loading) {
+    body = <BankLoading chips={firstLoad} />;
+  } else if (error) {
+    body = <BankLoadError onRetry={onInitWords} />;
+  } else if (words.length === 0) {
+    body = (
+      <BankEmpty
+        title={totalWords === 0 ? copy.wordBank.noWords : copy.wordBank.emptyList}
+        onTry={trySuggestion}
+      />
+    );
+  } else {
+    body = (
+      <Box>
+        <Box sx={{ minHeight: 44, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Overline component="h1" sx={{ flex: 1, m: 0, fontWeight: 400 }}>
+            {copy.wordBank.heading(listName, words.length)}
+          </Overline>
+          {desktop && (
+            <ButtonBase
+              onClick={() => history.push('/test-words')}
+              sx={{
+                height: 44,
+                px: 2.5,
+                borderRadius: 1,
+                bgcolor: colors.primaryDark,
+                color: colors.white,
+                fontFamily: fonts.body,
+                fontSize: 15,
+                fontWeight: 600,
+                '&:hover': { bgcolor: colors.primaryDarkHover },
+              }}
+            >
+              {due > 0 ? copy.wordBank.studyDue(due) : copy.wordBank.study}
+            </ButtonBase>
+          )}
+          {canEditList && (
+            <IconButton
+              aria-label={copy.wordBank.listActions}
+              aria-haspopup="menu"
+              aria-expanded={!!menuAnchor}
+              onClick={(e) => setMenuAnchor(e.currentTarget)}
+              sx={{
+                width: 44,
+                height: 44,
+                mr: '-10px',
+                borderRadius: 1,
+                color: colors.text,
+                bgcolor: menuAnchor ? colors.skeleton : 'transparent',
+              }}
+            >
+              <MoreHorizRoundedIcon />
+            </IconButton>
+          )}
+        </Box>
+        {words.map(row)}
       </Box>
     );
   }
 
-  if (!state.showWords) {
-    table = null;
-  }
-
-  if (error) {
-    table = (
-      <Typography sx={{ fontSize: '20px', color: 'error.main' }}>
-        Error: Could not fetch words
-      </Typography>
-    );
-  }
-
-  const buttonText = state.showWords ? 'Hide Table' : 'Show Table';
-
   return (
-    <>
-      {state.pendingWord !== null ? (
-        <Modal show={state.showConfirmModal} modalClosed={dismissConfirmModal}>
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, pr: 3 }}>
-            Add to Word List?
-          </Typography>
-          <NewWord
-            word={state.pendingWord}
-            isDemo={isDemo}
-            isAddedWord={true}
-            compact
-            onMeaningChange={(meaning) => updateState({ pendingMeaning: meaning })}
-          />
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: 1.5,
-              mt: 3,
-            }}
-          >
-            <Button clicked={dismissConfirmModal} type="ghost">
-              Cancel
-            </Button>
-            <Button clicked={confirmAddWord} type="primary">
-              Add
-            </Button>
-          </Box>
-        </Modal>
-      ) : null}
-      <Modal show={state.showClashTable} modalClosed={dismissClashTable}>
-        <Typography variant="h6" component="h2" sx={{ fontWeight: 600, mb: 1 }}>
-          Select entry for {state.clashChar}
-        </Typography>
-        <Table headings={['Pinyin', 'Meaning']}>{clashTableRows}</Table>
-      </Modal>
-      <Modal show={state.showMeaningInput} modalClosed={dismissMeaningInput}>
-        <Typography variant="h6" component="h3" sx={{ fontWeight: 600, mb: 1 }}>
-          Word not found — Enter meaning
-        </Typography>
-        <Input
-          id="meaning"
-          aria-label="Enter word meaning"
-          value={state.meaning}
-          changed={meaningChanged}
-          keyPressed={meaningKeyPressed}
-          maxLength={500}
-        />
-        <Button disabled={state.meaningInputDisabled} clicked={meaningSubmitClicked}>
-          Submit
-        </Button>
-      </Modal>
-      <Modal show={state.showErrorMessage} modalClosed={dismissModal}>
-        <p>{state.errorMessage}</p>
-      </Modal>
-      {!isDemo && (
-        <Box sx={{ mt: 3 }}>
-          <ListSelector
-            lists={lists}
-            activeListId={activeListId}
-            listStats={listStats}
-            onSwitchList={onSwitchList}
-            onCreateList={onCreateList}
-            onRenameList={onRenameList}
-            onDeleteList={onDeleteList}
-            alwaysShow
-          />
-        </Box>
-      )}
-      <MainBanner
-        submitDisabled={state.newWord.length === 0}
-        inputChanged={onInputChangedHandler}
-        newWord={state.newWord}
-        submitClicked={searchForWord}
-        loading={state.loading}
+    <Box
+      sx={{
+        width: '100%',
+        maxWidth: 720,
+        mx: 'auto',
+        pb: 4,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1.5,
+        fontFamily: fonts.body,
+        color: colors.text,
+      }}
+    >
+      <SearchField
+        query={query}
+        busy={status === 'searching'}
+        onChange={setQuery}
+        onSubmit={() => runSearch(query)}
+        onClear={clearSearch}
       />
-      {state.addError && (
-        <Typography
-          role="alert"
-          sx={{ fontSize: '1rem', color: 'error.main', textAlign: 'center', mb: 2 }}
-        >
-          Could not search for word. Please check your connection and try again.
-        </Typography>
-      )}
-      {words.length > 0 ? (
-        <>
-          <Box sx={{ mb: 0, '& h3': { color: 'text.primary' } }}>{table}</Box>
-          <Box
-            sx={(theme) => ({
-              position: 'sticky',
-              bottom: 0,
-              zIndex: 10,
-              pt: 1,
-              pb: 2,
-              display: 'flex',
-              justifyContent: 'center',
-              gap: 1,
-              backgroundColor: theme.palette.background.default,
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: -24,
-                left: 0,
-                right: 0,
-                height: 24,
-                background: `linear-gradient(to bottom, transparent, ${theme.palette.background.default})`,
-                pointerEvents: 'none',
-              },
-            })}
-          >
-            <Button clicked={onTestHandler}>Test</Button>
-            <Button type="ghost" clicked={toggleWords}>
-              {buttonText}
-            </Button>
-          </Box>
-        </>
-      ) : (
-        <Typography
-          sx={{
-            mt: 4,
-            fontSize: '1.1rem',
-            color: 'text.secondary',
-            textAlign: 'center',
+      {!searching && !firstLoad && (
+        <ListChips
+          chips={chips}
+          activeId={activeListId}
+          onSwitch={(id) => {
+            setOpenId(null);
+            onSwitchList(id);
           }}
-        >
-          Add words to start learning
-        </Typography>
+          onNew={() => openDialog('new')}
+        />
       )}
-    </>
+      {body}
+
+      <Menu
+        anchorEl={menuAnchor}
+        open={!!menuAnchor}
+        onClose={() => setMenuAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slotProps={{ paper: { sx: { width: 180, borderRadius: 1 } } }}
+      >
+        <MenuItem
+          onClick={() => {
+            setMenuAnchor(null);
+            openDialog('rename');
+          }}
+          sx={{ height: 44, fontFamily: fonts.body, fontSize: 15 }}
+        >
+          {copy.wordBank.rename}
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setMenuAnchor(null);
+            openDialog('delete');
+          }}
+          sx={{ height: 44, fontFamily: fonts.body, fontSize: 15, color: colors.primaryLight }}
+        >
+          {copy.wordBank.delete}
+        </MenuItem>
+      </Menu>
+      <ListNameDialog
+        open={dialogOpen && dialogKind !== 'delete'}
+        title={
+          dialogKind === 'rename' ? copy.wordBank.renameTitle(listName) : copy.wordBank.newList
+        }
+        initial={dialogKind === 'rename' ? listName : ''}
+        action={dialogKind === 'rename' ? copy.wordBank.save : copy.wordBank.create}
+        onClose={() => closeDialog()}
+        onSave={(name) => {
+          if (dialogKind === 'rename') onRenameList(activeListId, name);
+          else onCreateList(name);
+          closeDialog();
+        }}
+      />
+      <DeleteListDialog
+        open={dialogOpen && dialogKind === 'delete'}
+        name={listName}
+        words={words.length}
+        onClose={() => closeDialog()}
+        onDelete={() => {
+          onDeleteList(activeListId);
+          closeDialog();
+        }}
+      />
+    </Box>
   );
 };
 
-export default withRouter(connector(AddWords));
+export default connector(AddWords);

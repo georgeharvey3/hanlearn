@@ -52,31 +52,17 @@ test.describe('Word sort order after adding', () => {
     // Add a new word — it will get today's date as due date
     await addWords.searchWord('大');
 
-    const clashTable = page.getByText('Select entry for');
-    const addModal = page.getByText('Add to Word List?');
-    const notFoundModal = page.getByText('Word not found');
-
-    await expect(clashTable.or(addModal).or(notFoundModal)).toBeVisible({ timeout: 30000 });
-
-    if (await clashTable.isVisible()) {
-      await addWords.selectClashEntry(0);
-      await addWords.confirmAddWord();
-    } else if (await addModal.isVisible()) {
-      await addWords.confirmAddWord();
-    } else {
-      // Word not found — add as custom word
-      const meaningInput = page.locator('#meaning');
-      await meaningInput.fill('big');
-      await page.getByRole('button', { name: 'Submit' }).click();
-    }
+    await addWords.addFirstResult('big');
+    // Clear the search to bring the list back.
+    await addWords.clearSearch();
 
     // Wait for the new word to appear
     await addWords.expectWordVisible('大');
 
     // Verify sort order: the new word (due today) should appear between
     // 过去 (overdue, 2020) and 未来 (future, 2099)
-    // Get all word characters in display order using lang="zh" typography elements
-    const wordElements = page.locator('div > div > [lang="zh"]');
+    // Get all word characters in display order: each row is a button that opens it
+    const wordElements = page.locator('[aria-expanded] [lang="zh"]');
     const wordTexts: string[] = [];
     const count = await wordElements.count();
     for (let i = 0; i < count; i++) {
