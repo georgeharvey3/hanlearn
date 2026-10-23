@@ -161,4 +161,66 @@ export const copy = {
       finished: 'Finished!',
     },
   },
+  // The page a visitor sees before an account exists.
+  landing: {
+    startLearning: 'Start learning',
+    trySession: 'Try a session',
+    headline: 'Stop forgetting the Chinese you learn.',
+    sub: 'Add the words you meet. HanLearn brings each one back before it fades.',
+    facts: [
+      { value: '124,000', label: 'words in the dictionary' },
+      { value: '5 ways', label: 'to test each word' },
+      { value: 'Smart', label: 'review scheduling' },
+      { value: 'Free', label: 'with no ads' },
+    ],
+    // The phone in the hero, which plays a short session.
+    phone: {
+      takeOver: 'Tap to take over',
+      draw: 'Write the character',
+      again: 'Start over',
+      done: (n: number) => `${n} words reviewed`,
+      next: (due: string) => `Next review in ${due}`,
+      // "Give the meaning for", by the kind of card.
+      category: { flash: 'meaning', type: 'pinyin', write: 'character' },
+    },
+    fiveWays: {
+      headline: 'One word, from every angle.',
+      sub: 'Characters, sound and meaning, tested in every direction.',
+      steps: [
+        'Understand the characters',
+        'Recognise the sound',
+        'Speak the word',
+        'Read it aloud',
+        'Write it by hand',
+      ],
+      faces: { char: 'Characters', pinyin: 'Sound', meaning: 'Meaning' },
+    },
+    features: [
+      {
+        glyph: '查',
+        title: 'Look up any word',
+        body: 'Search in hanzi, pinyin or English and add a word to your list.',
+      },
+      {
+        glyph: '拆',
+        title: 'Character breakdown',
+        body: 'See the parts that build each character.',
+      },
+      {
+        glyph: '句',
+        title: 'Sentences',
+        body: 'Read and write sentences with the words you know.',
+      },
+      {
+        glyph: '成',
+        title: 'Chengyu of the day',
+        body: 'A new four-character idiom every day.',
+      },
+    ],
+    // The Analects' opening line: learn, and review in time.
+    proverb: '学而时习之',
+    proverbGloss: 'Learn, and review it often.',
+    footer: 'Free and open source.',
+    github: 'GitHub',
+  },
 } as const;

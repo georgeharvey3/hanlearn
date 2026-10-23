@@ -4,12 +4,12 @@ import { RouteComponentProps, withRouter } from 'react-router-dom';
 
 import Box from '@mui/material/Box';
 import MainBanner from '../../components/Home/MainBanner/MainBanner';
-import SignUpBanner from '../../components/Home/SignUpBanner/SignUpBanner';
 import AccountSummary from '../../components/Home/AccountSummary/AccountSummary';
 import Footer from '../../components/Home/Footer/Footer';
 import Chengyu from '../../components/Home/Chengyu/Chengyu';
 import HowItWorks from '../../components/Home/HowItWorks/HowItWorks';
 import FeatureHighlights from '../../components/Home/FeatureHighlights/FeatureHighlights';
+import Landing from '../../components/Home/Landing/Landing';
 
 import * as actions from '../../store/actions/index';
 import { RootState } from '../../types/store';
@@ -27,7 +27,6 @@ const mapStateToProps = (state: RootState) => ({
 
 const mapDispatchToProps = {
   onInitWords: actions.initWords,
-  onOpenAuthModal: actions.openAuthModal,
   onSwitchList: actions.switchActiveList,
   onCreateList: actions.postCreateWordList,
   onRenameList: actions.postRenameWordList,
@@ -47,7 +46,6 @@ const Home: React.FC<Props> = ({
   activeListId,
   listStats,
   onInitWords,
-  onOpenAuthModal,
   onSwitchList,
   onCreateList,
   onRenameList,
@@ -84,14 +82,6 @@ const Home: React.FC<Props> = ({
     }
   }, [isAuthenticated, onInitWords, userId]);
 
-  const onClickSignUp = (): void => {
-    onOpenAuthModal('register');
-  };
-
-  const onTryOutClicked = (): void => {
-    history.push('/tryout');
-  };
-
   const onTestClicked = (): void => {
     history.push('/test-words');
   };
@@ -100,39 +90,31 @@ const Home: React.FC<Props> = ({
     history.push('/add-words');
   };
 
+  if (!isAuthenticated) return <Landing />;
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <MainBanner
-        signUpClicked={!isAuthenticated ? onClickSignUp : undefined}
-        tryOutClicked={!isAuthenticated ? onTryOutClicked : undefined}
+      <MainBanner />
+      <AccountSummary
+        numDue={numDue}
+        numTot={numTot}
+        testClicked={onTestClicked}
+        addWordsClicked={onAddWordsClicked}
+        loading={wordsLoading}
+        activeListName={activeListName}
+        lists={lists}
+        activeListId={activeListId}
+        listStats={listStats}
+        onSwitchList={onSwitchList}
+        onCreateList={onCreateList}
+        onRenameList={onRenameList}
+        onDeleteList={onDeleteList}
       />
-      {isAuthenticated && (
-        <AccountSummary
-          numDue={numDue}
-          numTot={numTot}
-          testClicked={onTestClicked}
-          addWordsClicked={onAddWordsClicked}
-          loading={wordsLoading}
-          activeListName={activeListName}
-          lists={lists}
-          activeListId={activeListId}
-          listStats={listStats}
-          onSwitchList={onSwitchList}
-          onCreateList={onCreateList}
-          onRenameList={onRenameList}
-          onDeleteList={onDeleteList}
-        />
-      )}
-      {isAuthenticated && (
-        <Box sx={{ width: '95%', mx: 'auto' }}>
-          <Chengyu />
-        </Box>
-      )}
+      <Box sx={{ width: '95%', mx: 'auto' }}>
+        <Chengyu />
+      </Box>
       <HowItWorks />
       <FeatureHighlights />
-      {!isAuthenticated && (
-        <SignUpBanner signUpClicked={onClickSignUp} tryOutClicked={onTryOutClicked} />
-      )}
       <Footer />
     </Box>
   );
