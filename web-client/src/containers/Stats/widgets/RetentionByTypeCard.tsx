@@ -44,7 +44,7 @@ const RetentionByTypeCard: React.FC<RetentionByTypeCardProps> = ({
 }) => (
   <Paper
     elevation={2}
-    sx={{ p: 2, borderRadius: 2, height: '100%' }}
+    sx={{ p: 2, borderRadius: 1, height: '100%' }}
     role="region"
     aria-label="Retention by question type"
   >

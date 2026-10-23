@@ -35,7 +35,7 @@ const features: Feature[] = [
 ];
 
 const FeatureHighlights: React.FC = () => (
-  <Box sx={{ bgcolor: 'primary.main', py: 6, borderRadius: 2 }}>
+  <Box sx={{ bgcolor: 'primary.main', py: 6, borderRadius: 1 }}>
     <Box sx={{ width: '95%', mx: 'auto' }}>
       <Typography
         variant="h4"
@@ -54,7 +54,7 @@ const FeatureHighlights: React.FC = () => (
                   p: 4,
                   height: '100%',
                   textAlign: 'center',
-                  borderRadius: 3,
+                  borderRadius: 1,
                   border: '1px solid',
                   borderColor: 'divider',
                 }}

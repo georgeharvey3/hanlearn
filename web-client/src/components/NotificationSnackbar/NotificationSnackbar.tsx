@@ -71,7 +71,7 @@ const NotificationSnackbar: React.FC<Props> = ({ bottom, centre }) => {
         minHeight: 44,
         pl: 2.5,
         pr: persistent ? 0 : 2.5,
-        borderRadius: '22px',
+        borderRadius: 1,
         bgcolor: tone.bg,
         color: tone.fg,
         boxShadow: '0 8px 24px -8px rgba(0,0,0,0.4)',

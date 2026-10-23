@@ -24,7 +24,7 @@ const textBoxSx = {
   backdropFilter: 'blur(8px)',
   mx: 'auto',
   p: { xs: 2.5, sm: 4 },
-  borderRadius: 2,
+  borderRadius: 1,
   color: 'common.white',
   width: { xs: '90%', sm: '80%', lg: '50%' },
   textAlign: 'center',

@@ -100,7 +100,7 @@ export const PillToggle: React.FC<{
       ...font,
       height: 36,
       px: 1.75,
-      borderRadius: '18px',
+      borderRadius: 1,
       fontSize: 14,
       fontWeight: pressed ? 600 : 400,
       border: `1px solid ${pressed ? colors.primaryDark : colors.borderStrong}`,

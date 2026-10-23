@@ -90,7 +90,7 @@ const FiveWays: React.FC = () => {
         height: { xs: 290, sm: 400 },
         flexShrink: 0,
         bgcolor: colors.card,
-        borderRadius: 2,
+        borderRadius: 1,
         boxShadow: '0 28px 56px -32px rgba(26, 92, 64, 0.45)',
         display: 'flex',
         flexDirection: 'column',

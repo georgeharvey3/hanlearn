@@ -105,7 +105,7 @@ const TodayCard: React.FC<TodayCardProps> = ({
       <Box
         sx={{
           p: 1.5,
-          borderRadius: 2,
+          borderRadius: 1,
           bgcolor: colors.successSurface,
           display: 'flex',
           alignItems: 'center',
@@ -149,7 +149,7 @@ const TodayCard: React.FC<TodayCardProps> = ({
                   sx={{
                     minHeight: 84,
                     p: 1.5,
-                    borderRadius: 2,
+                    borderRadius: 1,
                     flexDirection: 'column',
                     alignItems: 'flex-start',
                     justifyContent: 'flex-start',

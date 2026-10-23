@@ -394,7 +394,7 @@ const Features: React.FC = () => {
                 width: { xs: 'min(100%, 340px)', md: '100%' },
                 height: { xs: 170, md: 320 },
                 bgcolor: CELADON,
-                borderRadius: 2,
+                borderRadius: 1,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',

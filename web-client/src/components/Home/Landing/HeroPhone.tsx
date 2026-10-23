@@ -501,7 +501,7 @@ const HeroPhone: React.FC<{ width: number }> = ({ width }) => {
           transform: 'translateX(-50%)',
           px: 2,
           height: 36,
-          borderRadius: 18,
+          borderRadius: 1,
           bgcolor: colors.primaryLight,
           color: colors.white,
           fontFamily: fonts.body,

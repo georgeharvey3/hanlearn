@@ -9,7 +9,7 @@ export const Card: React.FC<BoxProps> = ({ sx, ...props }) => (
   <Box
     {...props}
     sx={[
-      { bgcolor: colors.card, boxShadow: shadows.card, borderRadius: 2, textAlign: 'left' },
+      { bgcolor: colors.card, boxShadow: shadows.card, borderRadius: 1, textAlign: 'left' },
       ...(Array.isArray(sx) ? sx : [sx]),
     ]}
   />
