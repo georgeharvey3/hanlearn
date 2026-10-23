@@ -1,6 +1,6 @@
 // PROTOTYPE (#413) variant E, "Guided word": each new word walks through
-// three steps that echo the test's directions. Meaning: the word, then each
-// character and its parts. Say it: hear the word, then speak it. Write it:
+// three steps that echo the test's directions. Understand: the word, then each
+// character and its parts. Say: hear the word, then speak it. Write:
 // trace each character. Every step can be skipped, and so can the rest of
 // the introduction. Nothing here records a result. Throwaway.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -29,11 +29,11 @@ import { Word } from '../../../../types/models';
 import { CharRow } from './VariantD';
 import { Strokes, marks, meanings, protoCopy, useCharInfos, useCharSet, useSpeak } from './shared';
 
-type StepKey = 'meaning' | 'say' | 'write';
+type StepKey = 'understand' | 'say' | 'write';
 const STEPS: { key: StepKey; label: string }[] = [
-  { key: 'meaning', label: 'Meaning' },
-  { key: 'say', label: 'Say it' },
-  { key: 'write', label: 'Write it' },
+  { key: 'understand', label: 'Understand' },
+  { key: 'say', label: 'Say' },
+  { key: 'write', label: 'Write' },
 ];
 
 const eCopy = {
@@ -118,9 +118,9 @@ const WordCard: React.FC<{
   </StudyCard>
 );
 
-// --- Step 1: meaning ---
+// --- Step 1: understand ---
 
-const MeaningStep: React.FC<{
+const UnderstandStep: React.FC<{
   word: Word;
   charSet: 'simp' | 'trad';
   speak: (t: string) => void;
@@ -140,7 +140,7 @@ const MeaningStep: React.FC<{
             char={char}
             info={infos[i]}
             open={openRow === i}
-            trace={false}
+            partsOnly
             onToggle={() => {
               const opening = openRow !== i;
               setOpenRow(opening ? i : null);
@@ -399,7 +399,7 @@ const VariantE: React.FC<Props> = ({ words, startTest }) => {
   // The primary button: Continue through the steps, then the next word.
   const primaryLabel = !lastStep ? protoCopy.continue : lastWord ? protoCopy.start : protoCopy.next;
   const current = STEPS[step].key;
-  const canContinue = current === 'meaning' || done[step];
+  const canContinue = current === 'understand' || done[step];
 
   return (
     <StudyScreen>
@@ -414,8 +414,8 @@ const VariantE: React.FC<Props> = ({ words, startTest }) => {
         <StepRail at={step} done={done} onPick={setStep} />
       </Box>
 
-      {current === 'meaning' && (
-        <MeaningStep word={word} charSet={charSet} speak={speak} loading={loading} />
+      {current === 'understand' && (
+        <UnderstandStep word={word} charSet={charSet} speak={speak} loading={loading} />
       )}
       {current === 'say' && (
         <SayStep

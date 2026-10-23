@@ -56,7 +56,7 @@ const Parts: React.FC<{ char: string }> = ({ char }) => {
 };
 
 /** The open part of a row: the stroke box with Replay and Trace, and the parts. */
-const RowDetail: React.FC<{ char: string; trace: boolean }> = ({ char, trace: canTrace }) => {
+const RowDetail: React.FC<{ char: string }> = ({ char }) => {
   const [mode, setMode] = useState<'animate' | 'quiz'>('animate');
   const [run, setRun] = useState(0);
   const [traced, setTraced] = useState(false);
@@ -109,11 +109,9 @@ const RowDetail: React.FC<{ char: string; trace: boolean }> = ({ char, trace: ca
           >
             {protoCopy.replay}
           </PillToggle>
-          {canTrace && (
-            <PillToggle pressed={mode === 'quiz'} onClick={trace}>
-              {protoCopy.trace}
-            </PillToggle>
-          )}
+          <PillToggle pressed={mode === 'quiz'} onClick={trace}>
+            {protoCopy.trace}
+          </PillToggle>
         </Box>
       </Box>
       <Box sx={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
@@ -129,9 +127,9 @@ export const CharRow: React.FC<{
   info?: CharInfo;
   open: boolean;
   onToggle: () => void;
-  /** Variant E leaves the trace to a step of its own. */
-  trace?: boolean;
-}> = ({ char, info, open, onToggle, trace = true }) => (
+  /** Variant E shows only the parts: its strokes and trace have a step of their own. */
+  partsOnly?: boolean;
+}> = ({ char, info, open, onToggle, partsOnly = false }) => (
   <Box
     sx={{
       p: 1.5,
@@ -178,7 +176,14 @@ export const CharRow: React.FC<{
       />
     </ButtonBase>
     <Collapse in={open} unmountOnExit>
-      <RowDetail char={char} trace={trace} />
+      {partsOnly ? (
+        <Box sx={{ pt: 1.5, pl: 8, textAlign: 'left' }}>
+          <Overline sx={{ mb: 1 }}>{protoCopy.parts}</Overline>
+          <Parts char={char} />
+        </Box>
+      ) : (
+        <RowDetail char={char} />
+      )}
     </Collapse>
   </Box>
 );
