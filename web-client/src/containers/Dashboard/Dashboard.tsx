@@ -27,30 +27,33 @@ import { describeSavedSession, readSavedSession } from '../../utils/savedSession
 import { dayKey } from '../../utils/retention';
 import {
   DashboardVariantProps,
+  HistoryDay,
   emptyStats,
   prototypeStates,
+  sampleForecast,
+  sampleHistory,
   sampleStats,
 } from './prototype/dashboardShared';
-import VariantA, { name as nameA } from './prototype/VariantA';
-import VariantB, { name as nameB } from './prototype/VariantB';
-import VariantC, { name as nameC } from './prototype/VariantC';
-import VariantD, { name as nameD } from './prototype/VariantD';
-import VariantE, { name as nameE } from './prototype/VariantE';
-import VariantF, { name as nameF } from './prototype/VariantF';
-import VariantG, { name as nameG } from './prototype/VariantG';
-import { sampleWords } from './prototype/dashboardWords';
+import VariantH, { name as nameH } from './prototype/VariantH';
+import VariantI, { name as nameI } from './prototype/VariantI';
+import VariantJ, { name as nameJ } from './prototype/VariantJ';
+import VariantK, { name as nameK } from './prototype/VariantK';
+import VariantL, { name as nameL } from './prototype/VariantL';
+import { loadAhead, sampleWords } from './prototype/dashboardWords';
+import { getReviewStats } from '../../services/retentionService';
+import { lookbackFrom } from '../../utils/retention';
+import { DIRECTIONS } from '../../types/models';
 
-// PROTOTYPE (#403): `?variant=A|B|C` swaps the Dashboard, and `?state=` forces
-// a preview state. No variant param renders the current page.
+// PROTOTYPE (#403): `?variant=H|I|J|K|L` swaps the Dashboard, and `?state=`
+// forces a preview state. No variant param renders the current page. Variants
+// A to G are in this branch's history.
 const dashboardVariants = [
   { key: '', name: 'Current' },
-  { key: 'A', name: nameA },
-  { key: 'B', name: nameB },
-  { key: 'C', name: nameC },
-  { key: 'D', name: nameD },
-  { key: 'E', name: nameE },
-  { key: 'F', name: nameF },
-  { key: 'G', name: nameG },
+  { key: 'H', name: nameH },
+  { key: 'I', name: nameI },
+  { key: 'J', name: nameJ },
+  { key: 'K', name: nameK },
+  { key: 'L', name: nameL },
 ];
 
 const mapStateToProps = (state: RootState) => ({
@@ -127,10 +130,36 @@ const Dashboard: React.FC<PropsFromRedux> = ({
   const variant = useStickyPrototypeParam('variant');
   const previewState = usePrototypeParam('state');
 
-  // Variants D to G show the words themselves, which the Dashboard does not load.
+  // The variants count words for the forecast; the Dashboard does not load them.
   useEffect(() => {
     if (variant && userId) onInitWords();
   }, [variant, userId, activeListId, onInitWords]);
+
+  const [reviewHistory, setReviewHistory] = useState<HistoryDay[]>([]);
+  useEffect(() => {
+    if (!variant || !userId) return;
+    getReviewStats(userId, lookbackFrom(new Date(), 120))
+      .then((days) =>
+        setReviewHistory(
+          days.map((d) => ({
+            date: d.date,
+            reviews: DIRECTIONS.reduce((s, dir) => s + d.directions[dir].attempts, 0),
+            promoted: DIRECTIONS.reduce((s, dir) => s + d.directions[dir].promoted, 0),
+            byDirection: DIRECTIONS.reduce(
+              (acc, dir) => {
+                acc[dir] = {
+                  reviews: d.directions[dir].reviews,
+                  passes: d.directions[dir].reviewPasses,
+                };
+                return acc;
+              },
+              {} as HistoryDay['byDirection'],
+            ),
+          })),
+        ),
+      )
+      .catch(() => setReviewHistory([]));
+  }, [variant, userId]);
 
   if (variant) {
     const saved = readSavedSession();
@@ -149,6 +178,15 @@ const Dashboard: React.FC<PropsFromRedux> = ({
       loading: previewState === 'loading' || (loading && !previewState),
       error: previewState === 'error' || (error && !previewState),
       words: previewState === 'empty' ? [] : words.length ? words : sampleWords,
+      // An account with no history yet borrows a sample, so the variants can be judged.
+      history:
+        previewState === 'empty' ? [] : reviewHistory.length ? reviewHistory : sampleHistory(),
+      forecast:
+        previewState === 'empty'
+          ? Array(14).fill(0)
+          : words.length
+            ? loadAhead(words, 14)
+            : sampleForecast,
       charSet: localStorage.getItem('charSet') === 'simp' ? 'simp' : 'trad',
       resumeLabel:
         previewState === 'resume' ? '12 questions left' : previewState ? null : realResume,
@@ -169,13 +207,11 @@ const Dashboard: React.FC<PropsFromRedux> = ({
     };
     return (
       <>
-        {variant === 'A' && <VariantA {...props} />}
-        {variant === 'B' && <VariantB {...props} />}
-        {variant === 'C' && <VariantC {...props} />}
-        {variant === 'D' && <VariantD {...props} />}
-        {variant === 'E' && <VariantE {...props} />}
-        {variant === 'F' && <VariantF {...props} />}
-        {variant === 'G' && <VariantG {...props} />}
+        {variant === 'H' && <VariantH {...props} />}
+        {variant === 'I' && <VariantI {...props} />}
+        {variant === 'J' && <VariantJ {...props} />}
+        {variant === 'K' && <VariantK {...props} />}
+        {variant === 'L' && <VariantL {...props} />}
         <PrototypeSwitcher variants={dashboardVariants} states={prototypeStates} />
       </>
     );
