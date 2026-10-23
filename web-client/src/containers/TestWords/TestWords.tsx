@@ -12,6 +12,24 @@ import SentenceWrite from '../../components/Test/SentenceWrite/SentenceWrite';
 import SentenceRead from '../../components/Test/SentenceRead/SentenceRead';
 import NewWords from '../../components/Test/NewWords/NewWords';
 import TestSummary from '../../components/Test/TestSummary/TestSummary';
+// PROTOTYPE (#414): three variants of the session summary and the empty state,
+// picked by ?variant=A|B|C on /test-words or /tryout. ?state= previews a screen
+// with sample data. No param shows the current screens.
+import PrototypeSwitcher, {
+  usePrototypeParam,
+  useStickyPrototypeParam,
+} from '../../components/UI/PrototypeSwitcher/PrototypeSwitcher';
+import ProtoA from '../../components/Test/TestSummary/prototype/VariantA';
+import ProtoB from '../../components/Test/TestSummary/prototype/VariantB';
+import ProtoC from '../../components/Test/TestSummary/prototype/VariantC';
+import {
+  VariantModule,
+  protoCopy,
+  rowsFrom,
+  sampleEmpty,
+  sampleRows,
+  upcomingCounts,
+} from '../../components/Test/TestSummary/prototype/shared';
 
 import ErrorBoundary from '../../components/ErrorBoundary/ErrorBoundary';
 import { useFocusMode } from '../../components/Layout/focusMode';
@@ -37,6 +55,21 @@ import { Box, Chip, Stepper, Step, StepLabel, Typography } from '@mui/material';
 
 // Dev test mode config - loaded once on mount
 const devConfig: DevTestConfig | null = getDevTestConfig();
+
+const PROTO_VARIANTS = [
+  { key: '', name: 'Current' },
+  { key: 'A', name: 'Score first' },
+  { key: 'B', name: 'By direction' },
+  { key: 'C', name: 'Word tiles' },
+];
+const PROTO_STATES = [
+  { key: '', name: 'Live' },
+  { key: 'summary', name: 'Summary' },
+  { key: 'empty', name: 'Empty' },
+  { key: 'empty-lists', name: 'Other lists' },
+  { key: 'empty-new', name: 'No words' },
+];
+const PROTO_MODULES: Record<string, VariantModule> = { A: ProtoA, B: ProtoB, C: ProtoC };
 
 type Stage = 'new' | 'vocab' | 'read' | 'write' | 'summary';
 
@@ -149,6 +182,9 @@ const TestWords: React.FC<Props> = ({
   });
 
   const prevWordsLength = useRef(words.length);
+  const protoVariant = useStickyPrototypeParam('variant');
+  const protoState = usePrototypeParam('state');
+  const Proto: VariantModule | undefined = PROTO_MODULES[protoVariant];
 
   /**
    * The words the session may draw on. planSession picks the pairs and applies
@@ -524,7 +560,17 @@ const TestWords: React.FC<Props> = ({
       state.stage === 'vocab' ||
       state.stage === 'read' ||
       state.stage === 'write');
-  useFocusMode(studying);
+  const protoEmpty =
+    !state.pendingResume &&
+    state.selectedWords.length === 0 &&
+    !wordsLoading &&
+    state.wordsInitialized;
+  const protoScreen =
+    !!Proto &&
+    (protoState !== '' ||
+      protoEmpty ||
+      (state.selectedWords.length > 0 && state.stage === 'summary'));
+  useFocusMode(studying || protoScreen);
 
   // All dev stages require auth since they use real words from user's list
   // Wait for auth to initialize before redirecting
@@ -608,7 +654,14 @@ const TestWords: React.FC<Props> = ({
         );
         break;
       case 'summary':
-        content = (
+        content = Proto ? (
+          <Proto.Summary
+            rows={rowsFrom(state.wordScores, state.selectedWords)}
+            practiceMode={state.practiceMode}
+            onHome={() => history.push('/')}
+            onPracticeMissed={() => window.alert(protoCopy.stubPractice)}
+          />
+        ) : (
           <Box sx={{ width: '90%', maxWidth: 400, mx: 'auto', py: 4 }}>
             <TestSummary scores={state.wordScores} />
           </Box>
@@ -664,7 +717,22 @@ const TestWords: React.FC<Props> = ({
       history.replace('/test-words');
     };
 
-    content = (
+    content = Proto ? (
+      <Proto.Empty
+        listName={activeListName}
+        isAllLists={isAllLists}
+        otherLists={otherListsWithDue.map((l) => ({ id: l.id, name: l.name, due: l.due }))}
+        totalDue={totalDueAcrossLists}
+        hasMultipleLists={hasMultipleLists}
+        hasWords={hasWordsInList}
+        upcoming={upcomingCounts(words)}
+        onSwitchList={handleSwitchAndTest}
+        onTestAll={handleTestAll}
+        onAddWords={onClickAddWords}
+        onPractice={onStartPractice}
+        onHome={() => history.push('/')}
+      />
+    ) : (
       <Box sx={{ width: '90%', maxWidth: 400, mx: 'auto', py: 8, textAlign: 'center' }}>
         <Typography variant="h6" sx={{ mb: 1, color: 'text.secondary' }}>
           No words due in &ldquo;{activeListName}&rdquo;
@@ -726,9 +794,33 @@ const TestWords: React.FC<Props> = ({
     );
   }
 
+  // PROTOTYPE (#414): a ?state= preview replaces whatever the page shows.
+  if (Proto && protoState) {
+    const goHome = () => history.push('/');
+    const stub = (what: string) => () => window.alert(`PROTOTYPE: ${what}`);
+    content =
+      protoState === 'summary' ? (
+        <Proto.Summary
+          rows={sampleRows()}
+          practiceMode={false}
+          onHome={goHome}
+          onPracticeMissed={stub(protoCopy.stubPractice)}
+        />
+      ) : (
+        <Proto.Empty
+          {...sampleEmpty(protoState as 'empty' | 'empty-lists' | 'empty-new')}
+          onSwitchList={(id) => window.alert(`PROTOTYPE: would switch to list ${id}`)}
+          onTestAll={stub('would test all lists')}
+          onAddWords={stub('would open Add words')}
+          onPractice={stub('would start practice')}
+          onHome={goHome}
+        />
+      );
+  }
+
   // Build progress stepper (only when a session is active)
   let stepper: React.ReactNode = null;
-  if (state.selectedWords.length > 0 && !studying) {
+  if (state.selectedWords.length > 0 && !studying && !protoScreen) {
     const steps: string[] = [];
     if (state.newWords.length > 0 && state.newWordsEnabled) steps.push('Learn');
     steps.push('Test');
@@ -772,6 +864,7 @@ const TestWords: React.FC<Props> = ({
     <>
       {stepper}
       {content}
+      <PrototypeSwitcher variants={PROTO_VARIANTS} states={PROTO_STATES} />
     </>
   );
 };
