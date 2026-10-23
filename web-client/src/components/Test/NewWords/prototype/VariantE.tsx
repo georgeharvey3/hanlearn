@@ -87,6 +87,12 @@ const StepRail: React.FC<{ at: number; done: boolean[]; onPick: (i: number) => v
   </Box>
 );
 
+const highlightSx = (highlight: number | null, i: number) => ({
+  color:
+    highlight === null ? 'inherit' : highlight === i ? colors.primaryLight : colors.disabledText,
+  transition: 'color 150ms ease',
+});
+
 const WordCard: React.FC<{
   word: Word;
   charSet: 'simp' | 'trad';
@@ -94,7 +100,9 @@ const WordCard: React.FC<{
   compact?: boolean;
   speak: (t: string) => void;
   loading: boolean;
-}> = ({ word, charSet, showMeaning = true, compact, speak, loading }) => (
+  /** The character whose row is open: it and its syllable turn seal red. */
+  highlight?: number | null;
+}> = ({ word, charSet, showMeaning = true, compact, speak, loading, highlight = null }) => (
   <StudyCard
     height={compact ? 150 : 200}
     sx={{ mt: 2, pt: 4 }}
@@ -105,10 +113,18 @@ const WordCard: React.FC<{
     }
   >
     <Box lang="zh" sx={hanziSx(hanziSize(word[charSet], compact ? 'small' : 'medium'))}>
-      {word[charSet]}
+      {word[charSet].split('').map((c, i) => (
+        <Box component="span" key={i} sx={highlightSx(highlight, i)}>
+          {c}
+        </Box>
+      ))}
     </Box>
-    <Box lang="zh-Latn" sx={{ fontSize: 20 }}>
-      {marks(word.pinyin)}
+    <Box lang="zh-Latn" sx={{ fontSize: 20, display: 'flex', gap: '0.3em' }}>
+      {word.pinyin.split(/\s+/).map((syl, i) => (
+        <Box component="span" key={i} sx={highlightSx(highlight, i)}>
+          {marks(syl)}
+        </Box>
+      ))}
     </Box>
     {showMeaning && (
       <Box sx={{ fontSize: 16, color: colors.textSecondary }}>
@@ -131,7 +147,7 @@ const UnderstandStep: React.FC<{
   const [openRow, setOpenRow] = useState<number | null>(null);
   return (
     <>
-      <WordCard word={word} charSet={charSet} speak={speak} loading={loading} />
+      <WordCard word={word} charSet={charSet} speak={speak} loading={loading} highlight={openRow} />
       <Overline sx={{ mt: 3, mb: 1 }}>{protoCopy.characters}</Overline>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         {chars.map((char, i) => (
