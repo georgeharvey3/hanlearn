@@ -40,11 +40,22 @@ import React from 'react';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Home from './Home';
+import { copy } from '../../copy';
 import { renderWithProviders, authenticatedState, createTestStore } from '../../test/utils';
 import * as wordService from '../../services/wordService';
 import { Word } from '../../types/models';
 
 const mockedWordService = vi.mocked(wordService);
+
+// The service always returns General among the lists, and an object of list
+// stats. The reducer reads the lists to check the active list, so the mocks
+// must return the shapes the service returns.
+beforeEach(() => {
+  mockedWordService.getUserWordLists.mockResolvedValue([
+    { id: 'default', name: 'General', createdAt: '', order: 0 },
+  ]);
+  mockedWordService.getListStats.mockResolvedValue({});
+});
 
 const TODAY = new Date();
 TODAY.setHours(0, 0, 0, 0);
@@ -90,7 +101,7 @@ describe('Home — unauthenticated state', () => {
     mockedWordService.getListStats.mockResolvedValue({});
   });
 
-  it('shows sign-up banner text when not authenticated', () => {
+  it('shows the landing page when not authenticated', () => {
     const store = createTestStore({
       auth: {
         userId: null,
@@ -113,8 +124,9 @@ describe('Home — unauthenticated state', () => {
     });
     renderWithProviders(<Home />, { store });
 
-    // SignUpBanner renders "Ready to build your vocabulary?" for unauthenticated users
-    expect(screen.getByText(/ready to build your vocabulary/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: copy.landing.headline }),
+    ).toBeInTheDocument();
   });
 
   it('does not show AccountSummary or Chengyu when unauthenticated', () => {
@@ -143,7 +155,7 @@ describe('Home — unauthenticated state', () => {
     // AccountSummary renders word counts — should not appear for unauthenticated users
     expect(screen.queryByText(/words due/i)).not.toBeInTheDocument();
     // Chengyu should not render when not authenticated
-    expect(screen.queryByText(/chengyu of the day/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/choose the correct translation/i)).not.toBeInTheDocument();
   });
 });
 
@@ -389,10 +401,8 @@ describe('Home — navigation handlers', () => {
     });
     renderWithProviders(<Home />, { store });
 
-    // MainBanner renders "Sign Up" button for unauthenticated users
-    const signUpButtons = screen.getAllByRole('button', { name: /sign up/i });
-    expect(signUpButtons.length).toBeGreaterThan(0);
-    await user.click(signUpButtons[0]);
+    // The landing page's first call to action opens the register form
+    await user.click(screen.getAllByRole('button', { name: copy.landing.startLearning })[0]);
 
     // The modal should now be open with register mode
     expect(store.getState().auth.modalOpen).toBe(true);

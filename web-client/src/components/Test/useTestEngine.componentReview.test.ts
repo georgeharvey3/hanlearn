@@ -198,7 +198,7 @@ describe('useTestEngine — component review after a miss', () => {
     expect(result.current.state.showComponents).toBe(false);
   });
 
-  it('offers nothing and moves on after a pass', async () => {
+  it('offers nothing after a pass, and holds the typed answer for Continue', async () => {
     const props = makeProps();
     const { result } = renderHook(() => useTestEngine(props));
 
@@ -206,12 +206,17 @@ describe('useTestEngine — component review after a miss', () => {
     act(() => result.current.onCorrectAnswer('pass'));
 
     expect(result.current.state.componentReviewChars).toEqual([]);
+    expect(result.current.state.awaitingContinue).toBe(true);
 
     await letTimersRun(1200);
+    expect(result.current.state.currentPair).toBe(firstPair);
+
+    act(() => result.current.onContinue());
     expect(result.current.state.currentPair).toEqual(secondPair);
+    expect(result.current.state.awaitingContinue).toBe(false);
   });
 
-  it('offers nothing for a question with no character on screen', async () => {
+  it('moves a flashcard grade on by itself when there is nothing to review', async () => {
     const props = makeProps();
     const { result } = renderHook(() => useTestEngine(props));
 
@@ -220,11 +225,13 @@ describe('useTestEngine — component review after a miss', () => {
       seatOnQuestion(result.current.setStateMerged, {
         answerCategory: 'pinyin',
         questionCategory: 'meaning',
+        showAnswer: true,
       }),
     );
     act(() => result.current.onCorrectAnswer('lapse'));
 
     expect(result.current.state.componentReviewChars).toEqual([]);
+    expect(result.current.state.awaitingContinue).toBeFalsy();
 
     await letTimersRun(1200);
     expect(result.current.state.currentPair).toEqual(secondPair);
@@ -241,5 +248,28 @@ describe('useTestEngine — component review after a miss', () => {
 
     await letTimersRun();
     expect(result.current.state.currentPair).toBe(firstPair);
+  });
+
+  it('continues on an Enter pressed on the reveal, not on the Enter that sent the answer', () => {
+    const props = makeProps();
+    const { result } = renderHook(() => useTestEngine(props));
+    const key = (type: 'keydown' | 'keyup') =>
+      document.body.dispatchEvent(new KeyboardEvent(type, { key: 'Enter', bubbles: true }));
+
+    act(() => seatOnQuestion(result.current.setStateMerged));
+    // The Enter goes down on the live question and sends it...
+    act(() => {
+      key('keydown');
+      result.current.onCorrectAnswer('pass');
+    });
+    // ...and comes back up on the reveal, which must stay.
+    act(() => key('keyup'));
+    expect(result.current.state.currentPair).toBe(firstPair);
+
+    act(() => {
+      key('keydown');
+      key('keyup');
+    });
+    expect(result.current.state.currentPair).toEqual(secondPair);
   });
 });

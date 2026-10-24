@@ -156,7 +156,7 @@ const AuthModal: React.FC<Props> = ({
               color: 'common.white',
               fontWeight: 600,
               fontSize: '0.95rem',
-              borderRadius: 1.5,
+              borderRadius: 1,
               '&:hover': { bgcolor: '#144a33' },
             }}
           >
@@ -215,7 +215,7 @@ const AuthModal: React.FC<Props> = ({
         )}
 
         {loading ? (
-          <Spinner />
+          <Spinner size={48} />
         ) : (
           <form onSubmit={handleSubmit}>
             <FormInput
@@ -279,7 +279,7 @@ const AuthModal: React.FC<Props> = ({
                 color: 'common.white',
                 fontWeight: 600,
                 fontSize: '0.95rem',
-                borderRadius: 1.5,
+                borderRadius: 1,
                 '&:hover': { bgcolor: '#144a33' },
                 '&.Mui-disabled': { bgcolor: '#a8d5c2', color: 'common.white' },
               }}

@@ -2,9 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Hoisted so the module factory below, which vitest lifts above the imports,
 // can close over them.
-const { setSpy, incrementSpy } = vi.hoisted(() => ({
+const { setSpy, incrementSpy, setDocSpy, getDocsSpy } = vi.hoisted(() => ({
   setSpy: vi.fn(),
   incrementSpy: vi.fn((n: number) => ({ __increment: n })),
+  setDocSpy: vi.fn(),
+  getDocsSpy: vi.fn(),
 }));
 
 vi.mock('../firebase/config', () => ({
@@ -22,7 +24,8 @@ vi.mock('firebase/firestore', async () => {
     ...actual,
     doc: vi.fn((_db, ...path: string[]) => ({ path: path.join('/') })),
     collection: vi.fn(),
-    getDocs: vi.fn(),
+    getDocs: getDocsSpy,
+    setDoc: setDocSpy,
     query: vi.fn(),
     where: vi.fn(),
     orderBy: vi.fn(),
@@ -31,7 +34,7 @@ vi.mock('firebase/firestore', async () => {
   };
 });
 
-import { addSessionToBatch } from './retentionService';
+import { addSessionToBatch, getReviewStats, recordLevelSnapshot } from './retentionService';
 import type { ReviewOutcome } from '../utils/retention';
 
 function outcome(over: Partial<ReviewOutcome> = {}): ReviewOutcome {
@@ -84,5 +87,42 @@ describe('addSessionToBatch', () => {
     addSessionToBatch(batch, 'user-1', [outcome()], new Date(2026, 8, 2, 23, 30));
 
     expect(setSpy.mock.calls[0][0].path).toBe('users/user-1/reviewStats/2026-09-02');
+  });
+});
+
+describe('recordLevelSnapshot', () => {
+  beforeEach(() => setDocSpy.mockReset().mockResolvedValue(undefined));
+
+  it("writes the words at each level into the day's rollup, merged", async () => {
+    await recordLevelSnapshot(
+      'user-1',
+      { 1: 4, 2: 10, 3: 5, 4: 1, 5: 0 },
+      new Date(2026, 8, 2, 23, 30),
+    );
+
+    const [ref, data, options] = setDocSpy.mock.calls[0];
+    expect(ref.path).toBe('users/user-1/reviewStats/2026-09-02');
+    expect(options).toEqual({ merge: true });
+    expect(data.date).toBe('2026-09-02');
+    expect(data.levels).toEqual({ 1: 4, 2: 10, 3: 5, 4: 1, 5: 0 });
+    // The snapshot never touches the counters the session added.
+    expect(data).not.toHaveProperty('directions');
+  });
+});
+
+describe('getReviewStats', () => {
+  it('returns the level snapshot of a day that has one', async () => {
+    getDocsSpy.mockResolvedValue({
+      docs: [
+        { id: '2026-09-01', data: () => ({ directions: { MC: { attempts: 2 } } }) },
+        { id: '2026-09-02', data: () => ({ levels: { 1: 4, 2: 10, 3: 5, 4: 1, 5: 0 } }) },
+      ],
+    });
+
+    const days = await getReviewStats('user-1', '2026-09-01');
+
+    expect(days[0]).not.toHaveProperty('levels');
+    expect(days[1].levels).toEqual({ 1: 4, 2: 10, 3: 5, 4: 1, 5: 0 });
+    expect(days[1].directions.MC.attempts).toBe(0);
   });
 });

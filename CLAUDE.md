@@ -72,8 +72,8 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 - [web-client/src/services/wordService.ts](web-client/src/services/wordService.ts) - All Firestore operations for word management
 - [web-client/src/services/dictionaryService.ts](web-client/src/services/dictionaryService.ts) - Static dictionary loading and search (lazy-loaded, indexed in-memory)
 - [web-client/src/services/streakService.ts](web-client/src/services/streakService.ts) - Read/write `testCompletions` subcollection; calculates streak from completion dates
-- [web-client/src/services/dashboardService.ts](web-client/src/services/dashboardService.ts) - Aggregates stats (due count, streak, level distribution, per-direction bank counts) for the Dashboard
-- [web-client/src/services/retentionService.ts](web-client/src/services/retentionService.ts) - Read/write the `reviewStats` daily rollup; the session's write joins the `finishTest` batch
+- [web-client/src/services/dashboardService.ts](web-client/src/services/dashboardService.ts) - Aggregates the Dashboard's data: the session sizes, per-direction bank counts, the words due ahead and the `reviewStats` history. The counting rules are pure, in [web-client/src/utils/dashboard.ts](web-client/src/utils/dashboard.ts)
+- [web-client/src/services/retentionService.ts](web-client/src/services/retentionService.ts) - Read/write the `reviewStats` daily rollup; the session's write joins the `finishTest` batch, and the level snapshot follows it
 - [web-client/src/services/statsService.ts](web-client/src/services/statsService.ts) - Assembles the scheduler metrics for the `/stats` page
 - [web-client/src/services/sentenceService.ts](web-client/src/services/sentenceService.ts) - Firebase AI Logic: generates and caches example sentences in `sentenceCache`
 - [web-client/src/services/chengyuSentenceService.ts](web-client/src/services/chengyuSentenceService.ts) - Generates example sentences for chengyu display
@@ -122,6 +122,8 @@ users/{userId}/
               promoted, held, demoted: number
             }
           }
+      └── levels?: { 1..5: number } # Words of the whole collection at each level,
+                                    # as the day's last session left them (Dashboard progress chart)
 
 words/{wordId}                   # Read-only shared dictionary (admin-managed)
 chengyus/{chengyuId}             # Read-only (admin-managed)
@@ -251,6 +253,14 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 
 - Start emulators before e2e tests: `npm run emulators` from repo root
 - Emulator data is ephemeral — tests must seed their own data
+
+## Architecture Decision Records
+
+`docs/adr/` holds only the decisions that pass all three tests in the `domain-modeling` skill: hard to reverse, surprising without context, and a real trade-off.
+
+- Before you offer an ADR, give a one-line verdict on each of the three tests.
+- If one test fails, write the reason in the PR body, or in a code comment where the rule lives.
+- A product rule that you can tune (a cap, a threshold, a tie-break) usually fails the first test. ADRs 0005, 0006 and 0015 changed one cap three times in one week.
 
 ## Git Conventions
 

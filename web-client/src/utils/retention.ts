@@ -37,10 +37,18 @@ export interface DirectionTally {
 /** The counters of every direction on one day. */
 export type DayTally = Record<Direction, DirectionTally>;
 
+/** How many words sit at each level, keyed by level 1 to 5. */
+export type LevelCounts = Record<number, number>;
+
 export interface ReviewStatsDay {
   /** The local date the session ran on, as YYYY-MM-DD. */
   date: string;
   directions: DayTally;
+  /**
+   * The words of the whole collection at each level, as the last session of
+   * the day left them. Days before the snapshot existed carry none.
+   */
+  levels?: LevelCounts;
 }
 
 /** What one graded question did, as `finishTest` observed it. */
@@ -252,13 +260,21 @@ export interface ForecastDay {
 export interface ReviewLoad {
   /** The days ahead, oldest first, starting at today. */
   days: ForecastDay[];
-  /** Directions whose due date has already passed. They are not in `days`. */
-  overdue: number;
+  /**
+   * Directions whose due date has already passed, for each direction. They are
+   * not in `days`. A count that keeps growing is a backlog that the direction
+   * share cannot clear. See docs/adr/0017-balance-the-directions-in-each-session.md.
+   */
+  overdue: Record<Direction, number>;
   /** The mean directions per day across the window, overdue excluded. */
   perDay: number;
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/** The overdue directions of every direction together. */
+export const totalOverdue = (load: ReviewLoad): number =>
+  DIRECTIONS.reduce((sum, direction) => sum + load.overdue[direction], 0);
 
 /**
  * The review load ahead: how many directions come due on each of the next
@@ -274,7 +290,10 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 export function reviewLoad(words: Word[], days: number, now: Date = new Date()): ReviewLoad {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const counts = new Array<number>(days).fill(0);
-  let overdue = 0;
+  const overdue = Object.fromEntries(DIRECTIONS.map((direction) => [direction, 0])) as Record<
+    Direction,
+    number
+  >;
 
   for (const word of words) {
     for (const direction of DIRECTIONS) {
@@ -286,7 +305,7 @@ export function reviewLoad(words: Word[], days: number, now: Date = new Date()):
       const day = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime();
       const offset = Math.round((day - today) / MS_PER_DAY);
 
-      if (offset < 0) overdue += 1;
+      if (offset < 0) overdue[direction] += 1;
       else if (offset < days) counts[offset] += 1;
     }
   }

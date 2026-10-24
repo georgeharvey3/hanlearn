@@ -2,12 +2,13 @@ import React, { useCallback, useState } from 'react';
 import { withRouter } from 'react-router-dom';
 import { connect } from 'react-redux';
 
-import { Box, CircularProgress, IconButton, Paper, Typography } from '@mui/material';
-import SettingsIcon from '@mui/icons-material/Settings';
+import { Box, CircularProgress } from '@mui/material';
 
-import ProgressBar from './ProgressBar/ProgressBar';
+import StudyTop from './Study/StudyTop';
+import StudyScreen from './Study/StudyScreen';
+import { Prompt, StatusLine, StatusTone } from './Study/parts';
 import QuestionDisplay from './QuestionDisplay';
-import AnswerInput, { getVerb, reviewHidesAnswerInput } from './AnswerInput';
+import AnswerInput from './AnswerInput';
 import TestActions from './TestActions';
 import ComponentReview from './ComponentReview/ComponentReview';
 import AudioSettingsDrawer from './AudioSettingsDrawer/AudioSettingsDrawer';
@@ -19,6 +20,8 @@ import { WordDirectionResults } from '../../types/models';
 import { AppDispatch } from '../../types/actions';
 import * as actions from '../../store/actions/index';
 import { Props } from './types';
+import { copy } from '../../copy';
+import { colors } from '../../theme';
 
 const mapStateToProps = (state: RootState) => ({
   userId: state.auth.userId,
@@ -34,22 +37,22 @@ const mapDispatchToProps = (dispatch: AppDispatch) => ({
 
 export const connector = connect(mapStateToProps, mapDispatchToProps);
 
-export function getResultColor(result: string, showAnswer: boolean): string {
-  if (result === 'Correct' || result === 'Finished!') return 'success.main';
-  if (result === 'Incorrect tones' || result === 'Nearly') return 'warning.main';
-  if (
-    (result.startsWith('Answer was') && !showAnswer) ||
-    result.startsWith('Try') ||
-    result.startsWith('Not known')
-  )
-    return 'error.main';
-  return 'text.primary';
+const { status } = copy.test;
+
+/** How the status line reads a result: its colour and its icon. */
+export function resultTone(result: string): { tone: StatusTone; icon?: 'check' | 'retry' | 'dot' } {
+  if (result === status.correct || result === status.finished)
+    return { tone: 'success', icon: 'check' };
+  if (result === status.nearly || result === status.tones) return { tone: 'warning' };
+  if (result === status.tryAgain) return { tone: 'error', icon: 'retry' };
+  if (result === status.notKnown || result === status.audioFailed) return { tone: 'error' };
+  if (result === status.listening) return { tone: 'neutral', icon: 'dot' };
+  return { tone: 'neutral' };
 }
 
 const Test: React.FC<Props> = (props) => {
   const {
     state,
-    setStateMerged,
     onFocusEntry,
     onInputChanged,
     onKeyPress,
@@ -60,6 +63,7 @@ const Test: React.FC<Props> = (props) => {
     onSubmitAnswer,
     onIDontKnow,
     onHint,
+    onPlayHintSentence,
     onShowAnswer,
     onToggleShowPinyin,
     onToggleComponents,
@@ -78,177 +82,100 @@ const Test: React.FC<Props> = (props) => {
     [refreshSettings],
   );
 
-  const progressNum = Math.floor((state.queue.length / state.initialQueueLength) * 100) || 0;
-  const verb = getVerb(state);
+  const { history } = props;
+  const onEnd = useCallback(() => history.push('/'), [history]);
 
-  if (state.testSet.length !== 0 || props.isDemo) {
-    return (
-      <>
-        {state.testFinished && state.sentenceCheckStatus === 'pending' && (
-          <Box
-            sx={{
-              position: 'fixed',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              bgcolor: 'rgba(255,255,255,0.75)',
-              zIndex: 1200,
-            }}
-          >
-            <CircularProgress aria-label="Loading test" />
-          </Box>
-        )}
+  if (state.testSet.length === 0 && !props.isDemo) return null;
+
+  const answeredCount = state.initialQueueLength - state.queue.length;
+  const { tone, icon } = resultTone(state.result);
+  const compact = state.componentReviewChars.length > 0;
+
+  return (
+    <StudyScreen>
+      {state.testFinished && state.sentenceCheckStatus === 'pending' && (
         <Box
           sx={{
-            width: '90%',
-            maxWidth: 400,
-            textAlign: 'center',
-            mx: 'auto',
-            py: '30px',
-            color: 'text.primary',
-            '& h3': {
-              fontWeight: 500,
-              fontSize: '1.1rem',
-              color: 'text.secondary',
-              mb: 2,
-            },
-            '& h3 span': {
-              bgcolor: 'primary.dark',
-              color: '#fff',
-              borderRadius: '4px',
-              px: '6px',
-              py: '2px',
-              fontWeight: 600,
-            },
+            position: 'fixed',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: 'rgba(250, 248, 245, 0.78)',
+            zIndex: 1200,
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ flex: 1 }}>
-              <ProgressBar progress={progressNum} />
-            </Box>
-            <IconButton
-              size="small"
-              onClick={() => setSettingsDrawerOpen(true)}
-              aria-label="Audio settings"
-              sx={{ color: 'text.secondary' }}
-            >
-              <SettingsIcon fontSize="small" />
-            </IconButton>
-          </Box>
-          <h3 id="q-phrase-box">
-            {verb}
-            <span>{state.answerCategory}</span> for...
-          </h3>
-          <Paper
-            elevation={0}
-            sx={{
-              position: 'relative',
-              width: '90%',
-              bgcolor: 'background.paper',
-              border: '1px solid',
-              borderColor: 'divider',
-              color: 'text.primary',
-              borderRadius: 3,
-              minHeight: 160,
-              boxSizing: 'border-box',
-              mx: 'auto',
-              p: '20px 12px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              '& h2': { overflowWrap: 'normal', fontWeight: 500, fontSize: '1.8rem', m: 0 },
-            }}
-          >
-            {state.gradeCap === 'lapse' && (
-              <Box
-                role="img"
-                data-testid="lapse-marker"
-                aria-label="Nearly: this question no longer counts as known"
-                sx={{
-                  position: 'absolute',
-                  top: 8,
-                  right: 8,
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
-                  bgcolor: 'warning.main',
-                }}
-              />
-            )}
-            <QuestionDisplay
-              questionCategory={state.questionCategory}
-              question={state.question}
-              useSound={state.useSound}
-              showPinyin={state.showPinyin}
-              showQuestionPinyin={state.showQuestionPinyin}
-              synthLoading={state.synthLoading}
-              chosenCharacter={state.chosenCharacter}
-              onSpeak={onSpeak}
-              onToggleShowPinyin={onToggleShowPinyin}
-            />
-          </Paper>
-          <Typography
-            aria-live="polite"
-            sx={{
-              minHeight: 30,
-              mt: 1.5,
-              fontSize: '0.95rem',
-              fontWeight: 500,
-              color: getResultColor(state.result, state.showAnswer),
-            }}
-          >
-            {state.result}
-          </Typography>
-          <ComponentReview
-            chars={state.componentReviewChars}
-            charSet={state.charSet}
-            open={state.showComponents}
-            onToggle={onToggleComponents}
-            onContinue={onContinue}
-          />
-          <Box
-            sx={{
-              minHeight: reviewHidesAnswerInput(state) ? 0 : { xs: 0, sm: 160 },
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'flex-end',
-              alignItems: 'center',
-            }}
-          >
-            <AnswerInput
-              state={state}
-              speechAvailable={props.speechAvailable}
-              onKeyPress={onKeyPress}
-              onInputChanged={onInputChanged}
-              onFocusEntry={onFocusEntry}
-              onListen={onListen}
-              onShowAnswer={onShowAnswer}
-              onCorrectAnswer={onCorrectAnswer}
-              onNearlyKnew={onNearlyKnew}
-              onIDontKnow={onIDontKnow}
-              onSubmitAnswer={onSubmitAnswer}
-              setStateMerged={setStateMerged}
-            />
-          </Box>
-          <TestActions
-            state={state}
-            onIDontKnow={onIDontKnow}
-            onHint={onHint}
-            showCharacter={showCharacter}
-          />
+          <CircularProgress aria-label={copy.study.loading} sx={{ color: colors.primaryDark }} />
         </Box>
-        <AudioSettingsDrawer
-          open={settingsDrawerOpen}
-          onClose={handleSettingsClose}
+      )}
+      <StudyTop
+        stage={copy.study.stageTest}
+        done={answeredCount}
+        total={state.initialQueueLength}
+        onEnd={onEnd}
+        onSettings={() => setSettingsDrawerOpen(true)}
+      />
+      <Prompt sx={compact ? { mt: 2, mb: 1.25 } : undefined}>
+        {copy.test.promptBefore}
+        <em>{state.answerCategory}</em>
+        {state.questionCategory === 'pinyin' ? copy.test.promptOf : copy.test.promptFor}
+      </Prompt>
+      <QuestionDisplay
+        state={state}
+        onSpeak={onSpeak}
+        onPlayHintSentence={onPlayHintSentence}
+        onToggleShowPinyin={onToggleShowPinyin}
+        showCharacter={showCharacter}
+      />
+      {/* The handwriting box sits right under the card; its status goes below it. */}
+      {state.answerCategory === 'character' && !state.showComponents && (
+        <AnswerInput
+          state={state}
           speechAvailable={props.speechAvailable}
-          synthAvailable={props.synthAvailable}
+          onKeyPress={onKeyPress}
+          onInputChanged={onInputChanged}
+          onFocusEntry={onFocusEntry}
+          onListen={onListen}
         />
-      </>
-    );
-  }
-
-  return null;
+      )}
+      <StatusLine tone={tone} icon={icon}>
+        {state.result}
+      </StatusLine>
+      <ComponentReview
+        chars={state.componentReviewChars}
+        charSet={state.charSet}
+        open={state.showComponents}
+        onToggle={onToggleComponents}
+      />
+      {state.answerCategory !== 'character' && !compact && (
+        <AnswerInput
+          state={state}
+          speechAvailable={props.speechAvailable}
+          onKeyPress={onKeyPress}
+          onInputChanged={onInputChanged}
+          onFocusEntry={onFocusEntry}
+          onListen={onListen}
+        />
+      )}
+      <Box sx={{ flex: 1, minHeight: 24 }} />
+      <TestActions
+        state={state}
+        onIDontKnow={onIDontKnow}
+        onHint={onHint}
+        onShowAnswer={onShowAnswer}
+        onCorrectAnswer={onCorrectAnswer}
+        onNearlyKnew={onNearlyKnew}
+        onSubmitAnswer={onSubmitAnswer}
+        onContinue={onContinue}
+      />
+      <AudioSettingsDrawer
+        open={settingsDrawerOpen}
+        onClose={handleSettingsClose}
+        speechAvailable={props.speechAvailable}
+        synthAvailable={props.synthAvailable}
+      />
+    </StudyScreen>
+  );
 };
 
 export default withRouter(connector(Test));

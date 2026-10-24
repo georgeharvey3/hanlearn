@@ -1,6 +1,7 @@
 import React from 'react';
 import Box from '@mui/material/Box';
 import { colors } from '../../theme';
+import { copy } from '../../copy';
 
 const SkipLink: React.FC = () => (
   <Box
@@ -33,7 +34,7 @@ const SkipLink: React.FC = () => (
       },
     }}
   >
-    Skip to main content
+    {copy.shell.skipLink}
   </Box>
 );
 

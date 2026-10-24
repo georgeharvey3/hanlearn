@@ -16,8 +16,8 @@ export class AuthPage {
   }
 
   async openLoginModal(): Promise<void> {
-    // Nav bar button says "Login" (one word, no space)
-    const trigger = this.page.getByRole('button', { name: /^Login$/i });
+    // The top bar's button says "Log in"
+    const trigger = this.page.getByRole('button', { name: /^Log in$/i });
     await trigger.click();
     await this.emailInput.waitFor({ state: 'visible', timeout: 5000 });
   }
@@ -66,8 +66,8 @@ export class AuthPage {
   }
 
   async logout(): Promise<void> {
-    // Click logout in sidebar or drawer
-    await this.page.getByRole('button', { name: /logout/i }).click();
+    // Click Log out in the sidebar
+    await this.page.getByRole('button', { name: /log out/i }).click();
   }
 
   async expectLoggedIn(): Promise<void> {
@@ -78,7 +78,7 @@ export class AuthPage {
 
   async expectLoggedOut(): Promise<void> {
     await expect(
-      this.page.getByRole('button', { name: /^Login$/i }),
+      this.page.getByRole('button', { name: /^Log in$/i }),
     ).toBeVisible({ timeout: 10000 });
   }
 

@@ -224,8 +224,8 @@ export async function readWordFromFirestore(
 export async function loginViaUI(page: Page): Promise<void> {
   await page.goto('/');
 
-  // Click the "Login" button in the toolbar (single word, no space)
-  const loginButton = page.getByRole('button', { name: /^Login$/i });
+  // Click the "Log in" button in the top bar
+  const loginButton = page.getByRole('button', { name: /^Log in$/i });
   await loginButton.click();
 
   // Wait for the auth modal to appear (should open in login mode with "Welcome Back")
@@ -261,7 +261,7 @@ export async function configureTestSettings(
     // Disable handwriting — HanziWriter is not available in headless Chromium
     localStorage.setItem('useHandwriting', 'false');
     // Use flashcard mode with meaning-only answers for reliable E2E test flow
-    // (flashcard "I knew this" / "I didn't know this" buttons reliably advance the test)
+    // (the flashcard "Yes" / "No" grades reliably advance the test)
     localStorage.setItem('useFlashcards', 'true');
     localStorage.setItem('priority', 'MP');
     localStorage.setItem('onlyPriority', 'true');

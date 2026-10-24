@@ -1,8 +1,6 @@
 import React from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import MuiButton from '@mui/material/Button';
-import Stack from '@mui/material/Stack';
 import { alpha } from '@mui/material/styles';
 import { useParallax } from '../../../hooks/useParallax';
 import mountainsSvg from '../../../assets/images/homepage/mountains.jpg';
@@ -26,18 +24,13 @@ const textBoxSx = {
   backdropFilter: 'blur(8px)',
   mx: 'auto',
   p: { xs: 2.5, sm: 4 },
-  borderRadius: 2,
+  borderRadius: 1,
   color: 'common.white',
   width: { xs: '90%', sm: '80%', lg: '50%' },
   textAlign: 'center',
 };
 
-interface MainBannerProps {
-  signUpClicked?: () => void;
-  tryOutClicked?: () => void;
-}
-
-const MainBanner: React.FC<MainBannerProps> = ({ signUpClicked, tryOutClicked }) => {
+const MainBanner: React.FC = () => {
   const { scrollProgress, sectionProgress, ref, outerRef } = useParallax();
   const [mounted, setMounted] = React.useState(false);
   const prefersReducedMotion = React.useMemo(
@@ -65,7 +58,8 @@ const MainBanner: React.FC<MainBannerProps> = ({ signUpClicked, tryOutClicked })
         position: 'relative',
         left: '50%',
         transform: 'translateX(-50%)',
-        mt: '-80px',
+        // Cancel the page's top gutter, so the banner meets the top bar.
+        mt: { xs: '-16px', sm: '-32px' },
         height: { xs: 'auto', sm: '300vh', md: '500vh' },
       }}
     >
@@ -73,7 +67,7 @@ const MainBanner: React.FC<MainBannerProps> = ({ signUpClicked, tryOutClicked })
         ref={ref}
         sx={{
           position: { xs: 'relative', sm: 'sticky' },
-          top: 0,
+          top: { xs: 0, sm: '56px' },
           overflow: 'hidden',
           height: { xs: '80vh', sm: '85vh', md: '100vh' },
           background: `linear-gradient(
@@ -146,69 +140,6 @@ const MainBanner: React.FC<MainBannerProps> = ({ signUpClicked, tryOutClicked })
             </Box>
           );
         })}
-
-        {/* Sign-up CTA — fixed in lower third of mountains */}
-        {signUpClicked && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '50%',
-              left: 0,
-              width: '100%',
-              transform: 'translateY(-50%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 10,
-            }}
-          >
-            <Box
-              sx={{
-                ...textBoxSx,
-                backgroundColor: alpha(colors.primaryDark, 0.7),
-              }}
-            >
-              <Typography
-                variant="h3"
-                sx={{
-                  color: 'common.white',
-                  fontWeight: 600,
-                  mb: 4,
-                  fontSize: { xs: '1.6rem', sm: '2.2rem', md: undefined },
-                }}
-              >
-                Start learning — it&apos;s free
-              </Typography>
-              <Stack direction="row" justifyContent="center" spacing={2}>
-                <MuiButton
-                  variant="outlined"
-                  onClick={tryOutClicked}
-                  sx={{
-                    color: 'common.white',
-                    borderColor: 'rgba(255,255,255,0.5)',
-                    '&:hover': { borderColor: 'common.white', bgcolor: 'rgba(255,255,255,0.1)' },
-                    px: 3,
-                  }}
-                >
-                  Try it out
-                </MuiButton>
-                <MuiButton
-                  variant="contained"
-                  onClick={signUpClicked}
-                  sx={{
-                    bgcolor: 'common.white',
-                    color: 'primary.dark',
-                    '&:hover': { bgcolor: 'grey.100' },
-                    px: 3,
-                    fontWeight: 600,
-                  }}
-                >
-                  Sign Up
-                </MuiButton>
-              </Stack>
-            </Box>
-          </Box>
-        )}
       </Box>
     </Box>
   );

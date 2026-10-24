@@ -1,5 +1,5 @@
 import React from 'react';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
@@ -14,8 +14,13 @@ vi.mock('../../services/statsService', async () => {
   return { ...actual, getSchedulerStats: vi.fn() };
 });
 
+vi.mock('../../services/wordService');
+
 import { getSchedulerStats } from '../../services/statsService';
+import * as wordService from '../../services/wordService';
+import { ACTIVE_LIST_KEY } from '../../utils/activeList';
 const mockGetSchedulerStats = getSchedulerStats as ReturnType<typeof vi.fn>;
+const mockedWordService = vi.mocked(wordService);
 
 function sampleStats(overrides: Partial<SchedulerStats> = {}): SchedulerStats {
   return {
@@ -33,7 +38,7 @@ function sampleStats(overrides: Partial<SchedulerStats> = {}): SchedulerStats {
     matureCount: 60,
     load: {
       days: Array.from({ length: 14 }, (_, offset) => ({ offset, due: offset === 0 ? 18 : 6 })),
-      overdue: 3,
+      overdue: { MC: 0, MP: 0, PM: 0, PC: 6, CM: 31 },
       perDay: 7,
     },
     daysStudied: 12,
@@ -45,7 +50,24 @@ function sampleStats(overrides: Partial<SchedulerStats> = {}): SchedulerStats {
 describe('Stats container', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockGetSchedulerStats.mockResolvedValue(sampleStats());
+    mockedWordService.getUserWordLists.mockResolvedValue([
+      { id: 'default', name: 'General', createdAt: '', order: 0 },
+    ]);
+    mockedWordService.getListStats.mockResolvedValue({});
+  });
+
+  it('reads General when the remembered list no longer exists', async () => {
+    localStorage.setItem(ACTIVE_LIST_KEY, 'list-gone');
+    const store = createTestStore({ auth: authenticatedState().auth });
+
+    renderWithProviders(<Stats />, { store });
+
+    await waitFor(() =>
+      expect(mockGetSchedulerStats).toHaveBeenLastCalledWith('test-user-123', 'default'),
+    );
+    expect(store.getState().addWords.activeListId).toBe('default');
   });
 
   it('shows the median interval of the mature words', async () => {
@@ -82,9 +104,20 @@ describe('Stats container', () => {
   it('shows the load ahead, with the overdue called out', async () => {
     renderWithProviders(<Stats />, { store: createTestStore(authenticatedState()) });
 
-    expect(await screen.findByText(/3 already overdue/)).toBeInTheDocument();
+    expect(await screen.findByText(/37 already overdue/)).toBeInTheDocument();
     expect(screen.getByText('Today')).toBeInTheDocument();
     expect(screen.getByText('Tomorrow')).toBeInTheDocument();
+  });
+
+  it('shows the overdue count of each question type', async () => {
+    renderWithProviders(<Stats />, { store: createTestStore(authenticatedState()) });
+
+    const card = await screen.findByRole('region', { name: /retention by question type/i });
+    const row = (label: string) => within(card).getByText(label).closest('[data-direction]')!;
+
+    expect(within(card).getByText('Overdue')).toBeInTheDocument();
+    expect(within(row('Meaning → Character') as HTMLElement).getByText('31')).toBeInTheDocument();
+    expect(within(row('Character → Meaning') as HTMLElement).getByText('0')).toBeInTheDocument();
   });
 
   it('says the counted metrics start from the next session when nothing is recorded', async () => {

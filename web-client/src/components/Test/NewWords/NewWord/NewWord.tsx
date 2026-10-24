@@ -18,6 +18,7 @@ import * as ttsService from '../../../../services/ttsService';
 
 import { RootState } from '../../../../types/store';
 import { Word } from '../../../../types/models';
+import { colors } from '../../../../theme';
 
 interface CharData {
   simp: string;
@@ -279,7 +280,7 @@ const NewWord: React.FC<Props> = ({
                         px: 2.5,
                         bgcolor: 'primary.dark',
                         color: '#fff',
-                        '&:hover': { bgcolor: '#145233' },
+                        '&:hover': { bgcolor: colors.primaryDarkHover },
                       }
                     : {
                         px: 2.5,
@@ -303,7 +304,7 @@ const NewWord: React.FC<Props> = ({
                         px: 2.5,
                         bgcolor: 'primary.dark',
                         color: '#fff',
-                        '&:hover': { bgcolor: '#145233' },
+                        '&:hover': { bgcolor: colors.primaryDarkHover },
                       }
                     : {
                         px: 2.5,
@@ -352,7 +353,7 @@ const NewWord: React.FC<Props> = ({
           border: '1px solid',
           borderColor: 'divider',
           color: 'text.primary',
-          borderRadius: 3,
+          borderRadius: 1,
           minHeight: compact ? 'auto' : 110,
           mx: 'auto',
           mb: compact ? 0 : 1,
@@ -375,7 +376,7 @@ const NewWord: React.FC<Props> = ({
                   fontSize: 'inherit',
                   px: 1,
                   py: 0.5,
-                  borderRadius: 1.5,
+                  borderRadius: 1,
                   bgcolor: isActive ? 'primary.main' : 'transparent',
                   transition: 'background-color 0.15s, transform 0.1s',
                   touchAction: 'manipulation',

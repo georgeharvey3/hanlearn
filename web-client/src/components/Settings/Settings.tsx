@@ -59,7 +59,7 @@ type PropsFromRedux = ConnectedProps<typeof connector>;
 
 const sectionGroupSx = {
   bgcolor: '#fff',
-  borderRadius: '12px',
+  borderRadius: '4px',
   border: '1px solid #e5ddd6',
   overflow: 'hidden',
   mb: 3,

@@ -1,12 +1,17 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { clearEmulatorData, seedTestUser, loginViaUI, configureTestSettings } from './fixtures/seed';
+import {
+  clearEmulatorData,
+  seedTestUser,
+  loginViaUI,
+  configureTestSettings,
+} from './fixtures/seed';
 
 test.describe('Accessibility — axe-core audits', () => {
   test('home page has no a11y violations', async ({ page }) => {
     await page.goto('/');
     // Wait for the page to fully render (spinner replaced by content)
-    await page.waitForSelector('text=Master Mandarin', { timeout: 10000 });
+    await page.waitForSelector('text=Stop forgetting the Chinese you learn.', { timeout: 10000 });
     const results = await new AxeBuilder({ page }).analyze();
     expect(results.violations).toEqual([]);
   });
@@ -35,7 +40,7 @@ test.describe('Accessibility — axe-core audits', () => {
     await loginViaUI(page);
 
     // Wait for the Chengyu component to render
-    await page.waitForSelector('text=Chengyu Of The Day', { timeout: 10000 });
+    await page.waitForSelector('text=今日成语', { timeout: 10000 });
 
     const zhElements = page.locator('[lang="zh"]');
     const count = await zhElements.count();

@@ -1,71 +1,57 @@
 import React from 'react';
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Box, LinearProgress } from '@mui/material';
+
+import { copy } from '../../../copy';
+import { colors } from '../../../theme';
 
 interface SimilarityScoreProps {
   score: number;
-  size?: number;
   loading?: boolean;
 }
 
-function getScoreColor(score: number): string {
-  if (score >= 80) return '#2e7d32'; // success green
-  if (score >= 60) return '#0288d1'; // info blue
-  if (score >= 40) return '#ed6c02'; // warning orange
-  return '#d32f2f'; // error red
+function scoreColor(score: number): string {
+  if (score >= 70) return colors.success;
+  if (score >= 40) return colors.warningText;
+  return colors.primaryLight;
 }
 
-function getScoreLabel(score: number): string {
-  if (score >= 80) return 'Great';
-  if (score >= 60) return 'Good';
-  if (score >= 40) return 'Fair';
-  return 'Keep trying';
-}
-
-const SimilarityScore: React.FC<SimilarityScoreProps> = ({ score, size = 80, loading = false }) => {
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-        <CircularProgress size={size} aria-label="Calculating similarity score" />
-        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          Scoring…
-        </Typography>
-      </Box>
-    );
-  }
-
-  const color = getScoreColor(score);
-  const label = getScoreLabel(score);
+/** How close a translation came to the answer, as a word, a percent and a bar. */
+const SimilarityScore: React.FC<SimilarityScoreProps> = ({ score, loading = false }) => {
+  const color = loading ? colors.textSecondary : scoreColor(score);
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
-      <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-        <CircularProgress
-          variant="determinate"
-          value={score}
-          size={size}
-          sx={{ color }}
-          aria-label={`Similarity score: ${score}%`}
-        />
-        <Box
-          sx={{
-            top: 0,
-            left: 0,
-            bottom: 0,
-            right: 0,
-            position: 'absolute',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Typography variant="body2" sx={{ fontWeight: 600, color }}>
-            {score}%
-          </Typography>
+    <Box
+      role="meter"
+      aria-label={copy.sentence.similarity}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={loading ? undefined : score}
+      sx={{ display: 'flex', flexDirection: 'column', gap: 1, width: '100%' }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <Box component="span" sx={{ fontSize: 15, fontWeight: 600, color }}>
+          {loading ? copy.sentence.scoring : copy.sentence.scoreLabel(score)}
         </Box>
+        {!loading && (
+          <Box
+            component="span"
+            sx={{ fontSize: 22, fontWeight: 600, color, fontVariantNumeric: 'tabular-nums' }}
+          >
+            {`${score}%`}
+          </Box>
+        )}
       </Box>
-      <Typography variant="caption" sx={{ color, fontWeight: 500 }}>
-        {label}
-      </Typography>
+      <LinearProgress
+        variant={loading ? 'indeterminate' : 'determinate'}
+        value={score}
+        aria-hidden="true"
+        sx={{
+          height: 8,
+          borderRadius: 1,
+          bgcolor: colors.divider,
+          '& .MuiLinearProgress-bar': { bgcolor: color },
+        }}
+      />
     </Box>
   );
 };

@@ -1,6 +1,9 @@
 # 6. The due date is the only rank
 
-- Status: the removal of the new-word cap is superseded by
+- Status: the word ranking is superseded by
+  [0017-balance-the-directions-in-each-session.md](0017-balance-the-directions-in-each-session.md),
+  which ranks pairs and limits each direction to its share. The removal of the
+  new-word cap is superseded by
   [0015-a-cap-on-new-words-per-session.md](0015-a-cap-on-new-words-per-session.md)
 - Date: 2026-08-28
 - Issue: #328

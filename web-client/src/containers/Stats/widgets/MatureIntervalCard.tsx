@@ -14,7 +14,7 @@ interface MatureIntervalCardProps {
 const MatureIntervalCard: React.FC<MatureIntervalCardProps> = ({ medianInterval, matureCount }) => (
   <Paper
     elevation={2}
-    sx={{ p: 2, textAlign: 'center', borderRadius: 2, height: '100%' }}
+    sx={{ p: 2, textAlign: 'center', borderRadius: 1, height: '100%' }}
     role="region"
     aria-label="Median interval of mature words"
   >

@@ -1,14 +1,13 @@
 import React, { Suspense, useCallback, useEffect } from 'react';
 import { Route, Switch, withRouter, useLocation, RouteComponentProps } from 'react-router-dom';
 import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
 import { connect, ConnectedProps } from 'react-redux';
 
 import Layout from './components/Layout/Layout';
 import { RootState } from './types/store';
 import AuthModal from './components/Auth/AuthModal';
-import NotificationSnackbar from './components/NotificationSnackbar/NotificationSnackbar';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
+import { PageLoading } from './components/UI/PageState/PageState';
 import * as actions from './store/actions/index';
 import { trackPageView } from './services/analyticsService';
 import { useVersionCheck } from './hooks/useVersionCheck';
@@ -144,13 +143,7 @@ const App: React.FC<Props> = ({
     <Box sx={{ textAlign: 'center', height: '100%' }}>
       <Layout>
         <ErrorBoundary>
-          <Suspense
-            fallback={
-              <Box role="status" sx={{ display: 'flex', justifyContent: 'center', pt: 4 }}>
-                <CircularProgress aria-label="Loading" />
-              </Box>
-            }
-          >
+          <Suspense fallback={<PageLoading />}>
             <Switch>
               <Route
                 path="/"
@@ -204,7 +197,6 @@ const App: React.FC<Props> = ({
         </ErrorBoundary>
       </Layout>
       <AuthModal />
-      <NotificationSnackbar />
     </Box>
   );
 };

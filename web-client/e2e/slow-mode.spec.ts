@@ -103,10 +103,10 @@ test.describe('Slow mode toggle', () => {
     await page.goto('/test-words');
 
     // Complete the vocab/flashcard stage first to reach SentenceRead
-    const showAnswer = page.getByRole('button', { name: 'Show Answer' });
+    const showAnswer = page.getByRole('button', { name: 'Show answer' });
     await expect(showAnswer).toBeVisible({ timeout: 20000 });
     await showAnswer.click();
-    const like = page.locator('[aria-label="I knew this"]');
+    const like = page.getByRole('button', { name: 'Yes', exact: true });
     await expect(like).toBeVisible({ timeout: 5000 });
     await like.click();
 
@@ -114,7 +114,7 @@ test.describe('Slow mode toggle', () => {
     await expect(page.getByText(/listen.*translate/i)).toBeVisible({ timeout: 20000 });
 
     // The slow mode toggle button should appear in audio mode
-    const slowToggle = page.getByRole('button', { name: /toggle slow mode/i });
+    const slowToggle = page.getByRole('button', { name: /slow speech/i });
     await expect(slowToggle).toBeVisible({ timeout: 10000 });
 
     // Initially off
@@ -145,16 +145,16 @@ test.describe('Slow mode toggle', () => {
     await page.goto('/test-words');
 
     // Complete the vocab/flashcard stage first to reach SentenceRead
-    const showAnswer = page.getByRole('button', { name: 'Show Answer' });
+    const showAnswer = page.getByRole('button', { name: 'Show answer' });
     await expect(showAnswer).toBeVisible({ timeout: 20000 });
     await showAnswer.click();
-    const like = page.locator('[aria-label="I knew this"]');
+    const like = page.getByRole('button', { name: 'Yes', exact: true });
     await expect(like).toBeVisible({ timeout: 5000 });
     await like.click();
 
     await expect(page.getByText(/listen.*translate/i)).toBeVisible({ timeout: 20000 });
 
-    const slowToggle = page.getByRole('button', { name: /toggle slow mode/i });
+    const slowToggle = page.getByRole('button', { name: /slow speech/i });
     await expect(slowToggle).toBeVisible({ timeout: 10000 });
 
     // Should be initialised as pressed from localStorage

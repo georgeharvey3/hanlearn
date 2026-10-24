@@ -20,9 +20,13 @@ import {
 import { ListStats } from '../../types/store';
 import * as wordService from '../../services/wordService';
 import { recordTestCompletion } from '../../services/streakService';
+import { recordLevelSnapshot } from '../../services/retentionService';
+import { levelCounts } from '../../utils/dashboard';
 import { traceAsync } from '../../services/performanceService';
 import { trackFeatureUsage } from '../../services/analyticsService';
 import { showNotification } from './notifications';
+import { writeActiveList } from '../../utils/activeList';
+import { copy } from '../../copy';
 
 export const addWord = (word: Word): AddWordAction => {
   return {
@@ -122,7 +126,7 @@ export const setListStats = (listStats: Record<string, ListStats>): SetListStats
  */
 export const initWords = (): AppThunk => {
   return async (dispatch, getState) => {
-    const { auth, addWords } = getState();
+    const { auth } = getState();
     if (!auth.userId) {
       dispatch(fetchWordsFailed());
       return;
@@ -138,7 +142,10 @@ export const initWords = (): AppThunk => {
       const lists = await wordService.getUserWordLists(auth.userId);
       dispatch(setWordLists(lists));
 
-      const activeListId = addWords.activeListId;
+      // Read the state again: setWordLists falls back to General when the
+      // remembered list is gone.
+      const activeListId = getState().addWords.activeListId;
+      writeActiveList(activeListId);
       const [words, stats] = await Promise.all([
         wordService.getUserWords(
           auth.userId,
@@ -172,6 +179,7 @@ export const initWordLists = (): AppThunk => {
         wordService.getListStats(auth.userId),
       ]);
       dispatch(setWordLists(lists));
+      writeActiveList(getState().addWords.activeListId);
       dispatch(setListStats(stats));
     } catch (error) {
       console.error('Failed to fetch word lists:', error);
@@ -188,6 +196,7 @@ export const switchActiveList = (listId: string): AppThunk => {
   return async (dispatch, getState) => {
     const { auth } = getState();
     dispatch(setActiveList(listId));
+    writeActiveList(listId);
 
     if (!auth.userId) return;
 
@@ -259,6 +268,8 @@ export const postDeleteWordList = (listId: string): AppThunk => {
     try {
       await wordService.deleteWordList(auth.userId, listId);
       dispatch(removeWordList(listId));
+      // Deleting the active list moves the learner to General.
+      writeActiveList(getState().addWords.activeListId);
       dispatch(showNotification('List deleted'));
     } catch (error) {
       console.error('Failed to delete word list:', error);
@@ -281,7 +292,7 @@ export const postWord = (word: Word): AppThunk => {
       const targetListId = addWords.activeListId === '__all__' ? 'default' : addWords.activeListId;
       await wordService.addWordToList(auth.userId, word, targetListId);
       dispatch(addWord({ ...word, listId: targetListId }));
-      dispatch(showNotification(`"${word.simp}" added to your list`));
+      dispatch(showNotification(copy.wordBank.toastAdded(word.simp)));
       trackFeatureUsage('word_added');
     } catch (error) {
       console.error('Failed to add word:', error);
@@ -313,7 +324,7 @@ export const postCustomWord = (word: {
         targetListId,
       );
       dispatch(addCustomWord(newWord));
-      dispatch(showNotification(`"${word.text}" added to your list`));
+      dispatch(showNotification(copy.wordBank.toastAdded(word.text)));
     } catch (error) {
       console.error('Failed to add custom word:', error);
       Sentry.captureException(error);
@@ -409,17 +420,27 @@ export const finishTest = (results: WordDirectionResults[]): AppThunk => {
       await traceAsync('finish_test', async () => {
         await wordService.finishTest(auth.userId!, results);
 
-        // Re-fetch words and stats so the local store has updated levels and due dates
+        // Re-fetch words and stats so the local store has updated levels and
+        // due dates. Every list is fetched, because the level snapshot counts
+        // the whole collection; the store keeps the active list's words.
         try {
-          const [updatedWords, stats] = await Promise.all([
-            wordService.getUserWords(
-              auth.userId!,
-              addWords.activeListId === '__all__' ? undefined : addWords.activeListId,
-            ),
+          const [allWords, stats] = await Promise.all([
+            wordService.getUserWords(auth.userId!),
             wordService.getListStats(auth.userId!),
           ]);
+          const updatedWords =
+            addWords.activeListId === '__all__'
+              ? allWords
+              : allWords.filter((word) => word.listId === addWords.activeListId);
           dispatch(setWords(updatedWords));
           dispatch(setListStats(stats));
+
+          try {
+            await recordLevelSnapshot(auth.userId!, levelCounts(allWords), new Date());
+          } catch (snapshotError) {
+            console.error('Failed to record level snapshot:', snapshotError);
+            Sentry.captureException(snapshotError);
+          }
         } catch (fetchError) {
           console.error('Failed to refresh words after test:', fetchError);
           Sentry.captureException(fetchError);

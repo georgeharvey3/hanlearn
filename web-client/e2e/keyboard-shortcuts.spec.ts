@@ -30,7 +30,7 @@ test.describe('Keyboard shortcuts dialog', () => {
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible({ timeout: 5000 });
-    await expect(dialog.getByRole('heading', { name: /Keyboard Shortcuts/ })).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: /Keyboard shortcuts/i })).toBeVisible();
 
     // Verify at least some shortcut groups are shown
     await expect(dialog.getByText('Global', { exact: true })).toBeVisible();
@@ -47,12 +47,12 @@ test.describe('Keyboard shortcuts dialog', () => {
     await loginViaUI(page);
 
     // Click the "Shortcuts" item in the sidebar
-    const sidebar = page.locator('.MuiDrawer-paperAnchorLeft');
-    await sidebar.getByText('Shortcuts', { exact: true }).click();
+    const sidebar = page.getByRole('navigation', { name: 'Main' });
+    await sidebar.getByRole('button', { name: 'Shortcuts' }).click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible({ timeout: 5000 });
-    await expect(dialog.getByRole('heading', { name: /Keyboard Shortcuts/ })).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: /Keyboard shortcuts/i })).toBeVisible();
   });
 
   test('? hotkey does not fire when typing in an input', async ({ page }) => {

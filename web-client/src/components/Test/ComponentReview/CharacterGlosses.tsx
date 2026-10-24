@@ -1,133 +1,74 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Box, CircularProgress } from '@mui/material';
 
-import { searchWord } from '../../../services/dictionaryService';
-import { reportError } from '../../../services/errorReporting';
 import { CharacterGloss } from './characterGloss';
-import { readGloss, writeGloss } from './glossCache';
-
-/**
- * Look up each character of the missed word.
- *
- * The answers of this word live in state keyed by the word, so a lookup that
- * lands after the session has moved on is dropped. A character with no answer
- * yet reads as `undefined`, which is what the spinner shows. A lookup that
- * fails is remembered for this word only, so the next question tries again.
- */
-const useCharacterGlosses = (
-  chars: string[],
-  charSet: 'simp' | 'trad',
-): ((char: string) => CharacterGloss | undefined) => {
-  const charsKey = chars.join('');
-  const [fetched, setFetched] = useState<{
-    key: string;
-    glosses: Record<string, CharacterGloss>;
-  }>({ key: charsKey, glosses: {} });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const record = (char: string, gloss: CharacterGloss): void => {
-      if (cancelled) return;
-      setFetched((prev) => ({
-        key: charsKey,
-        glosses: { ...(prev.key === charsKey ? prev.glosses : {}), [char]: gloss },
-      }));
-    };
-
-    Array.from(new Set(charsKey.split(''))).forEach(async (char) => {
-      if (readGloss(char, charSet)) return;
-      try {
-        const results = await searchWord(char, charSet);
-        const gloss: CharacterGloss = {
-          pinyins: Array.from(new Set(results.map((result) => result.pinyin))),
-          meanings: Array.from(new Set(results.map((result) => result.meaning))),
-        };
-        writeGloss(char, charSet, gloss);
-        record(char, gloss);
-      } catch (error) {
-        // The learner only sees 'Definition unavailable', so the cause has to
-        // go somewhere.
-        reportError(error, { feature: 'character-lookup', context: { char, phase: 'review' } });
-        record(char, { pinyins: [], meanings: [], failed: true });
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [charsKey, charSet]);
-
-  return (char: string): CharacterGloss | undefined => {
-    const cached = readGloss(char, charSet);
-    if (cached) return cached;
-    return fetched.key === charsKey ? fetched.glosses[char] : undefined;
-  };
-};
+import { glossLine, useCharacterGlosses } from './useCharacterGlosses';
+import { copy } from '../../../copy';
+import { colors } from '../../../theme';
+import { toneMarks } from '../../../utils/pinyinMarks';
+import { hanziSx } from '../Study/parts';
 
 interface CharacterGlossRowProps {
   char: string;
   gloss: CharacterGloss | undefined;
+  last: boolean;
   /** The breakdown of this character, rendered under its gloss when open. */
   children?: React.ReactNode;
 }
 
-const CharacterGlossRow: React.FC<CharacterGlossRowProps> = ({ char, gloss, children }) => {
-  const meaning = gloss?.failed
-    ? 'Definition unavailable'
-    : gloss && gloss.meanings.length === 0
-      ? 'Not in the dictionary'
-      : gloss?.meanings.join(' / ');
+const CharacterGlossRow: React.FC<CharacterGlossRowProps> = ({ char, gloss, last, children }) => {
+  const meaning = glossLine(gloss);
 
   return (
     <Box
       data-testid={`character-gloss-${char}`}
       sx={{
-        p: '10px 12px',
-        border: '1px solid',
-        borderColor: 'divider',
-        borderRadius: 2.5,
-        mb: 1,
-        bgcolor: 'background.paper',
+        px: 1.75,
+        py: 1.25,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1,
+        borderBottom: last ? 'none' : `1px solid ${colors.divider}`,
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Typography
-          lang="zh"
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.75 }}>
+        <Box lang="zh" sx={hanziSx(30)}>
+          {char}
+        </Box>
+        {/* minWidth 0 lets the text column shrink below its longest line, and
+            overflowWrap breaks a meaning such as 'sharp/favorable/advantage',
+            which has no spaces to wrap at, instead of spilling past the card. */}
+        <Box
           sx={{
-            fontSize: '2em',
-            fontWeight: 500,
-            color: 'text.primary',
-            minWidth: 48,
-            textAlign: 'center',
-            lineHeight: 1.2,
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 0.25,
+            minWidth: 0,
+            overflowWrap: 'anywhere',
           }}
         >
-          {char}
-        </Typography>
-        <Box sx={{ flex: 1 }}>
           {gloss === undefined ? (
-            <CircularProgress size={16} aria-label={`Loading the definition of ${char}`} />
+            <CircularProgress size={16} aria-label={copy.test.definitionLoading(char)} />
           ) : (
             <>
               {gloss.pinyins.length > 0 && (
-                <Typography
+                <Box
                   lang="zh-Latn"
-                  sx={{ fontSize: '1em', color: 'primary.dark', fontWeight: 500 }}
+                  sx={{ fontSize: 15, fontWeight: 600, color: colors.primaryDark }}
                 >
-                  {gloss.pinyins.join(' / ')}
-                </Typography>
+                  {gloss.pinyins.map(toneMarks).join(' / ')}
+                </Box>
               )}
-              <Typography
+              <Box
                 sx={{
-                  fontSize: '0.85em',
-                  color: gloss.failed ? 'text.disabled' : 'text.secondary',
-                  mt: 0.25,
+                  fontSize: 14,
+                  color: gloss.failed ? colors.disabledText : colors.textSecondary,
                 }}
               >
                 {meaning}
-              </Typography>
+              </Box>
             </>
           )}
         </Box>
@@ -154,9 +95,21 @@ const CharacterGlosses: React.FC<CharacterGlossesProps> = ({ chars, charSet, ren
   const glossFor = useCharacterGlosses(chars, charSet);
 
   return (
-    <Box sx={{ textAlign: 'left' }}>
+    <Box
+      sx={{
+        textAlign: 'left',
+        bgcolor: colors.card,
+        border: `1px solid ${colors.divider}`,
+        borderRadius: 1,
+      }}
+    >
       {chars.map((char, index) => (
-        <CharacterGlossRow key={`${char}-${index}`} char={char} gloss={glossFor(char)}>
+        <CharacterGlossRow
+          key={`${char}-${index}`}
+          char={char}
+          gloss={glossFor(char)}
+          last={index === chars.length - 1}
+        >
           {renderBreakdown?.(char)}
         </CharacterGlossRow>
       ))}

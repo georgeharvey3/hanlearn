@@ -57,12 +57,11 @@ test.describe('Dashboard due count accuracy', () => {
 
     // Navigate to dashboard
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 10000 });
 
-    // The dashboard should show 2 words due (the two due today), not 0
-    const dueCount = page.getByTestId('due-words-count');
-    await expect(dueCount).toBeVisible({ timeout: 10000 });
-    await expect(dueCount).toHaveText('2');
+    // Everything asks one question of each due word: the two due today, not 0
+    const everything = page.getByRole('button', { name: /Everything/ });
+    await expect(everything).toBeVisible({ timeout: 10000 });
+    await expect(everything).toContainText('2 questions');
   });
 
   test('dashboard due count matches test page due count', async ({ page }) => {
@@ -94,18 +93,18 @@ test.describe('Dashboard due count accuracy', () => {
 
     // Check dashboard
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 10000 });
 
-    // Wait for stats to load — the "Words Due" label should appear
-    const wordsDueLabel = page.locator('text=Words Due').first();
-    await expect(wordsDueLabel).toBeVisible({ timeout: 10000 });
+    // Wait for stats to load — the sizes of session appear
+    await expect(page.getByRole('button', { name: /Everything/ })).toContainText('2 questions', {
+      timeout: 10000,
+    });
 
     // Navigate to test page and verify it also sees the same words as due
     await page.goto('/test-words');
     // The test page should load and show test UI (meaning words are due)
-    // If it showed "No words due" that would indicate a mismatch
-    await expect(
-      page.getByText(/pinyin|character|meaning/i).first(),
-    ).toBeVisible({ timeout: 15000 });
+    // If it showed "Nothing due" that would indicate a mismatch
+    await expect(page.getByText(/pinyin|character|meaning/i).first()).toBeVisible({
+      timeout: 15000,
+    });
   });
 });

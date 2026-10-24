@@ -5,6 +5,7 @@ import Box from '@mui/material/Box';
 import Tooltip from '@mui/material/Tooltip';
 
 import { colors } from '../../../theme';
+import { Direction } from '../../../types/models';
 import { DIRECTION_LABELS } from '../../../utils/directions';
 import {
   DirectionMetrics,
@@ -16,6 +17,8 @@ import { percent, days } from './format';
 interface RetentionByTypeCardProps {
   metrics: DirectionMetrics[];
   windowDays: number;
+  /** Overdue directions now, for each direction. */
+  overdue: Record<Direction, number>;
 }
 
 /**
@@ -34,10 +37,14 @@ function retentionColor(value: number | null): string {
 
 const columnSx = { flex: 1, minWidth: 62, textAlign: 'right' as const };
 
-const RetentionByTypeCard: React.FC<RetentionByTypeCardProps> = ({ metrics, windowDays }) => (
+const RetentionByTypeCard: React.FC<RetentionByTypeCardProps> = ({
+  metrics,
+  windowDays,
+  overdue,
+}) => (
   <Paper
     elevation={2}
-    sx={{ p: 2, borderRadius: 2, height: '100%' }}
+    sx={{ p: 2, borderRadius: 1, height: '100%' }}
     role="region"
     aria-label="Retention by question type"
   >
@@ -50,7 +57,7 @@ const RetentionByTypeCard: React.FC<RetentionByTypeCardProps> = ({ metrics, wind
     </Typography>
 
     <Box sx={{ overflowX: 'auto' }}>
-      <Box sx={{ minWidth: 340 }}>
+      <Box sx={{ minWidth: 400 }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1, pb: 0.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ flex: '0 0 132px' }}>
             Question
@@ -75,11 +82,15 @@ const RetentionByTypeCard: React.FC<RetentionByTypeCardProps> = ({ metrics, wind
               Median
             </Typography>
           </Tooltip>
+          <Typography variant="caption" color="text.secondary" sx={columnSx}>
+            Overdue
+          </Typography>
         </Box>
 
         {metrics.map((metric) => (
           <Box
             key={metric.direction}
+            data-direction={metric.direction}
             sx={{
               display: 'flex',
               alignItems: 'center',
@@ -110,6 +121,9 @@ const RetentionByTypeCard: React.FC<RetentionByTypeCardProps> = ({ metrics, wind
             </Typography>
             <Typography variant="body2" sx={columnSx}>
               {days(metric.medianMatureInterval)}
+            </Typography>
+            <Typography variant="body2" sx={columnSx}>
+              {overdue[metric.direction]}
             </Typography>
           </Box>
         ))}

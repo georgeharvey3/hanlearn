@@ -1,147 +1,190 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { connect, ConnectedProps } from 'react-redux';
-import Drawer from '@mui/material/Drawer';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
-import Divider from '@mui/material/Divider';
+import { Link, useLocation } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import Box from '@mui/material/Box';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import AddIcon from '@mui/icons-material/Add';
-import QuizIcon from '@mui/icons-material/Quiz';
-import SettingsIcon from '@mui/icons-material/Settings';
-import LogoutIcon from '@mui/icons-material/Logout';
-import KeyboardIcon from '@mui/icons-material/Keyboard';
+import ButtonBase from '@mui/material/ButtonBase';
 
+import StudyButton, { useDueCount } from '../StudyButton/StudyButton';
+import {
+  HomeIcon,
+  AddIcon,
+  StatsIcon,
+  SettingsIcon,
+  ShortcutsIcon,
+  LogoutIcon,
+  CollapseIcon,
+  ExpandIcon,
+} from '../icons';
+import { routes, isActive } from '../navLinks';
 import * as actions from '../../../store/actions/index';
-import { colors } from '../../../theme';
+import { AppDispatch } from '../../../types/actions';
+import { colors, fonts } from '../../../theme';
+import { copy } from '../../../copy';
+import { LogoMark, Wordmark } from '../../Logo/Logo';
 
-export const SIDEBAR_WIDTH = 240;
+export const SIDEBAR_WIDTH = { expanded: 248, collapsed: 72 } as const;
 
-const mapDispatchToProps = {
-  onLogout: actions.logout,
-};
-
-const connector = connect(null, mapDispatchToProps);
-type PropsFromRedux = ConnectedProps<typeof connector>;
-
-interface OwnProps {
-  onOpenShortcuts?: () => void;
+interface Props {
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
+  onOpenShortcuts: () => void;
 }
 
 const links = [
-  { to: '/', label: 'Dashboard', icon: <DashboardIcon /> },
-  { to: '/add-words', label: 'Add Words', icon: <AddIcon /> },
-  { to: '/test-words', label: 'Test', icon: <QuizIcon /> },
-  { to: '/settings', label: 'Settings', icon: <SettingsIcon /> },
+  { to: routes.home, label: copy.shell.home, icon: <HomeIcon size={22} /> },
+  { to: routes.add, label: copy.shell.addWords, icon: <AddIcon size={22} /> },
+  { to: routes.stats, label: copy.shell.stats, icon: <StatsIcon size={22} /> },
+  { to: routes.settings, label: copy.shell.settings, icon: <SettingsIcon size={22} /> },
 ];
 
-const Sidebar: React.FC<PropsFromRedux & OwnProps> = ({ onLogout, onOpenShortcuts }) => {
+/**
+ * The desktop's sidebar. It starts with the Study button and collapses to a
+ * rail of icons; the rail names each icon to a screen reader.
+ */
+const Sidebar: React.FC<Props> = ({ collapsed, onToggleCollapsed, onOpenShortcuts }) => {
+  const { pathname } = useLocation();
+  const dispatch = useDispatch<AppDispatch>();
+  const due = useDueCount();
+
+  // An item is a full row when open, and a 48 px icon button in the rail.
+  const itemSx = (active = false) => ({
+    height: 44,
+    flexShrink: 0,
+    borderRadius: 1,
+    gap: 1.5,
+    fontFamily: fonts.body,
+    fontSize: 15,
+    color: colors.text,
+    textDecoration: 'none',
+    ...(collapsed
+      ? { width: 48, justifyContent: 'center' }
+      : { width: '100%', px: 1.5, justifyContent: 'flex-start' }),
+    ...(active
+      ? { bgcolor: colors.card, fontWeight: 700, boxShadow: `0 1px 0 ${colors.divider}` }
+      : { '&:hover': { bgcolor: 'rgba(0,0,0,0.05)' } }),
+  });
+
+  const label = (text: string) => (collapsed ? { 'aria-label': text } : {});
+
   return (
-    <Drawer
-      variant="permanent"
+    <Box
+      component="nav"
+      aria-label={copy.shell.mainNav}
       sx={{
-        width: SIDEBAR_WIDTH,
-        flexShrink: 0,
-        display: { xs: 'none', sm: 'block' },
-        '& .MuiDrawer-paper': {
-          width: SIDEBAR_WIDTH,
-          boxSizing: 'border-box',
-          backgroundColor: colors.primary,
-          borderRight: 'none',
-          top: 56,
-          height: 'calc(100% - 56px)',
-        },
+        position: 'fixed',
+        top: 0,
+        bottom: 0,
+        left: 0,
+        zIndex: 1100,
+        width: collapsed ? SIDEBAR_WIDTH.collapsed : SIDEBAR_WIDTH.expanded,
+        boxSizing: 'border-box',
+        p: collapsed ? '12px 0' : 1.5,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: collapsed ? 'center' : 'stretch',
+        gap: 0.5,
+        overflowY: 'auto',
+        bgcolor: colors.primary,
+        borderRight: `1px solid ${colors.divider}`,
+        color: colors.text,
       }}
     >
-      <Box
-        component="nav"
-        aria-label="Main navigation"
+      <Box sx={{ height: 48, px: collapsed ? 0 : 1, display: 'flex', alignItems: 'center' }}>
+        {collapsed ? (
+          <Box
+            component={Link}
+            to={routes.home}
+            aria-label={copy.shell.homeLink}
+            sx={{ display: 'flex', borderRadius: '9px' }}
+          >
+            <LogoMark size={40} />
+          </Box>
+        ) : (
+          <Box
+            component={Link}
+            to={routes.home}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.25,
+              fontSize: 27,
+              textDecoration: 'none',
+            }}
+          >
+            <LogoMark size={36} />
+            <Wordmark text={copy.shell.brand} />
+          </Box>
+        )}
+      </Box>
+
+      <ButtonBase
+        component={Link}
+        to={routes.study}
+        aria-label={due > 0 ? copy.shell.studyDue(due) : copy.shell.study}
         sx={{
-          overflow: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100%',
-          pt: 1,
+          my: 1.5,
+          flexShrink: 0,
+          borderRadius: 1,
+          textDecoration: 'none',
+          ...(collapsed
+            ? { width: 56, height: 56 }
+            : { p: 1, gap: 1.75, justifyContent: 'flex-start' }),
         }}
       >
-        <List sx={{ flex: 1, px: 1 }}>
-          {links.map((link) => (
-            <ListItem key={link.to} disablePadding sx={{ mb: 0.5 }}>
-              <ListItemButton
-                component={NavLink}
-                to={link.to}
-                exact
-                sx={{
-                  color: colors.text,
-                  borderRadius: 2,
-                  py: 1.2,
-                  '&:hover': {
-                    backgroundColor: 'rgba(0,0,0,0.06)',
-                  },
-                  '&.active': {
-                    backgroundColor: 'rgba(0,0,0,0.1)',
-                    fontWeight: 600,
-                    '& .MuiListItemIcon-root': {
-                      color: colors.primaryDark,
-                    },
-                  },
-                }}
-              >
-                <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>{link.icon}</ListItemIcon>
-                <ListItemText
-                  primary={link.label}
-                  primaryTypographyProps={{ fontWeight: 'inherit' }}
-                />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
-        <Divider sx={{ borderColor: 'rgba(0,0,0,0.12)', mx: 1 }} />
-        <List sx={{ px: 1, pb: 1 }}>
-          <ListItem disablePadding sx={{ mb: 0.5 }}>
-            <ListItemButton
-              onClick={onOpenShortcuts}
-              sx={{
-                color: colors.text,
-                borderRadius: 2,
-                py: 1.2,
-                '&:hover': {
-                  backgroundColor: 'rgba(0,0,0,0.06)',
-                },
-              }}
-            >
-              <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>
-                <KeyboardIcon />
-              </ListItemIcon>
-              <ListItemText primary="Shortcuts" />
-            </ListItemButton>
-          </ListItem>
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={onLogout}
-              sx={{
-                color: colors.text,
-                borderRadius: 2,
-                py: 1.2,
-                '&:hover': {
-                  backgroundColor: 'rgba(0,0,0,0.06)',
-                },
-              }}
-            >
-              <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>
-                <LogoutIcon />
-              </ListItemIcon>
-              <ListItemText primary="Logout" />
-            </ListItemButton>
-          </ListItem>
-        </List>
-      </Box>
-    </Drawer>
+        <StudyButton due={due} size={collapsed ? 48 : 52} />
+        {!collapsed && (
+          <Box
+            component="span"
+            sx={{
+              fontFamily: fonts.body,
+              fontSize: 17,
+              fontWeight: 700,
+              color: colors.primaryDark,
+            }}
+          >
+            {copy.shell.study}
+          </Box>
+        )}
+      </ButtonBase>
+
+      {links.map((link) => (
+        <ButtonBase
+          key={link.to}
+          component={Link}
+          to={link.to}
+          aria-current={isActive(pathname, link.to) ? 'page' : undefined}
+          {...label(link.label)}
+          sx={itemSx(isActive(pathname, link.to))}
+        >
+          {link.icon}
+          {!collapsed && link.label}
+        </ButtonBase>
+      ))}
+
+      <Box sx={{ flex: 1 }} />
+
+      <ButtonBase onClick={onOpenShortcuts} {...label(copy.shell.shortcuts)} sx={itemSx()}>
+        <ShortcutsIcon size={22} />
+        {!collapsed && copy.shell.shortcuts}
+      </ButtonBase>
+      <ButtonBase
+        onClick={() => dispatch(actions.logout())}
+        {...label(copy.shell.logout)}
+        sx={itemSx()}
+      >
+        <LogoutIcon size={22} />
+        {!collapsed && copy.shell.logout}
+      </ButtonBase>
+      <ButtonBase
+        onClick={onToggleCollapsed}
+        {...label(copy.shell.expand)}
+        sx={{ ...itemSx(), color: colors.textSecondary }}
+      >
+        {collapsed ? <ExpandIcon size={22} /> : <CollapseIcon size={22} />}
+        {!collapsed && copy.shell.collapse}
+      </ButtonBase>
+    </Box>
   );
 };
 
-export default connector(Sidebar);
+export default Sidebar;

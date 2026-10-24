@@ -15,7 +15,7 @@ import { renderWithProviders } from '../../test/utils';
 describe('KeyboardShortcutsDialog', () => {
   it('renders shortcut groups when open', () => {
     renderWithProviders(<KeyboardShortcutsDialog open={true} onClose={() => {}} />);
-    expect(screen.getByText('Keyboard Shortcuts')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
     expect(screen.getByText('Global')).toBeInTheDocument();
     expect(screen.getByText('Test')).toBeInTheDocument();
     expect(screen.getByText('Add Words')).toBeInTheDocument();
@@ -24,7 +24,7 @@ describe('KeyboardShortcutsDialog', () => {
 
   it('does not render content when closed', () => {
     renderWithProviders(<KeyboardShortcutsDialog open={false} onClose={() => {}} />);
-    expect(screen.queryByText('Keyboard Shortcuts')).not.toBeInTheDocument();
+    expect(screen.queryByText('Keyboard shortcuts')).not.toBeInTheDocument();
   });
 
   it('calls onClose when close button is clicked', async () => {

@@ -98,7 +98,7 @@ test.describe('Speech recognition respects disabled setting', () => {
     await expect(page.locator('#answer-input')).toBeVisible({ timeout: 15000 });
 
     // Verify "Listening..." never appeared
-    await expect(page.getByText('Listening...')).not.toBeVisible();
+    await expect(page.getByText('Listening…')).not.toBeVisible();
 
     // Verify the mock's start() was never called
     const started = await page.evaluate(() => (window as any).__speechRecognitionStarted);
@@ -133,8 +133,8 @@ test.describe('Speech recognition respects disabled setting', () => {
     // Should show text input for pinyin answer (not mic input)
     await expect(page.locator('#answer-input')).toBeVisible({ timeout: 15000 });
 
-    // Should NOT show "Speak the" prompt — should show "Enter the" instead
-    await expect(page.getByText(/Enter the/)).toBeVisible();
+    // The prompt asks the question, whatever the input
+    await expect(page.getByText(/What is the/)).toBeVisible();
   });
 
   test('auto-records when Chinese speech recognition is enabled', async ({ page }) => {
@@ -162,7 +162,7 @@ test.describe('Speech recognition respects disabled setting', () => {
     await page.goto('/test-words');
 
     // Wait for auto-record to trigger — "Listening..." should appear
-    await expect(page.getByText('Listening...')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Listening…')).toBeVisible({ timeout: 15000 });
 
     // Verify the mock's start() was called
     const started = await page.evaluate(() => (window as any).__speechRecognitionStarted);

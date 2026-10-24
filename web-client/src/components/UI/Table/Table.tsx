@@ -46,7 +46,7 @@ const Table: React.FC<TableProps> = (props) => {
         width: { xs: '100%', sm: '90%' },
         maxWidth: 700,
         mx: 'auto',
-        borderRadius: 2,
+        borderRadius: 1,
         overflowX: 'hidden',
         overflowY: 'auto',
         '@media (min-height: 750px)': { maxHeight: 400 },

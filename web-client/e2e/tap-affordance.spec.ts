@@ -26,7 +26,7 @@ async function seedSentenceCache(word: string): Promise<void> {
 
   const res = await fetch(url, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer owner' },
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
     body: JSON.stringify({
       fields: {
         sentences: {
@@ -85,16 +85,16 @@ test.describe('Tap affordance for clickable words', () => {
     await loginViaUI(page);
   });
 
-  test('shows first-use hint that dismisses after tapping a word', async ({ page }) => {
+  test('opens the definition of a tapped word', async ({ page }) => {
     await seedWords(TEST_USER.uid, [dueWord]);
     await seedSentenceCache(dueWord.simp);
 
     await page.goto('/test-words');
 
     // Wait for the test to load and progress to sentence stage
-    await expect(
-      page.getByText(/pinyin|character|meaning/i).first(),
-    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/pinyin|character|meaning/i).first()).toBeVisible({
+      timeout: 15000,
+    });
 
     // Answer the meaning question to advance to sentence stage
     const answerInput = page.locator('#answer-input');
@@ -104,29 +104,14 @@ test.describe('Tap affordance for clickable words', () => {
       await page.waitForTimeout(2000);
     }
 
-    // Check for the first-use hint text in the sentence read stage
-    const tapHint = page.getByTestId('tap-hint');
-    const hintVisible = await tapHint.isVisible({ timeout: 10000 }).catch(() => false);
+    // Each dictionary word of the sentence is a button
+    const clickableWord = page.getByRole('button', { name: /show meaning/i }).first();
+    const wordVisible = await clickableWord.isVisible({ timeout: 10000 }).catch(() => false);
 
-    if (hintVisible) {
-      // Should show the first-use hint
-      await expect(tapHint).toContainText('Tap any word for its definition');
-
-      // Find a clickable word span (has data-popup attribute)
-      const clickableWord = page.locator('[data-popup]').first();
-      const wordVisible = await clickableWord.isVisible({ timeout: 5000 }).catch(() => false);
-
-      if (wordVisible) {
-        // Tap the word
-        await clickableWord.click();
-
-        // After tapping, hint should change to the default text
-        await expect(tapHint).toContainText('Tap a word to reveal its meaning');
-
-        // localStorage should be updated
-        const dismissed = await page.evaluate(() => localStorage.getItem('tapHintDismissed'));
-        expect(dismissed).toBe('true');
-      }
+    if (wordVisible) {
+      // Tapping it opens its definition in a sheet
+      await clickableWord.click();
+      await expect(page.getByRole('button', { name: 'Close' })).toBeVisible();
     }
   });
 
@@ -137,9 +122,9 @@ test.describe('Tap affordance for clickable words', () => {
     await page.goto('/test-words');
 
     // Wait for test to load
-    await expect(
-      page.getByText(/pinyin|character|meaning/i).first(),
-    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/pinyin|character|meaning/i).first()).toBeVisible({
+      timeout: 15000,
+    });
 
     // Answer the meaning question to advance to sentence stage
     const answerInput = page.locator('#answer-input');
@@ -149,8 +134,8 @@ test.describe('Tap affordance for clickable words', () => {
       await page.waitForTimeout(2000);
     }
 
-    // Find clickable word spans with data-popup attribute
-    const clickableWord = page.locator('[data-popup]').first();
+    // Find a word of the sentence, which is a button
+    const clickableWord = page.getByRole('button', { name: /show meaning/i }).first();
     const wordVisible = await clickableWord.isVisible({ timeout: 10000 }).catch(() => false);
 
     if (wordVisible) {
@@ -176,9 +161,9 @@ test.describe('Tap affordance for clickable words', () => {
     await page.goto('/test-words');
 
     // Wait for test to load
-    await expect(
-      page.getByText(/pinyin|character|meaning/i).first(),
-    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/pinyin|character|meaning/i).first()).toBeVisible({
+      timeout: 15000,
+    });
 
     // Answer the meaning question
     const answerInput = page.locator('#answer-input');
@@ -189,19 +174,16 @@ test.describe('Tap affordance for clickable words', () => {
     }
 
     // Find and tap a clickable word
-    const clickableWord = page.locator('[data-popup]').first();
+    const clickableWord = page.getByRole('button', { name: /show meaning/i }).first();
     const wordVisible = await clickableWord.isVisible({ timeout: 10000 }).catch(() => false);
 
     if (wordVisible) {
       await clickableWord.click();
 
-      // The popup should become visible (contains Pinyin/Meaning labels)
-      const popup = page.locator('[data-popup-text]').first();
-      await expect(popup).toBeVisible({ timeout: 5000 });
-
-      // Popup should contain pinyin and meaning labels
-      await expect(popup.getByText('Pinyin:')).toBeVisible();
-      await expect(popup.getByText('Meaning:')).toBeVisible();
+      // The definition opens in a sheet, with a way to close it
+      const sheet = page.getByRole('dialog');
+      await expect(sheet).toBeVisible({ timeout: 5000 });
+      await expect(sheet.getByRole('button', { name: 'Close' })).toBeVisible();
     }
   });
 });

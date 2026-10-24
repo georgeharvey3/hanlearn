@@ -1,8 +1,11 @@
 import React, { ReactNode } from 'react';
 import Dialog from '@mui/material/Dialog';
-import IconButton from '@mui/material/IconButton';
-import CloseIcon from '@mui/icons-material/Close';
+import ButtonBase from '@mui/material/ButtonBase';
 import Box from '@mui/material/Box';
+
+import { CloseIcon } from '../../Navigation/icons';
+import { colors, shadows, scrim } from '../../../theme';
+import { copy } from '../../../copy';
 
 interface ModalProps {
   show?: boolean;
@@ -12,22 +15,33 @@ interface ModalProps {
 
 const Modal: React.FC<ModalProps> = (props) => {
   return (
-    <Dialog open={!!props.show} onClose={props.modalClosed} maxWidth="sm" fullWidth>
+    <Dialog
+      open={!!props.show}
+      onClose={props.modalClosed}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: { borderRadius: 1, boxShadow: shadows.dialog },
+      }}
+      slotProps={{ backdrop: { sx: { bgcolor: scrim } } }}
+    >
       <Box sx={{ position: 'relative', p: 3 }}>
-        <IconButton
+        <ButtonBase
           onClick={props.modalClosed}
-          aria-label="Close dialog"
+          aria-label={copy.shell.close}
           sx={{
             position: 'absolute',
             top: 8,
             right: 8,
-            color: 'text.secondary',
-            '&:hover': { color: 'text.primary' },
+            width: 44,
+            height: 44,
+            borderRadius: '50%',
+            color: colors.textSecondary,
+            '&:hover': { color: colors.text },
           }}
-          size="small"
         >
-          <CloseIcon fontSize="small" />
-        </IconButton>
+          <CloseIcon size={20} />
+        </ButtonBase>
         {props.children}
       </Box>
     </Dialog>
