@@ -46,30 +46,3 @@ export const setAudioSetting = (key: AudioSettingKey, value: boolean): AudioSett
 
   return getAudioSettings();
 };
-
-export interface AudioSettingItem {
-  key: AudioSettingKey;
-  label: string;
-  disabled: boolean;
-}
-
-export const getAudioSettingItems = (
-  speechAvailable: boolean,
-  synthAvailable: boolean,
-): AudioSettingItem[] => [
-  {
-    key: 'useSound',
-    label: 'Text-to-speech',
-    disabled: !synthAvailable,
-  },
-  {
-    key: 'useSoundEffects',
-    label: 'Sound effects',
-    disabled: false,
-  },
-  {
-    key: 'useAutoRecord',
-    label: 'Auto-start microphone',
-    disabled: false,
-  },
-];

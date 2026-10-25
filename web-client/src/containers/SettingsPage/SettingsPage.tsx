@@ -1,15 +1,27 @@
 import React from 'react';
 import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
 
 import Settings from '../../components/Settings/Settings';
+import { colors, fonts } from '../../theme';
+import { copy } from '../../copy';
 
 const SettingsPage: React.FC = () => {
   return (
-    <Box sx={{ maxWidth: 520, mx: 'auto', px: 2, pb: 6 }}>
-      <Typography variant="h5" sx={{ mt: 4, mb: 3, fontWeight: 700, color: 'text.primary' }}>
-        Settings
-      </Typography>
+    <Box sx={{ width: '100%', maxWidth: { xs: 560, md: 640 }, mx: 'auto', pb: 4 }}>
+      <Box
+        component="h1"
+        sx={{
+          m: 0,
+          mb: 2.5,
+          textAlign: 'left',
+          fontFamily: fonts.body,
+          fontSize: 32,
+          fontWeight: 600,
+          color: colors.text,
+        }}
+      >
+        {copy.settings.title}
+      </Box>
       <Settings />
     </Box>
   );

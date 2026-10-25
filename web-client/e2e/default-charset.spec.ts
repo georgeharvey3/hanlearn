@@ -18,6 +18,7 @@ test.describe('Default character set is Traditional', () => {
     // Do NOT call configureTestSettings — we want pristine localStorage
     await loginViaUI(page);
     await page.goto('/settings');
+    await page.getByRole('button', { name: /^Study session/ }).click();
 
     const tradRadio = page.getByRole('radio', { name: 'Traditional' });
     await expect(tradRadio).toBeChecked();
@@ -43,6 +44,7 @@ test.describe('Default character set is Traditional', () => {
     await seedWords(TEST_USER.uid, TEST_WORDS);
     await loginViaUI(page);
     await page.goto('/settings');
+    await page.getByRole('button', { name: /^Study session/ }).click();
 
     // Switch to Simplified
     const simpRadio = page.getByRole('radio', { name: 'Simplified' });

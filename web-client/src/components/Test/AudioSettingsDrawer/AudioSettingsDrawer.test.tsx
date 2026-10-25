@@ -17,21 +17,17 @@ describe('AudioSettingsDrawer', () => {
     vi.clearAllMocks();
   });
 
-  it('renders all audio setting checkboxes when open', () => {
+  it('shows the Answers and Sound groups of the Settings page', () => {
     render(<AudioSettingsDrawer {...defaultProps} />);
-    expect(screen.getByText('Text-to-speech')).toBeInTheDocument();
-    expect(screen.getByText('Sound effects')).toBeInTheDocument();
-    expect(screen.getByText('Auto-start microphone')).toBeInTheDocument();
-  });
+    const dialog = screen.getByRole('dialog', { name: 'Test settings' });
+    const answers = within(dialog).getByRole('region', { name: 'Answers' });
+    const sound = within(dialog).getByRole('region', { name: 'Sound' });
 
-  it('renders a quiz type radio group per answer type', () => {
-    render(<AudioSettingsDrawer {...defaultProps} />);
-    const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
-    const pinyin = screen.getByRole('radiogroup', { name: 'Pinyin' });
-    for (const group of [meaning, pinyin]) {
-      expect(within(group).getByRole('radio', { name: 'Input' })).toBeInTheDocument();
-      expect(within(group).getByRole('radio', { name: 'Flashcard' })).toBeInTheDocument();
-    }
+    expect(within(answers).getByRole('radiogroup', { name: 'Meaning' })).toBeInTheDocument();
+    expect(within(answers).getByRole('radiogroup', { name: 'Pinyin' })).toBeInTheDocument();
+    expect(within(answers).getByRole('switch', { name: 'Auto-start microphone' })).toBeChecked();
+    expect(within(sound).getByRole('switch', { name: 'Text-to-speech' })).toBeChecked();
+    expect(within(sound).getByRole('switch', { name: 'Sound effects' })).toBeChecked();
   });
 
   it('defaults to meaning=Flashcard and pinyin=Input', () => {
@@ -42,30 +38,41 @@ describe('AudioSettingsDrawer', () => {
     expect(within(pinyin).getByRole('radio', { name: 'Input' })).toBeChecked();
   });
 
-  it('renders the title', () => {
-    render(<AudioSettingsDrawer {...defaultProps} />);
-    expect(screen.getByText('Test settings')).toBeInTheDocument();
-  });
-
-  it('disables text-to-speech checkbox when synthAvailable is false', () => {
+  it('turns off text-to-speech, with the reason, without speech synthesis', () => {
     render(<AudioSettingsDrawer {...defaultProps} synthAvailable={false} />);
-    const ttsCheckbox = screen.getByRole('checkbox', { name: /^Text-to-speech/ });
-    expect(ttsCheckbox).toBeDisabled();
+    const tts = screen.getByRole('switch', { name: /^Text-to-speech/ });
+    expect(tts).toBeDisabled();
+    expect(tts).not.toBeChecked();
+    expect(tts).toHaveTextContent('Not supported in this browser');
   });
 
-  it('toggling a checkbox updates localStorage', async () => {
+  it('turns off the microphone without speech recognition, as the page does', () => {
+    render(<AudioSettingsDrawer {...defaultProps} speechAvailable={false} />);
+    const mic = screen.getByRole('switch', { name: /^Auto-start microphone/ });
+    expect(mic).toBeDisabled();
+    expect(mic).toHaveTextContent('Not supported in this browser');
+  });
+
+  it('turns off the microphone when no answer is typed', async () => {
     const user = userEvent.setup();
     render(<AudioSettingsDrawer {...defaultProps} />);
-    const soundEffectsCheckbox = screen.getByRole('checkbox', { name: 'Sound effects' });
-
-    // Default is checked (localStorage has no 'false' value)
-    expect(soundEffectsCheckbox).toBeChecked();
-
-    await user.click(soundEffectsCheckbox);
-    expect(localStorage.getItem('useSoundEffects')).toBe('false');
+    const pinyin = screen.getByRole('radiogroup', { name: 'Pinyin' });
+    await user.click(within(pinyin).getByRole('radio', { name: 'Flashcard' }));
+    const mic = screen.getByRole('switch', { name: /^Auto-start microphone/ });
+    expect(mic).toBeDisabled();
+    expect(mic).toHaveTextContent('Set Meaning or Pinyin to Input first');
   });
 
-  it('switching a quiz type updates localStorage for that answer type only', async () => {
+  it('stores a switch in localStorage', async () => {
+    const user = userEvent.setup();
+    render(<AudioSettingsDrawer {...defaultProps} />);
+    const effects = screen.getByRole('switch', { name: 'Sound effects' });
+    await user.click(effects);
+    expect(localStorage.getItem('useSoundEffects')).toBe('false');
+    expect(effects).not.toBeChecked();
+  });
+
+  it('stores a quiz type for that answer type only', async () => {
     const user = userEvent.setup();
     render(<AudioSettingsDrawer {...defaultProps} />);
 
@@ -77,23 +84,17 @@ describe('AudioSettingsDrawer', () => {
     expect(within(pinyin).getByRole('radio', { name: 'Flashcard' })).toBeChecked();
   });
 
-  it('supports mixed quiz types (meaning=flashcard, pinyin=input)', async () => {
+  it('hands the settings back on close', async () => {
     const user = userEvent.setup();
-    // Start away from the defaults so both clicks fire change events
-    localStorage.setItem('meaningQuizType', 'input');
-    localStorage.setItem('pinyinQuizType', 'flashcard');
     render(<AudioSettingsDrawer {...defaultProps} />);
-
-    const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
-    const pinyin = screen.getByRole('radiogroup', { name: 'Pinyin' });
-    await user.click(within(meaning).getByRole('radio', { name: 'Flashcard' }));
-    await user.click(within(pinyin).getByRole('radio', { name: 'Input' }));
-
-    expect(localStorage.getItem('meaningQuizType')).toBe('flashcard');
-    expect(localStorage.getItem('pinyinQuizType')).toBe('input');
+    await user.click(screen.getByRole('switch', { name: 'Sound effects' }));
+    await user.keyboard('{Escape}');
+    expect(defaultProps.onClose).toHaveBeenCalledWith(
+      expect.objectContaining({ useSoundEffects: false, useSound: true }),
+    );
   });
 
-  it('does not render checkboxes when closed', () => {
+  it('renders nothing when closed', () => {
     render(<AudioSettingsDrawer {...defaultProps} open={false} />);
     expect(screen.queryByText('Text-to-speech')).not.toBeInTheDocument();
   });
