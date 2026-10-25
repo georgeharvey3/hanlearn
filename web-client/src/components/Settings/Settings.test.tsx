@@ -1,31 +1,27 @@
 /**
- * Tests for Settings component — user-configurable test preferences.
- *
- * Focus areas:
- * - Reads initial state from localStorage
- * - Radio buttons update charSet and persist to localStorage
- * - Checkboxes toggle boolean settings and persist to localStorage
- * - Per-answer-type quiz type radios (Text/Speech/Flashcard) persist to localStorage
- * - Disabling handwriting resets priority to none
- * - Disabling handwriting disables the Writing priority option
- * - Slider updates questionsPerSession and persists to localStorage
- * - Speech/synth availability gates checkbox disabled state
+ * Tests for the Settings page: six groups that open and close. A closed group
+ * shows its values in one line. Every control writes its value to
+ * localStorage, where the session reads it.
  */
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('../../firebase/auth', () => ({
+  getCurrentUser: () => ({ email: 'learner@example.com' }),
+  logoutUser: () => Promise.resolve(),
+}));
 
 import React from 'react';
-import { screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'vitest-axe';
 
 import Settings from './Settings';
 import { renderWithProviders, createTestStore } from '../../test/utils';
 
-function makeStore(speechAvailable = false, synthAvailable = false) {
+function makeStore(speechAvailable = true, synthAvailable = true, userId: string | null = 'u1') {
   return createTestStore({
-    auth: { userId: 'u1', loading: false, initialized: true, modalOpen: false },
+    auth: { userId, loading: false, initialized: true, modalOpen: false },
     addWords: {
       lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
       activeListId: 'default',
@@ -38,405 +34,291 @@ function makeStore(speechAvailable = false, synthAvailable = false) {
   });
 }
 
+const renderSettings = (store = makeStore()) => renderWithProviders(<Settings />, { store });
+
+const header = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}`) });
+
+/** Opens a group by its header and returns the header. */
+async function open(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(header(name));
+  return header(name);
+}
+
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
 });
 
 describe('Settings — accessibility', () => {
-  it('has no accessibility violations', async () => {
-    const { container } = renderWithProviders(<Settings />, { store: makeStore() });
-    const results = await axe(container);
-    expect(results).toHaveNoViolations();
-  });
-});
-
-describe('Settings — initial render from localStorage', () => {
-  it('defaults charSet to Traditional when localStorage is empty', () => {
-    renderWithProviders(<Settings />, { store: makeStore() });
-    const tradRadio = screen.getByRole('radio', { name: /traditional/i });
-    expect(tradRadio).toBeChecked();
-  });
-
-  it('reads charSet = trad from localStorage', () => {
-    localStorage.setItem('charSet', 'trad');
-    renderWithProviders(<Settings />, { store: makeStore() });
-    const tradRadio = screen.getByRole('radio', { name: /traditional/i });
-    expect(tradRadio).toBeChecked();
-  });
-
-  it('shows the default questions per session (25) when localStorage is empty', () => {
-    renderWithProviders(<Settings />, { store: makeStore() });
-    // The number display renders the current value
-    expect(screen.getByText('25')).toBeInTheDocument();
-  });
-
-  it('reads questionsPerSession from localStorage', () => {
-    localStorage.setItem('questionsPerSession', '40');
-    renderWithProviders(<Settings />, { store: makeStore() });
-    expect(screen.getByText('40')).toBeInTheDocument();
-  });
-
-  it('migrates the old words per session value to questions', () => {
-    localStorage.setItem('numWords', '6');
-    renderWithProviders(<Settings />, { store: makeStore() });
-    expect(screen.getByText('30')).toBeInTheDocument();
-  });
-});
-
-describe('Settings — questions per session slider', () => {
-  it('stores the value the learner selects', () => {
-    renderWithProviders(<Settings />, { store: makeStore() });
-
-    const slider = screen.getByRole('slider', { name: /questions per session/i });
-    fireEvent.change(slider, { target: { value: '35' } });
-
-    expect(localStorage.getItem('questionsPerSession')).toBe('35');
-    expect(screen.getByText('35')).toBeInTheDocument();
-  });
-
-  it('runs from 5 to 50', () => {
-    renderWithProviders(<Settings />, { store: makeStore() });
-
-    const slider = screen.getByRole('slider', { name: /questions per session/i });
-    expect(slider).toHaveAttribute('aria-valuemin', '5');
-    expect(slider).toHaveAttribute('aria-valuemax', '50');
-  });
-});
-
-describe('Settings — character set radio buttons', () => {
-  it('switches to Simplified when Simplified radio is clicked', async () => {
+  it('has no accessibility violations with every group open', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<Settings />, { store: makeStore() });
+    const { container } = renderSettings();
+    for (const name of ['Session', 'Answers', 'Focus', 'Stages', 'Sound', 'Account']) {
+      await open(user, name);
+    }
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
 
-    const simpRadio = screen.getByRole('radio', { name: /simplified/i });
-    await user.click(simpRadio);
+describe('Settings — groups', () => {
+  it('starts with every group closed', () => {
+    renderSettings();
+    for (const name of ['Session', 'Answers', 'Focus', 'Stages', 'Sound', 'Account']) {
+      expect(header(name)).toHaveAttribute('aria-expanded', 'false');
+    }
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+  });
 
-    expect(simpRadio).toBeChecked();
+  it('shows the values of each closed group in one line', () => {
+    renderSettings();
+    expect(header('Session')).toHaveTextContent(/25 questions · ~\d+ min · Traditional/);
+    expect(header('Answers')).toHaveTextContent('Meaning: Flashcard · Pinyin: Input');
+    expect(header('Focus')).toHaveTextContent('No focus');
+    expect(header('Stages')).toHaveTextContent(
+      'New words → Test → Translate sentences → Make sentences',
+    );
+    expect(header('Sound')).toHaveTextContent('Text-to-speech · Sound effects');
+    expect(header('Account')).toHaveTextContent('learner@example.com');
+  });
+
+  it('opens a group, and hides its line of values while open', async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    const session = await open(user, 'Session');
+    expect(session).toHaveAttribute('aria-expanded', 'true');
+    expect(session).not.toHaveTextContent('25 questions');
+    await user.click(session);
+    expect(session).toHaveAttribute('aria-expanded', 'false');
+  });
+});
+
+describe('Settings — Session', () => {
+  it('reads the questions per session, and migrates the old words per session', () => {
+    localStorage.setItem('numWords', '4');
+    renderSettings();
+    expect(header('Session')).toHaveTextContent('20 questions');
+  });
+
+  it('steps the questions per session by 5, from 5 to 50', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('questionsPerSession', '45');
+    renderSettings();
+    await open(user, 'Session');
+
+    const more = screen.getByRole('button', { name: 'More questions' });
+    await user.click(more);
+    expect(localStorage.getItem('questionsPerSession')).toBe('50');
+    expect(screen.getByText('50')).toBeInTheDocument();
+    expect(more).toBeDisabled();
+  });
+
+  it('stops at 5 questions', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('questionsPerSession', '10');
+    renderSettings();
+    await open(user, 'Session');
+    const fewer = screen.getByRole('button', { name: 'Fewer questions' });
+    await user.click(fewer);
+    expect(localStorage.getItem('questionsPerSession')).toBe('5');
+    expect(fewer).toBeDisabled();
+  });
+
+  it('shows the time a session takes, and updates it with the size', async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    await open(user, 'Session');
+    const before = screen.getByText(/^About \d+ min$/).textContent;
+    await user.click(screen.getByRole('button', { name: 'Fewer questions' }));
+    expect(screen.getByText(/^About \d+ min$/).textContent).not.toBe(before);
+  });
+
+  it('switches the characters and stores the choice', async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    await open(user, 'Session');
+    const characters = screen.getByRole('radiogroup', { name: 'Characters' });
+    expect(within(characters).getByRole('radio', { name: 'Traditional' })).toBeChecked();
+
+    await user.click(within(characters).getByRole('radio', { name: 'Simplified' }));
     expect(localStorage.getItem('charSet')).toBe('simp');
-  });
-
-  it('switches back to Traditional when Traditional radio is clicked', async () => {
-    const user = userEvent.setup();
-    localStorage.setItem('charSet', 'simp');
-    renderWithProviders(<Settings />, { store: makeStore() });
-
-    const tradRadio = screen.getByRole('radio', { name: /traditional/i });
-    await user.click(tradRadio);
-
-    expect(tradRadio).toBeChecked();
-    expect(localStorage.getItem('charSet')).toBe('trad');
+    expect(within(characters).getByRole('radio', { name: 'Simplified' })).toBeChecked();
   });
 });
 
-describe('Settings — checkbox toggles', () => {
-  it('toggling Text-to-speech checkbox persists to localStorage', async () => {
+describe('Settings — Answers', () => {
+  it('stores each answer type on its own', async () => {
     const user = userEvent.setup();
-    // synthAvailable=true so checkbox is enabled
-    renderWithProviders(<Settings />, { store: makeStore(false, true) });
-
-    const soundCheckbox = screen.getByRole('checkbox', { name: /text-to-speech/i });
-    // Default is checked (true), clicking unchecks
-    await user.click(soundCheckbox);
-    expect(localStorage.getItem('useSound')).toBe('false');
-  });
-
-  it('defaults to meaning=Flashcard and pinyin=Input', () => {
-    renderWithProviders(<Settings />, { store: makeStore(true, false) });
-
+    renderSettings();
+    await open(user, 'Answers');
     const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
     const pinyin = screen.getByRole('radiogroup', { name: 'Pinyin' });
     expect(within(meaning).getByRole('radio', { name: 'Flashcard' })).toBeChecked();
     expect(within(pinyin).getByRole('radio', { name: 'Input' })).toBeChecked();
-  });
 
-  it('switching the pinyin quiz type persists to localStorage without touching meaning', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<Settings />, { store: makeStore(true, false) });
-
-    const pinyin = screen.getByRole('radiogroup', { name: 'Pinyin' });
     await user.click(within(pinyin).getByRole('radio', { name: 'Flashcard' }));
-
     expect(localStorage.getItem('pinyinQuizType')).toBe('flashcard');
     expect(localStorage.getItem('meaningQuizType')).toBeNull();
   });
 
-  it('reads a stored quiz type from localStorage', () => {
-    localStorage.setItem('meaningQuizType', 'input');
-    renderWithProviders(<Settings />, { store: makeStore(true, false) });
+  it('turns off Auto-start microphone, with the reason, when no answer is typed', async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    await open(user, 'Answers');
+    const mic = screen.getByRole('switch', { name: /Auto-start microphone/ });
+    expect(mic).toBeChecked();
 
-    const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
-    expect(within(meaning).getByRole('radio', { name: 'Input' })).toBeChecked();
+    const pinyin = screen.getByRole('radiogroup', { name: 'Pinyin' });
+    await user.click(within(pinyin).getByRole('radio', { name: 'Flashcard' }));
+    expect(mic).toBeDisabled();
+    expect(mic).not.toBeChecked();
+    expect(mic).toHaveTextContent('Set Meaning or Pinyin to Input first');
   });
 
-  it('toggling Handwriting questions persists to localStorage', async () => {
+  it('stores the handwriting switch', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<Settings />, { store: makeStore() });
-
-    const handwritingCheckbox = screen.getByRole('checkbox', { name: /handwriting questions/i });
-    await user.click(handwritingCheckbox);
+    renderSettings();
+    await open(user, 'Answers');
+    await user.click(screen.getByRole('switch', { name: 'Handwriting' }));
     expect(localStorage.getItem('useHandwriting')).toBe('false');
   });
-
-  it('toggling Make Sentences stage persists to localStorage', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<Settings />, { store: makeStore() });
-
-    const sentenceWriteCheckbox = screen.getByRole('checkbox', { name: /make sentences/i });
-    await user.click(sentenceWriteCheckbox);
-    expect(localStorage.getItem('sentenceWrite')).toBe('false');
-  });
 });
 
-describe('Settings — quiz type independence', () => {
-  it('supports input for pinyin and flashcard for meaning at the same time', async () => {
+describe('Settings — Focus', () => {
+  it('stores the focus, and shows it on the closed header', async () => {
     const user = userEvent.setup();
-    // Start away from the defaults so both clicks fire change events
-    localStorage.setItem('meaningQuizType', 'input');
-    localStorage.setItem('pinyinQuizType', 'flashcard');
-    renderWithProviders(<Settings />, { store: makeStore(true, false) });
+    renderSettings();
+    await open(user, 'Focus');
+    const only = screen.getByRole('switch', { name: 'Only this skill' });
+    expect(only).toBeDisabled();
 
-    const meaning = screen.getByRole('radiogroup', { name: 'Meaning' });
-    const pinyin = screen.getByRole('radiogroup', { name: 'Pinyin' });
-    await user.click(within(meaning).getByRole('radio', { name: 'Flashcard' }));
-    await user.click(within(pinyin).getByRole('radio', { name: 'Input' }));
-
-    expect(localStorage.getItem('meaningQuizType')).toBe('flashcard');
-    expect(localStorage.getItem('pinyinQuizType')).toBe('input');
-  });
-});
-
-describe('Settings — mutual exclusion rules', () => {
-  it('disabling Handwriting questions resets priority to none', async () => {
-    const user = userEvent.setup();
-    // Set priority to Writing (CM) first
-    localStorage.setItem('priority', 'CM');
-    localStorage.setItem('useHandwriting', 'true');
-    renderWithProviders(<Settings />, { store: makeStore() });
-
-    const handwritingCheckbox = screen.getByRole('checkbox', { name: /handwriting questions/i });
-    await user.click(handwritingCheckbox);
-
-    expect(localStorage.getItem('priority')).toBe('none');
-    expect(localStorage.getItem('onlyPriority')).toBe('false');
-  });
-});
-
-describe('Settings — priority radio buttons', () => {
-  it('selecting a priority radio persists to localStorage', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<Settings />, { store: makeStore() });
-
-    const listeningRadio = screen.getByRole('radio', { name: /listening/i });
-    await user.click(listeningRadio);
-
+    await user.click(screen.getByRole('radio', { name: 'Listening' }));
     expect(localStorage.getItem('priority')).toBe('MP');
-  });
-
-  it('selecting None priority also resets onlyPriority to false', async () => {
-    const user = userEvent.setup();
-    localStorage.setItem('priority', 'MP');
-    localStorage.setItem('onlyPriority', 'true');
-    renderWithProviders(<Settings />, { store: makeStore() });
-
-    const noneRadio = screen.getByRole('radio', { name: /none/i });
-    await user.click(noneRadio);
-
-    expect(localStorage.getItem('priority')).toBe('none');
-    expect(localStorage.getItem('onlyPriority')).toBe('false');
-  });
-
-  it('Writing priority radio is disabled when handwriting is off', () => {
-    localStorage.setItem('useHandwriting', 'false');
-    renderWithProviders(<Settings />, { store: makeStore() });
-
-    const writingRadio = screen.getByRole('radio', { name: /writing/i });
-    expect(writingRadio).toBeDisabled();
-  });
-
-  it('Writing priority radio is enabled when handwriting is on', () => {
-    localStorage.setItem('useHandwriting', 'true');
-    renderWithProviders(<Settings />, { store: makeStore() });
-
-    const writingRadio = screen.getByRole('radio', { name: /writing/i });
-    expect(writingRadio).not.toBeDisabled();
-  });
-});
-
-describe('Settings — speech availability gating', () => {
-  it('disables Text-to-speech checkbox when synthAvailable is false', () => {
-    renderWithProviders(<Settings />, { store: makeStore(false, false) });
-    const soundCheckbox = screen.getByRole('checkbox', { name: /text-to-speech/i });
-    expect(soundCheckbox).toBeDisabled();
-  });
-
-  it('enables Text-to-speech checkbox when synthAvailable is true', () => {
-    renderWithProviders(<Settings />, { store: makeStore(false, true) });
-    const soundCheckbox = screen.getByRole('checkbox', { name: /text-to-speech/i });
-    expect(soundCheckbox).not.toBeDisabled();
-  });
-
-  it('disables Auto-start microphone when both quiz types are Flashcard', () => {
-    localStorage.setItem('meaningQuizType', 'flashcard');
-    localStorage.setItem('pinyinQuizType', 'flashcard');
-    renderWithProviders(<Settings />, { store: makeStore(true, false) });
-    expect(screen.getByRole('checkbox', { name: /auto-start microphone/i })).toBeDisabled();
-  });
-
-  it('disables Auto-start microphone when speechAvailable is false', () => {
-    localStorage.setItem('pinyinQuizType', 'input');
-    renderWithProviders(<Settings />, { store: makeStore(false, false) });
-    expect(screen.getByRole('checkbox', { name: /auto-start microphone/i })).toBeDisabled();
-  });
-
-  it('enables Auto-start microphone when a quiz type is Input and speech is available', () => {
-    localStorage.setItem('meaningQuizType', 'flashcard');
-    localStorage.setItem('pinyinQuizType', 'input');
-    renderWithProviders(<Settings />, { store: makeStore(true, false) });
-    expect(screen.getByRole('checkbox', { name: /auto-start microphone/i })).not.toBeDisabled();
-  });
-
-  it('disables Translate Sentences stage when speechAvailable is false', () => {
-    renderWithProviders(<Settings />, { store: makeStore(false, false) });
-    // Exact, because "Translate sentences for all words" also starts this way.
-    const translateSentencesCheckbox = screen.getByRole('checkbox', {
-      name: 'Translate Sentences',
-    });
-    expect(translateSentencesCheckbox).toBeDisabled();
-  });
-
-  it('disables New Words stage when synthAvailable is false', () => {
-    renderWithProviders(<Settings />, { store: makeStore(false, false) });
-    const newWordsCheckbox = screen.getByRole('checkbox', { name: /new words/i });
-    expect(newWordsCheckbox).toBeDisabled();
-  });
-});
-
-describe('Settings — time estimate display', () => {
-  it('shows estimated test time on initial render', () => {
-    renderWithProviders(<Settings />, { store: makeStore() });
-    expect(screen.getByText(/estimated test time:/i)).toBeInTheDocument();
-  });
-
-  it('updates estimate when stage checkbox is toggled off', async () => {
-    const user = userEvent.setup();
-    // Use a larger budget so the sentence stage time difference is noticeable
-    localStorage.setItem('questionsPerSession', '50');
-    renderWithProviders(<Settings />, { store: makeStore() });
-
-    const estimateEl = screen.getByText(/estimated test time:/i);
-    const initialText = estimateEl.textContent;
-
-    const sentenceWriteCheckbox = screen.getByRole('checkbox', { name: /make sentences/i });
-    await user.click(sentenceWriteCheckbox);
-
-    expect(estimateEl.textContent).not.toBe(initialText);
-  });
-
-  it('updates estimate when Only Priority is toggled on', async () => {
-    const user = userEvent.setup();
-    localStorage.setItem('priority', 'MP');
-    renderWithProviders(<Settings />, { store: makeStore() });
-
-    const estimateEl = screen.getByText(/estimated test time:/i);
-    const initialText = estimateEl.textContent;
-
-    const onlyPriorityCheckbox = screen.getByRole('checkbox', { name: /only priority/i });
-    await user.click(onlyPriorityCheckbox);
-
-    expect(estimateEl.textContent).not.toBe(initialText);
-  });
-});
-
-describe('Settings — Only Priority checkbox', () => {
-  it('Only Priority checkbox is disabled when priority is none', () => {
-    renderWithProviders(<Settings />, { store: makeStore() });
-    const onlyPriorityCheckbox = screen.getByRole('checkbox', { name: /only priority/i });
-    expect(onlyPriorityCheckbox).toBeDisabled();
-  });
-
-  it('Only Priority checkbox is enabled when priority is set', async () => {
-    const user = userEvent.setup();
-    localStorage.setItem('priority', 'MP');
-    renderWithProviders(<Settings />, { store: makeStore() });
-
-    const onlyPriorityCheckbox = screen.getByRole('checkbox', { name: /only priority/i });
-    expect(onlyPriorityCheckbox).not.toBeDisabled();
-  });
-
-  it('toggling Only Priority persists to localStorage', async () => {
-    const user = userEvent.setup();
-    localStorage.setItem('priority', 'MP');
-    renderWithProviders(<Settings />, { store: makeStore() });
-
-    const onlyPriorityCheckbox = screen.getByRole('checkbox', { name: /only priority/i });
-    await user.click(onlyPriorityCheckbox);
+    await user.click(only);
     expect(localStorage.getItem('onlyPriority')).toBe('true');
+
+    await user.click(header('Focus'));
+    expect(header('Focus')).toHaveTextContent('Listening only');
+  });
+
+  it('turns off Only this skill when the focus goes back to none', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('priority', 'MC');
+    localStorage.setItem('onlyPriority', 'true');
+    renderSettings();
+    await open(user, 'Focus');
+    await user.click(screen.getByRole('radio', { name: 'No focus' }));
+    expect(localStorage.getItem('onlyPriority')).toBe('false');
+    expect(screen.getByRole('switch', { name: 'Only this skill' })).not.toBeChecked();
+  });
+
+  it('offers Writing only with handwriting, and ends a Writing focus without it', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('priority', 'CM');
+    renderSettings();
+    await open(user, 'Answers');
+    await open(user, 'Focus');
+    expect(screen.getByRole('radio', { name: 'Writing' })).toBeEnabled();
+
+    await user.click(screen.getByRole('switch', { name: 'Handwriting' }));
+    expect(screen.getByRole('radio', { name: 'Writing' })).toBeDisabled();
+    expect(screen.getByRole('radio', { name: 'No focus' })).toBeChecked();
+    expect(localStorage.getItem('priority')).toBe('none');
   });
 });
 
-describe('Settings — translate sentences for all words', () => {
-  it('renders the "Translate sentences for all words" checkbox unchecked by default', () => {
-    renderWithProviders(<Settings />, { store: makeStore() });
-    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
-    expect(checkbox).toBeInTheDocument();
-    expect(checkbox).not.toBeChecked();
-  });
-
-  it('reads sentenceStagesForAllWords=true from localStorage', () => {
-    localStorage.setItem('sentenceStagesForAllWords', 'true');
-    renderWithProviders(<Settings />, { store: makeStore() });
-    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
-    expect(checkbox).toBeChecked();
-  });
-
-  it('toggling the checkbox persists to localStorage', async () => {
+describe('Settings — Stages', () => {
+  it('stores a stage, and leaves it out of the closed header', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<Settings />, { store: makeStore() });
+    renderSettings();
+    await open(user, 'Stages');
+    await user.click(screen.getByRole('switch', { name: 'Make sentences' }));
+    expect(localStorage.getItem('sentenceWrite')).toBe('false');
 
-    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
-    await user.click(checkbox);
+    await user.click(header('Stages'));
+    expect(header('Stages')).toHaveTextContent('New words → Test → Translate sentences');
+    expect(header('Stages')).not.toHaveTextContent('Make sentences');
+  });
+
+  it('offers Translate with all words only with Translate sentences', async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    await open(user, 'Stages');
+    const allWords = screen.getByRole('switch', { name: /Translate with all words/ });
+    expect(allWords).not.toBeChecked();
+    await user.click(allWords);
     expect(localStorage.getItem('sentenceStagesForAllWords')).toBe('true');
+
+    await user.click(screen.getByRole('switch', { name: /^Translate sentences/ }));
+    expect(allWords).toBeDisabled();
+    expect(allWords).not.toBeChecked();
+    expect(allWords).toHaveTextContent('Turn on Translate sentences first');
   });
 
-  it('is disabled when the Read stage is off', () => {
-    localStorage.setItem('sentenceRead', 'false');
-    localStorage.setItem('sentenceWrite', 'false');
-    renderWithProviders(<Settings />, { store: makeStore() });
-    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
-    expect(checkbox).toBeDisabled();
-  });
-
-  it('is enabled when sentenceRead is on', () => {
-    localStorage.setItem('sentenceRead', 'true');
-    localStorage.setItem('sentenceWrite', 'false');
-    renderWithProviders(<Settings />, { store: makeStore(true, false) });
-    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
-    expect(checkbox).not.toBeDisabled();
-  });
-
-  // The setting widens the Read stage only: the Write stage keeps its own gate,
-  // so turning it on with only Make Sentences enabled would change nothing.
-  it('is disabled when only Make Sentences is on', () => {
-    localStorage.setItem('sentenceRead', 'false');
-    localStorage.setItem('sentenceWrite', 'true');
-    renderWithProviders(<Settings />, { store: makeStore() });
-    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
-    expect(checkbox).toBeDisabled();
-  });
-
-  it('updates the estimated test time when toggled on', async () => {
+  it('shortens the session time when a stage is turned off', async () => {
     const user = userEvent.setup();
-    // Ensure sentence stages are enabled so the checkbox is active
-    localStorage.setItem('questionsPerSession', '50');
-    renderWithProviders(<Settings />, { store: makeStore() });
+    renderSettings();
+    const before = header('Session').textContent;
+    await open(user, 'Stages');
+    await user.click(screen.getByRole('switch', { name: 'Make sentences' }));
+    expect(header('Session').textContent).not.toBe(before);
+  });
+});
 
-    const estimateEl = screen.getByText(/estimated test time:/i);
-    const initialText = estimateEl.textContent;
+describe('Settings — Sound', () => {
+  it('stores each sound switch', async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    await open(user, 'Sound');
+    await user.click(screen.getByRole('switch', { name: 'Text-to-speech' }));
+    await user.click(screen.getByRole('switch', { name: 'Sound effects' }));
+    expect(localStorage.getItem('useSound')).toBe('false');
+    expect(localStorage.getItem('useSoundEffects')).toBe('false');
 
-    const checkbox = screen.getByRole('checkbox', { name: /translate sentences for all words/i });
-    await user.click(checkbox);
+    await user.click(header('Sound'));
+    expect(header('Sound')).toHaveTextContent('Off');
+  });
+});
 
-    expect(estimateEl.textContent).not.toBe(initialText);
+describe('Settings — a browser without speech', () => {
+  it('turns off the controls that need speech, with the reason', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('meaningQuizType', 'input');
+    renderSettings(makeStore(false, false));
+    for (const name of ['Answers', 'Stages', 'Sound']) await open(user, name);
+
+    for (const name of [
+      /Auto-start microphone/,
+      /^New words/,
+      /^Translate sentences/,
+      /^Text-to-speech/,
+    ]) {
+      const row = screen.getByRole('switch', { name });
+      expect(row).toBeDisabled();
+      expect(row).not.toBeChecked();
+      expect(row).toHaveTextContent('Not supported in this browser');
+    }
+    expect(screen.getByRole('switch', { name: 'Make sentences' })).toBeEnabled();
+  });
+});
+
+describe('Settings — Account', () => {
+  it('shows the email of the learner, and logs out', async () => {
+    const user = userEvent.setup();
+    const store = makeStore();
+    renderSettings(store);
+    await open(user, 'Account');
+    expect(screen.getByText('Signed in as')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Log out' }));
+    expect(store.getState().auth.userId).toBeNull();
+  });
+
+  it('offers to log in when signed out', async () => {
+    const user = userEvent.setup();
+    const store = makeStore(true, true, null);
+    renderSettings(store);
+    expect(header('Account')).toHaveTextContent('Not signed in');
+    await open(user, 'Account');
+    await user.click(screen.getByRole('button', { name: 'Log in' }));
+    expect(store.getState().auth.modalOpen).toBe(true);
   });
 });

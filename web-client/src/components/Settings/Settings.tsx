@@ -1,17 +1,14 @@
-import React, { ChangeEvent, useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import Slider from '@mui/material/Slider';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Checkbox from '@mui/material/Checkbox';
-import Radio from '@mui/material/Radio';
-import RadioGroup from '@mui/material/RadioGroup';
-import FormGroup from '@mui/material/FormGroup';
-import Tooltip from '@mui/material/Tooltip';
+import ButtonBase from '@mui/material/ButtonBase';
 
 import { RootState } from '../../types/store';
-import { colors } from '../../theme';
+import { AppDispatch } from '../../types/actions';
+import * as actions from '../../store/actions/index';
+import { getCurrentUser } from '../../firebase/auth';
+import { colors, fonts } from '../../theme';
+import { copy } from '../../copy';
 import {
   assumedNewWordCount,
   assumedWriteWordCount,
@@ -28,469 +25,398 @@ import {
   writeQuestionsPerSession,
 } from '../../utils/sessionSettings';
 import { QuizCategory, QuizType, getQuizType, setQuizType } from '../../utils/audioSettings';
+import { ChipGroup, FoldGroup, SegmentedRow, StepperRow, SwitchRow } from './controls';
+import { autoRecordBlock, ttsBlock } from './rules';
 
-interface SettingsState {
-  charSet: string;
+type Priority = 'none' | 'MP' | 'PM' | 'MC' | 'CM';
+
+type Group = 'session' | 'answers' | 'focus' | 'stages' | 'sound' | 'account';
+
+// The settings that are a plain flag in localStorage, and their defaults.
+const FLAGS = {
+  useHandwriting: true,
+  useSound: true,
+  useSoundEffects: true,
+  useAutoRecord: true,
+  newWords: true,
+  sentenceRead: true,
+  sentenceWrite: true,
+  sentenceStagesForAllWords: false,
+  onlyPriority: false,
+};
+
+type Flag = keyof typeof FLAGS;
+
+interface Values extends Record<Flag, boolean> {
+  charSet: 'simp' | 'trad';
   questionsPerSession: number;
-  useHandwriting: boolean;
-  useSound: boolean;
-  useSoundEffects: boolean;
-  useAutoRecord: boolean;
   meaningQuizType: QuizType;
   pinyinQuizType: QuizType;
-  newWords: boolean;
-  sentenceRead: boolean;
-  sentenceWrite: boolean;
-  sentenceStagesForAllWords: boolean;
-  priority: string;
-  onlyPriority: boolean;
-  [key: string]: string | number | boolean;
+  priority: Priority;
 }
 
-const mapStateToProps = (state: RootState) => {
+const readValues = (): Values => {
+  const flags = {} as Record<Flag, boolean>;
+  (Object.keys(FLAGS) as Flag[]).forEach((key) => {
+    const stored = localStorage.getItem(key);
+    flags[key] = stored === null ? FLAGS[key] : stored === 'true';
+  });
   return {
-    speechAvailable: state.settings.speechAvailable,
-    synthAvailable: state.settings.synthAvailable,
+    ...flags,
+    charSet: localStorage.getItem('charSet') === 'simp' ? 'simp' : 'trad',
+    questionsPerSession: readQuestionsPerSession(),
+    meaningQuizType: getQuizType('meaning'),
+    pinyinQuizType: getQuizType('pinyin'),
+    priority: (localStorage.getItem('priority') as Priority) || 'none',
   };
 };
 
-const connector = connect(mapStateToProps);
+const SKILLS: Exclude<Priority, 'none'>[] = ['MP', 'PM', 'MC', 'CM'];
+
+const quizOptions: { value: QuizType; label: string }[] = [
+  { value: 'input', label: copy.settings.input },
+  { value: 'flashcard', label: copy.settings.flashcard },
+];
+
+const quizName = (type: QuizType) =>
+  type === 'input' ? copy.settings.input : copy.settings.flashcard;
+
+const mapStateToProps = (state: RootState) => ({
+  speechAvailable: state.settings.speechAvailable,
+  synthAvailable: state.settings.synthAvailable,
+  signedIn: state.auth.userId !== null,
+});
+
+const mapDispatchToProps = (dispatch: AppDispatch) => ({
+  onLogout: () => dispatch(actions.logout()),
+  onLogin: () => dispatch(actions.openAuthModal('login')),
+});
+
+const connector = connect(mapStateToProps, mapDispatchToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
 
-const sectionGroupSx = {
-  bgcolor: '#fff',
-  borderRadius: '4px',
-  border: '1px solid #e5ddd6',
-  overflow: 'hidden',
-  mb: 3,
-};
+const Settings: React.FC<PropsFromRedux> = ({
+  speechAvailable,
+  synthAvailable,
+  signedIn,
+  onLogout,
+  onLogin,
+}) => {
+  const [v, setValues] = useState<Values>(readValues);
+  const [open, setOpen] = useState<Group[]>([]);
 
-const sectionLabelSx = {
-  display: 'block',
-  fontSize: '0.7rem',
-  fontWeight: 700,
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase' as const,
-  color: colors.primaryDark,
-  mb: 0.75,
-  pl: 0.5,
-};
-
-const rowSx = {
-  px: 2,
-  borderBottom: '1px solid #ede6e0',
-  '&:last-child': { borderBottom: 'none' },
-};
-
-const SectionGroup: React.FC<{ label: string; children: React.ReactNode }> = ({
-  label,
-  children,
-}) => (
-  <Box sx={{ mb: 3 }}>
-    <Typography sx={sectionLabelSx}>{label}</Typography>
-    <Box sx={sectionGroupSx}>{children}</Box>
-  </Box>
-);
-
-interface CheckboxItem {
-  value: string;
-  label: string;
-  checked: boolean;
-  disabled: boolean;
-  disabledTooltip: string;
-}
-
-const CheckboxRows: React.FC<{
-  items: CheckboxItem[];
-  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
-}> = ({ items, onChange }) => (
-  <FormGroup>
-    {items.map(({ value, label, checked, disabled, disabledTooltip }) => (
-      <Box key={value} sx={rowSx}>
-        <Tooltip
-          title={disabled ? disabledTooltip : ''}
-          placement="right"
-          disableHoverListener={!disabled}
-          disableFocusListener={!disabled}
-        >
-          <span>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  size="small"
-                  value={value}
-                  checked={checked}
-                  onChange={onChange}
-                  disabled={disabled}
-                />
-              }
-              label={label}
-              sx={{ width: '100%', my: 0.25 }}
-            />
-          </span>
-        </Tooltip>
-      </Box>
-    ))}
-  </FormGroup>
-);
-
-const Settings: React.FC<PropsFromRedux> = ({ speechAvailable, synthAvailable }) => {
-  const [state, setState] = useState<SettingsState>(() => {
-    const localCharSet = localStorage.getItem('charSet');
-    const useHandwriting = localStorage.getItem('useHandwriting');
-    const useSound = localStorage.getItem('useSound');
-    const useSoundEffects = localStorage.getItem('useSoundEffects');
-    const useAutoRecord = localStorage.getItem('useAutoRecord');
-    const newWords = localStorage.getItem('newWords');
-    const sentenceRead = localStorage.getItem('sentenceRead');
-    const sentenceWrite = localStorage.getItem('sentenceWrite');
-    const sentenceStagesForAllWords = localStorage.getItem('sentenceStagesForAllWords');
-    const priority = localStorage.getItem('priority');
-    const onlyPriority = localStorage.getItem('onlyPriority');
-
-    return {
-      charSet: localCharSet || 'trad',
-      questionsPerSession: readQuestionsPerSession(),
-      useHandwriting: useHandwriting === 'false' ? false : true,
-      useSound: useSound === 'false' ? false : true,
-      useSoundEffects: useSoundEffects === 'false' ? false : true,
-      useAutoRecord: useAutoRecord === 'false' ? false : true,
-      meaningQuizType: getQuizType('meaning'),
-      pinyinQuizType: getQuizType('pinyin'),
-      newWords: newWords === 'false' ? false : true,
-      sentenceRead: sentenceRead === 'false' ? false : true,
-      sentenceWrite: sentenceWrite === 'false' ? false : true,
-      sentenceStagesForAllWords: sentenceStagesForAllWords === 'true' ? true : false,
-      priority: priority || 'none',
-      onlyPriority: onlyPriority === 'true' ? true : false,
-    };
-  });
-
-  const onRadioChange = useCallback((e: ChangeEvent<HTMLInputElement>): void => {
-    const { name, value } = e.target;
-    setState((prev) => {
-      const nextState: SettingsState = {
-        ...prev,
-        [name]: value,
-      } as SettingsState;
-
-      if (name === 'priority' && value === 'none') {
-        nextState.onlyPriority = false;
-      }
-
-      return nextState;
-    });
-    localStorage.setItem(name, value);
-
-    if (name === 'priority' && value === 'none') {
-      localStorage.setItem('onlyPriority', 'false');
-    }
-  }, []);
-
-  const onQuizTypeChange = useCallback(
-    (category: QuizCategory) =>
-      (e: ChangeEvent<HTMLInputElement>): void => {
-        const value = e.target.value as QuizType;
-        setState((prev) => ({
-          ...prev,
-          [category === 'meaning' ? 'meaningQuizType' : 'pinyinQuizType']: value,
-        }));
-        setQuizType(category, value);
-      },
+  const toggle = useCallback(
+    (group: Group) => () =>
+      setOpen((prev) =>
+        prev.includes(group) ? prev.filter((g) => g !== group) : [...prev, group],
+      ),
     [],
   );
 
-  const onSliderChange = useCallback((_e: Event, value: number | number[]): void => {
-    const numValue = value as number;
-    setState((prev) => ({
-      ...prev,
-      questionsPerSession: numValue,
-    }));
-    writeQuestionsPerSession(numValue);
-  }, []);
-
-  const onCheckChange = useCallback((e: ChangeEvent<HTMLInputElement>): void => {
-    const key = e.target.value as keyof SettingsState;
-    const checked = e.target.checked;
-
-    setState((prev) => {
-      const nextState: SettingsState = {
-        ...prev,
-        [key]: !prev[key],
-      } as SettingsState;
-
-      if (key === 'useHandwriting' && !checked) {
-        nextState.priority = 'none';
-        nextState.onlyPriority = false;
+  const setFlag = useCallback((key: Flag, value: boolean) => {
+    setValues((prev) => {
+      const next = { ...prev, [key]: value };
+      localStorage.setItem(key, String(value));
+      // Writing needs handwriting, so a Writing focus ends with it.
+      if (key === 'useHandwriting' && !value && prev.priority === 'CM') {
+        next.priority = 'none';
+        next.onlyPriority = false;
+        localStorage.setItem('priority', 'none');
+        localStorage.setItem('onlyPriority', 'false');
       }
-
-      return nextState;
+      return next;
     });
-
-    localStorage.setItem(e.target.value, String(checked));
-
-    if (e.target.value === 'useHandwriting' && !checked) {
-      localStorage.setItem('priority', 'none');
-      localStorage.setItem('onlyPriority', 'false');
-    }
   }, []);
 
-  const inputQuizSelected = state.meaningQuizType === 'input' || state.pinyinQuizType === 'input';
+  const setPriority = useCallback((priority: Priority) => {
+    setValues((prev) => {
+      const next = { ...prev, priority };
+      localStorage.setItem('priority', priority);
+      if (priority === 'none') {
+        next.onlyPriority = false;
+        localStorage.setItem('onlyPriority', 'false');
+      }
+      return next;
+    });
+  }, []);
 
-  const quizCheckboxItems: CheckboxItem[] = [
-    {
-      value: 'useHandwriting',
-      label: 'Handwriting questions',
-      checked: state.useHandwriting,
-      disabled: false,
-      disabledTooltip: '',
-    },
-    {
-      value: 'useAutoRecord',
-      label: 'Auto-start microphone',
-      checked: state.useAutoRecord && inputQuizSelected && speechAvailable,
-      disabled: !inputQuizSelected || !speechAvailable,
-      disabledTooltip: !speechAvailable
-        ? 'Speech recognition is not available in this browser'
-        : 'Only used when Meaning or Pinyin is set to Input',
-    },
-  ];
+  const setQuestions = useCallback((questionsPerSession: number) => {
+    writeQuestionsPerSession(questionsPerSession);
+    setValues((prev) => ({ ...prev, questionsPerSession }));
+  }, []);
 
-  const audioItems: CheckboxItem[] = [
-    {
-      value: 'useSound',
-      label: 'Text-to-speech',
-      checked: state.useSound && synthAvailable,
-      disabled: !synthAvailable,
-      disabledTooltip: 'Speech synthesis is not available in this browser',
-    },
-    {
-      value: 'useSoundEffects',
-      label: 'Sound effects',
-      checked: state.useSoundEffects,
-      disabled: false,
-      disabledTooltip: '',
-    },
-  ];
+  const setCharSet = useCallback((charSet: Values['charSet']) => {
+    localStorage.setItem('charSet', charSet);
+    setValues((prev) => ({ ...prev, charSet }));
+  }, []);
 
-  const priorityItems = [
-    { value: 'none', label: 'None', disabled: false },
-    { value: 'MP', label: 'Listening', disabled: false },
-    { value: 'PM', label: 'Speaking', disabled: false },
-    { value: 'MC', label: 'Reading', disabled: false },
-    { value: 'CM', label: 'Writing', disabled: !state.useHandwriting },
-  ];
+  const setQuiz = useCallback(
+    (category: QuizCategory) => (type: QuizType) => {
+      setQuizType(category, type);
+      setValues((prev) => ({
+        ...prev,
+        [category === 'meaning' ? 'meaningQuizType' : 'pinyinQuizType']: type,
+      }));
+    },
+    [],
+  );
 
-  const stageItems: CheckboxItem[] = [
-    {
-      value: 'newWords',
-      label: 'New Words',
-      checked: state.newWords,
-      disabled: !synthAvailable,
-      disabledTooltip: 'Requires speech synthesis support in this browser',
-    },
-    {
-      value: 'sentenceRead',
-      label: 'Translate Sentences',
-      checked: state.sentenceRead,
-      disabled: !speechAvailable,
-      disabledTooltip: 'Requires speech recognition support in this browser',
-    },
-    {
-      value: 'sentenceWrite',
-      label: 'Make Sentences',
-      checked: state.sentenceWrite,
-      disabled: false,
-      disabledTooltip: '',
-    },
-    {
-      // Widens the Read stage only. Make Sentences keeps its own gate, because
-      // writing with a word the learner has only just met impedes learning it.
-      // See docs/adr/0011-gate-the-write-stage-on-partial-mastery.md.
-      value: 'sentenceStagesForAllWords',
-      label: 'Translate sentences for all words',
-      checked: state.sentenceStagesForAllWords && state.sentenceRead,
-      disabled: !state.sentenceRead,
-      disabledTooltip: 'Enable Translate Sentences first',
-    },
-  ];
+  const block = {
+    useSound: ttsBlock(synthAvailable),
+    useAutoRecord: autoRecordBlock(speechAvailable, v.meaningQuizType, v.pinyinQuizType),
+    newWords: synthAvailable ? null : copy.settings.unsupported,
+    sentenceRead: speechAvailable ? null : copy.settings.unsupported,
+    sentenceStagesForAllWords: speechAvailable && v.sentenceRead ? null : copy.settings.needsRead,
+  };
 
-  // The Settings page has no word list, so it estimates an average session:
-  // the budget of questions, spread over the directions the settings allow.
-  const timeEstimate = useMemo(
+  // What a switch shows: a blocked switch reads as off.
+  const shown = {
+    useSound: v.useSound && !block.useSound,
+    newWords: v.newWords && !block.newWords,
+    sentenceRead: v.sentenceRead && !block.sentenceRead,
+    sentenceStagesForAllWords: v.sentenceStagesForAllWords && !block.sentenceStagesForAllWords,
+  };
+
+  // The page has no word list, so it estimates an average session: the
+  // budget of questions, spread over the directions the settings allow.
+  const time = useMemo(
     () =>
       formatTestTime(
         estimateTestTime({
           directions: spreadOverDirections(
-            state.questionsPerSession,
+            v.questionsPerSession,
             eligibleDirections({
-              includeHandwriting: state.useHandwriting,
-              priority: state.priority,
-              onlyPriority: state.onlyPriority,
+              includeHandwriting: v.useHandwriting,
+              priority: v.priority,
+              onlyPriority: v.onlyPriority,
             }),
           ),
-          newWordCount: assumedNewWordCount(state.questionsPerSession),
-          writeWordCount: assumedWriteWordCount(state.questionsPerSession),
-          newWordsEnabled: state.newWords,
-          sentenceReadEnabled: state.sentenceRead,
-          sentenceWriteEnabled: state.sentenceWrite,
-          sentenceStagesForAllWords: state.sentenceStagesForAllWords,
+          newWordCount: assumedNewWordCount(v.questionsPerSession),
+          writeWordCount: assumedWriteWordCount(v.questionsPerSession),
+          newWordsEnabled: shown.newWords,
+          sentenceReadEnabled: shown.sentenceRead,
+          sentenceWriteEnabled: v.sentenceWrite,
+          sentenceStagesForAllWords: shown.sentenceStagesForAllWords,
         }),
       ),
     [
-      state.questionsPerSession,
-      state.useHandwriting,
-      state.priority,
-      state.onlyPriority,
-      state.newWords,
-      state.sentenceRead,
-      state.sentenceWrite,
-      state.sentenceStagesForAllWords,
+      v.questionsPerSession,
+      v.useHandwriting,
+      v.priority,
+      v.onlyPriority,
+      v.sentenceWrite,
+      shown.newWords,
+      shown.sentenceRead,
+      shown.sentenceStagesForAllWords,
     ],
   );
 
-  return (
-    <Box sx={{ color: 'text.primary' }}>
-      <SectionGroup label="Character Set">
-        <Box sx={{ px: 2, py: 0.5 }}>
-          <RadioGroup
-            name="charSet"
-            value={state.charSet}
-            onChange={onRadioChange}
-            row
-            sx={{ gap: 1 }}
-          >
-            <FormControlLabel value="simp" control={<Radio size="small" />} label="Simplified" />
-            <FormControlLabel value="trad" control={<Radio size="small" />} label="Traditional" />
-          </RadioGroup>
-        </Box>
-      </SectionGroup>
+  const email = signedIn ? (getCurrentUser()?.email ?? '') : '';
+  const s = copy.settings;
+  const charSetName = v.charSet === 'simp' ? s.simp : s.trad;
 
-      <SectionGroup label="Session">
-        <Box sx={{ px: 2, pt: 2, pb: 1.5 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'baseline',
-              mb: 1.5,
-            }}
-          >
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              Questions per session
-            </Typography>
-            <Typography
-              variant="h5"
-              fontWeight="bold"
-              sx={{ color: colors.primaryDark, lineHeight: 1 }}
-            >
-              {state.questionsPerSession}
-            </Typography>
-          </Box>
-          <Slider
-            value={state.questionsPerSession}
-            onChange={onSliderChange}
+  const summary: Record<Group, string> = {
+    session: s.sessionSummary(v.questionsPerSession, time, charSetName),
+    answers: s.answersSummary(quizName(v.meaningQuizType), quizName(v.pinyinQuizType)),
+    focus:
+      v.priority === 'none'
+        ? s.noFocus
+        : v.onlyPriority
+          ? s.onlySummary(s[v.priority])
+          : s[v.priority],
+    stages: [
+      shown.newWords && s.newWords,
+      s.test,
+      shown.sentenceRead && s.sentenceRead,
+      v.sentenceWrite && s.sentenceWrite,
+    ]
+      .filter(Boolean)
+      .join(' → '),
+    sound:
+      [shown.useSound && s.useSound, v.useSoundEffects && s.useSoundEffects]
+        .filter(Boolean)
+        .join(' · ') || s.off,
+    account: signedIn ? email : s.notSignedIn,
+  };
+
+  const group = (id: Group, children: React.ReactNode) => (
+    <FoldGroup title={s[id]} summary={summary[id]} open={open.includes(id)} onToggle={toggle(id)}>
+      {children}
+    </FoldGroup>
+  );
+
+  const flagRow = (key: Flag, blocked: string | null = null, disabled = false) => (
+    <SwitchRow
+      label={s[key]}
+      checked={v[key]}
+      block={blocked}
+      disabled={disabled}
+      onChange={(value) => setFlag(key, value)}
+    />
+  );
+
+  const accountRowSx = {
+    minHeight: 64,
+    px: 2,
+    py: 1.25,
+    borderTop: `1px solid ${colors.divider}`,
+    display: 'flex',
+    fontSize: 16,
+  };
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1.5,
+        textAlign: 'left',
+        fontFamily: fonts.body,
+        color: colors.text,
+      }}
+    >
+      {group(
+        'session',
+        <>
+          <StepperRow
+            label={s.questionsPerSession}
+            hint={s.about(time)}
+            value={v.questionsPerSession}
             min={QUESTIONS_PER_SESSION_MIN}
             max={QUESTIONS_PER_SESSION_MAX}
             step={QUESTIONS_PER_SESSION_STEP}
-            size="small"
-            aria-label="Questions per session"
+            onChange={setQuestions}
           />
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.25 }}>
-            <Typography variant="caption" color="text.secondary">
-              {QUESTIONS_PER_SESSION_MIN}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {QUESTIONS_PER_SESSION_MAX}
-            </Typography>
-          </Box>
-          <Typography
-            variant="body2"
-            sx={{ color: 'text.secondary', mt: 1.5, textAlign: 'center' }}
-          >
-            Estimated test time: {timeEstimate}
-          </Typography>
-        </Box>
-      </SectionGroup>
+          <SegmentedRow
+            label={s.characters}
+            value={v.charSet}
+            options={[
+              { value: 'simp', label: s.simp },
+              { value: 'trad', label: s.trad },
+            ]}
+            onChange={setCharSet}
+          />
+        </>,
+      )}
 
-      <SectionGroup label="Vocabulary Quiz">
-        {(
-          [
-            { category: 'meaning' as QuizCategory, label: 'Meaning', value: state.meaningQuizType },
-            { category: 'pinyin' as QuizCategory, label: 'Pinyin', value: state.pinyinQuizType },
-          ] as const
-        ).map(({ category, label, value }) => (
-          <Box key={category} sx={{ ...rowSx, py: 0.5, display: 'flex', alignItems: 'center' }}>
-            <Typography
-              variant="body2"
-              id={`quiz-type-${category}-label`}
-              sx={{ width: 72, color: 'text.secondary' }}
-            >
-              {label}
-            </Typography>
-            <RadioGroup
-              aria-labelledby={`quiz-type-${category}-label`}
-              value={value}
-              onChange={onQuizTypeChange(category)}
-              row
-            >
-              <FormControlLabel value="input" control={<Radio size="small" />} label="Input" />
-              <FormControlLabel
-                value="flashcard"
-                control={<Radio size="small" />}
-                label="Flashcard"
-              />
-            </RadioGroup>
-          </Box>
-        ))}
-        <CheckboxRows items={quizCheckboxItems} onChange={onCheckChange} />
-      </SectionGroup>
+      {group(
+        'answers',
+        <>
+          <SegmentedRow
+            label={s.meaning}
+            value={v.meaningQuizType}
+            options={quizOptions}
+            onChange={setQuiz('meaning')}
+          />
+          <SegmentedRow
+            label={s.pinyin}
+            value={v.pinyinQuizType}
+            options={quizOptions}
+            onChange={setQuiz('pinyin')}
+          />
+          {flagRow('useHandwriting')}
+          {flagRow('useAutoRecord', block.useAutoRecord)}
+        </>,
+      )}
 
-      <SectionGroup label="Priority">
-        <RadioGroup name="priority" value={state.priority} onChange={onRadioChange}>
-          {priorityItems.map(({ value, label, disabled }) => (
-            <Box key={value} sx={rowSx}>
-              <FormControlLabel
-                value={value}
-                control={<Radio size="small" disabled={disabled} />}
-                label={label}
-                sx={{ width: '100%', my: 0.25 }}
-              />
+      {group(
+        'focus',
+        <>
+          <ChipGroup
+            label={s.focus}
+            value={v.priority}
+            options={[
+              { value: 'none' as Priority, label: s.noFocus },
+              ...SKILLS.map((skill) => ({
+                value: skill,
+                label: s[skill],
+                disabled: skill === 'CM' && !v.useHandwriting,
+              })),
+            ]}
+            onChange={setPriority}
+          />
+          {flagRow('onlyPriority', null, v.priority === 'none')}
+        </>,
+      )}
+
+      {group(
+        'stages',
+        <>
+          {flagRow('newWords', block.newWords)}
+          {flagRow('sentenceRead', block.sentenceRead)}
+          {/* Widens the Read stage only. Make sentences keeps its own gate,
+              because writing with a word the learner has only just met impedes
+              learning it. See docs/adr/0011-gate-the-write-stage-on-partial-mastery.md. */}
+          {flagRow('sentenceStagesForAllWords', block.sentenceStagesForAllWords)}
+          {flagRow('sentenceWrite')}
+        </>,
+      )}
+
+      {group(
+        'sound',
+        <>
+          {flagRow('useSound', block.useSound)}
+          {flagRow('useSoundEffects')}
+        </>,
+      )}
+
+      {group(
+        'account',
+        signedIn ? (
+          <>
+            <Box
+              sx={{
+                ...accountRowSx,
+                flexDirection: 'column',
+                justifyContent: 'center',
+                gap: '2px',
+              }}
+            >
+              <Box component="span" sx={{ fontSize: 13, color: colors.textSecondary }}>
+                {s.signedInAs}
+              </Box>
+              <span>{email}</span>
             </Box>
-          ))}
-        </RadioGroup>
-        <Box
-          sx={{
-            px: 2,
-            pt: 0.5,
-            pb: 0.25,
-            borderTop: '1px solid #ede6e0',
-            bgcolor: '#faf7f4',
-          }}
-        >
-          <FormControlLabel
-            control={
-              <Checkbox
-                size="small"
-                value="onlyPriority"
-                checked={state.onlyPriority && state.priority !== 'none'}
-                disabled={state.priority === 'none'}
-                onChange={onCheckChange}
-              />
-            }
-            label="Only Priority"
-            sx={{ my: 0.25 }}
-          />
-        </Box>
-      </SectionGroup>
-
-      <SectionGroup label="Stages">
-        <CheckboxRows items={stageItems} onChange={onCheckChange} />
-      </SectionGroup>
-
-      <SectionGroup label="Audio">
-        <CheckboxRows items={audioItems} onChange={onCheckChange} />
-      </SectionGroup>
+            <ButtonBase
+              onClick={onLogout}
+              sx={{
+                width: '100%',
+                height: 56,
+                px: 2,
+                justifyContent: 'flex-start',
+                borderTop: `1px solid ${colors.divider}`,
+                fontFamily: fonts.body,
+                fontSize: 16,
+                fontWeight: 600,
+                color: colors.primaryLight,
+              }}
+            >
+              {s.logout}
+            </ButtonBase>
+          </>
+        ) : (
+          <Box
+            sx={{ ...accountRowSx, alignItems: 'center', justifyContent: 'space-between', gap: 2 }}
+          >
+            <span>{s.notSignedIn}</span>
+            <ButtonBase
+              onClick={onLogin}
+              sx={{
+                height: 44,
+                px: 2.5,
+                borderRadius: 1,
+                bgcolor: colors.primaryDark,
+                color: colors.white,
+                fontFamily: fonts.body,
+                fontSize: 15,
+                fontWeight: 600,
+              }}
+            >
+              {s.login}
+            </ButtonBase>
+          </Box>
+        ),
+      )}
     </Box>
   );
 };

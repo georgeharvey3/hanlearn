@@ -1,5 +1,9 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { clearEmulatorData, seedTestUser, loginViaUI } from './fixtures/seed';
+
+// The setting sits in the Stages group, which starts closed.
+const openStages = (page: Page) => page.getByRole('button', { name: /^Stages/ }).click();
+const allWords = (page: Page) => page.getByRole('switch', { name: /translate with all words/i });
 
 test.describe('Translate sentences for all words setting', () => {
   test.beforeEach(async ({ page }) => {
@@ -7,24 +11,26 @@ test.describe('Translate sentences for all words setting', () => {
     await seedTestUser();
   });
 
-  test('Settings page shows the "Translate sentences for all words" checkbox unchecked by default', async ({
+  test('Settings page shows the "Translate with all words" switch off by default', async ({
     page,
   }) => {
     await loginViaUI(page);
     await page.goto('/settings');
+    await openStages(page);
 
-    const checkbox = page.getByRole('checkbox', { name: /translate sentences for all words/i });
-    await expect(checkbox).toBeVisible();
-    await expect(checkbox).not.toBeChecked();
+    const allWordsSwitch = allWords(page);
+    await expect(allWordsSwitch).toBeVisible();
+    await expect(allWordsSwitch).not.toBeChecked();
   });
 
-  test('toggling the checkbox persists the setting to localStorage', async ({ page }) => {
+  test('toggling the switch persists the setting to localStorage', async ({ page }) => {
     await loginViaUI(page);
     await page.goto('/settings');
+    await openStages(page);
 
-    const checkbox = page.getByRole('checkbox', { name: /translate sentences for all words/i });
-    await checkbox.click();
-    await expect(checkbox).toBeChecked();
+    const allWordsSwitch = allWords(page);
+    await allWordsSwitch.click();
+    await expect(allWordsSwitch).toBeChecked();
 
     // Verify localStorage was updated
     const storedValue = await page.evaluate(() =>
@@ -36,24 +42,24 @@ test.describe('Translate sentences for all words setting', () => {
   test('setting persists after page reload', async ({ page }) => {
     await loginViaUI(page);
     await page.goto('/settings');
+    await openStages(page);
 
     // Enable the setting
-    const checkbox = page.getByRole('checkbox', { name: /translate sentences for all words/i });
-    await checkbox.click();
-    await expect(checkbox).toBeChecked();
+    const allWordsSwitch = allWords(page);
+    await allWordsSwitch.click();
+    await expect(allWordsSwitch).toBeChecked();
 
     // Reload the page
     await page.reload();
+    await openStages(page);
 
-    // Verify the checkbox is still checked
-    const checkboxAfterReload = page.getByRole('checkbox', {
-      name: /translate sentences for all words/i,
-    });
-    await expect(checkboxAfterReload).toBeChecked();
+    // Verify the switch is still on
+    const switchAfterReload = allWords(page);
+    await expect(switchAfterReload).toBeChecked();
   });
 
   // The setting widens the Read stage only, so Make Sentences does not enable it.
-  test('checkbox is disabled when the Read stage is turned off', async ({ page }) => {
+  test('switch is disabled when the Read stage is turned off', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('sentenceRead', 'false');
       localStorage.setItem('sentenceWrite', 'true');
@@ -61,9 +67,10 @@ test.describe('Translate sentences for all words setting', () => {
 
     await loginViaUI(page);
     await page.goto('/settings');
+    await openStages(page);
 
-    const checkbox = page.getByRole('checkbox', { name: /translate sentences for all words/i });
-    await expect(checkbox).toBeDisabled();
+    const allWordsSwitch = allWords(page);
+    await expect(allWordsSwitch).toBeDisabled();
   });
 
   test('estimated test time updates when the setting is toggled', async ({ page }) => {
@@ -74,13 +81,15 @@ test.describe('Translate sentences for all words setting', () => {
 
     await loginViaUI(page);
     await page.goto('/settings');
+    await openStages(page);
 
-    const estimateEl = page.getByText(/estimated test time:/i);
+    // The closed Session header shows the time of a session.
+    const estimateEl = page.getByRole('button', { name: /^Session/ });
     const initialText = await estimateEl.textContent();
 
     // Toggle the setting on
-    const checkbox = page.getByRole('checkbox', { name: /translate sentences for all words/i });
-    await checkbox.click();
+    const allWordsSwitch = allWords(page);
+    await allWordsSwitch.click();
 
     // The estimated time should change
     await expect(estimateEl).not.toHaveText(initialText!);
