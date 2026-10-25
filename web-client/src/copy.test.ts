@@ -34,6 +34,7 @@ const FILES = [
   'components/Test/AudioSettingsDrawer/AudioSettingsDrawer.tsx',
   'components/Settings/Settings.tsx',
   'components/Settings/controls.tsx',
+  'components/Settings/rules.ts',
   'containers/SettingsPage/SettingsPage.tsx',
   'components/Test/Study/WordSheet.tsx',
   'components/Test/TestSummary/TestSummary.tsx',

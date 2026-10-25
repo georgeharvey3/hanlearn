@@ -10,7 +10,7 @@ import {
   setQuizType,
 } from '../../../utils/audioSettings';
 import { PlainGroup, SegmentedRow, SwitchRow } from '../../Settings/controls';
-import { autoRecordBlock, ttsBlock } from '../../Settings/rules';
+import { autoRecordBlock, quizOptions, ttsBlock } from '../../Settings/rules';
 import { copy } from '../../../copy';
 import { colors, fonts, scrim } from '../../../theme';
 
@@ -20,11 +20,6 @@ interface AudioSettingsDrawerProps {
   speechAvailable: boolean;
   synthAvailable: boolean;
 }
-
-const quizOptions: { value: QuizType; label: string }[] = [
-  { value: 'input', label: copy.settings.input },
-  { value: 'flashcard', label: copy.settings.flashcard },
-];
 
 /** The session's settings sheet: the Answers and Sound rows of the Settings page. */
 const AudioSettingsDrawer: React.FC<AudioSettingsDrawerProps> = ({

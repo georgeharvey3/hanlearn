@@ -26,7 +26,7 @@ import {
 } from '../../utils/sessionSettings';
 import { QuizCategory, QuizType, getQuizType, setQuizType } from '../../utils/audioSettings';
 import { ChipGroup, FoldGroup, SegmentedRow, StepperRow, SwitchRow } from './controls';
-import { autoRecordBlock, ttsBlock } from './rules';
+import { autoRecordBlock, sentenceReadBlock, ttsBlock, newWordsBlock, quizOptions } from './rules';
 
 type Priority = 'none' | 'MP' | 'PM' | 'MC' | 'CM';
 
@@ -55,6 +55,13 @@ interface Values extends Record<Flag, boolean> {
   priority: Priority;
 }
 
+const SKILLS: Exclude<Priority, 'none'>[] = ['MP', 'PM', 'MC', 'CM'];
+
+const readPriority = (): Priority => {
+  const stored = localStorage.getItem('priority');
+  return SKILLS.find((skill) => skill === stored) ?? 'none';
+};
+
 const readValues = (): Values => {
   const flags = {} as Record<Flag, boolean>;
   (Object.keys(FLAGS) as Flag[]).forEach((key) => {
@@ -67,16 +74,13 @@ const readValues = (): Values => {
     questionsPerSession: readQuestionsPerSession(),
     meaningQuizType: getQuizType('meaning'),
     pinyinQuizType: getQuizType('pinyin'),
-    priority: (localStorage.getItem('priority') as Priority) || 'none',
+    priority: readPriority(),
   };
 };
 
-const SKILLS: Exclude<Priority, 'none'>[] = ['MP', 'PM', 'MC', 'CM'];
-
-const quizOptions: { value: QuizType; label: string }[] = [
-  { value: 'input', label: copy.settings.input },
-  { value: 'flashcard', label: copy.settings.flashcard },
-];
+/** The names that are switched on. */
+const present = (...names: (string | false)[]): string[] =>
+  names.filter((name): name is string => name !== false);
 
 const quizName = (type: QuizType) =>
   type === 'input' ? copy.settings.input : copy.settings.flashcard;
@@ -102,7 +106,7 @@ const Settings: React.FC<PropsFromRedux> = ({
   onLogout,
   onLogin,
 }) => {
-  const [v, setValues] = useState<Values>(readValues);
+  const [values, setValues] = useState<Values>(readValues);
   const [open, setOpen] = useState<Group[]>([]);
 
   const toggle = useCallback(
@@ -163,18 +167,19 @@ const Settings: React.FC<PropsFromRedux> = ({
 
   const block = {
     useSound: ttsBlock(synthAvailable),
-    useAutoRecord: autoRecordBlock(speechAvailable, v.meaningQuizType, v.pinyinQuizType),
-    newWords: synthAvailable ? null : copy.settings.unsupported,
-    sentenceRead: speechAvailable ? null : copy.settings.unsupported,
-    sentenceStagesForAllWords: speechAvailable && v.sentenceRead ? null : copy.settings.needsRead,
+    useAutoRecord: autoRecordBlock(speechAvailable, values.meaningQuizType, values.pinyinQuizType),
+    newWords: newWordsBlock(synthAvailable),
+    sentenceRead: sentenceReadBlock(speechAvailable),
+    sentenceStagesForAllWords:
+      speechAvailable && values.sentenceRead ? null : copy.settings.needsRead,
   };
 
   // What a switch shows: a blocked switch reads as off.
   const shown = {
-    useSound: v.useSound && !block.useSound,
-    newWords: v.newWords && !block.newWords,
-    sentenceRead: v.sentenceRead && !block.sentenceRead,
-    sentenceStagesForAllWords: v.sentenceStagesForAllWords && !block.sentenceStagesForAllWords,
+    useSound: values.useSound && !block.useSound,
+    newWords: values.newWords && !block.newWords,
+    sentenceRead: values.sentenceRead && !block.sentenceRead,
+    sentenceStagesForAllWords: values.sentenceStagesForAllWords && !block.sentenceStagesForAllWords,
   };
 
   // The page has no word list, so it estimates an average session: the
@@ -184,27 +189,27 @@ const Settings: React.FC<PropsFromRedux> = ({
       formatTestTime(
         estimateTestTime({
           directions: spreadOverDirections(
-            v.questionsPerSession,
+            values.questionsPerSession,
             eligibleDirections({
-              includeHandwriting: v.useHandwriting,
-              priority: v.priority,
-              onlyPriority: v.onlyPriority,
+              includeHandwriting: values.useHandwriting,
+              priority: values.priority,
+              onlyPriority: values.onlyPriority,
             }),
           ),
-          newWordCount: assumedNewWordCount(v.questionsPerSession),
-          writeWordCount: assumedWriteWordCount(v.questionsPerSession),
+          newWordCount: assumedNewWordCount(values.questionsPerSession),
+          writeWordCount: assumedWriteWordCount(values.questionsPerSession),
           newWordsEnabled: shown.newWords,
           sentenceReadEnabled: shown.sentenceRead,
-          sentenceWriteEnabled: v.sentenceWrite,
+          sentenceWriteEnabled: values.sentenceWrite,
           sentenceStagesForAllWords: shown.sentenceStagesForAllWords,
         }),
       ),
     [
-      v.questionsPerSession,
-      v.useHandwriting,
-      v.priority,
-      v.onlyPriority,
-      v.sentenceWrite,
+      values.questionsPerSession,
+      values.useHandwriting,
+      values.priority,
+      values.onlyPriority,
+      values.sentenceWrite,
       shown.newWords,
       shown.sentenceRead,
       shown.sentenceStagesForAllWords,
@@ -212,43 +217,47 @@ const Settings: React.FC<PropsFromRedux> = ({
   );
 
   const email = signedIn ? (getCurrentUser()?.email ?? '') : '';
-  const s = copy.settings;
-  const charSetName = v.charSet === 'simp' ? s.simp : s.trad;
+  const text = copy.settings;
+  const charSetName = values.charSet === 'simp' ? text.simp : text.trad;
 
   const summary: Record<Group, string> = {
-    session: s.sessionSummary(v.questionsPerSession, time, charSetName),
-    answers: s.answersSummary(quizName(v.meaningQuizType), quizName(v.pinyinQuizType)),
+    session: text.sessionSummary(values.questionsPerSession, time, charSetName),
+    answers: text.answersSummary(quizName(values.meaningQuizType), quizName(values.pinyinQuizType)),
     focus:
-      v.priority === 'none'
-        ? s.noFocus
-        : v.onlyPriority
-          ? s.onlySummary(s[v.priority])
-          : s[v.priority],
-    stages: [
-      shown.newWords && s.newWords,
-      s.test,
-      shown.sentenceRead && s.sentenceRead,
-      v.sentenceWrite && s.sentenceWrite,
-    ]
-      .filter(Boolean)
-      .join(' → '),
-    sound:
-      [shown.useSound && s.useSound, v.useSoundEffects && s.useSoundEffects]
-        .filter(Boolean)
-        .join(' · ') || s.off,
-    account: signedIn ? email : s.notSignedIn,
+      values.priority === 'none'
+        ? text.noFocus
+        : values.onlyPriority
+          ? text.onlySummary(text[values.priority])
+          : text[values.priority],
+    stages: text.stagesSummary(
+      present(
+        shown.newWords && text.newWords,
+        text.test,
+        shown.sentenceRead && text.sentenceRead,
+        values.sentenceWrite && text.sentenceWrite,
+      ),
+    ),
+    sound: text.soundSummary(
+      present(shown.useSound && text.useSound, values.useSoundEffects && text.useSoundEffects),
+    ),
+    account: signedIn ? email : text.notSignedIn,
   };
 
   const group = (id: Group, children: React.ReactNode) => (
-    <FoldGroup title={s[id]} summary={summary[id]} open={open.includes(id)} onToggle={toggle(id)}>
+    <FoldGroup
+      title={text[id]}
+      summary={summary[id]}
+      open={open.includes(id)}
+      onToggle={toggle(id)}
+    >
       {children}
     </FoldGroup>
   );
 
   const flagRow = (key: Flag, blocked: string | null = null, disabled = false) => (
     <SwitchRow
-      label={s[key]}
-      checked={v[key]}
+      label={text[key]}
+      checked={values[key]}
       block={blocked}
       disabled={disabled}
       onChange={(value) => setFlag(key, value)}
@@ -279,20 +288,20 @@ const Settings: React.FC<PropsFromRedux> = ({
         'session',
         <>
           <StepperRow
-            label={s.questionsPerSession}
-            hint={s.about(time)}
-            value={v.questionsPerSession}
+            label={text.questionsPerSession}
+            hint={text.about(time)}
+            value={values.questionsPerSession}
             min={QUESTIONS_PER_SESSION_MIN}
             max={QUESTIONS_PER_SESSION_MAX}
             step={QUESTIONS_PER_SESSION_STEP}
             onChange={setQuestions}
           />
           <SegmentedRow
-            label={s.characters}
-            value={v.charSet}
+            label={text.characters}
+            value={values.charSet}
             options={[
-              { value: 'simp', label: s.simp },
-              { value: 'trad', label: s.trad },
+              { value: 'simp', label: text.simp },
+              { value: 'trad', label: text.trad },
             ]}
             onChange={setCharSet}
           />
@@ -303,14 +312,14 @@ const Settings: React.FC<PropsFromRedux> = ({
         'answers',
         <>
           <SegmentedRow
-            label={s.meaning}
-            value={v.meaningQuizType}
+            label={text.meaning}
+            value={values.meaningQuizType}
             options={quizOptions}
             onChange={setQuiz('meaning')}
           />
           <SegmentedRow
-            label={s.pinyin}
-            value={v.pinyinQuizType}
+            label={text.pinyin}
+            value={values.pinyinQuizType}
             options={quizOptions}
             onChange={setQuiz('pinyin')}
           />
@@ -323,19 +332,19 @@ const Settings: React.FC<PropsFromRedux> = ({
         'focus',
         <>
           <ChipGroup
-            label={s.focus}
-            value={v.priority}
+            label={text.focus}
+            value={values.priority}
             options={[
-              { value: 'none' as Priority, label: s.noFocus },
+              { value: 'none' as Priority, label: text.noFocus },
               ...SKILLS.map((skill) => ({
                 value: skill,
-                label: s[skill],
-                disabled: skill === 'CM' && !v.useHandwriting,
+                label: text[skill],
+                disabled: skill === 'CM' && !values.useHandwriting,
               })),
             ]}
             onChange={setPriority}
           />
-          {flagRow('onlyPriority', null, v.priority === 'none')}
+          {flagRow('onlyPriority', null, values.priority === 'none')}
         </>,
       )}
 
@@ -373,7 +382,7 @@ const Settings: React.FC<PropsFromRedux> = ({
               }}
             >
               <Box component="span" sx={{ fontSize: 13, color: colors.textSecondary }}>
-                {s.signedInAs}
+                {text.signedInAs}
               </Box>
               <span>{email}</span>
             </Box>
@@ -391,14 +400,14 @@ const Settings: React.FC<PropsFromRedux> = ({
                 color: colors.primaryLight,
               }}
             >
-              {s.logout}
+              {text.logout}
             </ButtonBase>
           </>
         ) : (
           <Box
             sx={{ ...accountRowSx, alignItems: 'center', justifyContent: 'space-between', gap: 2 }}
           >
-            <span>{s.notSignedIn}</span>
+            <span>{text.notSignedIn}</span>
             <ButtonBase
               onClick={onLogin}
               sx={{
@@ -412,7 +421,7 @@ const Settings: React.FC<PropsFromRedux> = ({
                 fontWeight: 600,
               }}
             >
-              {s.login}
+              {text.login}
             </ButtonBase>
           </Box>
         ),

@@ -128,7 +128,6 @@ export const copy = {
     // Sound
     useSound: 'Text-to-speech',
     useSoundEffects: 'Sound effects',
-    off: 'Off',
     // Account
     signedInAs: 'Signed in as',
     notSignedIn: 'Not signed in',
@@ -143,6 +142,8 @@ export const copy = {
       `${questions} questions · ${time} · ${charSet}`,
     answersSummary: (meaning: string, pinyin: string) => `Meaning: ${meaning} · Pinyin: ${pinyin}`,
     onlySummary: (skill: string) => `${skill} only`,
+    stagesSummary: (stages: string[]) => stages.join(' → '),
+    soundSummary: (sounds: string[]) => sounds.join(' · ') || 'Off',
   },
   test: {
     // "What is the meaning for", with the answer's category between the two.
