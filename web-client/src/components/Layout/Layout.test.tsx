@@ -72,11 +72,10 @@ describe('Layout on a phone', () => {
     expect(within(nav).queryByRole('link', { name: 'Stats' })).not.toBeInTheDocument();
   });
 
-  it('opens Stats, Shortcuts and Log out from More', () => {
+  it('opens Shortcuts and Log out from More', () => {
     renderShell();
     fireEvent.click(screen.getByRole('button', { name: 'More' }));
     const sheet = screen.getByRole('dialog', { name: 'More' });
-    expect(within(sheet).getByRole('link', { name: 'Stats' })).toHaveAttribute('href', '/stats');
     expect(within(sheet).getByRole('button', { name: 'Log out' })).toBeInTheDocument();
     fireEvent.click(within(sheet).getByRole('button', { name: 'Shortcuts' }));
     expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
@@ -113,7 +112,6 @@ describe('Layout on a desktop', () => {
       'Home',
       'Add words',
       'Settings',
-      'Stats',
     ]);
     expect(screen.queryByRole('banner')).not.toBeInTheDocument();
   });

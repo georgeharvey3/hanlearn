@@ -74,7 +74,6 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 - [web-client/src/services/streakService.ts](web-client/src/services/streakService.ts) - Read/write `testCompletions` subcollection; calculates streak from completion dates
 - [web-client/src/services/dashboardService.ts](web-client/src/services/dashboardService.ts) - Aggregates the Dashboard's data: the session sizes, per-direction bank counts, the words due ahead and the `reviewStats` history. The counting rules are pure, in [web-client/src/utils/dashboard.ts](web-client/src/utils/dashboard.ts)
 - [web-client/src/services/retentionService.ts](web-client/src/services/retentionService.ts) - Read/write the `reviewStats` daily rollup; the session's write joins the `finishTest` batch, and the level snapshot follows it
-- [web-client/src/services/statsService.ts](web-client/src/services/statsService.ts) - Assembles the scheduler metrics for the `/stats` page
 - [web-client/src/services/sentenceService.ts](web-client/src/services/sentenceService.ts) - Firebase AI Logic: generates and caches example sentences in `sentenceCache`
 - [web-client/src/services/chengyuSentenceService.ts](web-client/src/services/chengyuSentenceService.ts) - Generates example sentences for chengyu display
 - [web-client/src/services/decompositionService.ts](web-client/src/services/decompositionService.ts) - Calls cloud function to decompose characters into radicals/components
@@ -162,7 +161,7 @@ The calculation is in [web-client/src/utils/scheduling.ts](web-client/src/utils/
 - FSRS reads the elapsed days since the last review, so a late correct answer gives a longer interval
 - The maximum interval is 365 days, and the due date takes a fuzz of up to 5%
 - **5 levels** are bands of the interval: 1 (0 days), 2 (1-6), 3 (7-29), 4 (30-59), 5 (60+). See [docs/adr/0009-fsrs.md](docs/adr/0009-fsrs.md)
-- The scheduler is **measured** by a daily rollup in `reviewStats`, which the `/stats` page reads: true retention, promotion and stall rate per direction, median mature interval, and the review load ahead. The counting rules are pure, in [web-client/src/utils/retention.ts](web-client/src/utils/retention.ts). See [docs/adr/0013-retention-metrics.md](docs/adr/0013-retention-metrics.md)
+- The scheduler is **measured** by a daily rollup in `reviewStats`. The Dashboard reads it for the recall of each direction, the calendar and the progress chart. The app has no `/stats` page (#406). The counting rules are pure, in [web-client/src/utils/retention.ts](web-client/src/utils/retention.ts). See [docs/adr/0013-retention-metrics.md](docs/adr/0013-retention-metrics.md)
 - Each word carries its own level and due date **per direction** (`MC`, `MP`, `PM`, `PC`, `CM`); the top-level `bank`/`dueDate` are derived so Firestore can still range-query them. See [docs/adr/0002-direction-level-scheduling.md](docs/adr/0002-direction-level-scheduling.md)
 
 ## Firebase Emulators

@@ -32,9 +32,7 @@ const tabSx = (active: boolean) => ({
 
 /**
  * The phone's bottom tab bar: Home, Add, a raised Study button, Settings and
- * More. More opens a sheet with the rest; Stats is there, because its scheduler
- * metrics are for tuning the schedule, and the Dashboard already shows recall
- * and the load ahead.
+ * More. More opens a sheet with the rest.
  */
 const TabBar: React.FC<Props> = ({ onOpenShortcuts }) => {
   const { pathname } = useLocation();

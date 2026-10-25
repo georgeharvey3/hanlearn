@@ -8,7 +8,6 @@ import StudyButton, { useDueCount } from '../StudyButton/StudyButton';
 import {
   HomeIcon,
   AddIcon,
-  StatsIcon,
   SettingsIcon,
   ShortcutsIcon,
   LogoutIcon,
@@ -38,8 +37,7 @@ const links = [
 
 /**
  * The desktop's sidebar. It starts with the Study button and collapses to a
- * rail of icons; the rail names each icon to a screen reader. Stats sits with
- * Shortcuts at the foot, as it sits in the phone's More sheet.
+ * rail of icons; the rail names each icon to a screen reader.
  */
 const Sidebar: React.FC<Props> = ({ collapsed, onToggleCollapsed, onOpenShortcuts }) => {
   const { pathname } = useLocation();
@@ -162,17 +160,6 @@ const Sidebar: React.FC<Props> = ({ collapsed, onToggleCollapsed, onOpenShortcut
       ))}
 
       <Box sx={{ flex: 1 }} />
-
-      <ButtonBase
-        component={Link}
-        to={routes.stats}
-        aria-current={isActive(pathname, routes.stats) ? 'page' : undefined}
-        {...label(copy.shell.stats)}
-        sx={itemSx(isActive(pathname, routes.stats))}
-      >
-        <StatsIcon size={22} />
-        {!collapsed && copy.shell.stats}
-      </ButtonBase>
 
       <ButtonBase onClick={onOpenShortcuts} {...label(copy.shell.shortcuts)} sx={itemSx()}>
         <ShortcutsIcon size={22} />

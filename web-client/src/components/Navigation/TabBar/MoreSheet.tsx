@@ -1,12 +1,10 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 import Drawer from '@mui/material/Drawer';
 
-import { StatsIcon, ShortcutsIcon, LogoutIcon } from '../icons';
-import { routes } from '../navLinks';
+import { ShortcutsIcon, LogoutIcon } from '../icons';
 import * as actions from '../../../store/actions/index';
 import { AppDispatch } from '../../../types/actions';
 import { colors, fonts, scrim } from '../../../theme';
@@ -30,7 +28,7 @@ const rowSx = {
   textDecoration: 'none',
 };
 
-/** The sheet that the phone's More tab opens: Stats, Shortcuts and Log out. */
+/** The sheet that the phone's More tab opens: Shortcuts and Log out. */
 const MoreSheet: React.FC<Props> = ({ open, onClose, onOpenShortcuts }) => {
   const dispatch = useDispatch<AppDispatch>();
 
@@ -63,10 +61,6 @@ const MoreSheet: React.FC<Props> = ({ open, onClose, onOpenShortcuts }) => {
           mb: 1,
         }}
       />
-      <ButtonBase component={Link} to={routes.stats} onClick={onClose} sx={rowSx}>
-        <StatsIcon />
-        {copy.shell.stats}
-      </ButtonBase>
       <ButtonBase
         onClick={() => {
           onClose();
