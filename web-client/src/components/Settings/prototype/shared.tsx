@@ -321,7 +321,7 @@ export function Segmented<T extends string>({
         gap: '2px',
         bgcolor: colors.blankDay,
         border: `1px solid ${colors.divider}`,
-        borderRadius: '8px',
+        borderRadius: 1,
       }}
     >
       {options.map((o) => {
@@ -336,7 +336,7 @@ export function Segmented<T extends string>({
             sx={{
               height: size === 'sm' ? 30 : 36,
               px: size === 'sm' ? 1.25 : 1.75,
-              borderRadius: '6px',
+              borderRadius: 1,
               fontFamily: fonts.body,
               fontSize: size === 'sm' ? 13 : 14,
               fontWeight: 600,

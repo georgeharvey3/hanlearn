@@ -37,7 +37,7 @@ const Collapsible = createContext<Proto | null>(null);
 const cardSx = {
   bgcolor: colors.card,
   border: `1px solid ${colors.divider}`,
-  borderRadius: '12px',
+  borderRadius: 1,
   overflow: 'hidden',
 };
 
@@ -255,7 +255,7 @@ const Chip: React.FC<{
     sx={{
       height: 36,
       px: 1.5,
-      borderRadius: '18px',
+      borderRadius: 1,
       fontFamily: fonts.body,
       fontSize: 14,
       fontWeight: 600,
@@ -425,8 +425,8 @@ export const SheetA: React.FC<{ p: Proto; open: boolean; onClose: () => void }> 
     onClose={onClose}
     PaperProps={{
       sx: {
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
+        borderTopLeftRadius: 4,
+        borderTopRightRadius: 4,
         maxWidth: 480,
         mx: 'auto',
         bgcolor: colors.paper,
