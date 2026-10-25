@@ -1,10 +1,17 @@
 // PROTOTYPE (#407) Variant A, "Grouped rows": one scrolling page of grouped
 // cards. Every row is a label on the left and its control on the right, so the
-// session sheet is just the same rows, cut down. Throwaway.
-import React from 'react';
+// session sheet is just the same rows, cut down.
+//
+// Variant D, "Collapsible rows" (the owner's pick of A, with one change): the
+// same page, but each group is a header that opens and closes. Every group
+// starts closed, and a closed header shows the group's values in one line.
+// The sheet does not change. Throwaway.
+import React, { createContext, useContext, useState } from 'react';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 import Drawer from '@mui/material/Drawer';
+import Collapse from '@mui/material/Collapse';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 import { colors, fonts, shadows } from '../../../theme';
 import {
@@ -20,21 +27,99 @@ import {
   Switch,
   pc,
   quizOptions,
+  summary,
 } from './shared';
+import type { Group as GroupKey } from './shared';
 
-const Group: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+// D sets this; A and the sheets leave it unset, so their groups stay open.
+const Collapsible = createContext<Proto | null>(null);
+
+const cardSx = {
+  bgcolor: colors.card,
+  border: `1px solid ${colors.divider}`,
+  borderRadius: '12px',
+  overflow: 'hidden',
+};
+
+/** A group that opens and closes. Its header shows its values while closed. */
+const FoldGroup: React.FC<{ p: Proto; id: GroupKey; label: string; children: React.ReactNode }> = ({
+  p,
+  id,
+  label,
+  children,
+}) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <Box sx={{ ...cardSx, mb: 1.5 }}>
+      <ButtonBase
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        sx={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          px: 2,
+          py: 1.5,
+          minHeight: 64,
+          textAlign: 'left',
+          fontFamily: fonts.body,
+          borderBottom: open ? `1px solid ${colors.divider}` : 'none',
+        }}
+      >
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ fontSize: 17, fontWeight: 600, color: colors.text }}>{label}</Box>
+          {!open && (
+            <Box
+              sx={{
+                fontSize: 14,
+                color: colors.textSecondary,
+                mt: 0.25,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {summary(p, id)}
+            </Box>
+          )}
+        </Box>
+        <ExpandMoreIcon
+          sx={{
+            color: colors.placeholder,
+            transform: open ? 'rotate(180deg)' : 'none',
+            transition: 'transform 150ms ease',
+          }}
+        />
+      </ButtonBase>
+      <Collapse in={open}>{children}</Collapse>
+    </Box>
+  );
+};
+
+const Group: React.FC<{ id?: GroupKey; label: string; children: React.ReactNode }> = ({
+  id,
+  label,
+  children,
+}) => {
+  const fold = useContext(Collapsible);
+  if (fold && id) {
+    return (
+      <FoldGroup p={fold} id={id} label={label}>
+        {children}
+      </FoldGroup>
+    );
+  }
+  return <PlainGroup label={label}>{children}</PlainGroup>;
+};
+
+const PlainGroup: React.FC<{ label: string; children: React.ReactNode }> = ({
+  label,
+  children,
+}) => (
   <Box sx={{ mb: 3 }}>
     <Eyebrow>{label}</Eyebrow>
-    <Box
-      sx={{
-        bgcolor: colors.card,
-        border: `1px solid ${colors.divider}`,
-        borderRadius: '12px',
-        overflow: 'hidden',
-      }}
-    >
-      {children}
-    </Box>
+    <Box sx={cardSx}>{children}</Box>
   </Box>
 );
 
@@ -183,7 +268,7 @@ const Chip: React.FC<{
   </ButtonBase>
 );
 
-const VariantA: React.FC<{ p: Proto }> = ({ p }) => {
+const VariantA: React.FC<{ p: Proto; collapsible?: boolean }> = ({ p, collapsible }) => {
   const { s, set, disabled, shown } = p;
   const stage = (
     key: 'newWords' | 'sentenceRead' | 'sentenceWrite' | 'sentenceStagesForAllWords',
@@ -204,125 +289,130 @@ const VariantA: React.FC<{ p: Proto }> = ({ p }) => {
   };
 
   return (
-    <Box
-      sx={{
-        maxWidth: 560,
-        mx: 'auto',
-        px: 2,
-        pt: 3,
-        pb: 16,
-        fontFamily: fonts.body,
-        textAlign: 'left',
-      }}
-    >
-      <Box component="h1" sx={{ fontSize: 28, fontWeight: 700, m: 0, mb: 3 }}>
-        {pc.title}
-      </Box>
+    <Collapsible.Provider value={collapsible ? p : null}>
+      <Box
+        sx={{
+          maxWidth: 560,
+          mx: 'auto',
+          px: 2,
+          pt: 3,
+          pb: 16,
+          fontFamily: fonts.body,
+          textAlign: 'left',
+        }}
+      >
+        <Box component="h1" sx={{ fontSize: 28, fontWeight: 700, m: 0, mb: 3 }}>
+          {pc.title}
+        </Box>
 
-      <Group label={pc.session}>
-        <Row
-          label={pc.questionsPerSession}
-          hint={pc.minutes(p.time)}
-          control={
-            <Stepper
-              value={s.questionsPerSession}
-              min={QUESTIONS_PER_SESSION_MIN}
-              max={QUESTIONS_PER_SESSION_MAX}
-              step={QUESTIONS_PER_SESSION_STEP}
-              onChange={(v) => set('questionsPerSession', v)}
-            />
-          }
-        />
-        <Row
-          label={pc.script}
-          control={
-            <Segmented
-              label={pc.script}
-              size="sm"
-              value={s.charSet}
-              options={[
-                { value: 'simp', label: pc.simp },
-                { value: 'trad', label: pc.trad },
-              ]}
-              onChange={(v) => set('charSet', v)}
-            />
-          }
-        />
-      </Group>
+        <Group id="session" label={pc.session}>
+          <Row
+            label={pc.questionsPerSession}
+            hint={pc.minutes(p.time)}
+            control={
+              <Stepper
+                value={s.questionsPerSession}
+                min={QUESTIONS_PER_SESSION_MIN}
+                max={QUESTIONS_PER_SESSION_MAX}
+                step={QUESTIONS_PER_SESSION_STEP}
+                onChange={(v) => set('questionsPerSession', v)}
+              />
+            }
+          />
+          <Row
+            label={pc.script}
+            control={
+              <Segmented
+                label={pc.script}
+                size="sm"
+                value={s.charSet}
+                options={[
+                  { value: 'simp', label: pc.simp },
+                  { value: 'trad', label: pc.trad },
+                ]}
+                onChange={(v) => set('charSet', v)}
+              />
+            }
+          />
+        </Group>
 
-      <Group label={pc.answers}>
-        <AnswerRows p={p} />
-      </Group>
+        <Group id="answers" label={pc.answers}>
+          <AnswerRows p={p} />
+        </Group>
 
-      <Group label={pc.focus}>
-        <Row
-          label={pc.focus}
-          below={
-            <Box role="radiogroup" sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              <Chip on={s.priority === 'none'} onClick={() => set('priority', 'none')}>
-                {pc.noFocus}
-              </Chip>
-              {SKILLS.map((k) => (
-                <Chip
-                  key={k.key}
-                  on={s.priority === k.key}
-                  disabled={k.key === 'CM' && !!disabled.CM}
-                  onClick={() => set('priority', k.key as Priority)}
-                >
-                  {k.label}
+        <Group id="focus" label={pc.focus}>
+          <Row
+            label={pc.focus}
+            below={
+              <Box role="radiogroup" sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                <Chip on={s.priority === 'none'} onClick={() => set('priority', 'none')}>
+                  {pc.noFocus}
                 </Chip>
-              ))}
-            </Box>
-          }
-        />
-        <Row
-          label={pc.onlyFocus}
-          dim={s.priority === 'none'}
-          control={
-            <Switch
-              label={pc.onlyFocus}
-              checked={s.onlyPriority && s.priority !== 'none'}
-              disabled={s.priority === 'none'}
-              onChange={(v) => set('onlyPriority', v)}
-            />
-          }
-        />
-      </Group>
+                {SKILLS.map((k) => (
+                  <Chip
+                    key={k.key}
+                    on={s.priority === k.key}
+                    disabled={k.key === 'CM' && !!disabled.CM}
+                    onClick={() => set('priority', k.key as Priority)}
+                  >
+                    {k.label}
+                  </Chip>
+                ))}
+              </Box>
+            }
+          />
+          <Row
+            label={pc.onlyFocus}
+            dim={s.priority === 'none'}
+            control={
+              <Switch
+                label={pc.onlyFocus}
+                checked={s.onlyPriority && s.priority !== 'none'}
+                disabled={s.priority === 'none'}
+                onChange={(v) => set('onlyPriority', v)}
+              />
+            }
+          />
+        </Group>
 
-      <Group label={pc.stages}>
-        {stage('newWords', pc.newWords)}
-        {stage('sentenceRead', pc.sentenceRead)}
-        {stage('sentenceStagesForAllWords', pc.allWords)}
-        {stage('sentenceWrite', pc.sentenceWrite)}
-      </Group>
+        <Group id="stages" label={pc.stages}>
+          {stage('newWords', pc.newWords)}
+          {stage('sentenceRead', pc.sentenceRead)}
+          {stage('sentenceStagesForAllWords', pc.allWords)}
+          {stage('sentenceWrite', pc.sentenceWrite)}
+        </Group>
 
-      <Group label={pc.sound}>
-        <SoundRows p={p} />
-      </Group>
+        <Group id="sound" label={pc.sound}>
+          <SoundRows p={p} />
+        </Group>
 
-      <Group label={pc.account}>
-        <Row label={p.env.email ?? pc.notSignedIn} hint={p.env.email ? pc.signedInAs : null} />
-        {p.env.email && (
-          <ButtonBase
-            onClick={p.env.onLogout}
-            sx={{
-              width: '100%',
-              justifyContent: 'flex-start',
-              px: 2,
-              height: 52,
-              borderTop: `1px solid ${colors.divider}`,
-              fontFamily: fonts.body,
-              fontSize: 16,
-              color: colors.primaryLight,
-            }}
-          >
-            {pc.logout}
-          </ButtonBase>
-        )}
-      </Group>
-    </Box>
+        <Group id="account" label={pc.account}>
+          <Row label={p.env.email ?? pc.notSignedIn} hint={p.env.email ? pc.signedInAs : null} />
+          {p.env.email && (
+            <ButtonBase
+              onClick={p.env.onLogout}
+              sx={{
+                width: '100%',
+                justifyContent: 'flex-start',
+                px: 2,
+                height: 52,
+                borderTop: `1px solid ${colors.divider}`,
+                fontFamily: fonts.body,
+                fontSize: 16,
+                color: colors.primaryLight,
+              }}
+            >
+              {pc.logout}
+            </ButtonBase>
+          )}
+        </Group>
+      </Box>
+    </Collapsible.Provider>
   );
 };
+
+/** D: A with every group closed at first. */
+export const VariantD: React.FC<{ p: Proto }> = ({ p }) => <VariantA p={p} collapsible />;
 
 export const SheetA: React.FC<{ p: Proto; open: boolean; onClose: () => void }> = ({
   p,

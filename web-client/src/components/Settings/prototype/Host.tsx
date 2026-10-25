@@ -1,4 +1,4 @@
-// PROTOTYPE (#407): mounts a Settings variant on /settings. ?variant=A|B|C
+// PROTOTYPE (#407): mounts a Settings variant on /settings. ?variant=A|B|C|D
 // picks the variant; ?state=nospeech shows a browser with no speech support.
 // The variants start from the learner's real settings, but every change stays
 // in memory. "Sheet" on the switcher opens the variant's session sheet.
@@ -12,7 +12,7 @@ import * as actions from '../../../store/actions/index';
 import { getCurrentUser } from '../../../firebase/auth';
 import PrototypeSwitcher from '../../UI/PrototypeSwitcher/PrototypeSwitcher';
 import { useProtoSettings } from './shared';
-import VariantA, { SheetA } from './VariantA';
+import VariantA, { SheetA, VariantD } from './VariantA';
 import VariantB, { SheetB } from './VariantB';
 import VariantC, { SheetC } from './VariantC';
 
@@ -21,6 +21,7 @@ export const PROTO_VARIANTS = [
   { key: 'A', name: 'Grouped rows' },
   { key: 'B', name: 'Session recipe' },
   { key: 'C', name: 'Index and detail' },
+  { key: 'D', name: 'Collapsible rows' },
 ];
 
 export const PROTO_STATES = [
@@ -54,6 +55,13 @@ const Variant: React.FC<Props & { sheetOpen: boolean; closeSheet: () => void }> 
     return (
       <>
         <VariantA p={p} />
+        <SheetA {...sheet} />
+      </>
+    );
+  if (variant === 'D')
+    return (
+      <>
+        <VariantD p={p} />
         <SheetA {...sheet} />
       </>
     );

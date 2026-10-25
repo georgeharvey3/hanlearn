@@ -217,6 +217,46 @@ export const useProtoSettings = (env: Env) => {
 
 export type Proto = ReturnType<typeof useProtoSettings>;
 
+export type Group = 'session' | 'answers' | 'focus' | 'stages' | 'sound' | 'account';
+
+export const quizName = (v: string) => (v === 'input' ? pc.input : pc.flashcard);
+
+/** The values of a group in one line, for a closed header or an index row. */
+export const summary = (p: Proto, g: Group): string => {
+  const { s, shown } = p;
+  switch (g) {
+    case 'session':
+      return `${s.questionsPerSession} ${pc.questions.toLowerCase()} · ${p.time} · ${
+        s.charSet === 'simp' ? pc.simp : pc.trad
+      }`;
+    case 'answers':
+      return `${pc.meaning}: ${quizName(s.meaningQuizType)} · ${pc.pinyin}: ${quizName(
+        s.pinyinQuizType,
+      )}`;
+    case 'focus': {
+      if (s.priority === 'none') return pc.noFocus;
+      const name = SKILLS.find((k) => k.key === s.priority)?.label ?? '';
+      return s.onlyPriority ? `${name} only` : name;
+    }
+    case 'stages':
+      return [
+        shown.newWords && pc.newWords,
+        pc.test,
+        shown.sentenceRead && pc.sentenceRead,
+        s.sentenceWrite && pc.sentenceWrite,
+      ]
+        .filter(Boolean)
+        .join(' → ');
+    case 'sound':
+      return (
+        [shown.useSound && pc.tts, s.useSoundEffects && pc.effects].filter(Boolean).join(' · ') ||
+        pc.off
+      );
+    case 'account':
+      return p.env.email ?? pc.notSignedIn;
+  }
+};
+
 // ---- Controls. #407 asks the page and the session sheet to share these. ----
 
 export const Switch: React.FC<{
