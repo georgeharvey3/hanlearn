@@ -8,6 +8,19 @@ import { copy } from '../../copy';
 // The rows of the Settings page, which the session's settings sheet shares:
 // a label on the left and its control on the right.
 
+const visuallyHidden = {
+  position: 'absolute',
+  // Strings, because MUI reads the number 1 as 100%.
+  width: '1px',
+  height: '1px',
+  margin: '-1px',
+  p: 0,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+  border: 0,
+} as const;
+
 const rowBase = {
   width: '100%',
   boxSizing: 'border-box',
@@ -58,7 +71,7 @@ const cardSx = {
 
 interface FoldGroupProps {
   title: string;
-  summary: string;
+  summary: React.ReactNode;
   open: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -120,6 +133,40 @@ export const FoldGroup: React.FC<FoldGroupProps> = ({
     </Box>
   );
 };
+
+/** Names in order, with an arrow between each two: the stages of a session. */
+export const Trail: React.FC<{ names: string[] }> = ({ names }) => (
+  <>
+    {names.map((name, index) => (
+      <React.Fragment key={name}>
+        {index > 0 && (
+          <>
+            <Box component="span" sx={visuallyHidden}>
+              {copy.settings.stageSeparator}
+            </Box>
+            <Box
+              component="svg"
+              width={14}
+              height={14}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              focusable="false"
+              sx={{ mx: 0.5, verticalAlign: '-2px' }}
+            >
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </Box>
+          </>
+        )}
+        {name}
+      </React.Fragment>
+    ))}
+  </>
+);
 
 /** A group that is always open, with a small caps title: the session sheet's. */
 export const PlainGroup: React.FC<{ title: string; children: React.ReactNode }> = ({

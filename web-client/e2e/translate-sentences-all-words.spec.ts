@@ -1,8 +1,8 @@
 import { test, expect, Page } from '@playwright/test';
 import { clearEmulatorData, seedTestUser, loginViaUI } from './fixtures/seed';
 
-// The setting sits in the Stages group, which starts closed.
-const openStages = (page: Page) => page.getByRole('button', { name: /^Stages/ }).click();
+// The setting sits in the Session stages group, which starts closed.
+const openStages = (page: Page) => page.getByRole('button', { name: /^Session stages/ }).click();
 const allWords = (page: Page) => page.getByRole('switch', { name: /translate with all words/i });
 
 test.describe('Translate sentences for all words setting', () => {
@@ -84,7 +84,7 @@ test.describe('Translate sentences for all words setting', () => {
     await openStages(page);
 
     // The closed Session header shows the time of a session.
-    const estimateEl = page.getByRole('button', { name: /^Session/ });
+    const estimateEl = page.getByRole('button', { name: /^Study session/ });
     const initialText = await estimateEl.textContent();
 
     // Toggle the setting on

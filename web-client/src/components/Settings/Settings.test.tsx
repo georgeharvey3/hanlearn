@@ -12,7 +12,7 @@ vi.mock('../../firebase/auth', () => ({
 }));
 
 import React from 'react';
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'vitest-axe';
 
@@ -51,19 +51,33 @@ beforeEach(() => {
 
 describe('Settings — accessibility', () => {
   it('has no accessibility violations with every group open', async () => {
-    const user = userEvent.setup();
     const { container } = renderSettings();
-    for (const name of ['Session', 'Answers', 'Focus', 'Stages', 'Sound', 'Account']) {
-      await open(user, name);
+    // fireEvent, not userEvent: axe on six open groups is slow enough already.
+    for (const name of [
+      'Study session',
+      'Answers',
+      'Skill focus',
+      'Session stages',
+      'Sound',
+      'Account',
+    ]) {
+      fireEvent.click(header(name));
     }
     expect(await axe(container)).toHaveNoViolations();
-  });
+  }, 30_000);
 });
 
 describe('Settings — groups', () => {
   it('starts with every group closed', () => {
     renderSettings();
-    for (const name of ['Session', 'Answers', 'Focus', 'Stages', 'Sound', 'Account']) {
+    for (const name of [
+      'Study session',
+      'Answers',
+      'Skill focus',
+      'Session stages',
+      'Sound',
+      'Account',
+    ]) {
       expect(header(name)).toHaveAttribute('aria-expanded', 'false');
     }
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
@@ -71,11 +85,11 @@ describe('Settings — groups', () => {
 
   it('shows the values of each closed group in one line', () => {
     renderSettings();
-    expect(header('Session')).toHaveTextContent(/25 questions · ~\d+ min · Traditional/);
+    expect(header('Study session')).toHaveTextContent(/25 questions · ~\d+ min · Traditional/);
     expect(header('Answers')).toHaveTextContent('Meaning: Flashcard · Pinyin: Input');
-    expect(header('Focus')).toHaveTextContent('No focus');
-    expect(header('Stages')).toHaveTextContent(
-      'New words → Test → Translate sentences → Make sentences',
+    expect(header('Skill focus')).toHaveTextContent('Balanced');
+    expect(header('Session stages')).toHaveTextContent(
+      'New words, Test, Translate sentences, Make sentences',
     );
     expect(header('Sound')).toHaveTextContent('Text-to-speech · Sound effects');
     expect(header('Account')).toHaveTextContent('learner@example.com');
@@ -84,7 +98,7 @@ describe('Settings — groups', () => {
   it('opens a group, and hides its line of values while open', async () => {
     const user = userEvent.setup();
     renderSettings();
-    const session = await open(user, 'Session');
+    const session = await open(user, 'Study session');
     expect(session).toHaveAttribute('aria-expanded', 'true');
     expect(session).not.toHaveTextContent('25 questions');
     await user.click(session);
@@ -96,14 +110,14 @@ describe('Settings — Session', () => {
   it('reads the questions per session, and migrates the old words per session', () => {
     localStorage.setItem('numWords', '4');
     renderSettings();
-    expect(header('Session')).toHaveTextContent('20 questions');
+    expect(header('Study session')).toHaveTextContent('20 questions');
   });
 
   it('steps the questions per session by 5, from 5 to 50', async () => {
     const user = userEvent.setup();
     localStorage.setItem('questionsPerSession', '45');
     renderSettings();
-    await open(user, 'Session');
+    await open(user, 'Study session');
 
     const more = screen.getByRole('button', { name: 'More questions' });
     await user.click(more);
@@ -116,7 +130,7 @@ describe('Settings — Session', () => {
     const user = userEvent.setup();
     localStorage.setItem('questionsPerSession', '10');
     renderSettings();
-    await open(user, 'Session');
+    await open(user, 'Study session');
     const fewer = screen.getByRole('button', { name: 'Fewer questions' });
     await user.click(fewer);
     expect(localStorage.getItem('questionsPerSession')).toBe('5');
@@ -126,7 +140,7 @@ describe('Settings — Session', () => {
   it('shows the time a session takes, and updates it with the size', async () => {
     const user = userEvent.setup();
     renderSettings();
-    await open(user, 'Session');
+    await open(user, 'Study session');
     const before = screen.getByText(/^About \d+ min$/).textContent;
     await user.click(screen.getByRole('button', { name: 'Fewer questions' }));
     expect(screen.getByText(/^About \d+ min$/).textContent).not.toBe(before);
@@ -135,7 +149,7 @@ describe('Settings — Session', () => {
   it('switches the characters and stores the choice', async () => {
     const user = userEvent.setup();
     renderSettings();
-    await open(user, 'Session');
+    await open(user, 'Study session');
     const characters = screen.getByRole('radiogroup', { name: 'Characters' });
     expect(within(characters).getByRole('radio', { name: 'Traditional' })).toBeChecked();
 
@@ -187,7 +201,7 @@ describe('Settings — Focus', () => {
   it('stores the focus, and shows it on the closed header', async () => {
     const user = userEvent.setup();
     renderSettings();
-    await open(user, 'Focus');
+    await open(user, 'Skill focus');
     const only = screen.getByRole('switch', { name: 'Only this skill' });
     expect(only).toBeDisabled();
 
@@ -196,8 +210,8 @@ describe('Settings — Focus', () => {
     await user.click(only);
     expect(localStorage.getItem('onlyPriority')).toBe('true');
 
-    await user.click(header('Focus'));
-    expect(header('Focus')).toHaveTextContent('Listening only');
+    await user.click(header('Skill focus'));
+    expect(header('Skill focus')).toHaveTextContent('Listening only');
   });
 
   it('turns off Only this skill when the focus goes back to none', async () => {
@@ -205,8 +219,8 @@ describe('Settings — Focus', () => {
     localStorage.setItem('priority', 'MC');
     localStorage.setItem('onlyPriority', 'true');
     renderSettings();
-    await open(user, 'Focus');
-    await user.click(screen.getByRole('radio', { name: 'No focus' }));
+    await open(user, 'Skill focus');
+    await user.click(screen.getByRole('radio', { name: 'Balanced' }));
     expect(localStorage.getItem('onlyPriority')).toBe('false');
     expect(screen.getByRole('switch', { name: 'Only this skill' })).not.toBeChecked();
   });
@@ -216,12 +230,12 @@ describe('Settings — Focus', () => {
     localStorage.setItem('priority', 'CM');
     renderSettings();
     await open(user, 'Answers');
-    await open(user, 'Focus');
+    await open(user, 'Skill focus');
     expect(screen.getByRole('radio', { name: 'Writing' })).toBeEnabled();
 
     await user.click(screen.getByRole('switch', { name: 'Handwriting' }));
     expect(screen.getByRole('radio', { name: 'Writing' })).toBeDisabled();
-    expect(screen.getByRole('radio', { name: 'No focus' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Balanced' })).toBeChecked();
     expect(localStorage.getItem('priority')).toBe('none');
   });
 });
@@ -230,19 +244,19 @@ describe('Settings — Stages', () => {
   it('stores a stage, and leaves it out of the closed header', async () => {
     const user = userEvent.setup();
     renderSettings();
-    await open(user, 'Stages');
+    await open(user, 'Session stages');
     await user.click(screen.getByRole('switch', { name: 'Make sentences' }));
     expect(localStorage.getItem('sentenceWrite')).toBe('false');
 
-    await user.click(header('Stages'));
-    expect(header('Stages')).toHaveTextContent('New words → Test → Translate sentences');
-    expect(header('Stages')).not.toHaveTextContent('Make sentences');
+    await user.click(header('Session stages'));
+    expect(header('Session stages')).toHaveTextContent('New words, Test, Translate sentences');
+    expect(header('Session stages')).not.toHaveTextContent('Make sentences');
   });
 
   it('offers Translate with all words only with Translate sentences', async () => {
     const user = userEvent.setup();
     renderSettings();
-    await open(user, 'Stages');
+    await open(user, 'Session stages');
     const allWords = screen.getByRole('switch', { name: /Translate with all words/ });
     expect(allWords).not.toBeChecked();
     await user.click(allWords);
@@ -257,10 +271,10 @@ describe('Settings — Stages', () => {
   it('shortens the session time when a stage is turned off', async () => {
     const user = userEvent.setup();
     renderSettings();
-    const before = header('Session').textContent;
-    await open(user, 'Stages');
+    const before = header('Study session').textContent;
+    await open(user, 'Session stages');
     await user.click(screen.getByRole('switch', { name: 'Make sentences' }));
-    expect(header('Session').textContent).not.toBe(before);
+    expect(header('Study session').textContent).not.toBe(before);
   });
 });
 
@@ -284,7 +298,7 @@ describe('Settings — a browser without speech', () => {
     const user = userEvent.setup();
     localStorage.setItem('meaningQuizType', 'input');
     renderSettings(makeStore(false, false));
-    for (const name of ['Answers', 'Stages', 'Sound']) await open(user, name);
+    for (const name of ['Answers', 'Session stages', 'Sound']) await open(user, name);
 
     for (const name of [
       /Auto-start microphone/,

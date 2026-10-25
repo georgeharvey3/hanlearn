@@ -25,7 +25,7 @@ import {
   writeQuestionsPerSession,
 } from '../../utils/sessionSettings';
 import { QuizCategory, QuizType, getQuizType, setQuizType } from '../../utils/audioSettings';
-import { ChipGroup, FoldGroup, SegmentedRow, StepperRow, SwitchRow } from './controls';
+import { ChipGroup, FoldGroup, Trail, SegmentedRow, StepperRow, SwitchRow } from './controls';
 import { autoRecordBlock, sentenceReadBlock, ttsBlock, newWordsBlock, quizOptions } from './rules';
 
 type Priority = 'none' | 'MP' | 'PM' | 'MC' | 'CM';
@@ -220,7 +220,7 @@ const Settings: React.FC<PropsFromRedux> = ({
   const text = copy.settings;
   const charSetName = values.charSet === 'simp' ? text.simp : text.trad;
 
-  const summary: Record<Group, string> = {
+  const summary: Record<Group, React.ReactNode> = {
     session: text.sessionSummary(values.questionsPerSession, time, charSetName),
     answers: text.answersSummary(quizName(values.meaningQuizType), quizName(values.pinyinQuizType)),
     focus:
@@ -229,13 +229,15 @@ const Settings: React.FC<PropsFromRedux> = ({
         : values.onlyPriority
           ? text.onlySummary(text[values.priority])
           : text[values.priority],
-    stages: text.stagesSummary(
-      present(
-        shown.newWords && text.newWords,
-        text.test,
-        shown.sentenceRead && text.sentenceRead,
-        values.sentenceWrite && text.sentenceWrite,
-      ),
+    stages: (
+      <Trail
+        names={present(
+          shown.newWords && text.newWords,
+          text.test,
+          shown.sentenceRead && text.sentenceRead,
+          values.sentenceWrite && text.sentenceWrite,
+        )}
+      />
     ),
     sound: text.soundSummary(
       present(shown.useSound && text.useSound, values.useSoundEffects && text.useSoundEffects),

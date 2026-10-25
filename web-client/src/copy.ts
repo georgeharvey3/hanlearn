@@ -90,10 +90,10 @@ export const copy = {
   settings: {
     title: 'Settings',
     // The groups
-    session: 'Session',
+    session: 'Study session',
     answers: 'Answers',
-    focus: 'Focus',
-    stages: 'Stages',
+    focus: 'Skill focus',
+    stages: 'Session stages',
     sound: 'Sound',
     account: 'Account',
     // Session
@@ -113,7 +113,7 @@ export const copy = {
     useHandwriting: 'Handwriting',
     useAutoRecord: 'Auto-start microphone',
     // Focus: the directions, by the skill each one trains
-    noFocus: 'No focus',
+    noFocus: 'Balanced',
     MP: 'Listening',
     PM: 'Speaking',
     MC: 'Reading',
@@ -142,7 +142,8 @@ export const copy = {
       `${questions} questions · ${time} · ${charSet}`,
     answersSummary: (meaning: string, pinyin: string) => `Meaning: ${meaning} · Pinyin: ${pinyin}`,
     onlySummary: (skill: string) => `${skill} only`,
-    stagesSummary: (stages: string[]) => stages.join(' → '),
+    // Between two stages in the closed header, for a screen reader. An arrow shows it on screen.
+    stageSeparator: ', ',
     soundSummary: (sounds: string[]) => sounds.join(' · ') || 'Off',
   },
   test: {
