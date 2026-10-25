@@ -49,13 +49,6 @@ export const StudyIcon: React.FC<IconProps> = ({ size }) => (
   </Stroke>
 );
 
-export const StatsIcon: React.FC<IconProps> = ({ size }) => (
-  <Stroke size={size}>
-    <path d="M4 4v16h16" />
-    <path d="M8 15l4-4 3 3 5-6" />
-  </Stroke>
-);
-
 // A cog with six teeth: the outline of Lucide's "settings" icon (ISC licence).
 export const SettingsIcon: React.FC<IconProps> = ({ size }) => (
   <Stroke size={size}>

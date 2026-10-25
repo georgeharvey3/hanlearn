@@ -5,7 +5,7 @@ import ButtonBase from '@mui/material/ButtonBase';
 
 import StudyButton, { useDueCount } from '../StudyButton/StudyButton';
 import MoreSheet from './MoreSheet';
-import { HomeIcon, AddIcon, StatsIcon, MoreIcon } from '../icons';
+import { HomeIcon, AddIcon, SettingsIcon, MoreIcon } from '../icons';
 import { routes, isActive } from '../navLinks';
 import { colors, fonts } from '../../../theme';
 import { copy } from '../../../copy';
@@ -31,7 +31,7 @@ const tabSx = (active: boolean) => ({
 });
 
 /**
- * The phone's bottom tab bar: Home, Add, a raised Study button, Stats and
+ * The phone's bottom tab bar: Home, Add, a raised Study button, Settings and
  * More. More opens a sheet with the rest.
  */
 const TabBar: React.FC<Props> = ({ onOpenShortcuts }) => {
@@ -87,7 +87,7 @@ const TabBar: React.FC<Props> = ({ onOpenShortcuts }) => {
           </Box>
           <span>{copy.shell.study}</span>
         </ButtonBase>
-        {tab(routes.stats, copy.shell.stats, <StatsIcon />)}
+        {tab(routes.settings, copy.shell.settings, <SettingsIcon />)}
         <ButtonBase onClick={() => setMoreOpen(true)} sx={tabSx(moreOpen)}>
           <MoreIcon />
           <span>{copy.shell.more}</span>

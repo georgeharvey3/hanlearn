@@ -13,7 +13,6 @@ export const copy = {
     addWords: 'Add words',
     study: 'Study',
     studyDue: (due: number) => `Study, ${due} due`,
-    stats: 'Stats',
     settings: 'Settings',
     more: 'More',
     shortcuts: 'Shortcuts',
