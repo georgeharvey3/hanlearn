@@ -427,7 +427,5 @@ export const copy = {
     // The Analects' opening line: learn, and review in time.
     proverb: '学而时习之',
     proverbGloss: 'Learn, and review it often.',
-    footer: 'Free and open source.',
-    github: 'GitHub',
   },
 } as const;
