@@ -33,13 +33,13 @@ interface Props {
 const links = [
   { to: routes.home, label: copy.shell.home, icon: <HomeIcon size={22} /> },
   { to: routes.add, label: copy.shell.addWords, icon: <AddIcon size={22} /> },
-  { to: routes.stats, label: copy.shell.stats, icon: <StatsIcon size={22} /> },
   { to: routes.settings, label: copy.shell.settings, icon: <SettingsIcon size={22} /> },
 ];
 
 /**
  * The desktop's sidebar. It starts with the Study button and collapses to a
- * rail of icons; the rail names each icon to a screen reader.
+ * rail of icons; the rail names each icon to a screen reader. Stats sits with
+ * Shortcuts at the foot, as it sits in the phone's More sheet.
  */
 const Sidebar: React.FC<Props> = ({ collapsed, onToggleCollapsed, onOpenShortcuts }) => {
   const { pathname } = useLocation();
@@ -162,6 +162,17 @@ const Sidebar: React.FC<Props> = ({ collapsed, onToggleCollapsed, onOpenShortcut
       ))}
 
       <Box sx={{ flex: 1 }} />
+
+      <ButtonBase
+        component={Link}
+        to={routes.stats}
+        aria-current={isActive(pathname, routes.stats) ? 'page' : undefined}
+        {...label(copy.shell.stats)}
+        sx={itemSx(isActive(pathname, routes.stats))}
+      >
+        <StatsIcon size={22} />
+        {!collapsed && copy.shell.stats}
+      </ButtonBase>
 
       <ButtonBase onClick={onOpenShortcuts} {...label(copy.shell.shortcuts)} sx={itemSx()}>
         <ShortcutsIcon size={22} />
