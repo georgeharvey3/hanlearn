@@ -13,12 +13,11 @@ Instead of storing ~124K dictionary entries in Firestore (which incurs read cost
 
 ## Steps
 
-### 1. Download CC-CEDICT Dictionary
+### 1. CC-CEDICT Dictionary
 
-1. Go to https://www.mdbg.net/chinese/dictionary?page=cc-cedict
-2. Download the dictionary file (cedict_1_0_ts_utf-8_mdbg.txt.gz)
-3. Extract it and rename to `cedict_ts.u8`
-4. Place in this `migration/` directory
+The repository holds `cedict_ts.u8`, the CC-CEDICT release of 2026-01-02. Do not replace it with a newer release.
+
+The ID of an entry is its position in the file, and each `userWords` document uses this ID as its document ID. A newer release moves the IDs. For this reason, `build-dictionary.js` stops if the SHA-256 of the file changes. Before you change the file, migrate the `userWords` IDs. See issue #427.
 
 ### 2. Build the Dictionary
 
@@ -36,7 +35,7 @@ The dictionary file will be served from `/dictionary.json` when the frontend is 
 ## What's in the Dictionary
 
 Each entry contains:
-- `id`: Unique identifier
+- `id`: The position of the entry in `cedict_ts.u8`, starting at 1
 - `simp`: Simplified Chinese
 - `trad`: Traditional Chinese
 - `pinyin`: Romanization
