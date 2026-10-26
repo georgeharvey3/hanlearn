@@ -112,7 +112,7 @@ export const BankLoadError: React.FC<{ onRetry: () => void }> = ({ onRetry }) =>
 
 /**
  * An empty bank or list: the faint 字, a title, and words to try. `children`
- * comes last, for the premade lists of an empty bank.
+ * comes last, for the link to the premade lists on an empty bank.
  */
 export const BankEmpty: React.FC<{
   title: string;

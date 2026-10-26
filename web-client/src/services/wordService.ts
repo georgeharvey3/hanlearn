@@ -720,10 +720,13 @@ async function readHeldWords(userId: string): Promise<Map<string, UserWordDocume
   return new Map(snapshot.docs.map((d) => [d.id, d.data() as UserWordDocument]));
 }
 
-/** How many of these words the learner has, in any list. */
-export const countHeldWords = async (userId: string, wordIds: number[]): Promise<number> => {
+/** The learner's words among these, from any list, with their due dates. */
+export const getHeldWords = async (userId: string, wordIds: number[]): Promise<Word[]> => {
   const held = await readHeldWords(userId);
-  return wordIds.filter((id) => held.has(id.toString())).length;
+  return wordIds.flatMap((id) => {
+    const data = held.get(id.toString());
+    return data ? [mapDocumentToWord({ id: id.toString(), data: () => data }, true)] : [];
+  });
 };
 
 export interface PremadeListResult {

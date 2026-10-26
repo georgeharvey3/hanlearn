@@ -93,19 +93,24 @@ test.describe('Word management', () => {
     // The catalogue that `npm run build:dict` writes.
     const hsk1 = JSON.parse(
       readFileSync(path.join(__dirname, '../public/premade-lists/hsk-1.json'), 'utf8'),
-    ) as { simp: string }[];
+    ) as { simp: string; trad: string }[];
     await configureTestSettings(page, { newWords: 'true' });
 
     const addWords = new AddWordsPage(page);
     await addWords.navigateTo();
-    await page.getByRole('button', { name: 'New list' }).click();
-    const dialog = page.getByRole('dialog', { name: 'New list' });
-    await dialog.getByRole('button', { name: /^HSK 1/ }).click();
+    await page.getByRole('tab', { name: 'Premade lists' }).click();
+    await page.getByRole('button', { name: /^HSK 1/ }).click();
 
-    const confirm = page.getByRole('dialog', { name: 'HSK 1' });
-    await expect(confirm.getByText(/^[\d,]+ new words\.$/)).toBeVisible();
-    await confirm.getByRole('button', { name: 'Add list' }).click();
-    await expect(confirm).toBeHidden({ timeout: 30000 });
+    await expect(page).toHaveURL(/\/add-words\/premade\/hsk-1$/);
+    await expect(page.getByRole('tab', { name: 'HSK 1' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByText(/^new words/)).toBeVisible();
+    await expect(
+      page
+        .getByRole('list', { name: 'Words' })
+        .getByText(new RegExp(`^(${hsk1[0].simp}|${hsk1[0].trad})$`)),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Add list' }).click();
+    await expect(page).toHaveURL(/\/add-words$/, { timeout: 30000 });
 
     await expect(page.getByRole('tab', { name: /^HSK 1/ })).toHaveAttribute(
       'aria-selected',

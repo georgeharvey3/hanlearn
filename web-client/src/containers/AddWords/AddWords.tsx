@@ -21,16 +21,14 @@ import {
   DeleteWordDialog,
   ListNameDialog,
   ListsOfWordDialog,
-  NewListDialog,
-  PremadeLists,
 } from '../../components/AddWords/ListDialogs';
+import PageTabs from '../../components/AddWords/PageTabs';
 import { BankEmpty, BankLoadError, BankLoading } from '../../components/AddWords/BankStates';
 import { Overline } from '../../components/Test/Study/parts';
 import Spinner from '../../components/UI/Spinner/Spinner';
 import * as wordActions from '../../store/actions/index';
 import * as wordService from '../../services/wordService';
 import { reportError } from '../../services/errorReporting';
-import { PremadeList } from '../../services/premadeListService';
 import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
 import { RootState } from '../../types/store';
@@ -42,6 +40,7 @@ import {
   matchesBank,
   removalDeletes,
 } from '../../utils/wordBank';
+import { premadePath } from '../../components/Navigation/navLinks';
 import { ALL_LISTS_ID, DEFAULT_LIST_ID } from '../../utils/activeList';
 import { searchKind } from '../../utils/searchQuery';
 import {
@@ -75,7 +74,6 @@ const mapDispatchToProps = {
   onSetListsOfWord: wordActions.postListsOfWord,
   onSwitchList: wordActions.switchActiveList,
   onCreateList: wordActions.postCreateWordList,
-  onAddPremadeList: wordActions.postAddPremadeList,
   onRenameList: wordActions.postRenameWordList,
   onDeleteList: wordActions.postDeleteWordList,
 };
@@ -105,7 +103,6 @@ const AddWords: React.FC<Props> = ({
   onSetListsOfWord,
   onSwitchList,
   onCreateList,
-  onAddPremadeList,
   onRenameList,
   onDeleteList,
 }) => {
@@ -126,23 +123,11 @@ const AddWords: React.FC<Props> = ({
   const [dialogOpen, setDialogOpen] = useState(false);
   // The word of the lists dialog or the delete-word dialog.
   const [dialogWord, setDialogWord] = useState<Word | null>(null);
-  // The premade list that the new-list dialog confirms, picked in the dialog
-  // or on the empty bank.
-  const [premade, setPremade] = useState<PremadeList | null>(null);
-  const openDialog = useCallback(
-    (kind: DialogKind, word: Word | null = null, list: PremadeList | null = null) => {
-      setDialogKind(kind);
-      setDialogWord(word);
-      setPremade(list);
-      setDialogOpen(true);
-    },
-    [],
-  );
-  const countHeld = useCallback(
-    (wordIds: number[]) =>
-      userId ? wordService.countHeldWords(userId, wordIds) : Promise.resolve(0),
-    [userId],
-  );
+  const openDialog = useCallback((kind: DialogKind, word: Word | null = null) => {
+    setDialogKind(kind);
+    setDialogWord(word);
+    setDialogOpen(true);
+  }, []);
   const closeDialog = useCallback(() => setDialogOpen(false), []);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   // Each search takes a number, so an answer that comes back after a newer
@@ -336,7 +321,24 @@ const AddWords: React.FC<Props> = ({
         title={totalWords === 0 ? copy.wordBank.noWords : copy.wordBank.emptyList}
         onTry={trySuggestion}
       >
-        {totalWords === 0 && <PremadeLists onPick={(list) => openDialog('new', null, list)} />}
+        {totalWords === 0 && (
+          <ButtonBase
+            onClick={() => history.push(premadePath())}
+            sx={{
+              mt: 2,
+              height: 44,
+              px: 2.5,
+              borderRadius: 1,
+              border: `1px solid ${colors.borderStrong}`,
+              fontFamily: fonts.body,
+              fontSize: 15,
+              fontWeight: 600,
+              color: colors.text,
+            }}
+          >
+            {copy.premadeLists.browse}
+          </ButtonBase>
+        )}
       </BankEmpty>
     );
   } else {
@@ -402,6 +404,7 @@ const AddWords: React.FC<Props> = ({
         color: colors.text,
       }}
     >
+      <PageTabs tab="mine" onTab={(t) => t === 'premade' && history.push(premadePath())} />
       <SearchField
         query={query}
         busy={status === 'searching'}
@@ -449,14 +452,13 @@ const AddWords: React.FC<Props> = ({
           {copy.wordBank.delete}
         </MenuItem>
       </Menu>
-      <NewListDialog
+      <ListNameDialog
         open={dialogOpen && dialogKind === 'new'}
-        premade={premade}
-        onPick={setPremade}
-        countHeld={countHeld}
-        onAdd={onAddPremadeList}
+        title={copy.wordBank.newList}
+        initial=""
+        action={copy.wordBank.create}
         onClose={() => closeDialog()}
-        onCreate={(name) => {
+        onSave={(name) => {
           onCreateList(name);
           closeDialog();
         }}
