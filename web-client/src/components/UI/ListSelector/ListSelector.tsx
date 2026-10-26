@@ -108,16 +108,16 @@ const ListSelector: React.FC<ListSelectorProps> = ({
             id="list-selector-label"
             sx={{ '&, &.MuiInputLabel-shrink': { color: 'text.primary' } }}
           >
-            Active list
+            {copy.listSelector.activeList}
           </InputLabel>
           <Select
             labelId="list-selector-label"
-            label="Active list"
+            label={copy.listSelector.activeList}
             value={activeListId}
             onChange={handleListChange}
             data-testid="list-selector"
             renderValue={(selected) => {
-              if (selected === '__all__') return 'All Lists';
+              if (selected === '__all__') return copy.listSelector.allLists;
               const list = safeLists.find((l) => l.id === selected);
               return list?.name ?? selected;
             }}
@@ -127,9 +127,9 @@ const ListSelector: React.FC<ListSelectorProps> = ({
                 value="__all__"
                 sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5 }}
               >
-                <span>All Lists</span>
+                <span>{copy.listSelector.allLists}</span>
                 <Chip
-                  label={`${totalDue} due`}
+                  label={copy.listSelector.due(totalDue)}
                   size="small"
                   color={totalDue > 0 ? 'primary' : 'default'}
                   variant={totalDue > 0 ? 'filled' : 'outlined'}
@@ -149,7 +149,7 @@ const ListSelector: React.FC<ListSelectorProps> = ({
                   <span>{list.name}</span>
                   {stats && (
                     <Chip
-                      label={`${dueCount} due`}
+                      label={copy.listSelector.due(dueCount)}
                       size="small"
                       color={dueCount > 0 ? 'primary' : 'default'}
                       variant={dueCount > 0 ? 'filled' : 'outlined'}
@@ -166,19 +166,23 @@ const ListSelector: React.FC<ListSelectorProps> = ({
             <IconButton
               size="small"
               onClick={() => setCreateDialogOpen(true)}
-              aria-label="Create new list"
+              aria-label={copy.listSelector.createLabel}
             >
               <AddIcon />
             </IconButton>
             {activeListId !== 'default' && activeListId !== '__all__' && (
               <>
-                <IconButton size="small" onClick={openRenameDialog} aria-label="Rename list">
+                <IconButton
+                  size="small"
+                  onClick={openRenameDialog}
+                  aria-label={copy.listSelector.renameLabel}
+                >
                   <EditIcon />
                 </IconButton>
                 <IconButton
                   size="small"
                   onClick={() => setDeleteDialogOpen(true)}
-                  aria-label="Delete list"
+                  aria-label={copy.listSelector.deleteLabel}
                 >
                   <DeleteIcon />
                 </IconButton>
@@ -190,12 +194,12 @@ const ListSelector: React.FC<ListSelectorProps> = ({
 
       {/* Create List Dialog */}
       <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} fullWidth>
-        <DialogTitle>Create New List</DialogTitle>
+        <DialogTitle>{copy.listSelector.createTitle}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="List name"
+            label={copy.listSelector.listName}
             fullWidth
             value={newListName}
             onChange={(e) => setNewListName(e.target.value)}
@@ -210,22 +214,22 @@ const ListSelector: React.FC<ListSelectorProps> = ({
         </DialogContent>
         <DialogActions>
           <Button type="ghost" clicked={() => setCreateDialogOpen(false)}>
-            Cancel
+            {copy.listSelector.cancel}
           </Button>
           <Button clicked={handleCreate} disabled={!newListName.trim()}>
-            Create
+            {copy.listSelector.create}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Rename List Dialog */}
       <Dialog open={renameDialogOpen} onClose={() => setRenameDialogOpen(false)} fullWidth>
-        <DialogTitle>Rename List</DialogTitle>
+        <DialogTitle>{copy.listSelector.renameTitle}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="List name"
+            label={copy.listSelector.listName}
             fullWidth
             value={renameListName}
             onChange={(e) => setRenameListName(e.target.value)}
@@ -240,10 +244,10 @@ const ListSelector: React.FC<ListSelectorProps> = ({
         </DialogContent>
         <DialogActions>
           <Button type="ghost" clicked={() => setRenameDialogOpen(false)}>
-            Cancel
+            {copy.listSelector.cancel}
           </Button>
           <Button clicked={handleRename} disabled={!renameListName.trim()}>
-            Rename
+            {copy.listSelector.rename}
           </Button>
         </DialogActions>
       </Dialog>

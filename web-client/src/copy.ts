@@ -283,7 +283,6 @@ export const copy = {
     searching: 'Searching…',
     searchFailed: 'Search failed',
     retry: 'Retry',
-    results: (n: number) => `${n} result${n === 1 ? '' : 's'}`,
     add: 'Add',
     addEntry: (char: string, pinyin: string) => `Add ${char}, ${pinyin}`,
     added: 'Added',
@@ -337,8 +336,37 @@ export const copy = {
     // Words to try on an empty bank. A tap searches for one.
     suggestions: ['你好', '朋友', '学习'],
   },
+  // The catalogue in the New list dialog and on an empty bank. The names of
+  // the lists are data, in the catalogue.
+  premadeLists: {
+    heading: 'Premade lists',
+    size: (n: number) => `${n.toLocaleString('en-GB')} words`,
+    // The confirmation, before the words the learner has are counted.
+    confirmSize: (n: number) => `${n.toLocaleString('en-GB')} words.`,
+    // The new words are the words of the list that the learner does not have.
+    confirmHeld: (n: number, held: number) =>
+      held === 0
+        ? `${n.toLocaleString('en-GB')} new words.`
+        : `${(n - held).toLocaleString('en-GB')} new words. ${held.toLocaleString('en-GB')} already added.`,
+    add: 'Add list',
+    adding: 'Adding…',
+    loadFailed: 'Couldn’t load lists',
+    toastAdded: (name: string) => `Added ${name}`,
+    toastFailed: 'Failed to add list',
+  },
   // The list control of the signed-out home page.
   listSelector: {
+    activeList: 'Active list',
+    allLists: 'All Lists',
+    due: (n: number) => `${n} due`,
+    createLabel: 'Create new list',
+    renameLabel: 'Rename list',
+    deleteLabel: 'Delete list',
+    renameTitle: 'Rename List',
+    rename: 'Rename',
+    createTitle: 'New list',
+    listName: 'List name',
+    create: 'Create',
     deleteTitle: 'Delete List',
     deleteBody: (name: string) => `Delete “${name}”? Words only in this list are deleted.`,
     cancel: 'Cancel',

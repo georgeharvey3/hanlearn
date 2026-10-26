@@ -30,6 +30,24 @@ export async function searchWord(character: string, charSet: 'simp' | 'trad'): P
 }
 
 /**
+ * The search of the Add Words screen: hanzi, pinyin or English, ranked on the
+ * server, at most 30 entries.
+ */
+export async function searchDictionary(query: string, charSet: 'simp' | 'trad'): Promise<Word[]> {
+  const parsed = searchInputSchema.safeParse(query);
+  if (!parsed.success || parsed.data.length === 0) return [];
+
+  return traceAsync('dictionary_search', async () => {
+    const fn = httpsCallable<{ query: string; charSet: string }, Word[]>(
+      functions,
+      'dictionarySearch',
+    );
+    const result = await retryTransient(() => fn({ query: parsed.data, charSet }));
+    return result.data;
+  });
+}
+
+/**
  * Look up a single simplified character to get its pinyin and traditional form.
  */
 export async function lookupCharacter(

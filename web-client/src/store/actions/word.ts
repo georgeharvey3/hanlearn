@@ -20,6 +20,7 @@ import {
 } from '../../types/actions';
 import { ListStats } from '../../types/store';
 import * as wordService from '../../services/wordService';
+import { loadPremadeEntries, PremadeList } from '../../services/premadeListService';
 import { recordTestCompletion } from '../../services/streakService';
 import { recordLevelSnapshot } from '../../services/retentionService';
 import { levelCounts } from '../../utils/dashboard';
@@ -258,6 +259,33 @@ export const postCreateWordList = (name: string): AppThunk => {
       console.error('Failed to create word list:', error);
       Sentry.captureException(error);
       dispatch(showNotification('Failed to create list', 'error'));
+    }
+  };
+};
+
+/**
+ * Add a premade list: make a word list from it and make that the active list.
+ * Resolves to whether the list was added.
+ */
+export const postAddPremadeList = (premade: PremadeList): AppThunk<Promise<boolean>> => {
+  return async (dispatch, getState) => {
+    const { auth } = getState();
+    if (!auth.userId) return false;
+
+    try {
+      const entries = await loadPremadeEntries(premade.id);
+      const { list } = await wordService.addPremadeList(auth.userId, premade.name, entries);
+      dispatch(addWordList(list));
+      await dispatch(switchActiveList(list.id));
+      await dispatch(refreshListStats());
+      dispatch(showNotification(copy.premadeLists.toastAdded(premade.name)));
+      trackFeatureUsage('premade_list_added');
+      return true;
+    } catch (error) {
+      console.error('Failed to add premade list:', error);
+      Sentry.captureException(error);
+      dispatch(showNotification(copy.premadeLists.toastFailed, 'error'));
+      return false;
     }
   };
 };

@@ -69,6 +69,7 @@ const FILES = [
   'components/AddWords/SearchResults.tsx',
   'components/AddWords/ListDialogs.tsx',
   'components/AddWords/BankStates.tsx',
+  'components/UI/ListSelector/ListSelector.tsx',
   'containers/Dashboard/Dashboard.tsx',
   'containers/Dashboard/widgets/parts.tsx',
   'containers/Dashboard/widgets/TodayCard.tsx',

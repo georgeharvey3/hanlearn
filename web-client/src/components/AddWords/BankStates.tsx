@@ -110,11 +110,15 @@ export const BankLoadError: React.FC<{ onRetry: () => void }> = ({ onRetry }) =>
   </Box>
 );
 
-/** An empty bank or list: the faint 字, a title, and words to try. */
-export const BankEmpty: React.FC<{ title: string; onTry: (word: string) => void }> = ({
-  title,
-  onTry,
-}) => (
+/**
+ * An empty bank or list: the faint 字, a title, and words to try. `children`
+ * comes last, for the premade lists of an empty bank.
+ */
+export const BankEmpty: React.FC<{
+  title: string;
+  onTry: (word: string) => void;
+  children?: React.ReactNode;
+}> = ({ title, onTry, children }) => (
   <Box
     sx={{
       pt: 7,
@@ -151,5 +155,6 @@ export const BankEmpty: React.FC<{ title: string; onTry: (word: string) => void 
         </ButtonBase>
       ))}
     </Box>
+    {children && <Box sx={{ alignSelf: 'stretch', mt: 4 }}>{children}</Box>}
   </Box>
 );

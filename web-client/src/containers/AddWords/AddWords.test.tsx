@@ -215,8 +215,7 @@ describe('AddWords — the search', () => {
     mockedWordService.searchWord.mockResolvedValue([hao, hao4]);
 
     await searchFor('好');
-    expect(await screen.findByText('2 results')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add 好, hǎo' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Add 好, hǎo' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add 好, hào' })).toBeInTheDocument();
     // The results take the place of the word list.
     expect(screen.queryByText('附近')).not.toBeInTheDocument();
@@ -270,12 +269,32 @@ describe('AddWords — the search', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('says when nothing in the bank matches a search in pinyin or English', async () => {
+  it('says No match, with no own-word form, when a search in pinyin or English finds nothing', async () => {
     renderBank([farWord]);
     await screen.findByText('附近');
 
     await searchFor('zzz');
     expect(await screen.findByText('No match')).toBeInTheDocument();
+    expect(mockedWordService.searchWord).toHaveBeenCalledWith('zzz', 'trad');
+    expect(screen.queryByText(/No entry for/)).not.toBeInTheDocument();
+  });
+
+  it('asks the dictionary for a search in pinyin or English', async () => {
+    const hao = word('好', 'hǎo', 'good; well', 1, 9);
+    renderBank([farWord]);
+    await screen.findByText('附近');
+    mockedWordService.searchWord.mockResolvedValue([hao]);
+
+    await searchFor('hao');
+    expect(await screen.findByRole('button', { name: 'Add 好, hǎo' })).toBeInTheDocument();
+  });
+
+  it('filters the bank only for one Latin letter', async () => {
+    renderBank([farWord]);
+    await screen.findByText('附近');
+
+    await searchFor('f');
+    expect(await screen.findByText('In your bank')).toBeInTheDocument();
     expect(mockedWordService.searchWord).not.toHaveBeenCalled();
   });
 
@@ -337,7 +356,7 @@ describe('AddWords — the search', () => {
     mockedWordService.searchWord.mockResolvedValue([hao]);
 
     await searchFor('好');
-    await screen.findByText('1 result');
+    await screen.findByRole('button', { name: 'Add 好, hǎo' });
     await userEvent.click(screen.getByRole('button', { name: 'Clear' }));
     expect(screen.getByRole('textbox', { name: 'Search a Chinese word' })).toHaveValue('');
     expect(screen.getByRole('heading', { name: 'General · 1 word' })).toBeInTheDocument();

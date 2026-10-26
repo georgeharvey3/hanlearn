@@ -17,6 +17,7 @@ import {
   deleteField,
   type DocumentReference,
   type FieldValue,
+  type WriteBatch,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import {
@@ -40,11 +41,7 @@ import {
   nextLapses,
   nextMemory,
 } from '../utils/scheduling';
-import {
-  searchWord as searchDictionary,
-  lookupCharacter,
-  lookupCharacterByTrad,
-} from './dictionaryService';
+import { searchDictionary, lookupCharacter, lookupCharacterByTrad } from './dictionaryService';
 import { addSessionToBatch } from './retentionService';
 import type { ReviewOutcome } from '../utils/retention';
 import {
@@ -121,6 +118,9 @@ interface UserWordDocument {
   listId?: string;
   directions?: Partial<Record<Direction, StoredDirectionState>>;
 }
+
+/** Firestore writes at most 500 operations in one batch. */
+const BATCH_LIMIT = 500;
 
 /**
  * The lists that hold a word. A document the backfill has not reached reads its
@@ -310,12 +310,11 @@ export const deleteWordList = async (userId: string, listId: string): Promise<vo
   const snapshot = await getDocs(q);
   const listRef = doc(db, 'users', userId, 'wordLists', listId);
 
-  // Chunk into batches of 499 to stay under the 500 limit, and reserve one
-  // slot for the list document in the final batch.
-  const BATCH_LIMIT = 499;
+  // Reserve one slot of each batch for the list document, which goes in the last.
+  const WORDS_PER_BATCH = BATCH_LIMIT - 1;
   let i = 0;
   do {
-    const chunk = snapshot.docs.slice(i, i + BATCH_LIMIT);
+    const chunk = snapshot.docs.slice(i, i + WORDS_PER_BATCH);
     const batch = writeBatch(db);
     chunk.forEach((wordDoc) => {
       const listIds = readListIds(wordDoc.data() as UserWordDocument);
@@ -325,7 +324,7 @@ export const deleteWordList = async (userId: string, listId: string): Promise<vo
         batch.update(wordDoc.ref, { listIds: arrayRemove(listId) });
       }
     });
-    i += BATCH_LIMIT;
+    i += WORDS_PER_BATCH;
     if (i >= snapshot.docs.length) batch.delete(listRef);
     await batch.commit();
   } while (i < snapshot.docs.length);
@@ -373,6 +372,63 @@ export const getDueUserWords = async (userId: string, listId?: string): Promise<
 };
 
 /**
+ * The due date of a new word. A learner with more than 9 words meets it
+ * tomorrow, and one with fewer meets it today.
+ */
+function newWordDueDate(wordCount: number): Timestamp {
+  const dueDate = new Date();
+  if (wordCount > 9) {
+    dueDate.setDate(dueDate.getDate() + 1);
+  }
+  return Timestamp.fromDate(dueDate);
+}
+
+/** The longest meaning that firestore.rules lets a new word store. */
+const MEANING_LIMIT = 500;
+
+/**
+ * A dictionary meaning that fits the rules. A few CC-CEDICT entries (点, 就)
+ * are longer, so the meaning is cut after its last whole sense that fits.
+ */
+function storableMeaning(meaning: string): string {
+  if (meaning.length <= MEANING_LIMIT) return meaning;
+  const cut = meaning.lastIndexOf('/', MEANING_LIMIT);
+  return cut > 0 ? meaning.slice(0, cut) : meaning.slice(0, MEANING_LIMIT);
+}
+
+/** The document of a new word in one list. */
+function newWordDocument(word: Word, dueDate: Timestamp, listId: string): UserWordDocument {
+  return {
+    wordId: word.id.toString(),
+    wordData: {
+      simp: word.simp,
+      trad: word.trad,
+      pinyin: word.pinyin,
+      meaning: storableMeaning(word.meaning),
+    },
+    amendedMeaning: null,
+    // A new word starts at bank 1 in all five directions, so the two derived
+    // fields are the same values.
+    bank: 1,
+    dueDate,
+    directions: storedDirections(1, dueDate),
+    addedAt: Timestamp.now(),
+    listIds: [listId],
+  };
+}
+
+/**
+ * The `listIds` write that puts a word the learner has into one more list. A
+ * document the backfill has not reached holds its list in `listId`, which an
+ * array union would drop, so it gets the whole array.
+ */
+function joinList(data: UserWordDocument, listId: string): { listIds: string[] | FieldValue } {
+  return {
+    listIds: data.listIds?.length ? arrayUnion(listId) : [...readListIds(data), listId],
+  };
+}
+
+/**
  * Add a word to one of the user's lists.
  *
  * A word the learner already has goes into the list and keeps its schedule:
@@ -389,46 +445,16 @@ export const addWordToList = async (
   if (existing.exists()) {
     const data = existing.data() as UserWordDocument;
     const listIds = readListIds(data);
-    // A document the backfill has not reached holds its list in `listId`,
-    // which an array union would drop, so it gets the whole array.
-    await updateDoc(userWordRef, {
-      listIds: data.listIds?.length ? arrayUnion(listId) : [...listIds, listId],
-    });
+    await updateDoc(userWordRef, joinList(data, listId));
     return {
       ...mapDocumentToWord(existing as any, true),
       listIds: listIds.includes(listId) ? listIds : [...listIds, listId],
     };
   }
 
-  // Get count of existing words to determine initial due date
   const userWordsRef = collection(db, 'users', userId, 'userWords');
   const snapshot = await getDocs(userWordsRef);
-  const wordCount = snapshot.size;
-
-  // If more than 9 words, set due date to tomorrow; otherwise today
-  const dueDate = new Date();
-  if (wordCount > 9) {
-    dueDate.setDate(dueDate.getDate() + 1);
-  }
-
-  const dueTimestamp = Timestamp.fromDate(dueDate);
-  await setDoc(userWordRef, {
-    wordId: word.id.toString(),
-    wordData: {
-      simp: word.simp,
-      trad: word.trad,
-      pinyin: word.pinyin,
-      meaning: word.meaning,
-    },
-    amendedMeaning: null,
-    // A new word starts at bank 1 in all five directions, so the two derived
-    // fields are the same values.
-    bank: 1,
-    dueDate: dueTimestamp,
-    directions: storedDirections(1, dueTimestamp),
-    addedAt: Timestamp.now(),
-    listIds: [listId],
-  });
+  await setDoc(userWordRef, newWordDocument(word, newWordDueDate(snapshot.size), listId));
   return null;
 };
 
@@ -603,11 +629,11 @@ export const finishTest = async (
 };
 
 /**
- * Search for a word in the dictionary by character.
- * Uses static dictionary JSON instead of Firestore for cost efficiency.
+ * The search of the Add Words screen: hanzi, pinyin or English, ranked by the
+ * dictionarySearch Cloud Function.
  */
-export const searchWord = async (character: string, charSet: 'simp' | 'trad'): Promise<Word[]> => {
-  return searchDictionary(character, charSet);
+export const searchWord = async (query: string, charSet: 'simp' | 'trad'): Promise<Word[]> => {
+  return searchDictionary(query, charSet);
 };
 
 /**
@@ -684,6 +710,77 @@ export const setListsOfWord = async (
   }
   const wordRef = doc(db, 'users', userId, 'userWords', wordId.toString());
   await updateDoc(wordRef, { listIds });
+};
+
+// ─── Premade lists ───────────────────────────────────────────────────────────
+
+/** The learner's words, by word ID, from one read of the whole collection. */
+async function readHeldWords(userId: string): Promise<Map<string, UserWordDocument>> {
+  const snapshot = await getDocs(collection(db, 'users', userId, 'userWords'));
+  return new Map(snapshot.docs.map((d) => [d.id, d.data() as UserWordDocument]));
+}
+
+/** How many of these words the learner has, in any list. */
+export const countHeldWords = async (userId: string, wordIds: number[]): Promise<number> => {
+  const held = await readHeldWords(userId);
+  return wordIds.filter((id) => held.has(id.toString())).length;
+};
+
+export interface PremadeListResult {
+  list: WordList;
+  /** The words the import created, as new words. */
+  added: number;
+  /** The words the learner had, which kept their schedule and joined the list. */
+  held: number;
+}
+
+/**
+ * Add a premade list: make a word list with its name, and put each of its
+ * words in it. A word the learner has keeps its schedule and its other lists.
+ * Every other word is created as a new word, due like a word added by hand.
+ *
+ * The new words share one due date, and the session ranks words due on the
+ * same day in a random order, so the order of the source does not set the
+ * order of study.
+ *
+ * If a batch fails, the new list is deleted with the delete rule of a list:
+ * the words the import created are in no other list, so they go with it, and
+ * the words the learner had keep their schedule. The error is then rethrown.
+ */
+export const addPremadeList = async (
+  userId: string,
+  name: string,
+  entries: Word[],
+): Promise<PremadeListResult> => {
+  const heldWords = await readHeldWords(userId);
+  const list = await createWordList(userId, name);
+  const dueDate = newWordDueDate(heldWords.size);
+
+  const writes: ((batch: WriteBatch) => void)[] = [];
+  let held = 0;
+  for (const entry of entries) {
+    const ref = doc(db, 'users', userId, 'userWords', entry.id.toString());
+    const data = heldWords.get(entry.id.toString());
+    if (data) {
+      held++;
+      writes.push((batch) => batch.update(ref, joinList(data, list.id)));
+    } else {
+      writes.push((batch) => batch.set(ref, newWordDocument(entry, dueDate, list.id)));
+    }
+  }
+
+  try {
+    for (let i = 0; i < writes.length; i += BATCH_LIMIT) {
+      const batch = writeBatch(db);
+      writes.slice(i, i + BATCH_LIMIT).forEach((write) => write(batch));
+      await batch.commit();
+    }
+  } catch (error) {
+    await deleteWordList(userId, list.id);
+    throw error;
+  }
+
+  return { list, added: entries.length - held, held };
 };
 
 /**
