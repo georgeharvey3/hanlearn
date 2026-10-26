@@ -42,6 +42,36 @@ still hold them:
 | `qaCombinations` | `DIRECTIONS`                                      |
 | "QA combination" | Direction                                         |
 
+## Word list and premade list
+
+A **word list** is a named group of the learner's words. The learner owns it:
+they can rename it, delete it, and put words in and take them out. A word can
+be in more than one list. The schedule belongs to the word and not to the list,
+so a word in two lists has one memory, and a review from either list moves it.
+**General** is the built-in list. It is a list like any other, and a word is in
+it only when the learner, or the app on their behalf, puts it there. The one
+difference is that the learner cannot delete General.
+
+Every word is in at least one list. A word that leaves its last list is deleted
+with its memory, whether the learner takes it out or deletes the list. Deleting
+a list takes it off each of its words, and a word that is still in another list
+stays, with its schedule.
+
+A **premade list** is an entry in a catalogue that the app ships, for example
+a set of words for one exam level. When the learner **adds** a premade list,
+the app makes an ordinary word list from it. After that, the word list belongs
+to the learner, and nothing links it back to the catalogue: a change to the
+catalogue does not change the learner's list.
+
+A word of the premade list that the learner already has keeps its schedule and
+goes into the new list too. Every other word enters as a new word, due at once,
+like a word the learner adds by hand. The cap on new words per session sets the
+pace, and the words of one import come in a random order.
+
+Each word of a premade list is one dictionary entry. A word of the source that
+has more than one entry takes the one a person chose for it, and the choice is
+recorded with the catalogue.
+
 ## Stability, difficulty and interval
 
 FSRS schedules the reviews. It holds two numbers for the memory of one
