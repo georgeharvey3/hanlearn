@@ -83,6 +83,7 @@ vi.mock('pinyin-pro', () => ({
 }));
 
 import { renderHook, act } from '@testing-library/react';
+import { pinyin } from 'pinyin-pro';
 import { useTestEngine } from './useTestEngine';
 import { Word } from '../../types/models';
 import { Props } from './types';
@@ -852,6 +853,41 @@ describe('useTestEngine — speech fills the answer input and sends nothing', ()
     expect(result.current.state.answerInput).not.toBe('');
     expect(result.current.state.idkDisabled).toBe(false);
     expect(result.current.state.gradeList).toEqual([]);
+  });
+
+  it('grades a pass when a spoken answer reads its neutral tone as 0', () => {
+    const { speak } = setupSpeechRecognition();
+    const pair = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
+    const sparePair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const result = renderEngineWithState(
+      {
+        answerCategory: 'pinyin',
+        answer: 'peng2 you5',
+        chosenCharacter: '朋友',
+        pinyinQuizType: 'input',
+        useAutoRecord: false,
+        currentPair: pair,
+        testSet: [makeWord()],
+        queue: [pair, sparePair],
+        charSet: 'simp',
+      },
+      { speechAvailable: true },
+    );
+    // pinyin-pro reads a neutral tone as 0.
+    vi.mocked(pinyin).mockReturnValueOnce(['peng2', 'you0'] as any);
+
+    act(() => {
+      result.current.onListen();
+    });
+    act(() => {
+      speak('朋友');
+    });
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+
+    expect(result.current.state.answerInput).toBe('peng2 you0');
+    expect(result.current.state.result).toBe('Correct');
   });
 });
 

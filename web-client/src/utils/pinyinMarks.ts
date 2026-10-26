@@ -8,7 +8,7 @@ import { convert } from 'pinyin-pro';
  * writes ü as "u:", and a neutral tone as 5, which has no mark.
  */
 export function toneMarks(numbered: string): string {
-  const plain = numbered.replace(/u:/gi, 'v').replace(/([a-zA-Z])5/g, '$1');
+  const plain = dropNeutralTone(numbered).replace(/u:/gi, 'v');
   return convert(plain, { format: 'numToSymbol' });
 }
 
