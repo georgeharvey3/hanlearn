@@ -12,6 +12,7 @@
  *   ../web-client/public/premade-lists/ (the catalogue of premade lists)
  */
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
@@ -75,6 +76,17 @@ function buildCatalogue(words, outputDir) {
 }
 
 /**
+ * The SHA-256 of the one cedict_ts.u8 the app ships (2026-01-02).
+ *
+ * An entry's ID is its position in this file, and each userWords document
+ * uses that ID as its document ID. A file with one line more or less moves
+ * every later ID, and existing words then collide with other entries. So the
+ * file is frozen: a new CEDICT needs a migration of the userWords IDs first.
+ * See #427.
+ */
+const CEDICT_SHA256 = 'fca2b8d7912c0bb0f4ac87e47692a197bcdefb4fd33a088bd6b5c2d8747c0c86';
+
+/**
  * Parse a CC-CEDICT line
  * Format: 繁體 简体 [pin1 yin1] /meaning1/meaning2/
  */
@@ -113,6 +125,14 @@ async function buildDictionary() {
   if (!fs.existsSync(cedictPath)) {
     console.error('cedict_ts.u8 not found.');
     console.error('Download CC-CEDICT from: https://www.mdbg.net/chinese/dictionary?page=cc-cedict');
+    process.exit(1);
+  }
+
+  const sha256 = crypto.createHash('sha256').update(fs.readFileSync(cedictPath)).digest('hex');
+  if (sha256 !== CEDICT_SHA256) {
+    console.error('cedict_ts.u8 changed (SHA-256 ' + sha256 + ').');
+    console.error('Dictionary IDs are line positions, and userWords document IDs use them.');
+    console.error('Migrate the userWords IDs before you change the file. See issue #427.');
     process.exit(1);
   }
 
