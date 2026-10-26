@@ -336,18 +336,28 @@ export const copy = {
     // Words to try on an empty bank. A tap searches for one.
     suggestions: ['你好', '朋友', '学习'],
   },
-  // The catalogue in the New list dialog and on an empty bank. The names of
-  // the lists are data, in the catalogue.
+  // The Premade lists tab of the Add words page: the catalogue, and one list of
+  // it. The names of the lists are data, in the catalogue.
   premadeLists: {
+    // The two tabs of the Add words page.
+    tabs: 'Add words',
+    mine: 'My words',
     heading: 'Premade lists',
-    size: (n: number) => `${n.toLocaleString('en-GB')} words`,
-    // The confirmation, before the words the learner has are counted.
-    confirmSize: (n: number) => `${n.toLocaleString('en-GB')} words.`,
-    // The new words are the words of the list that the learner does not have.
-    confirmHeld: (n: number, held: number) =>
+    browse: 'Browse premade lists',
+    // A list in the catalogue. The added words are the words the learner has.
+    size: (n: number, held: number) =>
       held === 0
-        ? `${n.toLocaleString('en-GB')} new words.`
-        : `${(n - held).toLocaleString('en-GB')} new words. ${held.toLocaleString('en-GB')} already added.`,
+        ? `${n.toLocaleString('en-GB')} words`
+        : `${n.toLocaleString('en-GB')} words · ${held.toLocaleString('en-GB')} added`,
+    // Under the count of new words of one list.
+    newWords: (held: number) =>
+      held === 0 ? 'new words' : `new words · ${held.toLocaleString('en-GB')} added`,
+    filterAll: 'All',
+    filterNew: (n: number) => `New ${n.toLocaleString('en-GB')}`,
+    filterAdded: (n: number) => `Added ${n.toLocaleString('en-GB')}`,
+    // The label of the words of a list, for screen readers.
+    words: 'Words',
+    allLists: 'All lists',
     add: 'Add list',
     adding: 'Adding…',
     loadFailed: 'Couldn’t load lists',

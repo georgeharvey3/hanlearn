@@ -102,7 +102,7 @@ import {
   addWordToList,
   removeWordFromList,
   setListsOfWord,
-  countHeldWords,
+  getHeldWords,
   addPremadeList,
 } from './wordService';
 import { DIRECTIONS } from '../types/models';
@@ -775,13 +775,16 @@ function heldWords(ids: number[], membership: object = { listIds: ['default'] })
   return makeFakeSnapshot(ids.map((id) => makeWordDocInLists(String(id), membership)));
 }
 
-describe('countHeldWords', () => {
+describe('getHeldWords', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('counts the words of the list that the learner has, across all lists', async () => {
+  it('returns the words of the list that the learner has, across all lists', async () => {
     mockGetDocs.mockResolvedValue(heldWords([2, 3, 99]));
 
-    expect(await countHeldWords('user-1', [1, 2, 3, 4])).toBe(2);
+    const held = await getHeldWords('user-1', [1, 2, 3, 4]);
+
+    expect(held.map((w) => w.id)).toEqual([2, 3]);
+    expect(held[0].due_date).toBeTruthy();
   });
 });
 

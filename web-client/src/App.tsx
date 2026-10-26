@@ -15,6 +15,7 @@ import { useVersionCheck } from './hooks/useVersionCheck';
 const Home = React.lazy(() => import('./containers/Home/Home'));
 const Dashboard = React.lazy(() => import('./containers/Dashboard/Dashboard'));
 const AddWords = React.lazy(() => import('./containers/AddWords/AddWords'));
+const PremadeList = React.lazy(() => import('./containers/PremadeList/PremadeList'));
 const TestWords = React.lazy(() => import('./containers/TestWords/TestWords'));
 const SettingsPage = React.lazy(() => import('./containers/SettingsPage/SettingsPage'));
 
@@ -149,6 +150,14 @@ const App: React.FC<Props> = ({
                 exact
                 render={() => (
                   <ErrorBoundary>{isAuthenticated ? <Dashboard /> : <Home />}</ErrorBoundary>
+                )}
+              />
+              <Route
+                path="/add-words/premade/:listId?"
+                render={() => (
+                  <ErrorBoundary>
+                    <PremadeList />
+                  </ErrorBoundary>
                 )}
               />
               <Route

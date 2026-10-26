@@ -406,6 +406,18 @@ describe('AddWords — the lists', () => {
     );
   });
 
+  it('opens the premade lists from their tab', async () => {
+    renderBank([farWord]);
+    expect(await screen.findByRole('tab', { name: 'My words' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Premade lists' }));
+
+    expect(window.location.pathname).toBe('/add-words/premade');
+  });
+
   it('has no list menu on General', async () => {
     renderBank([farWord]);
     await screen.findByText('附近');
@@ -453,6 +465,14 @@ describe('AddWords — empty, loading and error', () => {
 
     await userEvent.click(screen.getByRole('button', { name: '你好' }));
     await waitFor(() => expect(mockedWordService.searchWord).toHaveBeenCalledWith('你好', 'trad'));
+  });
+
+  it('links an empty bank to the premade lists', async () => {
+    renderBank([], {});
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Browse premade lists' }));
+
+    expect(window.location.pathname).toBe('/add-words/premade');
   });
 
   it('says a list is empty when other lists hold words', async () => {
