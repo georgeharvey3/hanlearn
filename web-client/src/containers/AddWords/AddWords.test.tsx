@@ -51,7 +51,7 @@ const word = (
   meaning: string,
   level: number,
   dueIn: number,
-  listId = 'default',
+  listIds = ['default'],
 ): Word => ({
   id: nextId++,
   simp,
@@ -60,7 +60,7 @@ const word = (
   meaning,
   level,
   due_date: ymd(dueIn),
-  listId,
+  listIds,
   directions: makeDirections(level, ymd(dueIn)),
 });
 
@@ -76,7 +76,10 @@ const newWord = word('天气', 'tiān qì', 'weather', 1, 0);
 /** Render the bank with the words the service returns for the active list. */
 function renderBank(
   words: Word[] = [farWord],
-  stats: Record<string, ListStats> = { default: { due: 1, total: words.length } },
+  stats: Record<string, ListStats> = {
+    default: { due: 1, total: words.length },
+    __all__: { due: 1, total: words.length },
+  },
 ) {
   mockedWordService.getUserWords.mockResolvedValue(words);
   mockedWordService.getListStats.mockResolvedValue(stats);
@@ -95,9 +98,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockedWordService.getUserWordLists.mockResolvedValue(LISTS);
   mockedWordService.searchWord.mockResolvedValue([]);
-  mockedWordService.addWordToList.mockResolvedValue(undefined);
-  mockedWordService.removeWordFromList.mockResolvedValue(undefined);
-  mockedWordService.moveWordToList.mockResolvedValue(undefined);
+  mockedWordService.addWordToList.mockResolvedValue(null);
+  mockedWordService.removeWordFromList.mockResolvedValue(true);
+  mockedWordService.setListsOfWord.mockResolvedValue(undefined);
 });
 
 describe('AddWords — the word rows', () => {
@@ -139,33 +142,66 @@ describe('AddWords — the word rows', () => {
     expect(screen.getByText('Hard to recall: Character → Meaning')).toBeInTheDocument();
   });
 
-  it('opens a row to play, move and remove the word', async () => {
+  it('opens a row to play the word and to put it into a second list', async () => {
     renderBank([farWord]);
     await userEvent.click(await screen.findByText('附近'));
 
     await userEvent.click(screen.getByRole('button', { name: 'Play' }));
     expect(ttsService.speak).toHaveBeenCalledWith('附近', expect.anything());
 
-    await userEvent.click(screen.getByRole('button', { name: 'HSK 3' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Edit lists' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Lists for 附近' });
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: 'HSK 3' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
     await waitFor(() =>
-      expect(mockedWordService.moveWordToList).toHaveBeenCalledWith(
-        'test-user-123',
-        farWord.id,
+      expect(mockedWordService.setListsOfWord).toHaveBeenCalledWith('test-user-123', farWord.id, [
+        'default',
         'hsk3',
-      ),
+      ]),
     );
   });
 
-  it('removes a word from an opened row', async () => {
+  it('does not let the learner clear the last list of a word', async () => {
+    renderBank([farWord]);
+    await userEvent.click(await screen.findByText('附近'));
+    await userEvent.click(screen.getByRole('button', { name: 'Edit lists' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Lists for 附近' });
+    expect(within(dialog).getByRole('checkbox', { name: 'General' })).toBeDisabled();
+  });
+
+  it('asks before it deletes a word that no other list holds', async () => {
     renderBank([farWord]);
     await userEvent.click(await screen.findByText('附近'));
     await userEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    expect(mockedWordService.removeWordFromList).not.toHaveBeenCalled();
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete 附近?' });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
     await waitFor(() =>
       expect(mockedWordService.removeWordFromList).toHaveBeenCalledWith(
         'test-user-123',
         farWord.id,
+        'default',
       ),
     );
+  });
+
+  it('takes a word in two lists out of the active list without asking', async () => {
+    const shared = word('朋友', 'péng you', 'friend', 3, 9, ['default', 'hsk3']);
+    mockedWordService.removeWordFromList.mockResolvedValue(false);
+    renderBank([shared]);
+    await userEvent.click(await screen.findByText('朋友'));
+
+    expect(screen.getByText('General, HSK 3')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Remove from General' }));
+    await waitFor(() =>
+      expect(mockedWordService.removeWordFromList).toHaveBeenCalledWith(
+        'test-user-123',
+        shared.id,
+        'default',
+      ),
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
 
@@ -310,12 +346,17 @@ describe('AddWords — the search', () => {
 
 describe('AddWords — the lists', () => {
   it('shows a chip for each list, with its word count', async () => {
-    renderBank([farWord], { default: { due: 0, total: 1 }, hsk3: { due: 2, total: 5 } });
+    // farWord is in both lists, so All lists counts it one time.
+    renderBank([farWord], {
+      default: { due: 0, total: 1 },
+      hsk3: { due: 2, total: 5 },
+      __all__: { due: 2, total: 5 },
+    });
     const tabs = await screen.findByRole('tablist', { name: 'Lists' });
     await waitFor(() =>
       expect(within(tabs).getByRole('tab', { name: 'HSK 3 5' })).toBeInTheDocument(),
     );
-    expect(within(tabs).getByRole('tab', { name: 'All lists 6' })).toBeInTheDocument();
+    expect(within(tabs).getByRole('tab', { name: 'All lists 5' })).toBeInTheDocument();
     expect(within(tabs).getByRole('tab', { name: 'General 1' })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -355,8 +396,9 @@ describe('AddWords — the lists', () => {
   it('renames and deletes a list from its menu', async () => {
     mockedWordService.renameWordList.mockResolvedValue(undefined);
     mockedWordService.deleteWordList.mockResolvedValue(undefined);
-    const hskWord = word('检查', 'jiǎn chá', 'to check', 4, 30, 'hsk3');
-    renderBank([hskWord]);
+    const hskWord = word('检查', 'jiǎn chá', 'to check', 4, 30, ['hsk3']);
+    const shared = word('朋友', 'péng you', 'friend', 3, 9, ['default', 'hsk3']);
+    renderBank([hskWord, shared]);
     await userEvent.click(await screen.findByRole('tab', { name: /HSK 3/ }));
 
     await userEvent.click(await screen.findByRole('button', { name: 'List actions' }));
@@ -376,7 +418,8 @@ describe('AddWords — the lists', () => {
     // The rename dialog hides the page until its exit transition ends.
     await userEvent.click(await screen.findByRole('button', { name: 'List actions' }));
     await userEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
-    expect(screen.getByText('Its 1 word go too.')).toBeInTheDocument();
+    // The shared word stays in General, so the delete counts one word.
+    expect(screen.getByText('Deletes 1 word.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
     await waitFor(() =>
       expect(mockedWordService.deleteWordList).toHaveBeenCalledWith('test-user-123', 'hsk3'),
@@ -394,7 +437,11 @@ describe('AddWords — empty, loading and error', () => {
   });
 
   it('says a list is empty when other lists hold words', async () => {
-    renderBank([], { default: { due: 0, total: 0 }, hsk3: { due: 0, total: 4 } });
+    renderBank([], {
+      default: { due: 0, total: 0 },
+      hsk3: { due: 0, total: 4 },
+      __all__: { due: 0, total: 4 },
+    });
     expect(await screen.findByText('This list is empty')).toBeInTheDocument();
   });
 

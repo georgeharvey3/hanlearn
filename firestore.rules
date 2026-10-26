@@ -50,6 +50,15 @@ service cloud.firestore {
       return !('directions' in data.keys()) || validDirections(data.directions);
     }
 
+    // The lists that hold a word. Every word is in at least one list, so the
+    // array is never empty. Rules cannot test each item, so the client keeps
+    // the item type. A document the backfill has not reached holds `listId`
+    // in its place, so the field is checked only when it is present.
+    function listIdsOk(data) {
+      return !('listIds' in data.keys())
+        || (data.listIds is list && data.listIds.size() >= 1);
+    }
+
     // Words collection - read-only for authenticated users
     match /words/{wordId} {
       allow read: if request.auth != null;
@@ -78,6 +87,7 @@ service cloud.firestore {
         allow create: if request.auth != null && request.auth.uid == userId
           && request.resource.data.keys().hasAll(['wordData', 'bank', 'dueDate'])
           && directionsOk(request.resource.data)
+          && listIdsOk(request.resource.data)
           && request.resource.data.bank is int
           && request.resource.data.bank >= 1
           && request.resource.data.bank <= 5
@@ -98,7 +108,9 @@ service cloud.firestore {
               || (request.resource.data.amendedMeaning is string
                   && request.resource.data.amendedMeaning.size() <= 500))
           && (!('directions' in request.resource.data.diff(resource.data).affectedKeys())
-              || validDirections(request.resource.data.directions));
+              || validDirections(request.resource.data.directions))
+          && (!('listIds' in request.resource.data.diff(resource.data).affectedKeys())
+              || listIdsOk(request.resource.data));
         allow delete: if request.auth != null && request.auth.uid == userId;
       }
 

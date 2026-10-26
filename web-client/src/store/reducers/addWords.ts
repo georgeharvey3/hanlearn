@@ -3,7 +3,7 @@ import { Word } from '../../types/models';
 import { AddWordsState } from '../../types/store';
 import { WordAction } from '../../types/actions';
 import { makeDirections } from '../../utils/directions';
-import { DEFAULT_LIST_ID, readActiveList } from '../../utils/activeList';
+import { ALL_LISTS_ID, DEFAULT_LIST_ID, readActiveList } from '../../utils/activeList';
 
 const DEFAULT_LIST = { id: DEFAULT_LIST_ID, name: 'General', createdAt: '', order: 0 };
 
@@ -65,6 +65,15 @@ const reducer = (state = initialState(), action: WordAction): AddWordsState => {
         words: insertSorted(state.words, word),
       };
     }
+    case actionTypes.ADD_EXISTING_WORD: {
+      // The word keeps the schedule it had in its other lists. In the
+      // all-lists view it can be in the store already, so it is replaced.
+      const others = state.words.filter((word) => word.id !== action.word.id);
+      return {
+        ...state,
+        words: insertSorted(others, action.word),
+      };
+    }
     case actionTypes.ADD_CUSTOM_WORD: {
       const customDueDate = formatInitialDueDate(state.words.length);
       const customWord = {
@@ -95,15 +104,16 @@ const reducer = (state = initialState(), action: WordAction): AddWordsState => {
         words: newWordsMeaning,
       };
     }
-    case actionTypes.MOVE_WORD: {
-      // In cross-list view, keep the word but update its listId.
-      // In a specific list view, remove the word once it leaves the active list.
-      const newWords =
-        state.activeListId === '__all__'
-          ? state.words.map((word) =>
-              word.id === action.wordID ? { ...word, listId: action.newListId } : word,
-            )
-          : state.words.filter((word) => word.id !== action.wordID);
+    case actionTypes.SET_LISTS_OF_WORD: {
+      // The store holds the words of the active list, so a word that leaves
+      // the active list leaves the store. In the all-lists view it stays.
+      const stays =
+        state.activeListId === ALL_LISTS_ID || action.listIds.includes(state.activeListId);
+      const newWords = stays
+        ? state.words.map((word) =>
+            word.id === action.wordID ? { ...word, listIds: action.listIds } : word,
+          )
+        : state.words.filter((word) => word.id !== action.wordID);
       return {
         ...state,
         words: newWords,

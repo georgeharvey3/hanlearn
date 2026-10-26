@@ -1,6 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { assertSucceeds, assertFails, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, setDoc, updateDoc, increment, Timestamp, type Firestore } from 'firebase/firestore';
+import {
+  doc,
+  setDoc,
+  updateDoc,
+  increment,
+  arrayUnion,
+  arrayRemove,
+  deleteField,
+  Timestamp,
+  type Firestore,
+} from 'firebase/firestore';
 
 import { loadRules, asUser } from './helpers';
 
@@ -54,7 +64,7 @@ beforeEach(async () => {
 
 describe('userWords', () => {
   /** A word document in place, written past the rules so a test can update it. */
-  async function seedWord() {
+  async function seedWord(membership: Record<string, unknown> = {}) {
     await env.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(ref(ctx.firestore() as unknown as Firestore, 'users/user-1/userWords/1'), {
         wordData: { simp: '好', trad: '好', pinyin: 'hǎo', meaning: 'good' },
@@ -62,9 +72,89 @@ describe('userWords', () => {
         bank: 3,
         dueDate: Timestamp.now(),
         addedAt: Timestamp.now(),
+        ...membership,
       });
     });
   }
+
+  /** A new word, as `addWordToList` creates one. */
+  function newWord(listIds: unknown) {
+    const dueDate = Timestamp.now();
+    return {
+      wordId: '1',
+      wordData: { simp: '好', trad: '好', pinyin: 'hǎo', meaning: 'good' },
+      amendedMeaning: null,
+      bank: 1,
+      dueDate,
+      directions: DIRECTIONS.reduce<Record<string, unknown>>((acc, direction) => {
+        acc[direction] = { bank: 1, dueDate };
+        return acc;
+      }, {}),
+      addedAt: Timestamp.now(),
+      listIds,
+    };
+  }
+
+  it('accepts a new word in a list', async () => {
+    await assertSucceeds(setDoc(ref(db, 'users/user-1/userWords/1'), newWord(['hsk1'])));
+  });
+
+  it('rejects a new word in no list', async () => {
+    await assertFails(setDoc(ref(db, 'users/user-1/userWords/1'), newWord([])));
+  });
+
+  it('rejects a new word whose lists are not a list', async () => {
+    await assertFails(setDoc(ref(db, 'users/user-1/userWords/1'), newWord('hsk1')));
+  });
+
+  it('accepts a word put into a second list', async () => {
+    await seedWord({ listIds: ['default'] });
+
+    await assertSucceeds(
+      updateDoc(ref(db, 'users/user-1/userWords/1'), { listIds: arrayUnion('hsk1') }),
+    );
+  });
+
+  it('accepts a word taken out of one of its two lists', async () => {
+    await seedWord({ listIds: ['default', 'hsk1'] });
+
+    await assertSucceeds(
+      updateDoc(ref(db, 'users/user-1/userWords/1'), { listIds: arrayRemove('hsk1') }),
+    );
+  });
+
+  it('accepts the lists a word is given', async () => {
+    await seedWord({ listIds: ['default'] });
+
+    await assertSucceeds(
+      updateDoc(ref(db, 'users/user-1/userWords/1'), { listIds: ['hsk1', 'default'] }),
+    );
+  });
+
+  it('accepts the backfill from listId to listIds', async () => {
+    await seedWord({ listId: 'hsk1' });
+
+    await assertSucceeds(
+      updateDoc(ref(db, 'users/user-1/userWords/1'), {
+        listIds: ['hsk1'],
+        listId: deleteField(),
+      }),
+    );
+  });
+
+  it('rejects a word taken out of its last list', async () => {
+    await seedWord({ listIds: ['hsk1'] });
+
+    await assertFails(
+      updateDoc(ref(db, 'users/user-1/userWords/1'), { listIds: arrayRemove('hsk1') }),
+    );
+  });
+
+  it('rejects lists that are not a list', async () => {
+    await seedWord({ listIds: ['default'] });
+
+    await assertFails(updateDoc(ref(db, 'users/user-1/userWords/1'), { listIds: 'hsk1' }));
+  });
 
   it('accepts the directions map a reschedule writes', async () => {
     await seedWord();

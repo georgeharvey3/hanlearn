@@ -88,7 +88,8 @@ export interface TestWord {
   meaning: string;
   bank?: number;
   dueDate?: Date;
-  listId?: string;
+  /** The lists that hold the word. Absent seeds the word in General. */
+  listIds?: string[];
   /**
    * The interval and the last review of every direction. A word that gives them
    * is seeded with a directions map, as a session writes it. A word that gives
@@ -115,7 +116,7 @@ export async function seedWords(userId: string, words: TestWord[]): Promise<void
   for (const word of words) {
     const dueDate = word.dueDate || new Date();
     const bank = word.bank || 1;
-    const listId = word.listId || 'default';
+    const listIds = word.listIds ?? ['default'];
     const reviewed = word.interval !== undefined || word.lastReview !== undefined;
 
     const url = emulatorFirestoreUrl(`users/${userId}/userWords/${word.id}`);
@@ -139,7 +140,9 @@ export async function seedWords(userId: string, words: TestWord[]): Promise<void
           bank: { integerValue: bank.toString() },
           dueDate: { timestampValue: dueDate.toISOString() },
           addedAt: { timestampValue: new Date().toISOString() },
-          listId: { stringValue: listId },
+          listIds: {
+            arrayValue: { values: listIds.map((id) => ({ stringValue: id })) },
+          },
           ...(reviewed
             ? {
                 directions: {
@@ -172,6 +175,30 @@ export async function seedWords(userId: string, words: TestWord[]): Promise<void
     if (!res.ok) {
       throw new Error(`Failed to seed word ${word.simp}: ${await res.text()}`);
     }
+  }
+}
+
+/**
+ * Seed a word list into the Firestore emulator for the test user.
+ */
+export async function seedWordList(
+  userId: string,
+  list: { id: string; name: string; order: number },
+): Promise<void> {
+  const url = emulatorFirestoreUrl(`users/${userId}/wordLists/${list.id}`);
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
+    body: JSON.stringify({
+      fields: {
+        name: { stringValue: list.name },
+        order: { integerValue: list.order.toString() },
+        createdAt: { timestampValue: new Date().toISOString() },
+      },
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to seed list ${list.name}: ${await res.text()}`);
   }
 }
 

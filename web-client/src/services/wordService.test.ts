@@ -1125,7 +1125,11 @@ describe('getDueUserWords', () => {
 
 // ─── addWordToList ────────────────────────────────────────────────────────────
 describe('addWordToList', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // The learner does not have the word yet.
+    mockGetDoc.mockResolvedValue({ exists: () => false });
+  });
 
   const sampleWord = { id: 99, simp: '书', trad: '書', pinyin: 'shū', meaning: 'book' };
 
@@ -1232,7 +1236,8 @@ describe('updateWordMeaning', () => {
 describe('addCustomWord', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // addWordToList (called internally) needs getDocs + setDoc
+    // addWordToList (called internally) needs getDoc, getDocs and setDoc
+    mockGetDoc.mockResolvedValue({ exists: () => false });
     mockGetDocs.mockResolvedValue(makeFakeSnapshot([]));
     mockSetDoc.mockResolvedValue(undefined);
   });

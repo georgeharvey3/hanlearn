@@ -12,7 +12,11 @@ import {
   orderBy,
   Timestamp,
   writeBatch,
+  arrayUnion,
+  arrayRemove,
+  deleteField,
   type DocumentReference,
+  type FieldValue,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import {
@@ -25,6 +29,7 @@ import {
   WordList,
 } from '../types/models';
 import { fillDirections } from '../utils/directions';
+import { ALL_LISTS_ID, DEFAULT_LIST_ID } from '../utils/activeList';
 import {
   bankOf,
   buriedDueDate,
@@ -106,8 +111,24 @@ interface UserWordDocument {
   bank: number;
   dueDate: Timestamp;
   addedAt: Timestamp;
+  /** The lists that hold the word, never empty. A word that leaves its last list is deleted. */
+  listIds?: string[];
+  /**
+   * The one list of a document written before a word could be in more than
+   * one. The backfill replaces it with `listIds`, and the read path reads it as
+   * a one-item `listIds` until then.
+   */
   listId?: string;
   directions?: Partial<Record<Direction, StoredDirectionState>>;
+}
+
+/**
+ * The lists that hold a word. A document the backfill has not reached reads its
+ * single `listId`, and one with neither field is in General.
+ */
+function readListIds(data: Pick<UserWordDocument, 'listIds' | 'listId'>): string[] {
+  if (data.listIds && data.listIds.length > 0) return data.listIds;
+  return [data.listId || DEFAULT_LIST_ID];
 }
 
 /**
@@ -191,7 +212,7 @@ function mapDocumentToWord(
     meaning: data.amendedMeaning || data.wordData.meaning,
     level: data.bank,
     ammended_meaning: data.amendedMeaning || undefined,
-    listId: data.listId || 'default',
+    listIds: readListIds(data),
     // Always present, whatever includeDueDate asks for: the session queue reads
     // the per-direction due dates from words that getDueUserWords returned.
     directions: readDirections(data),
@@ -276,44 +297,38 @@ export const renameWordList = async (
 };
 
 /**
- * Delete a word list and all its words
+ * Delete a word list. A word of the list that is in no other list is deleted
+ * with its schedule; a word that is in another list stays, without this list.
  */
 export const deleteWordList = async (userId: string, listId: string): Promise<void> => {
-  if (listId === 'default') {
+  if (listId === DEFAULT_LIST_ID) {
     throw new Error('Cannot delete the default word list');
   }
 
-  // Delete all words in this list (chunk into batches of 499 to stay under the 500 limit)
   const userWordsRef = collection(db, 'users', userId, 'userWords');
-  const q = query(userWordsRef, where('listId', '==', listId));
+  const q = query(userWordsRef, where('listIds', 'array-contains', listId));
   const snapshot = await getDocs(q);
+  const listRef = doc(db, 'users', userId, 'wordLists', listId);
 
-  const BATCH_LIMIT = 499; // Reserve 1 slot for the list document in the final batch
-  for (let i = 0; i < snapshot.docs.length; i += BATCH_LIMIT) {
+  // Chunk into batches of 499 to stay under the 500 limit, and reserve one
+  // slot for the list document in the final batch.
+  const BATCH_LIMIT = 499;
+  let i = 0;
+  do {
     const chunk = snapshot.docs.slice(i, i + BATCH_LIMIT);
-    const isLastChunk = i + BATCH_LIMIT >= snapshot.docs.length;
-
     const batch = writeBatch(db);
     chunk.forEach((wordDoc) => {
-      batch.delete(wordDoc.ref);
+      const listIds = readListIds(wordDoc.data() as UserWordDocument);
+      if (listIds.every((id) => id === listId)) {
+        batch.delete(wordDoc.ref);
+      } else {
+        batch.update(wordDoc.ref, { listIds: arrayRemove(listId) });
+      }
     });
-
-    // Include the list document deletion in the final batch
-    if (isLastChunk) {
-      const listRef = doc(db, 'users', userId, 'wordLists', listId);
-      batch.delete(listRef);
-    }
-
+    i += BATCH_LIMIT;
+    if (i >= snapshot.docs.length) batch.delete(listRef);
     await batch.commit();
-  }
-
-  // If there were no words, still delete the list document
-  if (snapshot.docs.length === 0) {
-    const listRef = doc(db, 'users', userId, 'wordLists', listId);
-    const batch = writeBatch(db);
-    batch.delete(listRef);
-    await batch.commit();
-  }
+  } while (i < snapshot.docs.length);
 };
 
 // ─── Word Operations ─────────────────────────────────────────────────────────
@@ -326,7 +341,7 @@ export const getUserWords = async (userId: string, listId?: string): Promise<Wor
   const userWordsRef = collection(db, 'users', userId, 'userWords');
   let q;
   if (listId) {
-    q = query(userWordsRef, where('listId', '==', listId), orderBy('dueDate', 'asc'));
+    q = query(userWordsRef, where('listIds', 'array-contains', listId), orderBy('dueDate', 'asc'));
   } else {
     q = query(userWordsRef, orderBy('dueDate', 'asc'));
   }
@@ -345,7 +360,11 @@ export const getDueUserWords = async (userId: string, listId?: string): Promise<
   const now = Timestamp.fromDate(endOfToday);
   let q;
   if (listId) {
-    q = query(userWordsRef, where('listId', '==', listId), where('dueDate', '<=', now));
+    q = query(
+      userWordsRef,
+      where('listIds', 'array-contains', listId),
+      where('dueDate', '<=', now),
+    );
   } else {
     q = query(userWordsRef, where('dueDate', '<=', now));
   }
@@ -354,13 +373,33 @@ export const getDueUserWords = async (userId: string, listId?: string): Promise<
 };
 
 /**
- * Add a word from the dictionary to the user's word list
+ * Add a word to one of the user's lists.
+ *
+ * A word the learner already has goes into the list and keeps its schedule:
+ * only `listIds` is written. Returns that word as it now stands, or null when
+ * the word is new and was created due as a new word.
  */
 export const addWordToList = async (
   userId: string,
   word: Word,
-  listId: string = 'default',
-): Promise<void> => {
+  listId: string = DEFAULT_LIST_ID,
+): Promise<Word | null> => {
+  const userWordRef = doc(db, 'users', userId, 'userWords', word.id.toString());
+  const existing = await getDoc(userWordRef);
+  if (existing.exists()) {
+    const data = existing.data() as UserWordDocument;
+    const listIds = readListIds(data);
+    // A document the backfill has not reached holds its list in `listId`,
+    // which an array union would drop, so it gets the whole array.
+    await updateDoc(userWordRef, {
+      listIds: data.listIds?.length ? arrayUnion(listId) : [...listIds, listId],
+    });
+    return {
+      ...mapDocumentToWord(existing as any, true),
+      listIds: listIds.includes(listId) ? listIds : [...listIds, listId],
+    };
+  }
+
   // Get count of existing words to determine initial due date
   const userWordsRef = collection(db, 'users', userId, 'userWords');
   const snapshot = await getDocs(userWordsRef);
@@ -373,7 +412,6 @@ export const addWordToList = async (
   }
 
   const dueTimestamp = Timestamp.fromDate(dueDate);
-  const userWordRef = doc(db, 'users', userId, 'userWords', word.id.toString());
   await setDoc(userWordRef, {
     wordId: word.id.toString(),
     wordData: {
@@ -389,16 +427,40 @@ export const addWordToList = async (
     dueDate: dueTimestamp,
     directions: storedDirections(1, dueTimestamp),
     addedAt: Timestamp.now(),
-    listId,
+    listIds: [listId],
   });
+  return null;
 };
 
 /**
- * Remove a word from the user's word list
+ * Take a word out of one list. A word that leaves its last list is deleted
+ * with its schedule. Without a list, the word is deleted from every list.
+ *
+ * Returns true when the word was deleted.
  */
-export const removeWordFromList = async (userId: string, wordId: number): Promise<void> => {
+export const removeWordFromList = async (
+  userId: string,
+  wordId: number,
+  listId?: string,
+): Promise<boolean> => {
   const wordRef = doc(db, 'users', userId, 'userWords', wordId.toString());
+  if (listId !== undefined) {
+    const snapshot = await getDoc(wordRef);
+    if (snapshot.exists()) {
+      const data = snapshot.data() as UserWordDocument;
+      const listIds = readListIds(data);
+      if (listIds.some((id) => id !== listId)) {
+        await updateDoc(wordRef, {
+          listIds: data.listIds?.length
+            ? arrayRemove(listId)
+            : listIds.filter((id) => id !== listId),
+        });
+        return false;
+      }
+    }
+  }
   await deleteDoc(wordRef);
+  return true;
 };
 
 /**
@@ -558,7 +620,7 @@ export const addCustomWord = async (
   text: string,
   meaning: string,
   charSet: 'simp' | 'trad' = 'trad',
-  listId: string = 'default',
+  listId: string = DEFAULT_LIST_ID,
 ): Promise<Word> => {
   const validatedText = customWordTextSchema.parse(text);
   const validatedMeaning = customWordMeaningSchema.parse(meaning);
@@ -601,7 +663,7 @@ export const addCustomWord = async (
     trad,
     pinyin,
     meaning: validatedMeaning,
-    listId,
+    listIds: [listId],
   };
   await addWordToList(userId, word, listId);
 
@@ -609,20 +671,27 @@ export const addCustomWord = async (
 };
 
 /**
- * Move a word to a different list
+ * Set the lists that hold a word. The schedule does not change. An empty set is
+ * refused: every word is in at least one list.
  */
-export const moveWordToList = async (
+export const setListsOfWord = async (
   userId: string,
   wordId: number,
-  newListId: string,
+  listIds: string[],
 ): Promise<void> => {
+  if (listIds.length === 0) {
+    throw new Error('A word must be in at least one list');
+  }
   const wordRef = doc(db, 'users', userId, 'userWords', wordId.toString());
-  await updateDoc(wordRef, { listId: newListId });
+  await updateDoc(wordRef, { listIds });
 };
 
 /**
  * Get word counts (total and due) grouped by list for all of a user's words.
  * Used to show due-count badges across all lists without loading every word into Redux.
+ *
+ * A word counts in each list that holds it. The `__all__` entry counts each
+ * word one time, so a sum over the lists is not the number of words.
  */
 export const getListStats = async (
   userId: string,
@@ -636,27 +705,28 @@ export const getListStats = async (
 
   snapshot.docs.forEach((d) => {
     const data = d.data() as UserWordDocument;
-    const listId = data.listId || 'default';
-    if (!stats[listId]) stats[listId] = { due: 0, total: 0 };
-    stats[listId].total++;
-
+    let isDue = false;
     if (data.dueDate) {
       const dueDate = data.dueDate.toDate();
       dueDate.setHours(0, 0, 0, 0);
-      if (dueDate <= now) {
-        stats[listId].due++;
-      }
+      isDue = dueDate <= now;
+    }
+    for (const listId of [...readListIds(data), ALL_LISTS_ID]) {
+      if (!stats[listId]) stats[listId] = { due: 0, total: 0 };
+      stats[listId].total++;
+      if (isDue) stats[listId].due++;
     }
   });
 
   return stats;
 };
 
-type WordMigration = 'listId' | 'directions';
+type WordMigration = 'listIds' | 'directions';
 
-/** The fields one migration pass can add to a userWords document. */
+/** The fields one migration pass can add to, or remove from, a userWords document. */
 type WordMigrationUpdate = {
-  listId?: string;
+  listIds?: string[];
+  listId?: FieldValue;
   directions?: Record<Direction, StoredDirectionState>;
 };
 
@@ -672,7 +742,7 @@ async function runWordMigrations(userId: string, migrations: WordMigration[]): P
   const userWordsRef = collection(db, 'users', userId, 'userWords');
   const snapshot = await getDocs(userWordsRef);
 
-  const backfillListId = migrations.includes('listId');
+  const backfillListIds = migrations.includes('listIds');
   const backfillDirections = migrations.includes('directions');
 
   const updates: { ref: DocumentReference; data: WordMigrationUpdate }[] = [];
@@ -681,8 +751,11 @@ async function runWordMigrations(userId: string, migrations: WordMigration[]): P
     const data = d.data() as UserWordDocument;
     const update: WordMigrationUpdate = {};
 
-    if (backfillListId && !data.listId) {
-      update.listId = 'default';
+    // A document is done when it holds `listIds` and no `listId`, so a second
+    // run writes nothing.
+    if (backfillListIds && (!data.listIds?.length || data.listId !== undefined)) {
+      update.listIds = readListIds(data);
+      update.listId = deleteField();
     }
 
     if (backfillDirections) {
@@ -716,14 +789,15 @@ async function runWordMigrations(userId: string, migrations: WordMigration[]): P
 }
 
 /**
- * Backfill listId='default' on any userWords documents that lack a listId field.
+ * Convert the single `listId` of each userWords document to `listIds`, and
+ * remove `listId`. A document with neither field goes into General.
  * Safe to call multiple times — only writes to docs that need updating.
  *
  * The app runs this together with the directions backfill through
  * migrateUserWords. It stays exported so that either backfill can be run alone.
  */
-export const migrateWordsWithoutListId = async (userId: string): Promise<number> => {
-  return runWordMigrations(userId, ['listId']);
+export const migrateWordsToListIds = async (userId: string): Promise<number> => {
+  return runWordMigrations(userId, ['listIds']);
 };
 
 /**
@@ -743,7 +817,7 @@ export const migrateWordsWithoutDirections = async (userId: string): Promise<num
  * Returns the number of documents written.
  */
 export const migrateUserWords = async (userId: string): Promise<number> => {
-  return runWordMigrations(userId, ['listId', 'directions']);
+  return runWordMigrations(userId, ['listIds', 'directions']);
 };
 
 /**

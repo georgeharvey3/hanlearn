@@ -331,6 +331,31 @@ describe('postDeleteWordList', () => {
     expect(state.activeListId).toBe('default');
   });
 
+  it('loads the words of General after the active list is deleted', async () => {
+    const shared = { id: 7, simp: '朋友', trad: '朋友', pinyin: 'péngyou', meaning: 'friend' };
+    mockedWordService.deleteWordList.mockResolvedValue(undefined);
+    mockedWordService.getUserWords.mockResolvedValue([{ ...shared, listIds: ['default'] }]);
+    mockedWordService.getListStats.mockResolvedValue({ default: { due: 0, total: 1 } });
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }, sampleList],
+        activeListId: 'list-1',
+        words: [{ ...shared, listIds: ['default', 'list-1'] }],
+        listStats: {},
+        error: false,
+        loading: false,
+      },
+    });
+
+    await store.dispatch(wordActions.postDeleteWordList('list-1') as any);
+
+    expect(mockedWordService.getUserWords).toHaveBeenCalledWith('test-user-123', 'default');
+    const state = store.getState().addWords;
+    expect(state.words.map((w) => w.listIds)).toEqual([['default']]);
+    expect(state.listStats).toEqual({ default: { due: 0, total: 1 } });
+  });
+
   it('does nothing when no userId', async () => {
     const store = createTestStore({
       auth: {

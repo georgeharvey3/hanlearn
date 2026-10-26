@@ -18,6 +18,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import Button from '../Buttons/Button/Button';
 import { WordList } from '../../../types/models';
 import { ListStats } from '../../../types/store';
+import { ALL_LISTS_ID } from '../../../utils/activeList';
+import { copy } from '../../../copy';
 
 interface ListSelectorProps {
   lists: WordList[];
@@ -86,7 +88,7 @@ const ListSelector: React.FC<ListSelectorProps> = ({
 
   // Show "All Lists" option when user has 2+ lists
   const showAllListsOption = safeLists.filter((l) => l.id !== 'default').length > 0;
-  const totalDue = Object.values(listStats || {}).reduce((sum, s) => sum + (s?.due ?? 0), 0);
+  const totalDue = listStats?.[ALL_LISTS_ID]?.due ?? 0;
 
   if (!alwaysShow && safeLists.filter((l) => l.id !== 'default').length === 0) return null;
 
@@ -248,19 +250,18 @@ const ListSelector: React.FC<ListSelectorProps> = ({
 
       {/* Delete List Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} fullWidth>
-        <DialogTitle>Delete List</DialogTitle>
+        <DialogTitle>{copy.listSelector.deleteTitle}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete &ldquo;{activeList?.name}&rdquo;? All words in this list
-            will be permanently removed.
+            {copy.listSelector.deleteBody(activeList?.name ?? '')}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button type="ghost" clicked={() => setDeleteDialogOpen(false)}>
-            Cancel
+            {copy.listSelector.cancel}
           </Button>
           <Button type="secondary" clicked={handleDelete}>
-            Delete
+            {copy.listSelector.delete}
           </Button>
         </DialogActions>
       </Dialog>

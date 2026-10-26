@@ -33,7 +33,7 @@ const sameDayWords = (): Word[] =>
   Array.from({ length: 12 }, (_, index) =>
     makeWord(index + 1, {
       level: (index % 5) + 1,
-      listId: `list-${index % 3}`,
+      listIds: [`list-${index % 3}`],
     }),
   );
 
@@ -54,7 +54,7 @@ describe('planSession — interleaving', () => {
     const relabelled = sameDayWords().map((word, index) => ({
       ...word,
       level: 5 - (index % 5),
-      listId: `list-${(index + 1) % 3}`,
+      listIds: [`list-${(index + 1) % 3}`],
     }));
 
     expect(idsOf(planSession(relabelled, options).words)).toEqual(idsOf(plan.words));
@@ -62,7 +62,7 @@ describe('planSession — interleaving', () => {
 
   it('does not group the session by list', () => {
     const plan = planSession(sameDayWords(), options);
-    const lists = plan.words.map((word) => word.listId);
+    const lists = plan.words.map((word) => word.listIds?.[0]);
     const blocked = [...lists].sort();
 
     expect(plan.words.length).toBeGreaterThan(3);

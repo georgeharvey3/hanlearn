@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Box, ButtonBase, Dialog, InputBase } from '@mui/material';
+import React, { useId, useState } from 'react';
+import { Box, ButtonBase, Checkbox, Dialog, FormControlLabel, InputBase } from '@mui/material';
 
 import { copy } from '../../copy';
 import { colors, fonts, scrim, shadows } from '../../theme';
+import { WordList } from '../../types/models';
 
 const buttonSx = {
   height: 44,
@@ -28,39 +29,42 @@ const Frame: React.FC<{
   title: string;
   onClose: () => void;
   children: React.ReactNode;
-}> = ({ open, title, onClose, children }) => (
-  <Dialog
-    open={open}
-    onClose={onClose}
-    aria-label={title}
-    PaperProps={{
-      sx: {
-        width: 340,
-        maxWidth: 'calc(100% - 32px)',
-        m: 2,
-        borderRadius: 1,
-        boxShadow: shadows.dialog,
-      },
-    }}
-    slotProps={{ backdrop: { sx: { bgcolor: scrim } } }}
-  >
-    <Box
-      sx={{
-        p: 3,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '14px',
-        fontFamily: fonts.body,
-        color: colors.text,
+}> = ({ open, title, onClose, children }) => {
+  const titleId = useId();
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      aria-labelledby={titleId}
+      PaperProps={{
+        sx: {
+          width: 340,
+          maxWidth: 'calc(100% - 32px)',
+          m: 2,
+          borderRadius: 1,
+          boxShadow: shadows.dialog,
+        },
       }}
+      slotProps={{ backdrop: { sx: { bgcolor: scrim } } }}
     >
-      <Box component="h2" sx={{ m: 0, fontSize: 22, fontWeight: 600 }}>
-        {title}
+      <Box
+        sx={{
+          p: 3,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '14px',
+          fontFamily: fonts.body,
+          color: colors.text,
+        }}
+      >
+        <Box component="h2" id={titleId} sx={{ m: 0, fontSize: 22, fontWeight: 600 }}>
+          {title}
+        </Box>
+        {children}
       </Box>
-      {children}
-    </Box>
-  </Dialog>
-);
+    </Dialog>
+  );
+};
 
 interface NameFormProps {
   initial: string;
@@ -122,18 +126,19 @@ export const ListNameDialog: React.FC<NameFormProps & { open: boolean; title: st
   </Frame>
 );
 
-/** Delete a list. Its words go with it. */
-export const DeleteListDialog: React.FC<{
+const ConfirmDelete: React.FC<{
   open: boolean;
-  name: string;
-  words: number;
+  title: string;
+  body: string | null;
   onClose: () => void;
   onDelete: () => void;
-}> = ({ open, name, words, onClose, onDelete }) => (
-  <Frame open={open} title={copy.wordBank.deleteTitle(name)} onClose={onClose}>
-    <Box component="p" sx={{ m: 0, fontSize: 15, color: colors.textSecondary }}>
-      {copy.wordBank.deleteBody(words)}
-    </Box>
+}> = ({ open, title, body, onClose, onDelete }) => (
+  <Frame open={open} title={title} onClose={onClose}>
+    {body && (
+      <Box component="p" sx={{ m: 0, fontSize: 15, color: colors.textSecondary }}>
+        {body}
+      </Box>
+    )}
     <Box sx={{ display: 'flex', gap: 1.25, justifyContent: 'flex-end' }}>
       <ButtonBase onClick={onClose} sx={cancelSx}>
         {copy.wordBank.cancel}
@@ -142,5 +147,105 @@ export const DeleteListDialog: React.FC<{
         {copy.wordBank.delete}
       </ButtonBase>
     </Box>
+  </Frame>
+);
+
+/**
+ * Delete a list. `words` is the number of its words that are in no other list:
+ * those go with it, and the others stay in their other lists.
+ */
+export const DeleteListDialog: React.FC<{
+  open: boolean;
+  name: string;
+  words: number;
+  onClose: () => void;
+  onDelete: () => void;
+}> = ({ name, words, ...dialog }) => (
+  <ConfirmDelete
+    {...dialog}
+    title={copy.wordBank.deleteTitle(name)}
+    body={words > 0 ? copy.wordBank.deleteBody(words) : null}
+  />
+);
+
+/** Delete a word that no other list holds. Its schedule goes with it. */
+export const DeleteWordDialog: React.FC<{
+  open: boolean;
+  label: string;
+  onClose: () => void;
+  onDelete: () => void;
+}> = ({ label, ...dialog }) => (
+  <ConfirmDelete
+    {...dialog}
+    title={copy.wordBank.deleteWord(label)}
+    body={copy.wordBank.deleteWordBody}
+  />
+);
+
+interface ListsFormProps {
+  lists: WordList[];
+  initial: string[];
+  onClose: () => void;
+  onSave: (listIds: string[]) => void;
+}
+
+const ListsForm: React.FC<ListsFormProps> = ({ lists, initial, onClose, onSave }) => {
+  const [checked, setChecked] = useState<string[]>(initial);
+  const toggle = (id: string) =>
+    setChecked((ids) => (ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id]));
+  return (
+    <Box
+      component="form"
+      onSubmit={(e: React.FormEvent) => {
+        e.preventDefault();
+        onSave(lists.map((l) => l.id).filter((id) => checked.includes(id)));
+      }}
+      sx={{ display: 'flex', flexDirection: 'column', gap: '14px' }}
+    >
+      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+        {lists.map((list) => {
+          const on = checked.includes(list.id);
+          return (
+            <FormControlLabel
+              key={list.id}
+              label={list.name}
+              control={
+                <Checkbox
+                  checked={on}
+                  // Every word is in at least one list, so the last box stays.
+                  disabled={on && checked.length === 1}
+                  onChange={() => toggle(list.id)}
+                />
+              }
+              sx={{
+                minHeight: 44,
+                m: 0,
+                '& .MuiFormControlLabel-label': { fontFamily: fonts.body, fontSize: 16 },
+              }}
+            />
+          );
+        })}
+      </Box>
+      <Box sx={{ display: 'flex', gap: 1.25, justifyContent: 'flex-end' }}>
+        <ButtonBase onClick={onClose} sx={cancelSx}>
+          {copy.wordBank.cancel}
+        </ButtonBase>
+        <ButtonBase type="submit" disabled={checked.length === 0} sx={actionSx(false)}>
+          {copy.wordBank.save}
+        </ButtonBase>
+      </Box>
+    </Box>
+  );
+};
+
+/** The lists that hold one word, one box for each list. */
+export const ListsOfWordDialog: React.FC<ListsFormProps & { open: boolean; label: string }> = ({
+  open,
+  label,
+  ...form
+}) => (
+  <Frame open={open} title={copy.wordBank.listsOf(label)} onClose={form.onClose}>
+    {/* Each opening starts from the lists the word is in now. */}
+    <ListsForm key={`${open}-${form.initial.join()}`} {...form} />
   </Frame>
 );
