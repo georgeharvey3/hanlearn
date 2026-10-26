@@ -16,7 +16,12 @@ import SearchField from '../../components/AddWords/SearchField';
 import ListChips, { Chip } from '../../components/AddWords/ListChips';
 import WordRow from '../../components/AddWords/WordRow';
 import SearchResults, { EntryState, SearchStatus } from '../../components/AddWords/SearchResults';
-import { DeleteListDialog, ListNameDialog } from '../../components/AddWords/ListDialogs';
+import {
+  DeleteListDialog,
+  DeleteWordDialog,
+  ListNameDialog,
+  ListsOfWordDialog,
+} from '../../components/AddWords/ListDialogs';
 import { BankEmpty, BankLoadError, BankLoading } from '../../components/AddWords/BankStates';
 import { Overline } from '../../components/Test/Study/parts';
 import Spinner from '../../components/UI/Spinner/Spinner';
@@ -27,15 +32,21 @@ import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
 import { RootState } from '../../types/store';
 import { Word } from '../../types/models';
-import { findInBank, isCovered, matchesBank } from '../../utils/wordBank';
+import {
+  findInBank,
+  isCovered,
+  listIdsOf,
+  matchesBank,
+  removalDeletes,
+} from '../../utils/wordBank';
+import { ALL_LISTS_ID, DEFAULT_LIST_ID } from '../../utils/activeList';
 import {
   customWordMeaningSchema,
   customWordTextSchema,
   searchInputSchema,
 } from '../../validation/schemas';
 
-const ALL_LISTS = '__all__';
-const DEFAULT_LIST = 'default';
+type DialogKind = 'new' | 'rename' | 'delete' | 'lists' | 'deleteWord';
 
 // The pause after typing before the dictionary is asked. Enter asks at once.
 const SEARCH_DELAY_MS = 400;
@@ -61,7 +72,7 @@ const mapDispatchToProps = {
   onDeleteWord: wordActions.deleteWord,
   onInitWords: wordActions.initWords,
   onPostMeaningUpdate: wordActions.postUpdateMeaning,
-  onMoveWord: wordActions.postMoveWord,
+  onSetListsOfWord: wordActions.postListsOfWord,
   onSwitchList: wordActions.switchActiveList,
   onCreateList: wordActions.postCreateWordList,
   onRenameList: wordActions.postRenameWordList,
@@ -90,7 +101,7 @@ const AddWords: React.FC<Props> = ({
   onDeleteWord,
   onInitWords,
   onPostMeaningUpdate,
-  onMoveWord,
+  onSetListsOfWord,
   onSwitchList,
   onCreateList,
   onRenameList,
@@ -109,10 +120,13 @@ const AddWords: React.FC<Props> = ({
   const [openId, setOpenId] = useState<number | null>(null);
   // The kind of dialog stays set while it closes, so its title and fields do
   // not change during the exit transition.
-  const [dialogKind, setDialogKind] = useState<'new' | 'rename' | 'delete'>('new');
+  const [dialogKind, setDialogKind] = useState<DialogKind>('new');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const openDialog = useCallback((kind: 'new' | 'rename' | 'delete') => {
+  // The word of the lists dialog or the delete-word dialog.
+  const [dialogWord, setDialogWord] = useState<Word | null>(null);
+  const openDialog = useCallback((kind: DialogKind, word: Word | null = null) => {
     setDialogKind(kind);
+    setDialogWord(word);
     setDialogOpen(true);
   }, []);
   const closeDialog = useCallback(() => setDialogOpen(false), []);
@@ -200,30 +214,25 @@ const AddWords: React.FC<Props> = ({
 
   const toggle = useCallback((id: number) => setOpenId((open) => (open === id ? null : id)), []);
 
-  const moveWord = useCallback(
-    (id: number, listId: string, label: string) => {
-      onMoveWord(id, listId, label);
-      setOpenId(null);
-    },
-    [onMoveWord],
-  );
+  const editLists = useCallback((word: Word) => openDialog('lists', word), [openDialog]);
 
   const removeWord = useCallback(
-    (id: number) => {
-      onDeleteWord(id);
+    (word: Word) => {
+      // A removal that deletes the word asks first; one that keeps it in
+      // another list does not.
+      if (removalDeletes(word, activeListId)) {
+        openDialog('deleteWord', word);
+        return;
+      }
+      onDeleteWord(word.id);
       setOpenId(null);
     },
-    [onDeleteWord],
+    [activeListId, onDeleteWord, openDialog],
   );
 
-  const totalWords = useMemo(
-    () => Object.values(listStats).reduce((sum, s) => sum + (s?.total ?? 0), 0),
-    [listStats],
-  );
-  const totalDue = useMemo(
-    () => Object.values(listStats).reduce((sum, s) => sum + (s?.due ?? 0), 0),
-    [listStats],
-  );
+  // A word in two lists counts one time here.
+  const totalWords = listStats[ALL_LISTS_ID]?.total ?? 0;
+  const totalDue = listStats[ALL_LISTS_ID]?.due ?? 0;
 
   const chips: Chip[] = useMemo(() => {
     // The active list counts its loaded words, which are fresher than the
@@ -232,8 +241,8 @@ const AddWords: React.FC<Props> = ({
       id === activeListId && !loading ? words.length : (listStats[id]?.total ?? 0);
     const own = lists.map((l) => ({ id: l.id, name: l.name, count: count(l.id) }));
     if (lists.length < 2) return own;
-    const all = activeListId === ALL_LISTS && !loading ? words.length : totalWords;
-    return [{ id: ALL_LISTS, name: copy.wordBank.allLists, count: all }, ...own];
+    const all = activeListId === ALL_LISTS_ID && !loading ? words.length : totalWords;
+    return [{ id: ALL_LISTS_ID, name: copy.wordBank.allLists, count: all }, ...own];
   }, [lists, listStats, activeListId, words.length, loading, totalWords]);
 
   // Wait for auth to initialize before redirecting.
@@ -243,9 +252,11 @@ const AddWords: React.FC<Props> = ({
   const searching = query.trim().length > 0;
   const bankMatches = searching ? words.filter((w) => matchesBank(w, query)) : [];
   const activeList = lists.find((l) => l.id === activeListId);
-  const listName = activeListId === ALL_LISTS ? copy.wordBank.allLists : (activeList?.name ?? '');
-  const canEditList = activeListId !== ALL_LISTS && activeListId !== DEFAULT_LIST && !!activeList;
-  const due = activeListId === ALL_LISTS ? totalDue : (listStats[activeListId]?.due ?? 0);
+  const listName =
+    activeListId === ALL_LISTS_ID ? copy.wordBank.allLists : (activeList?.name ?? '');
+  const canEditList =
+    activeListId !== ALL_LISTS_ID && activeListId !== DEFAULT_LIST_ID && !!activeList;
+  const due = activeListId === ALL_LISTS_ID ? totalDue : (listStats[activeListId]?.due ?? 0);
   // The first load has no stats yet, so the chips are grey blocks too.
   const firstLoad = loading && Object.keys(listStats).length === 0;
 
@@ -255,10 +266,11 @@ const AddWords: React.FC<Props> = ({
       word={w}
       charSet={charSet}
       lists={lists}
+      activeListId={activeListId}
       open={openId === w.id}
       onToggle={() => toggle(w.id)}
       onMeaningChange={onPostMeaningUpdate}
-      onMove={moveWord}
+      onEditLists={editLists}
       onRemove={removeWord}
     />
   );
@@ -417,7 +429,7 @@ const AddWords: React.FC<Props> = ({
         </MenuItem>
       </Menu>
       <ListNameDialog
-        open={dialogOpen && dialogKind !== 'delete'}
+        open={dialogOpen && (dialogKind === 'new' || dialogKind === 'rename')}
         title={
           dialogKind === 'rename' ? copy.wordBank.renameTitle(listName) : copy.wordBank.newList
         }
@@ -433,10 +445,31 @@ const AddWords: React.FC<Props> = ({
       <DeleteListDialog
         open={dialogOpen && dialogKind === 'delete'}
         name={listName}
-        words={words.length}
+        words={words.filter((w) => removalDeletes(w, activeListId)).length}
         onClose={() => closeDialog()}
         onDelete={() => {
           onDeleteList(activeListId);
+          closeDialog();
+        }}
+      />
+      <ListsOfWordDialog
+        open={dialogOpen && dialogKind === 'lists'}
+        label={dialogWord?.[charSet] ?? ''}
+        lists={lists}
+        initial={dialogWord ? listIdsOf(dialogWord) : []}
+        onClose={() => closeDialog()}
+        onSave={(listIds) => {
+          if (dialogWord) onSetListsOfWord(dialogWord.id, listIds);
+          closeDialog();
+        }}
+      />
+      <DeleteWordDialog
+        open={dialogOpen && dialogKind === 'deleteWord'}
+        label={dialogWord?.[charSet] ?? ''}
+        onClose={() => closeDialog()}
+        onDelete={() => {
+          if (dialogWord) onDeleteWord(dialogWord.id);
+          setOpenId(null);
           closeDialog();
         }}
       />

@@ -108,7 +108,8 @@ users/{userId}/
   │   │       lastReview: Timestamp, toneErrors?: number, lapses?: number
   │   │     }
   │   │   }
-  │   └── listId?: string        # Optional word list membership
+  │   └── listIds: string[]      # The word lists that hold the word, never empty. A word
+  │                              # that leaves its last list is deleted. Replaces `listId`
   ├── testCompletions/{dateId}   # Streak tracking (dateId = YYYY-MM-DD)
   │   ├── testsCount: number
   │   └── completedAt: Timestamp

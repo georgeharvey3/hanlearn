@@ -306,7 +306,8 @@ export const copy = {
     delete: 'Delete',
     cancel: 'Cancel',
     deleteTitle: (name: string) => `Delete ${name}?`,
-    deleteBody: (n: number) => `Its ${n} word${n === 1 ? '' : 's'} go too.`,
+    // The words of the list that no other list holds.
+    deleteBody: (n: number) => `Deletes ${n} word${n === 1 ? '' : 's'}.`,
     heading: (list: string, n: number) => `${list} · ${n} word${n === 1 ? '' : 's'}`,
     study: 'Study',
     studyDue: (n: number) => `Study · ${n} due`,
@@ -316,8 +317,16 @@ export const copy = {
     leechDirections: (directions: string) => `Hard to recall: ${directions}`,
     play: 'Play',
     levelDue: (level: string, due: string) => (due ? `${level} · ${due}` : level),
-    moveTo: 'Move to',
+    editLists: 'Edit lists',
+    listsOf: (char: string) => `Lists for ${char}`,
+    toastListsSaved: 'Lists saved',
+    toastDeleted: 'Word deleted',
+    toastRemovedFrom: (list: string) => `Removed from ${list}`,
+    listsFailed: 'Failed to save lists',
     remove: 'Remove',
+    removeFrom: (list: string) => `Remove from ${list}`,
+    deleteWord: (char: string) => `Delete ${char}?`,
+    deleteWordBody: 'Its progress goes too.',
     loading: 'Loading',
     loadFailed: 'Your words didn’t load',
     noWords: 'No words yet',
@@ -327,6 +336,13 @@ export const copy = {
     errorStamp: '错',
     // Words to try on an empty bank. A tap searches for one.
     suggestions: ['你好', '朋友', '学习'],
+  },
+  // The list control of the signed-out home page.
+  listSelector: {
+    deleteTitle: 'Delete List',
+    deleteBody: (name: string) => `Delete “${name}”? Words in no other list are deleted.`,
+    cancel: 'Cancel',
+    delete: 'Delete',
   },
   // The first screen after sign-in. It shows counts only: a word seen here just
   // before the test asks it primes the answer.

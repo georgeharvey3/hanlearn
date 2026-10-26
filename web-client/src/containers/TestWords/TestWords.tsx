@@ -26,6 +26,7 @@ import { SentenceStageWords } from '../../components/Test/types';
 import { getDevTestConfig, DevTestConfig } from '../../utils/devTestMode';
 import { makeDirections } from '../../utils/directions';
 import { dayKey } from '../../utils/retention';
+import { ALL_LISTS_ID } from '../../utils/activeList';
 import {
   SAVED_SESSION_VERSION,
   clearSavedSession,
@@ -674,7 +675,7 @@ const TestWords: React.FC<Props> = ({
           .map((l) => ({ id: l.id, name: l.name, due: listStats[l.id].due }));
 
     // Total due across all lists, for "Test all lists"
-    const totalDueAcrossLists = Object.values(listStats).reduce((sum, s) => sum + (s?.due ?? 0), 0);
+    const totalDueAcrossLists = listStats[ALL_LISTS_ID]?.due ?? 0;
     const hasMultipleLists = (lists || []).filter((l) => l.id !== 'default').length > 0;
 
     const handleSwitchAndTest = (listId: string) => {

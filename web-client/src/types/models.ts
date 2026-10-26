@@ -51,7 +51,8 @@ export interface Word {
   due_date?: string;
   level?: number;
   ammended_meaning?: string;
-  listId?: string;
+  /** The lists that hold the word. Every word from the service layer is in at least one. */
+  listIds?: string[];
   /**
    * Per-direction scheduling state. Optional on the type because a Word can be
    * built from a dictionary result that has no scheduling state at all, but

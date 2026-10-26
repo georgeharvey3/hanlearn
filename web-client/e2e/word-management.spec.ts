@@ -3,6 +3,7 @@ import {
   clearEmulatorData,
   seedTestUser,
   seedWords,
+  seedWordList,
   loginViaUI,
   TEST_USER,
   TEST_WORDS,
@@ -51,5 +52,36 @@ test.describe('Word management', () => {
 
     // The results, the own-word form or an error take the place of the list.
     await expect(addWords.searchOutcome.first()).toBeVisible();
+  });
+
+  test('a word in two lists stays when one of the lists is deleted', async ({ page }) => {
+    await seedWordList(TEST_USER.uid, { id: 'hsk1', name: 'HSK 1', order: 1 });
+    await seedWords(TEST_USER.uid, [{ ...TEST_WORDS[0], listIds: ['hsk1'] }]);
+
+    const addWords = new AddWordsPage(page);
+    await addWords.navigateTo();
+    await page.getByRole('tab', { name: /^HSK 1/ }).click();
+
+    // Put the word into General too.
+    await page.getByText('你好', { exact: true }).click();
+    await page.getByRole('button', { name: 'Edit lists' }).click();
+    const lists = page.getByRole('dialog', { name: 'Lists for 你好' });
+    await lists.getByRole('checkbox', { name: 'General' }).check();
+    await lists.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByText('General, HSK 1')).toBeVisible();
+
+    // Delete HSK 1. The word is in General, so the delete removes no word.
+    await page.getByRole('button', { name: 'List actions' }).click();
+    await page.getByRole('menuitem', { name: 'Delete' }).click();
+    const confirm = page.getByRole('dialog', { name: 'Delete HSK 1?' });
+    await expect(confirm.getByText(/^Deletes/)).toHaveCount(0);
+    await confirm.getByRole('button', { name: 'Delete' }).click();
+
+    // The bank moves to General, and the word is there.
+    await expect(page.getByRole('tab', { name: /^General/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await addWords.expectWordVisible('你好');
   });
 });

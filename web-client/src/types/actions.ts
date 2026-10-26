@@ -15,7 +15,8 @@ export const ActionTypes = {
   POST_WORD: 'POST_WORD',
   DELETE_WORD: 'DELETE_WORD',
   UPDATE_MEANING: 'UPDATE_MEANING',
-  MOVE_WORD: 'MOVE_WORD',
+  ADD_EXISTING_WORD: 'ADD_EXISTING_WORD',
+  SET_LISTS_OF_WORD: 'SET_LISTS_OF_WORD',
   SET_WORD_LISTS: 'SET_WORD_LISTS',
   ADD_WORD_LIST: 'ADD_WORD_LIST',
   REMOVE_WORD_LIST: 'REMOVE_WORD_LIST',
@@ -81,10 +82,16 @@ export interface UpdateMeaningAction {
   newMeaning: string;
 }
 
-export interface MoveWordAction {
-  type: typeof ActionTypes.MOVE_WORD;
+/** A word the learner already had, added to one more list with its schedule. */
+export interface AddExistingWordAction {
+  type: typeof ActionTypes.ADD_EXISTING_WORD;
+  word: Word;
+}
+
+export interface SetListsOfWordAction {
+  type: typeof ActionTypes.SET_LISTS_OF_WORD;
   wordID: number;
-  newListId: string;
+  listIds: string[];
 }
 
 export interface SetWordListsAction {
@@ -194,7 +201,8 @@ export type WordAction =
   | FetchWordsAction
   | FetchWordsFailedAction
   | UpdateMeaningAction
-  | MoveWordAction
+  | AddExistingWordAction
+  | SetListsOfWordAction
   | SetWordListsAction
   | AddWordListAction
   | RemoveWordListAction
