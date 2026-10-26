@@ -1,9 +1,11 @@
-import React, { useId, useState } from 'react';
+import React, { useCallback, useEffect, useId, useState } from 'react';
 import { Box, ButtonBase, Checkbox, Dialog, FormControlLabel, InputBase } from '@mui/material';
 
+import { Overline } from '../Test/Study/parts';
 import { copy } from '../../copy';
 import { colors, fonts, scrim, shadows } from '../../theme';
 import { WordList } from '../../types/models';
+import { loadCatalogue, loadPremadeEntries, PremadeList } from '../../services/premadeListService';
 
 const buttonSx = {
   height: 44,
@@ -125,6 +127,165 @@ export const ListNameDialog: React.FC<NameFormProps & { open: boolean; title: st
     <NameForm key={`${open}-${form.initial}`} {...form} />
   </Frame>
 );
+
+type Catalogue = PremadeList[] | 'loading' | 'error';
+
+/** The premade lists, loaded when the first component that shows them mounts. */
+function useCatalogue(): { catalogue: Catalogue; retry: () => void } {
+  const [catalogue, setCatalogue] = useState<Catalogue>('loading');
+  // Each attempt loads once; Retry starts the next.
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let live = true;
+    loadCatalogue().then(
+      (lists) => live && setCatalogue(lists),
+      () => live && setCatalogue('error'),
+    );
+    return () => {
+      live = false;
+    };
+  }, [attempt]);
+  const retry = useCallback(() => {
+    setCatalogue('loading');
+    setAttempt((n) => n + 1);
+  }, []);
+  return { catalogue, retry };
+}
+
+/** The catalogue: one row for each premade list, with its size. */
+export const PremadeLists: React.FC<{ onPick: (list: PremadeList) => void }> = ({ onPick }) => {
+  const { catalogue, retry } = useCatalogue();
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+      <Overline component="h2" sx={{ m: 0, mb: 0.5 }}>
+        {copy.premadeLists.heading}
+      </Overline>
+      {catalogue === 'loading' && (
+        <Box role="status" aria-label={copy.wordBank.loading} sx={{ height: 48 }} />
+      )}
+      {catalogue === 'error' && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minHeight: 48 }}>
+          <Box component="span" sx={{ flex: 1, fontSize: 15, color: colors.textSecondary }}>
+            {copy.premadeLists.loadFailed}
+          </Box>
+          <ButtonBase onClick={retry} sx={cancelSx}>
+            {copy.wordBank.retry}
+          </ButtonBase>
+        </Box>
+      )}
+      {Array.isArray(catalogue) &&
+        catalogue.map((list) => (
+          <ButtonBase
+            key={list.id}
+            onClick={() => onPick(list)}
+            sx={{
+              minHeight: 48,
+              px: 0.5,
+              borderBottom: `1px solid ${colors.divider}`,
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 1.5,
+              fontFamily: fonts.body,
+              fontSize: 16,
+              color: colors.text,
+              textAlign: 'left',
+            }}
+          >
+            <span>{list.name}</span>
+            <Box component="span" sx={{ fontSize: 14, color: colors.textSecondary }}>
+              {copy.premadeLists.size(list.size)}
+            </Box>
+          </ButtonBase>
+        ))}
+    </Box>
+  );
+};
+
+interface PremadeFormProps {
+  list: PremadeList;
+  /** How many of these words the learner has. */
+  countHeld: (wordIds: number[]) => Promise<number>;
+  /** Resolves to whether the list was added. */
+  onAdd: (list: PremadeList) => Promise<boolean>;
+  onClose: () => void;
+}
+
+/** The size of a premade list and how many of its words the learner has, then Add. */
+const PremadeForm: React.FC<PremadeFormProps> = ({ list, countHeld, onAdd, onClose }) => {
+  const [held, setHeld] = useState<number | null>(null);
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    loadPremadeEntries(list.id)
+      .then((entries) => countHeld(entries.map((entry) => entry.id)))
+      .then(
+        (count) => live && setHeld(count),
+        // The count is only shown: without it the learner can still add the list.
+        () => undefined,
+      );
+    return () => {
+      live = false;
+    };
+  }, [list.id, countHeld]);
+
+  const add = async () => {
+    setAdding(true);
+    const added = await onAdd(list);
+    setAdding(false);
+    if (added) onClose();
+  };
+
+  return (
+    <>
+      <Box component="p" sx={{ m: 0, fontSize: 15, color: colors.textSecondary }}>
+        {held === null
+          ? copy.premadeLists.confirmSize(list.size)
+          : copy.premadeLists.confirmHeld(list.size, held)}
+      </Box>
+      <Box sx={{ display: 'flex', gap: 1.25, justifyContent: 'flex-end' }}>
+        <ButtonBase onClick={onClose} disabled={adding} sx={cancelSx}>
+          {copy.wordBank.cancel}
+        </ButtonBase>
+        <ButtonBase onClick={add} disabled={adding} sx={actionSx(false)}>
+          {adding ? copy.premadeLists.adding : copy.premadeLists.add}
+        </ButtonBase>
+      </Box>
+    </>
+  );
+};
+
+/**
+ * A new list: an empty one with a name, or one made from a premade list of the
+ * catalogue. With `premade`, the dialog shows the confirmation of that list.
+ */
+export const NewListDialog: React.FC<
+  Omit<PremadeFormProps, 'list'> & {
+    open: boolean;
+    premade: PremadeList | null;
+    onPick: (list: PremadeList) => void;
+    onCreate: (name: string) => void;
+  }
+> = ({ open, premade, onPick, onCreate, onClose, ...form }) => {
+  return (
+    <Frame open={open} title={premade ? premade.name : copy.wordBank.newList} onClose={onClose}>
+      {premade ? (
+        <PremadeForm key={premade.id} list={premade} onClose={onClose} {...form} />
+      ) : (
+        <>
+          <NameForm
+            key={String(open)}
+            initial=""
+            action={copy.wordBank.create}
+            onClose={onClose}
+            onSave={onCreate}
+          />
+          <PremadeLists onPick={onPick} />
+        </>
+      )}
+    </Frame>
+  );
+};
 
 const ConfirmDelete: React.FC<{
   open: boolean;

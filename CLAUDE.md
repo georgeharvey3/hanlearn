@@ -150,6 +150,8 @@ Security rules in [firestore.rules](firestore.rules): users can only access thei
 
 The CC-CEDICT dictionary (~124K entries) is served as static JSON at `/dictionary.json` to avoid Firestore read costs. Built via `npm run build:dict` which parses the source file and outputs to `web-client/public/dictionary.json`.
 
+The same build writes the catalogue of **premade lists** (HSK 3.0) to `web-client/public/premade-lists/`. A pure resolver, [migration/premadeCatalogue.js](migration/premadeCatalogue.js), gives each source word one dictionary entry, and [migration/hsk/overrides.json](migration/hsk/overrides.json) settles the ambiguous words. If a word does not resolve, the build fails. See [migration/hsk/README.md](migration/hsk/README.md).
+
 ### Spaced Repetition Algorithm
 
 The calculation is in [web-client/src/utils/scheduling.ts](web-client/src/utils/scheduling.ts), and `finishTest` in [web-client/src/services/wordService.ts](web-client/src/services/wordService.ts) holds the Firestore write:

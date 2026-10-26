@@ -72,7 +72,7 @@ describe('ListSelector', () => {
 
       await user.click(screen.getByLabelText('Create new list'));
 
-      expect(screen.getByRole('dialog', { name: /create new list/i })).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: /^new list$/i })).toBeInTheDocument();
     });
 
     it('calls onCreateList with the trimmed name when Create is clicked', async () => {
@@ -114,11 +114,11 @@ describe('ListSelector', () => {
       renderListSelector();
 
       await user.click(screen.getByLabelText('Create new list'));
-      expect(screen.getByRole('dialog', { name: /create new list/i })).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: /^new list$/i })).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: /cancel/i }));
 
       await waitFor(() => {
-        expect(screen.queryByRole('dialog', { name: /create new list/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('dialog', { name: /^new list$/i })).not.toBeInTheDocument();
       });
     });
   });

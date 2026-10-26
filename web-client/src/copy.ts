@@ -337,8 +337,28 @@ export const copy = {
     // Words to try on an empty bank. A tap searches for one.
     suggestions: ['你好', '朋友', '学习'],
   },
+  // The catalogue in the New list dialog and on an empty bank. The names of
+  // the lists are data, in the catalogue.
+  premadeLists: {
+    heading: 'Premade lists',
+    size: (n: number) => `${n.toLocaleString('en-GB')} words`,
+    // The confirmation, before the words the learner has are counted.
+    confirmSize: (n: number) => `${n.toLocaleString('en-GB')} words.`,
+    confirmHeld: (n: number, held: number) =>
+      held === 0
+        ? `${n.toLocaleString('en-GB')} words, all new.`
+        : `${n.toLocaleString('en-GB')} words. You have ${held.toLocaleString('en-GB')}.`,
+    add: 'Add list',
+    adding: 'Adding…',
+    loadFailed: 'Lists didn’t load',
+    toastAdded: (name: string) => `Added ${name}`,
+    toastFailed: 'Failed to add list',
+  },
   // The list control of the signed-out home page.
   listSelector: {
+    createTitle: 'New list',
+    listName: 'List name',
+    create: 'Create',
     deleteTitle: 'Delete List',
     deleteBody: (name: string) => `Delete “${name}”? Words only in this list are deleted.`,
     cancel: 'Cancel',

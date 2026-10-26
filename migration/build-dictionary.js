@@ -9,11 +9,70 @@
  *
  * Output:
  *   ../web-client/public/dictionary.json
+ *   ../web-client/public/premade-lists/ (the catalogue of premade lists)
  */
 
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+const { resolveCatalogue } = require('./premadeCatalogue');
+
+/**
+ * The HSK 3.0 bands of the catalogue, from drkameleon/complete-hsk-vocabulary
+ * (MIT). Bands 7 to 9 are one list in the source, and one list here.
+ */
+const HSK_LISTS = [
+  { id: 'hsk-1', name: 'HSK 1', file: '1.min.json' },
+  { id: 'hsk-2', name: 'HSK 2', file: '2.min.json' },
+  { id: 'hsk-3', name: 'HSK 3', file: '3.min.json' },
+  { id: 'hsk-4', name: 'HSK 4', file: '4.min.json' },
+  { id: 'hsk-5', name: 'HSK 5', file: '5.min.json' },
+  { id: 'hsk-6', name: 'HSK 6', file: '6.min.json' },
+  { id: 'hsk-7-9', name: 'HSK 7–9', file: '7.min.json' },
+];
+
+/**
+ * Write the catalogue of premade lists: an index of the lists, and one file of
+ * dictionary entries for each list. The dictionary is served by Cloud
+ * Functions, so each list carries its entries, and adding a list needs no
+ * lookup. The app loads the index when the learner opens the catalogue, and a
+ * list's file when the learner adds it.
+ *
+ * Fails the build when a word resolves to no entry or to more than one, and
+ * migration/hsk/overrides.json does not settle it.
+ */
+function buildCatalogue(words, outputDir) {
+  const hskDir = path.join(__dirname, 'hsk');
+  const source = HSK_LISTS.map((list) => ({
+    id: list.id,
+    name: list.name,
+    words: JSON.parse(fs.readFileSync(path.join(hskDir, 'source', list.file), 'utf8')).map(
+      (word) => ({
+        simp: word.s,
+        forms: word.f.map((form) => ({ trad: form.t, pinyin: form.i.n })),
+      }),
+    ),
+  }));
+  const overrides = JSON.parse(fs.readFileSync(path.join(hskDir, 'overrides.json'), 'utf8'));
+  const catalogue = resolveCatalogue(source, overrides, words);
+
+  fs.rmSync(outputDir, { recursive: true, force: true });
+  fs.mkdirSync(outputDir, { recursive: true });
+  const index = catalogue.map((list) => ({
+    id: list.id,
+    name: list.name,
+    size: list.entries.length,
+  }));
+  fs.writeFileSync(path.join(outputDir, 'index.json'), JSON.stringify({ lists: index }));
+  for (const list of catalogue) {
+    fs.writeFileSync(path.join(outputDir, list.id + '.json'), JSON.stringify(list.entries));
+  }
+  fs.copyFileSync(path.join(hskDir, 'source', 'LICENSE'), path.join(outputDir, 'LICENSE.txt'));
+  console.log(
+    'Wrote ' + catalogue.length + ' premade lists to: ' + outputDir +
+      ' (' + index.map((list) => list.name + ': ' + list.size).join(', ') + ')',
+  );
+}
 
 /**
  * Parse a CC-CEDICT line
@@ -117,6 +176,9 @@ async function buildDictionary() {
       charDefinitionsPath
   );
 
+  console.log('Writing the premade lists...');
+  buildCatalogue(words, path.join(outputDir, 'premade-lists'));
+
   // Calculate file sizes
   const stats = fs.statSync(outputPath);
   const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
@@ -129,4 +191,7 @@ async function buildDictionary() {
   console.log('Done! The dictionary will be served from /dictionary.json');
 }
 
-buildDictionary().catch(console.error);
+buildDictionary().catch((error) => {
+  console.error(error.message);
+  process.exit(1);
+});

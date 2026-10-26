@@ -2,7 +2,7 @@
  * Tests for wordService.ts — word list CRUD and utility functions.
  * Covers: getUserWordLists, createWordList, deleteWordList, getListStats,
  * the userWords migrations, and the list membership of a word: addWordToList,
- * removeWordFromList and setListsOfWord.
+ * removeWordFromList and setListsOfWord, and the import of a premade list.
  *
  * Firebase Firestore is mocked at the SDK level since wordService IS the service layer.
  */
@@ -102,6 +102,8 @@ import {
   addWordToList,
   removeWordFromList,
   setListsOfWord,
+  countHeldWords,
+  addPremadeList,
 } from './wordService';
 import { DIRECTIONS } from '../types/models';
 
@@ -752,5 +754,153 @@ describe('setListsOfWord', () => {
   it('refuses an empty set', async () => {
     await expect(setListsOfWord('user-1', 42, [])).rejects.toThrow();
     expect(mockUpdateDoc).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Premade lists ────────────────────────────────────────────────────────────
+
+/** Dictionary entries as a premade list carries them, with IDs from `first`. */
+function entries(count: number, first = 1) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: first + i,
+    simp: '字',
+    trad: '字',
+    pinyin: 'zi4',
+    meaning: 'character',
+  }));
+}
+
+/** The learner's words with the IDs given, as one read of userWords returns them. */
+function heldWords(ids: number[], membership: object = { listIds: ['default'] }) {
+  return makeFakeSnapshot(ids.map((id) => makeWordDocInLists(String(id), membership)));
+}
+
+describe('countHeldWords', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('counts the words of the list that the learner has, across all lists', async () => {
+    mockGetDocs.mockResolvedValue(heldWords([2, 3, 99]));
+
+    expect(await countHeldWords('user-1', [1, 2, 3, 4])).toBe(2);
+  });
+});
+
+describe('addPremadeList', () => {
+  /** Every write of every batch, by batch, as [kind, path, data]. */
+  let batches: [string, string, any][][];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    batches = [];
+    mockAddDoc.mockResolvedValue({ id: 'hsk-list' });
+    mockBatchCommit.mockResolvedValue(undefined);
+    mockWriteBatch.mockImplementation((() => {
+      const ops: [string, string, any][] = [];
+      batches.push(ops);
+      const write = (kind: string) => (ref: { path: string }, data?: unknown) =>
+        ops.push([kind, ref.path, data]);
+      return {
+        set: write('set'),
+        update: write('update'),
+        delete: write('delete'),
+        commit: mockBatchCommit,
+      };
+    }) as any);
+  });
+
+  /** The userWords reads return `held`; the read of the lists returns none. */
+  function givenHeld(snapshot: ReturnType<typeof makeFakeSnapshot>) {
+    mockGetDocs.mockImplementation(async (ref: unknown) =>
+      ref === 'userWords' ? snapshot : makeFakeSnapshot([]),
+    );
+    mockCollection.mockImplementation((_db: unknown, ...path: string[]) => path[path.length - 1]);
+  }
+
+  it('makes a list with the name of the premade list', async () => {
+    givenHeld(heldWords([]));
+
+    const result = await addPremadeList('user-1', 'HSK 1', entries(2));
+
+    expect(mockAddDoc.mock.calls[0][1]).toMatchObject({ name: 'HSK 1' });
+    expect(result.list).toMatchObject({ id: 'hsk-list', name: 'HSK 1' });
+  });
+
+  it('creates each new word as a new word in the list, due like a word added by hand', async () => {
+    // A learner with more than 9 words gets a new word due tomorrow.
+    givenHeld(heldWords([101, 102, 103, 104, 105, 106, 107, 108, 109, 110]));
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    await addPremadeList('user-1', 'HSK 1', entries(1));
+
+    const [kind, path, data] = batches.flat()[0];
+    expect(kind).toBe('set');
+    expect(path).toBe('users/user-1/userWords/1');
+    expect(data).toMatchObject({
+      wordData: { simp: '字', trad: '字', pinyin: 'zi4', meaning: 'character' },
+      bank: 1,
+      listIds: ['hsk-list'],
+    });
+    expect(data.dueDate.toDate().toDateString()).toBe(tomorrow.toDateString());
+    expect(data.directions.MC).toMatchObject({ bank: 1 });
+  });
+
+  it('cuts a meaning longer than the rules allow at its last whole sense', async () => {
+    givenHeld(heldWords([]));
+    // 点 in CC-CEDICT has 545 characters of senses.
+    const sense = 'a sense of ten words, more or less, to fill';
+    const long = { ...entries(1)[0], meaning: Array(15).fill(sense).join('/') };
+
+    await addPremadeList('user-1', 'HSK 1', [long]);
+
+    const meaning: string = batches.flat()[0][2].wordData.meaning;
+    expect(meaning.length).toBeLessThanOrEqual(500);
+    expect(meaning).toBe(Array(11).fill(sense).join('/'));
+  });
+
+  it('puts a word that the learner has into the list, and writes nothing of its schedule', async () => {
+    givenHeld(heldWords([1]));
+
+    await addPremadeList('user-1', 'HSK 1', entries(1));
+
+    expect(batches.flat()).toEqual([
+      ['update', 'users/user-1/userWords/1', { listIds: { __arrayUnion: ['hsk-list'] } }],
+    ]);
+  });
+
+  it('keeps the list of a word that the backfill has not reached', async () => {
+    givenHeld(heldWords([1], { listId: 'own-list' }));
+
+    await addPremadeList('user-1', 'HSK 1', entries(1));
+
+    expect(batches.flat()[0][2]).toEqual({ listIds: ['own-list', 'hsk-list'] });
+  });
+
+  it('returns how many words it created and how many the learner had', async () => {
+    givenHeld(heldWords([2, 3]));
+
+    const result = await addPremadeList('user-1', 'HSK 1', entries(5));
+
+    expect(result).toMatchObject({ added: 3, held: 2 });
+  });
+
+  it('writes in batches of 500 or fewer', async () => {
+    givenHeld(heldWords([]));
+
+    await addPremadeList('user-1', 'HSK 7–9', entries(1200));
+
+    expect(batches.length).toBeGreaterThan(1);
+    expect(batches.every((ops) => ops.length <= 500)).toBe(true);
+    expect(batches.flat()).toHaveLength(1200);
+  });
+
+  it('deletes the new list when a batch fails, and rejects', async () => {
+    givenHeld(heldWords([]));
+    mockBatchCommit.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('offline'));
+
+    await expect(addPremadeList('user-1', 'HSK 7–9', entries(1200))).rejects.toThrow('offline');
+
+    const deletes = batches.flat().filter(([kind]) => kind === 'delete');
+    expect(deletes.map(([, path]) => path)).toContain('users/user-1/wordLists/hsk-list');
   });
 });

@@ -190,12 +190,12 @@ const ListSelector: React.FC<ListSelectorProps> = ({
 
       {/* Create List Dialog */}
       <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} fullWidth>
-        <DialogTitle>Create New List</DialogTitle>
+        <DialogTitle>{copy.listSelector.createTitle}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="List name"
+            label={copy.listSelector.listName}
             fullWidth
             value={newListName}
             onChange={(e) => setNewListName(e.target.value)}
@@ -210,10 +210,10 @@ const ListSelector: React.FC<ListSelectorProps> = ({
         </DialogContent>
         <DialogActions>
           <Button type="ghost" clicked={() => setCreateDialogOpen(false)}>
-            Cancel
+            {copy.listSelector.cancel}
           </Button>
           <Button clicked={handleCreate} disabled={!newListName.trim()}>
-            Create
+            {copy.listSelector.create}
           </Button>
         </DialogActions>
       </Dialog>

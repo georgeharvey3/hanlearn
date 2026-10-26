@@ -9,6 +9,7 @@ export {
   finishTest,
   switchActiveList,
   postCreateWordList,
+  postAddPremadeList,
   postRenameWordList,
   postDeleteWordList,
 } from './word';

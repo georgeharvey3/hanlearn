@@ -21,6 +21,8 @@ import {
   DeleteWordDialog,
   ListNameDialog,
   ListsOfWordDialog,
+  NewListDialog,
+  PremadeLists,
 } from '../../components/AddWords/ListDialogs';
 import { BankEmpty, BankLoadError, BankLoading } from '../../components/AddWords/BankStates';
 import { Overline } from '../../components/Test/Study/parts';
@@ -28,6 +30,7 @@ import Spinner from '../../components/UI/Spinner/Spinner';
 import * as wordActions from '../../store/actions/index';
 import * as wordService from '../../services/wordService';
 import { reportError } from '../../services/errorReporting';
+import { PremadeList } from '../../services/premadeListService';
 import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
 import { RootState } from '../../types/store';
@@ -75,6 +78,7 @@ const mapDispatchToProps = {
   onSetListsOfWord: wordActions.postListsOfWord,
   onSwitchList: wordActions.switchActiveList,
   onCreateList: wordActions.postCreateWordList,
+  onAddPremadeList: wordActions.postAddPremadeList,
   onRenameList: wordActions.postRenameWordList,
   onDeleteList: wordActions.postDeleteWordList,
 };
@@ -104,6 +108,7 @@ const AddWords: React.FC<Props> = ({
   onSetListsOfWord,
   onSwitchList,
   onCreateList,
+  onAddPremadeList,
   onRenameList,
   onDeleteList,
 }) => {
@@ -124,11 +129,23 @@ const AddWords: React.FC<Props> = ({
   const [dialogOpen, setDialogOpen] = useState(false);
   // The word of the lists dialog or the delete-word dialog.
   const [dialogWord, setDialogWord] = useState<Word | null>(null);
-  const openDialog = useCallback((kind: DialogKind, word: Word | null = null) => {
-    setDialogKind(kind);
-    setDialogWord(word);
-    setDialogOpen(true);
-  }, []);
+  // The premade list that the new-list dialog confirms, picked in the dialog
+  // or on the empty bank.
+  const [premade, setPremade] = useState<PremadeList | null>(null);
+  const openDialog = useCallback(
+    (kind: DialogKind, word: Word | null = null, list: PremadeList | null = null) => {
+      setDialogKind(kind);
+      setDialogWord(word);
+      setPremade(list);
+      setDialogOpen(true);
+    },
+    [],
+  );
+  const countHeld = useCallback(
+    (wordIds: number[]) =>
+      userId ? wordService.countHeldWords(userId, wordIds) : Promise.resolve(0),
+    [userId],
+  );
   const closeDialog = useCallback(() => setDialogOpen(false), []);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   // Each search takes a number, so an answer that comes back after a newer
@@ -316,7 +333,9 @@ const AddWords: React.FC<Props> = ({
       <BankEmpty
         title={totalWords === 0 ? copy.wordBank.noWords : copy.wordBank.emptyList}
         onTry={trySuggestion}
-      />
+      >
+        {totalWords === 0 && <PremadeLists onPick={(list) => openDialog('new', null, list)} />}
+      </BankEmpty>
     );
   } else {
     body = (
@@ -428,17 +447,26 @@ const AddWords: React.FC<Props> = ({
           {copy.wordBank.delete}
         </MenuItem>
       </Menu>
+      <NewListDialog
+        open={dialogOpen && dialogKind === 'new'}
+        premade={premade}
+        onPick={setPremade}
+        countHeld={countHeld}
+        onAdd={onAddPremadeList}
+        onClose={() => closeDialog()}
+        onCreate={(name) => {
+          onCreateList(name);
+          closeDialog();
+        }}
+      />
       <ListNameDialog
-        open={dialogOpen && (dialogKind === 'new' || dialogKind === 'rename')}
-        title={
-          dialogKind === 'rename' ? copy.wordBank.renameTitle(listName) : copy.wordBank.newList
-        }
-        initial={dialogKind === 'rename' ? listName : ''}
-        action={dialogKind === 'rename' ? copy.wordBank.save : copy.wordBank.create}
+        open={dialogOpen && dialogKind === 'rename'}
+        title={copy.wordBank.renameTitle(listName)}
+        initial={listName}
+        action={copy.wordBank.save}
         onClose={() => closeDialog()}
         onSave={(name) => {
-          if (dialogKind === 'rename') onRenameList(activeListId, name);
-          else onCreateList(name);
+          onRenameList(activeListId, name);
           closeDialog();
         }}
       />
