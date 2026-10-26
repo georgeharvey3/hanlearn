@@ -31,9 +31,12 @@ function mark({ inset, frame, rx, ground }) {
   const scale = (100 - 2 * inset) / 72.2;
   const g0 = inset + frame;
   const g1 = 100 - g0;
+  // The guides are clipped to the frame's inside: where its corners are
+  // rounder than the diagonals' ends, they would otherwise show past it.
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<clipPath id="inside"><rect x="${g0}" y="${g0}" width="${g1 - g0}" height="${g1 - g0}" rx="${Math.max(rx - half, 0)}"/></clipPath>
 ${ground ? `<rect width="100" height="100" fill="${PAPER}"/>\n` : ''}<rect x="${edge}" y="${edge}" width="${side}" height="${side}" rx="${rx}" fill="${PAPER}" stroke="${RED}" stroke-width="${frame}"/>
-<g stroke="${RED}" stroke-opacity="0.75" stroke-width="${r(1.2 * scale)}" stroke-dasharray="${r(2.5 * scale)} ${r(2 * scale)}"><line x1="${g0}" y1="50" x2="${g1}" y2="50"/><line x1="50" y1="${g0}" x2="50" y2="${g1}"/><line x1="${g0}" y1="${g0}" x2="${g1}" y2="${g1}"/><line x1="${g1}" y1="${g0}" x2="${g0}" y2="${g1}"/></g>
+<g clip-path="url(#inside)" stroke="${RED}" stroke-opacity="0.75" stroke-width="${r(1.2 * scale)}" stroke-dasharray="${r(2.5 * scale)} ${r(2 * scale)}"><line x1="${g0}" y1="50" x2="${g1}" y2="50"/><line x1="50" y1="${g0}" x2="50" y2="${g1}"/><line x1="${g0}" y1="${g0}" x2="${g1}" y2="${g1}"/><line x1="${g1}" y1="${g0}" x2="${g0}" y2="${g1}"/></g>
 <path transform="translate(50 50) scale(${r(scale)}) translate(-50 -50)" fill="${INK}" d="${HAN_PATH}"/>
 </svg>
 `;

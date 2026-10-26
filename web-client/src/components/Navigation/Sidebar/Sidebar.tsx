@@ -8,7 +8,6 @@ import StudyButton, { useDueCount } from '../StudyButton/StudyButton';
 import {
   HomeIcon,
   AddIcon,
-  StatsIcon,
   SettingsIcon,
   ShortcutsIcon,
   LogoutIcon,
@@ -33,7 +32,6 @@ interface Props {
 const links = [
   { to: routes.home, label: copy.shell.home, icon: <HomeIcon size={22} /> },
   { to: routes.add, label: copy.shell.addWords, icon: <AddIcon size={22} /> },
-  { to: routes.stats, label: copy.shell.stats, icon: <StatsIcon size={22} /> },
   { to: routes.settings, label: copy.shell.settings, icon: <SettingsIcon size={22} /> },
 ];
 

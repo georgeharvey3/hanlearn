@@ -65,17 +65,18 @@ describe('Layout on a phone', () => {
       'href',
       '/test-words',
     );
-    expect(within(nav).getByRole('link', { name: 'Stats' })).toHaveAttribute('href', '/stats');
-  });
-
-  it('opens Settings, Shortcuts and Log out from More', () => {
-    renderShell();
-    fireEvent.click(screen.getByRole('button', { name: 'More' }));
-    const sheet = screen.getByRole('dialog', { name: 'More' });
-    expect(within(sheet).getByRole('link', { name: 'Settings' })).toHaveAttribute(
+    expect(within(nav).getByRole('link', { name: 'Settings' })).toHaveAttribute(
       'href',
       '/settings',
     );
+    expect(within(nav).queryByRole('link', { name: 'Stats' })).not.toBeInTheDocument();
+  });
+
+  it('opens Shortcuts and Log out from More', () => {
+    renderShell();
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    const sheet = screen.getByRole('dialog', { name: 'More' });
+    expect(within(sheet).getByRole('button', { name: 'Log out' })).toBeInTheDocument();
     fireEvent.click(within(sheet).getByRole('button', { name: 'Shortcuts' }));
     expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
   });
@@ -110,7 +111,6 @@ describe('Layout on a desktop', () => {
       'Study, 12 due',
       'Home',
       'Add words',
-      'Stats',
       'Settings',
     ]);
     expect(screen.queryByRole('banner')).not.toBeInTheDocument();

@@ -1,11 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  getAudioSettings,
-  setAudioSetting,
-  getAudioSettingItems,
-  getQuizType,
-  setQuizType,
-} from './audioSettings';
+import { getAudioSettings, setAudioSetting, getQuizType, setQuizType } from './audioSettings';
 
 describe('audioSettings', () => {
   beforeEach(() => {
@@ -92,27 +86,6 @@ describe('audioSettings', () => {
       localStorage.setItem('useFlashcards', 'false');
       setQuizType('meaning', 'flashcard');
       expect(getQuizType('meaning')).toBe('flashcard');
-    });
-  });
-
-  describe('getAudioSettingItems', () => {
-    it('returns 3 checkbox items (quiz types are rendered separately)', () => {
-      const items = getAudioSettingItems(true, true);
-      expect(items.map((i) => i.key)).toEqual(['useSound', 'useSoundEffects', 'useAutoRecord']);
-    });
-
-    it('disables sound when synthAvailable is false', () => {
-      const items = getAudioSettingItems(true, false);
-      const sound = items.find((i) => i.key === 'useSound');
-      expect(sound?.disabled).toBe(true);
-    });
-
-    it('does not disable soundEffects or autoRecord based on availability', () => {
-      const items = getAudioSettingItems(false, false);
-      const effects = items.find((i) => i.key === 'useSoundEffects');
-      const auto = items.find((i) => i.key === 'useAutoRecord');
-      expect(effects?.disabled).toBe(false);
-      expect(auto?.disabled).toBe(false);
     });
   });
 });

@@ -13,7 +13,6 @@ export const copy = {
     addWords: 'Add words',
     study: 'Study',
     studyDue: (due: number) => `Study, ${due} due`,
-    stats: 'Stats',
     settings: 'Settings',
     more: 'More',
     shortcuts: 'Shortcuts',
@@ -88,14 +87,63 @@ export const copy = {
             : 'Keep trying',
   },
   settings: {
+    title: 'Settings',
+    // The groups
+    session: 'Study session',
+    answers: 'Answers',
+    focus: 'Skill focus',
+    stages: 'Session stages',
+    sound: 'Sound',
+    account: 'Account',
+    // Session
+    questionsPerSession: 'Questions per session',
+    // formatTestTime gives "~12 min".
+    about: (time: string) => time.replace('~', 'About '),
+    fewer: 'Fewer questions',
+    more: 'More questions',
+    characters: 'Characters',
+    simp: 'Simplified',
+    trad: 'Traditional',
+    // Answers
     meaning: 'Meaning',
     pinyin: 'Pinyin',
     input: 'Input',
     flashcard: 'Flashcard',
+    useHandwriting: 'Handwriting',
+    useAutoRecord: 'Auto-start microphone',
+    // Focus: the directions, by the skill each one trains
+    noFocus: 'Balanced',
+    MP: 'Listening',
+    PM: 'Speaking',
+    MC: 'Reading',
+    CM: 'Writing',
+    onlyPriority: 'Only this skill',
+    // Stages
+    newWords: 'New words',
+    test: 'Test',
+    sentenceRead: 'Translate sentences',
+    sentenceStagesForAllWords: 'Translate with all words',
+    sentenceWrite: 'Make sentences',
+    // Sound
     useSound: 'Text-to-speech',
     useSoundEffects: 'Sound effects',
-    useAutoRecord: 'Auto-start microphone',
-    unsupported: (label: string) => `${label} (not supported)`,
+    // Account
+    signedInAs: 'Signed in as',
+    notSignedIn: 'Not signed in',
+    logout: 'Log out',
+    login: 'Log in',
+    // Why a control is off
+    unsupported: 'Not supported in this browser',
+    needsInput: 'Set Meaning or Pinyin to Input first',
+    needsRead: 'Turn on Translate sentences first',
+    // The one-line values of a closed group
+    sessionSummary: (questions: number, time: string, charSet: string) =>
+      `${questions} questions · ${time} · ${charSet}`,
+    answersSummary: (meaning: string, pinyin: string) => `Meaning: ${meaning} · Pinyin: ${pinyin}`,
+    onlySummary: (skill: string) => `${skill} only`,
+    // Between two stages in the closed header, for a screen reader. An arrow shows it on screen.
+    stageSeparator: ', ',
+    soundSummary: (sounds: string[]) => sounds.join(' · ') || 'Off',
   },
   test: {
     // "What is the meaning for", with the answer's category between the two.
@@ -427,7 +475,5 @@ export const copy = {
     // The Analects' opening line: learn, and review in time.
     proverb: '学而时习之',
     proverbGloss: 'Learn, and review it often.',
-    footer: 'Free and open source.',
-    github: 'GitHub',
   },
 } as const;

@@ -14,7 +14,6 @@ import { useVersionCheck } from './hooks/useVersionCheck';
 
 const Home = React.lazy(() => import('./containers/Home/Home'));
 const Dashboard = React.lazy(() => import('./containers/Dashboard/Dashboard'));
-const Stats = React.lazy(() => import('./containers/Stats/Stats'));
 const AddWords = React.lazy(() => import('./containers/AddWords/AddWords'));
 const TestWords = React.lazy(() => import('./containers/TestWords/TestWords'));
 const SettingsPage = React.lazy(() => import('./containers/SettingsPage/SettingsPage'));
@@ -165,14 +164,6 @@ const App: React.FC<Props> = ({
                 render={() => (
                   <ErrorBoundary>
                     <TestWords />
-                  </ErrorBoundary>
-                )}
-              />
-              <Route
-                path="/stats"
-                render={() => (
-                  <ErrorBoundary>
-                    <Stats />
                   </ErrorBoundary>
                 )}
               />
