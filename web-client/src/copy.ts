@@ -356,6 +356,14 @@ export const copy = {
   },
   // The list control of the signed-out home page.
   listSelector: {
+    activeList: 'Active list',
+    allLists: 'All Lists',
+    due: (n: number) => `${n} due`,
+    createLabel: 'Create new list',
+    renameLabel: 'Rename list',
+    deleteLabel: 'Delete list',
+    renameTitle: 'Rename List',
+    rename: 'Rename',
     createTitle: 'New list',
     listName: 'List name',
     create: 'Create',

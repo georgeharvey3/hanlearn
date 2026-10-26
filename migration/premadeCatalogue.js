@@ -12,26 +12,32 @@ const samePinyin = (pinyin) => pinyin.toLowerCase().replace(/u:|ü/g, 'v');
 /** CC-CEDICT capitalizes the pinyin of a proper noun. */
 const isProperNoun = (entry) => /^[A-Z]/.test(entry.pinyin);
 
-/** The entries that pass the test, or all of them when none does. */
-const narrow = (entries, test) => {
-  const kept = entries.filter(test);
-  return kept.length > 0 ? kept : entries;
-};
-
 /**
  * The entries of one source word after the rules: the proper nouns go, then the
  * entries with another pinyin, then the ones with another traditional form.
  * Each rule applies only while more than one entry is left.
+ *
+ * If no entry is a common noun, the proper nouns stay. If no entry has the
+ * pinyin of the source, the rules stop: the source and the dictionary disagree
+ * on the reading, so the traditional form alone must not choose, and the
+ * override table names the entry.
  */
 function candidatesOf(word, entries) {
   const pinyins = new Set(word.forms.map((form) => samePinyin(form.pinyin)));
   const trads = new Set(word.forms.map((form) => form.trad));
-  const rules = [
-    (entry) => !isProperNoun(entry),
-    (entry) => pinyins.has(samePinyin(entry.pinyin)),
-    (entry) => trads.has(entry.trad),
-  ];
-  return rules.reduce((left, rule) => (left.length > 1 ? narrow(left, rule) : left), entries);
+  let left = entries;
+  const common = left.filter((entry) => !isProperNoun(entry));
+  if (common.length > 0) left = common;
+  if (left.length > 1) {
+    const sameReading = left.filter((entry) => pinyins.has(samePinyin(entry.pinyin)));
+    if (sameReading.length === 0) return left;
+    left = sameReading;
+  }
+  if (left.length > 1) {
+    const sameForm = left.filter((entry) => trads.has(entry.trad));
+    if (sameForm.length > 0) left = sameForm;
+  }
+  return left;
 }
 
 /**

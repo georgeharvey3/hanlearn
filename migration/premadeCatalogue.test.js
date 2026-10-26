@@ -49,6 +49,16 @@ describe('resolveCatalogue', () => {
     expect(idsOf(catalogue)).toEqual([[2]]);
   });
 
+  it('fails when no entry has the pinyin of the source, even if the traditional form matches', () => {
+    // The source writes some readings with tone marks, which match no entry.
+    const dictionary = [
+      entry(1, '見過', '见过', 'jian4 guo4'),
+      entry(2, '覸過', '见过', 'jian4 guo5'),
+    ];
+    const source = list(word('见过', ['見過', 'jiànguò']));
+    expect(() => resolveCatalogue(source, none, dictionary)).toThrow(/见过 \[jiànguò\]/);
+  });
+
   it('takes the entry that the override table names', () => {
     const dictionary = [entry(1, '都', '都', 'du1'), entry(2, '都', '都', 'dou1')];
     const overrides = { choose: { '都 [du1|dou1]': '都 [dou1]' }, exclude: [] };

@@ -70,7 +70,8 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 #### Service Layer
 
 - [web-client/src/services/wordService.ts](web-client/src/services/wordService.ts) - All Firestore operations for word management
-- [web-client/src/services/dictionaryService.ts](web-client/src/services/dictionaryService.ts) - Static dictionary loading and search (lazy-loaded, indexed in-memory)
+- [web-client/src/services/dictionaryService.ts](web-client/src/services/dictionaryService.ts) - Dictionary search and lookups, through Cloud Functions callables
+- [web-client/src/services/premadeListService.ts](web-client/src/services/premadeListService.ts) - Loads the catalogue of premade lists and the entries of one list from `/premade-lists/`; `wordService.addPremadeList` writes the import
 - [web-client/src/services/streakService.ts](web-client/src/services/streakService.ts) - Read/write `testCompletions` subcollection; calculates streak from completion dates
 - [web-client/src/services/dashboardService.ts](web-client/src/services/dashboardService.ts) - Aggregates the Dashboard's data: the session sizes, per-direction bank counts, the words due ahead and the `reviewStats` history. The counting rules are pure, in [web-client/src/utils/dashboard.ts](web-client/src/utils/dashboard.ts)
 - [web-client/src/services/retentionService.ts](web-client/src/services/retentionService.ts) - Read/write the `reviewStats` daily rollup; the session's write joins the `finishTest` batch, and the level snapshot follows it
@@ -79,7 +80,7 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 - [web-client/src/services/decompositionService.ts](web-client/src/services/decompositionService.ts) - Calls cloud function to decompose characters into radicals/components
 - [web-client/src/services/ttsService.ts](web-client/src/services/ttsService.ts) - Text-to-speech via Howler.js; called directly from components (not via Redux)
 
-Note: `ttsService`, `sentenceService`, `decompositionService`, and `dictionaryService` are called directly from components (not via Redux thunks) — this is intentional for operations that are UI-local and do not need shared global state.
+Note: `ttsService`, `sentenceService`, `decompositionService`, `dictionaryService`, and `premadeListService` are called directly from components (not via Redux thunks) — this is intentional for operations that are UI-local and do not need shared global state.
 
 #### Component Pattern
 
@@ -148,7 +149,7 @@ Security rules in [firestore.rules](firestore.rules): users can only access thei
 
 ### Static Dictionary
 
-The CC-CEDICT dictionary (~124K entries) is served as static JSON at `/dictionary.json` to avoid Firestore read costs. Built via `npm run build:dict` which parses the source file and outputs to `web-client/public/dictionary.json`.
+The CC-CEDICT dictionary (~124K entries) is built via `npm run build:dict`, which parses the source file and writes `functions/data/dictionary.json`. The Cloud Functions in [functions/src/dictionary.ts](functions/src/dictionary.ts) load it and answer the client's searches, so the client never downloads it. The build also writes a copy to `web-client/public/dictionary.json`.
 
 The same build writes the catalogue of **premade lists** (HSK 3.0) to `web-client/public/premade-lists/`. A pure resolver, [migration/premadeCatalogue.js](migration/premadeCatalogue.js), gives each source word one dictionary entry, and [migration/hsk/overrides.json](migration/hsk/overrides.json) settles the ambiguous words. If a word does not resolve, the build fails. See [migration/hsk/README.md](migration/hsk/README.md).
 

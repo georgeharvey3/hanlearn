@@ -123,13 +123,13 @@ interface UserWordDocument {
   directions?: Partial<Record<Direction, StoredDirectionState>>;
 }
 
+/** Firestore writes at most 500 operations in one batch. */
+const BATCH_LIMIT = 500;
+
 /**
  * The lists that hold a word. A document the backfill has not reached reads its
  * single `listId`, and one with neither field is in General.
  */
-/** Firestore writes at most 500 operations in one batch. */
-const BATCH_LIMIT = 500;
-
 function readListIds(data: Pick<UserWordDocument, 'listIds' | 'listId'>): string[] {
   if (data.listIds && data.listIds.length > 0) return data.listIds;
   return [data.listId || DEFAULT_LIST_ID];
