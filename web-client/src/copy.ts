@@ -326,7 +326,7 @@ export const copy = {
     remove: 'Remove',
     removeFrom: (list: string) => `Remove from ${list}`,
     deleteWord: (char: string) => `Delete ${char}?`,
-    deleteWordBody: 'Its progress goes too.',
+    deleteWordBody: 'Its progress is deleted too.',
     loading: 'Loading',
     loadFailed: 'Your words didn’t load',
     noWords: 'No words yet',
@@ -340,7 +340,7 @@ export const copy = {
   // The list control of the signed-out home page.
   listSelector: {
     deleteTitle: 'Delete List',
-    deleteBody: (name: string) => `Delete “${name}”? Words in no other list are deleted.`,
+    deleteBody: (name: string) => `Delete “${name}”? Words only in this list are deleted.`,
     cancel: 'Cancel',
     delete: 'Delete',
   },
