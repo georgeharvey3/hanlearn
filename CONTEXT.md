@@ -339,3 +339,13 @@ and it takes the same grade as any other incorrect answer.
 
 The direction counts the tone errors that it collects, so that a later feature
 can show the learner which words hold the tones that they do not know.
+
+## Neutral tone
+
+The **neutral tone** is the tone of a syllable that has no tone of its own,
+such as the 的 in 我的. An answer can write it in three ways: `0`, `5`, or no
+number. The three forms are the same answer.
+
+A syllable that the answer gives a neutral tone takes only the neutral tone. A
+full tone on it is a tone error, because 东西 dōngxi and 东西 dōngxī are two
+different words.
