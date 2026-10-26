@@ -232,6 +232,23 @@ describe('useTestEngine — checkAnswer for pinyin answers', () => {
 
     expect(result.current.state.result).toBe('Incorrect tones');
   });
+
+  it.each(['peng2 you0', 'peng2 you5', 'peng2 you'])(
+    'accepts %s for a neutral tone, as 0, 5, or no number',
+    (answerInput) => {
+      const result = renderEngineWithState({
+        answerCategory: 'pinyin',
+        answer: 'peng2 you5',
+        answerInput,
+      });
+
+      act(() => {
+        result.current.onSubmitAnswer();
+      });
+
+      expect(result.current.state.result).toBe('Correct');
+    },
+  );
 });
 
 describe('useTestEngine — checkAnswer for meaning answers', () => {

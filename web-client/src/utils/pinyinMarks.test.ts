@@ -25,6 +25,17 @@ describe('checkTones', () => {
     ]);
   });
 
+  it('reads a 0 as the neutral tone of its syllable', () => {
+    expect(checkTones('peng3you0', 'peng2 you5')).toEqual([
+      { syllable: 'peng3', wrongTone: true },
+      { syllable: 'you0', wrongTone: false },
+    ]);
+  });
+
+  it('marks a full tone on a neutral syllable', () => {
+    expect(checkTones('dong1 xi1', 'dong1 xi5').map((s) => s.wrongTone)).toEqual([false, true]);
+  });
+
   it('reads an attempt typed without spaces', () => {
     expect(checkTones('peng3you', 'peng2 you5').map((s) => s.wrongTone)).toEqual([true, false]);
   });
