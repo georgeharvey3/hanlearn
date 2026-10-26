@@ -20,6 +20,7 @@ import { reportError } from '../../services/errorReporting';
 import { copy } from '../../copy';
 import { colors } from '../../theme';
 import { WRITER_SIZE } from './handwriting';
+import { dropNeutralTone } from '../../utils/pinyinMarks';
 
 /**
  * Misses on one stroke before the handwriting quiz shows the stroke outline.
@@ -536,8 +537,8 @@ export const useTestEngine = (props: Props) => {
 
       if (current.answerCategory === 'pinyin' && typeof current.answer === 'string') {
         let cleanAnswer = testLogic.removePunctuation(current.answer);
-        cleanInput = cleanInput.replace(/ /g, '').replace(/5/g, '');
-        cleanAnswer = cleanAnswer.replace(/ /g, '').replace(/5/g, '');
+        cleanInput = dropNeutralTone(cleanInput.replace(/ /g, ''));
+        cleanAnswer = dropNeutralTone(cleanAnswer.replace(/ /g, ''));
         return cleanInput === cleanAnswer;
       } else if (Array.isArray(current.answer)) {
         let match = false;
