@@ -344,11 +344,11 @@ export const copy = {
     mine: 'My words',
     heading: 'Premade lists',
     browse: 'Browse premade lists',
-    // A list in the catalogue. The added words are the words the learner has.
+    // A list in the catalogue. The new words are the words the learner does not have.
     size: (n: number, held: number) =>
       held === 0
         ? `${n.toLocaleString('en-GB')} words`
-        : `${n.toLocaleString('en-GB')} words · ${held.toLocaleString('en-GB')} added`,
+        : `${n.toLocaleString('en-GB')} words · ${(n - held).toLocaleString('en-GB')} new`,
     // Under the count of new words of one list.
     newWords: (held: number) =>
       held === 0 ? 'new words' : `new words · ${held.toLocaleString('en-GB')} added`,

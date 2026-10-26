@@ -81,7 +81,7 @@ describe('PremadeList — the catalogue', () => {
   it('lists each premade list with its size and the words the learner has', async () => {
     renderPage([held(ba, 20)], '/add-words/premade');
 
-    expect(await screen.findByRole('button', { name: /HSK 1.*3 words · 1 added/ })).toBeVisible();
+    expect(await screen.findByRole('button', { name: /HSK 1.*3 words · 2 new/ })).toBeVisible();
     expect(screen.getByRole('button', { name: /HSK 2.*1 words$/ })).toBeVisible();
     expect(screen.getByRole('tab', { name: 'Premade lists' })).toHaveAttribute(
       'aria-selected',
