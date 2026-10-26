@@ -344,13 +344,14 @@ export const copy = {
     size: (n: number) => `${n.toLocaleString('en-GB')} words`,
     // The confirmation, before the words the learner has are counted.
     confirmSize: (n: number) => `${n.toLocaleString('en-GB')} words.`,
+    // The new words are the words of the list that the learner does not have.
     confirmHeld: (n: number, held: number) =>
       held === 0
-        ? `${n.toLocaleString('en-GB')} words, all new.`
-        : `${n.toLocaleString('en-GB')} words. You have ${held.toLocaleString('en-GB')}.`,
+        ? `${n.toLocaleString('en-GB')} new words.`
+        : `${(n - held).toLocaleString('en-GB')} new words. ${held.toLocaleString('en-GB')} already added.`,
     add: 'Add list',
     adding: 'Adding…',
-    loadFailed: 'Lists didn’t load',
+    loadFailed: 'Couldn’t load lists',
     toastAdded: (name: string) => `Added ${name}`,
     toastFailed: 'Failed to add list',
   },

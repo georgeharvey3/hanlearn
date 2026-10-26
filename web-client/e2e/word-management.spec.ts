@@ -103,7 +103,7 @@ test.describe('Word management', () => {
     await dialog.getByRole('button', { name: /^HSK 1/ }).click();
 
     const confirm = page.getByRole('dialog', { name: 'HSK 1' });
-    await expect(confirm.getByText(/words, all new\.$/)).toBeVisible();
+    await expect(confirm.getByText(/^[\d,]+ new words\.$/)).toBeVisible();
     await confirm.getByRole('button', { name: 'Add list' }).click();
     await expect(confirm).toBeHidden({ timeout: 30000 });
 
