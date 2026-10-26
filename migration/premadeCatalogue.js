@@ -51,6 +51,10 @@ const keyOf = (word) =>
 /** How the override table names an entry, for example "都 [dou1]". */
 const nameOf = (entry) => `${entry.trad} [${entry.pinyin}]`;
 
+/** The words of a source list that the override table does not exclude. */
+const keptWords = (list, overrides) =>
+  list.words.filter((word) => !overrides.exclude.includes(keyOf(word)));
+
 /**
  * Turn the source lists into the catalogue: each word becomes one dictionary
  * entry. The override table names the entry of a word that the rules leave
@@ -65,7 +69,6 @@ function resolveCatalogue(source, overrides, dictionary) {
     if (!bySimp.has(entry.simp)) bySimp.set(entry.simp, []);
     bySimp.get(entry.simp).push(entry);
   }
-  const excluded = new Set(overrides.exclude);
   const problems = [];
 
   const resolve = (word) => {
@@ -92,7 +95,7 @@ function resolveCatalogue(source, overrides, dictionary) {
   const catalogue = source.map((list) => ({
     id: list.id,
     name: list.name,
-    entries: list.words.filter((word) => !excluded.has(keyOf(word))).map(resolve),
+    entries: keptWords(list, overrides).map(resolve),
   }));
 
   // A table entry that matches no source word is stale: the source changed,
@@ -112,4 +115,20 @@ function resolveCatalogue(source, overrides, dictionary) {
   return catalogue;
 }
 
-module.exports = { resolveCatalogue, keyOf };
+/**
+ * The frequency rank `q` of the source for each entry of the catalogue, by
+ * entry id. The dictionary search ranks the HSK words by it (issue #425).
+ * When two source words name one entry, the better rank wins.
+ */
+function ranksOf(source, overrides, catalogue) {
+  const ranks = new Map();
+  source.forEach((list, i) => {
+    keptWords(list, overrides).forEach((word, j) => {
+      const id = catalogue[i].entries[j].id;
+      if (word.q !== undefined && !(ranks.get(id) <= word.q)) ranks.set(id, word.q);
+    });
+  });
+  return ranks;
+}
+
+module.exports = { resolveCatalogue, ranksOf, keyOf };

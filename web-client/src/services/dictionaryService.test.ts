@@ -68,6 +68,23 @@ describe('dictionaryService', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // searchDictionary
+  // ---------------------------------------------------------------------------
+  describe('searchDictionary', () => {
+    it('passes the trimmed query and charSet to the Cloud Function', async () => {
+      mockCallable.mockResolvedValue({ data: [SAMPLE_ENTRIES[0]] });
+      const results = await mod.searchDictionary('  ni hao ', 'trad');
+      expect(mockCallable).toHaveBeenCalledWith({ query: 'ni hao', charSet: 'trad' });
+      expect(results).toEqual([SAMPLE_ENTRIES[0]]);
+    });
+
+    it('does not call the Cloud Function for empty input', async () => {
+      expect(await mod.searchDictionary('   ', 'simp')).toEqual([]);
+      expect(mockCallable).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // lookupCharacter
   // ---------------------------------------------------------------------------
   describe('lookupCharacter', () => {

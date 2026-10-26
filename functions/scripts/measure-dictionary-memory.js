@@ -134,6 +134,16 @@ const indexed = time(() => {
 const { simpIndex, tradIndex } = indexed.result;
 record('build both indexes', indexed.elapsedMs);
 
+// Stage 3b: the index of the ranked search (issue #425), from the compiled
+// module, so the figure is the one the function pays.
+const searchModule = path.join(__dirname, '..', 'lib', 'dictionarySearch.js');
+if (!fs.existsSync(searchModule)) {
+  console.error(`No ${searchModule}. Run "npm run build" first.`);
+  process.exit(1);
+}
+const searched = time(() => require(searchModule).createSearchIndex(entries));
+record('build the search index', searched.elapsedMs);
+
 // Stage 4: what the instance holds for the rest of its life, after a full GC.
 if (typeof global.gc === 'function') {
   global.gc();

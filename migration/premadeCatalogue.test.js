@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveCatalogue } from './premadeCatalogue';
+import { ranksOf, resolveCatalogue } from './premadeCatalogue';
 
 /** A dictionary entry as build-dictionary.js numbers it. */
 const entry = (id, trad, simp, pinyin, meaning = 'meaning') => ({
@@ -98,5 +98,46 @@ describe('resolveCatalogue', () => {
     expect(() => resolveCatalogue(source, overrides, dictionary)).toThrow(
       /都 \[du1\|dou1\][\s\S]*着眼于 \[zhuo2\]/,
     );
+  });
+});
+
+describe('ranksOf', () => {
+  const ranked = (q, w) => ({ ...w, q });
+
+  it('gives each entry of the catalogue the frequency rank of its source word', () => {
+    const dictionary = [entry(1, '愛', '爱', 'ai4'), entry(2, '八', '八', 'ba1')];
+    const source = list(
+      ranked(130, word('爱', ['愛', 'ai4'])),
+      ranked(1362, word('八', ['八', 'ba1'])),
+    );
+    const catalogue = resolveCatalogue(source, none, dictionary);
+    expect(ranksOf(source, none, catalogue)).toEqual(
+      new Map([
+        [1, 130],
+        [2, 1362],
+      ]),
+    );
+  });
+
+  it('skips the excluded words and the words with no rank', () => {
+    const dictionary = [entry(1, '愛', '爱', 'ai4'), entry(2, '八', '八', 'ba1')];
+    const overrides = { choose: {}, exclude: ['着眼于 [zhuo2]'] };
+    const source = list(
+      ranked(5, word('着眼于', ['著眼於', 'zhuo2'])),
+      word('爱', ['愛', 'ai4']),
+      ranked(1362, word('八', ['八', 'ba1'])),
+    );
+    const catalogue = resolveCatalogue(source, overrides, dictionary);
+    expect(ranksOf(source, overrides, catalogue)).toEqual(new Map([[2, 1362]]));
+  });
+
+  it('keeps the best rank when two source words name one entry', () => {
+    const dictionary = [entry(1, '愛', '爱', 'ai4')];
+    const source = [
+      ...list(ranked(900, word('爱', ['愛', 'ai4']))),
+      { id: 'hsk-2', name: 'HSK 2', words: [ranked(130, word('爱', ['愛', 'ai4']))] },
+    ];
+    const catalogue = resolveCatalogue(source, none, dictionary);
+    expect(ranksOf(source, none, catalogue)).toEqual(new Map([[1, 130]]));
   });
 });

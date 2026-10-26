@@ -141,6 +141,8 @@ Security rules in [firestore.rules](firestore.rules): users can only access thei
 [functions/src/index.ts](functions/src/index.ts) - Callable functions for server-side operations:
 
 - `getDailyChengyu` - Rotates through chengyus daily
+- `dictionarySearch` - The search of the Add Words screen: hanzi, pinyin or English, ranked in tiers, at most 30 entries. The rules are pure, in [functions/src/dictionarySearch.ts](functions/src/dictionarySearch.ts) (#425)
+- `dictionarySearchWord` - The exact lookup of an entry by its characters
 - `lookupChengyuChar` - Character details for chengyu quiz
 
 #### Authentication
@@ -151,7 +153,7 @@ Security rules in [firestore.rules](firestore.rules): users can only access thei
 
 The CC-CEDICT dictionary (~124K entries) is built via `npm run build:dict`, which parses the source file and writes `functions/data/dictionary.json`. The Cloud Functions in [functions/src/dictionary.ts](functions/src/dictionary.ts) load it and answer the client's searches, so the client never downloads it. The build also writes a copy to `web-client/public/dictionary.json`.
 
-The same build writes the catalogue of **premade lists** (HSK 3.0) to `web-client/public/premade-lists/`. A pure resolver, [migration/premadeCatalogue.js](migration/premadeCatalogue.js), gives each source word one dictionary entry, and [migration/hsk/overrides.json](migration/hsk/overrides.json) settles the ambiguous words. If a word does not resolve, the build fails. See [migration/hsk/README.md](migration/hsk/README.md).
+The same build writes the catalogue of **premade lists** (HSK 3.0) to `web-client/public/premade-lists/`. A pure resolver, [migration/premadeCatalogue.js](migration/premadeCatalogue.js), gives each source word one dictionary entry, and [migration/hsk/overrides.json](migration/hsk/overrides.json) settles the ambiguous words. If a word does not resolve, the build fails. See [migration/hsk/README.md](migration/hsk/README.md). The build also writes the HSK frequency rank `q` onto each HSK entry of `dictionary.json`, and `dictionarySearch` ranks by it, because CC-CEDICT has no frequency field.
 
 ### Spaced Repetition Algorithm
 
@@ -238,6 +240,7 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 - Use `src/test/utils.tsx` for render helpers that wrap with Redux store and Router
 - Firebase calls should be mocked at the service layer (not at the Firebase SDK level)
 - Test scripts: `npm test` (watch), `npm run test:run` (CI, single run), `npm run test:coverage`
+- The same run covers two more Vitest projects in `web-client/vite.config.ts`: `migration` (`migration/*.test.js`) and `functions` (`functions/src/**/*.test.ts`, the pure modules of the Cloud Functions). Neither directory has a test run of its own
 
 ### Firestore Rules Tests (Vitest + the Firestore emulator)
 

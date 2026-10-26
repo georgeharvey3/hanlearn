@@ -16,7 +16,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
-const { resolveCatalogue } = require('./premadeCatalogue');
+const { ranksOf, resolveCatalogue } = require('./premadeCatalogue');
 
 /**
  * The HSK 3.0 bands of the catalogue, from drkameleon/complete-hsk-vocabulary
@@ -50,6 +50,7 @@ function buildCatalogue(words, outputDir) {
     words: JSON.parse(fs.readFileSync(path.join(hskDir, 'source', list.file), 'utf8')).map(
       (word) => ({
         simp: word.s,
+        q: word.q,
         forms: word.f.map((form) => ({ trad: form.t, pinyin: form.i.n })),
       }),
     ),
@@ -73,6 +74,7 @@ function buildCatalogue(words, outputDir) {
     'Wrote ' + catalogue.length + ' premade lists to: ' + outputDir +
       ' (' + index.map((list) => list.name + ': ' + list.size).join(', ') + ')',
   );
+  return ranksOf(source, overrides, catalogue);
 }
 
 /**
@@ -163,9 +165,16 @@ async function buildDictionary() {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  // Write as compact JSON (no pretty printing to save space)
+  console.log('Writing the premade lists...');
+  const ranks = buildCatalogue(words, path.join(outputDir, 'premade-lists'));
+
+  // Write as compact JSON (no pretty printing to save space). An HSK word
+  // carries the frequency rank `q` of the source, which the dictionary search
+  // ranks by; CC-CEDICT has no frequency of its own.
   console.log('Writing dictionary.json...');
-  const json = JSON.stringify(words);
+  const json = JSON.stringify(
+    words.map((word) => (ranks.has(word.id) ? { ...word, q: ranks.get(word.id) } : word)),
+  );
   fs.writeFileSync(outputPath, json);
 
   // Also write to functions/data/ for Cloud Functions
@@ -195,9 +204,6 @@ async function buildDictionary() {
       ' characters to: ' +
       charDefinitionsPath
   );
-
-  console.log('Writing the premade lists...');
-  buildCatalogue(words, path.join(outputDir, 'premade-lists'));
 
   // Calculate file sizes
   const stats = fs.statSync(outputPath);

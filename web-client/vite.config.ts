@@ -104,6 +104,16 @@ export default defineConfig(async () => {
             include: ['*.test.js'],
           },
         },
+        {
+          // The same for the pure modules of the Cloud Functions, which have no
+          // test run of their own either.
+          test: {
+            name: 'functions',
+            root: '../functions',
+            environment: 'node',
+            include: ['src/**/*.test.ts'],
+          },
+        },
       ],
     },
   };

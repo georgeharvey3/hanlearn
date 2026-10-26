@@ -41,11 +41,7 @@ import {
   nextLapses,
   nextMemory,
 } from '../utils/scheduling';
-import {
-  searchWord as searchDictionary,
-  lookupCharacter,
-  lookupCharacterByTrad,
-} from './dictionaryService';
+import { searchDictionary, lookupCharacter, lookupCharacterByTrad } from './dictionaryService';
 import { addSessionToBatch } from './retentionService';
 import type { ReviewOutcome } from '../utils/retention';
 import {
@@ -633,11 +629,11 @@ export const finishTest = async (
 };
 
 /**
- * Search for a word in the dictionary by character.
- * Uses static dictionary JSON instead of Firestore for cost efficiency.
+ * The search of the Add Words screen: hanzi, pinyin or English, ranked by the
+ * dictionarySearch Cloud Function.
  */
-export const searchWord = async (character: string, charSet: 'simp' | 'trad'): Promise<Word[]> => {
-  return searchDictionary(character, charSet);
+export const searchWord = async (query: string, charSet: 'simp' | 'trad'): Promise<Word[]> => {
+  return searchDictionary(query, charSet);
 };
 
 /**

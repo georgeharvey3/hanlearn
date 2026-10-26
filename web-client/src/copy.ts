@@ -283,7 +283,6 @@ export const copy = {
     searching: 'Searching…',
     searchFailed: 'Search failed',
     retry: 'Retry',
-    results: (n: number) => `${n} result${n === 1 ? '' : 's'}`,
     add: 'Add',
     addEntry: (char: string, pinyin: string) => `Add ${char}, ${pinyin}`,
     added: 'Added',
