@@ -98,7 +98,40 @@ export interface WordDirectionResults {
   word_id: number;
   directions: Partial<Record<Direction, DirectionResult>>;
   toneErrors?: Partial<Record<Direction, number>>;
+  /** How the learner got to each grade, for the review log. */
+  details?: Partial<Record<Direction, GradeDetail>>;
 }
+
+/** How the learner answered: typed or spoken, self-graded, or drawn. */
+export type AnswerMode = 'input' | 'flashcard' | 'handwriting';
+
+/**
+ * How the learner got to a grade. The review log records it, and the schedule
+ * does not read it. See issue #397.
+ *
+ * Every field is optional, because a session saved before the review log holds
+ * grades without them.
+ *
+ * `misses` counts the wrong submissions of a typed answer, or the missed
+ * strokes of a drawn one. A spoken transcript is not an attempt, so it adds no
+ * miss. `hint` is whether a hint was on screen before the grade, and `revealed`
+ * whether the grade came from "I don't know" or the handwriting reveal; a
+ * flashcard self-grade of `fail` is not a reveal. `answerMs` runs from the
+ * question on screen to the grade, hidden tab included. `answer` is the first
+ * wrong typed answer, cut to `MAX_LOGGED_ANSWER_LENGTH` characters.
+ */
+export interface GradeDetail {
+  mode?: AnswerMode;
+  position?: number;
+  misses?: number;
+  hint?: boolean;
+  revealed?: boolean;
+  answerMs?: number;
+  answer?: string;
+}
+
+/** The longest first wrong answer the review log keeps. */
+export const MAX_LOGGED_ANSWER_LENGTH = 50;
 
 /**
  * One row of the session summary: how one question went.
@@ -118,9 +151,10 @@ export interface WordScore {
  *
  * `toneErrors` counts the attempts at this question that gave the correct
  * syllables with an incorrect tone. It is 0 for every question that does not
- * ask for pinyin.
+ * ask for pinyin. `position` is the index of the grade in the grade list of
+ * the session.
  */
-export interface DirectionGrade {
+export interface DirectionGrade extends GradeDetail {
   wordId: number;
   direction: Direction;
   result: DirectionResult;

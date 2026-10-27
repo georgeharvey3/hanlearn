@@ -43,6 +43,7 @@ import {
 } from '../utils/scheduling';
 import { searchDictionary, lookupCharacter, lookupCharacterByTrad } from './dictionaryService';
 import { addSessionToBatch } from './retentionService';
+import { addReviewLogToBatch, reviewEntry, type ReviewLogEntry } from './reviewLogService';
 import type { ReviewOutcome } from '../utils/retention';
 import {
   amendedMeaningSchema,
@@ -533,8 +534,11 @@ export const finishTest = async (
   // read. It is collected here because this is the only place that sees both
   // the state a direction held and the state the grade moved it to.
   const outcomes: ReviewOutcome[] = [];
+  // One entry per graded question, for the review log. A buried direction
+  // was not asked, so it has none.
+  const reviews: ReviewLogEntry[] = [];
 
-  for (const { word_id, directions, toneErrors } of results) {
+  for (const { word_id, directions, toneErrors, details } of results) {
     const wordRef = doc(db, 'users', userId, 'userWords', word_id.toString());
     const wordDoc = await getDoc(wordRef);
 
@@ -570,6 +574,20 @@ export const finishTest = async (
         bankBefore: current.bank,
         bankAfter: bank,
       });
+
+      reviews.push(
+        reviewEntry({
+          wordId: word_id,
+          direction,
+          grade: result,
+          toneErrors: toneErrors?.[direction] ?? 0,
+          detail: details?.[direction],
+          memory,
+          lastReview: current.lastReview ?? null,
+          elapsed,
+          next,
+        }),
+      );
 
       updated[direction] = {
         // The bank is derived from the interval, and it is written in the same
@@ -623,6 +641,7 @@ export const finishTest = async (
   // In the same batch as the reschedules: the session records what it measured
   // and what it scheduled together, or neither.
   addSessionToBatch(batch, userId, outcomes, now);
+  addReviewLogToBatch(batch, userId, reviews, now);
 
   await batch.commit();
   return newDates;

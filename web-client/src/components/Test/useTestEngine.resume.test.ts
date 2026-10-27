@@ -164,7 +164,7 @@ describe('useTestEngine — reporting progress', () => {
 
     const reported = onProgress.mock.calls.at(-1)![0] as VocabProgress;
     expect(reported.queue).toHaveLength(2);
-    expect(reported.gradeList).toEqual([
+    expect(reported.gradeList).toMatchObject([
       { wordId: 1, direction: 'MC', result: 'pass', toneErrors: 0 },
     ]);
     expect(reported.initialQueueLength).toBe(3);

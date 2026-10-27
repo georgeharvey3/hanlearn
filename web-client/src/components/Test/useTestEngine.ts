@@ -6,9 +6,12 @@ import * as testLogic from './Logic/TestLogic';
 import { beep, fail, createInitialState } from './constants';
 import { Props, TestState, TestStateUpdate } from './types';
 import {
+  AnswerMode,
   Direction,
   DirectionGrade,
   DirectionResult,
+  GradeDetail,
+  MAX_LOGGED_ANSWER_LENGTH,
   WordDirectionResults,
   WordScore,
 } from '../../types/models';
@@ -39,6 +42,11 @@ const answerQuizType = (state: TestState): QuizType | null => {
   return null;
 };
 
+// The answer mode of the current question, for the review log. Only the
+// handwriting direction asks for a character.
+const answerMode = (state: TestState): AnswerMode =>
+  state.answerCategory === 'character' ? 'handwriting' : (answerQuizType(state) ?? 'input');
+
 /**
  * The characters to offer a component breakdown for once a question is graded.
  *
@@ -66,6 +74,9 @@ const FRESH_QUESTION = {
   showQuestionCharacter: false,
   outcome: null,
   gradeClicked: null,
+  missCount: 0,
+  hintShown: false,
+  firstWrongAnswer: null,
 } as const;
 
 /**
@@ -260,18 +271,37 @@ export const useTestEngine = (props: Props) => {
   // --- Grades ---
 
   /**
-   * The grade of the current question. Returns null when there is no current
-   * question, which every call site already guards against by other means.
+   * The grade of the current question, with how the learner got to it for the
+   * review log. Returns null when there is no current question, which every
+   * call site already guards against by other means.
+   *
+   * `revealed` is true when the grade came from "I don't know" or the
+   * handwriting reveal. A flashcard has no misses, and only a typed answer
+   * has a first wrong answer to keep.
    */
-  const currentGrade = (state: TestState, result: DirectionResult): DirectionGrade | null => {
+  const currentGrade = (
+    state: TestState,
+    result: DirectionResult,
+    revealed = false,
+  ): DirectionGrade | null => {
     if (!state.currentPair) return null;
     const word = state.testSet[parseInt(state.currentPair.index)];
     if (!word) return null;
+    const mode = answerMode(state);
     return {
       wordId: word.id,
       direction: testLogic.directionOf(state.currentPair),
       result,
       toneErrors: state.toneErrorCount,
+      mode,
+      position: state.gradeList.length,
+      ...(mode !== 'flashcard' ? { misses: state.missCount } : {}),
+      hint: state.hintShown,
+      revealed,
+      ...(state.questionShownAt !== null ? { answerMs: Date.now() - state.questionShownAt } : {}),
+      ...(mode === 'input' && state.firstWrongAnswer !== null
+        ? { answer: state.firstWrongAnswer }
+        : {}),
     };
   };
 
@@ -349,9 +379,13 @@ export const useTestEngine = (props: Props) => {
 
         const directions: Partial<Record<Direction, DirectionResult>> = {};
         const toneErrors: Partial<Record<Direction, number>> = {};
+        const details: Partial<Record<Direction, GradeDetail>> = {};
         for (const grade of graded) {
           directions[grade.direction] = grade.result;
           if (grade.toneErrors > 0) toneErrors[grade.direction] = grade.toneErrors;
+          // A grade from a session saved before the review log has no detail.
+          const { wordId: _id, direction: _d, result: _r, toneErrors: _t, ...detail } = grade;
+          if (Object.keys(detail).length > 0) details[grade.direction] = detail;
           // One summary row per question, which is one direction of one word.
           wordScores.push({
             char: word[current.charSet],
@@ -361,7 +395,12 @@ export const useTestEngine = (props: Props) => {
         }
 
         if (graded.length === 0) return;
-        sendResults.push({ word_id: word.id, directions, toneErrors });
+        sendResults.push({
+          word_id: word.id,
+          directions,
+          toneErrors,
+          ...(Object.keys(details).length > 0 ? { details } : {}),
+        });
       });
 
       if (!props.isDemo && !props.practiceMode) {
@@ -584,6 +623,10 @@ export const useTestEngine = (props: Props) => {
           hint: null,
           gradeCap: 'lapse',
           toneErrorCount: prevState.toneErrorCount + (toneError ? 1 : 0),
+          missCount: prevState.missCount + 1,
+          firstWrongAnswer:
+            prevState.firstWrongAnswer ??
+            Array.from(input.trim()).slice(0, MAX_LOGGED_ANSWER_LENGTH).join(''),
         }));
         if (
           current.useAutoRecord &&
@@ -666,9 +709,12 @@ export const useTestEngine = (props: Props) => {
         // A word of more than one character keeps the cap across its characters,
         // which gives the word the worst grade of them.
         onMistake: (strokeData) => {
-          if (strokeData.mistakesOnStroke >= missesBeforeHint) {
-            setStateMerged({ gradeCap: 'lapse' });
-          }
+          setStateMerged((prevState) => ({
+            missCount: prevState.missCount + 1,
+            ...(strokeData.mistakesOnStroke >= missesBeforeHint
+              ? { gradeCap: 'lapse' as const }
+              : {}),
+          }));
         },
         onComplete: () => {
           index++;
@@ -750,7 +796,7 @@ export const useTestEngine = (props: Props) => {
           clearCharacterTarget();
           const latest = getState();
           // The reveal ran, so the question is a fail whatever the cap holds.
-          const grade = currentGrade(latest, 'fail');
+          const grade = currentGrade(latest, 'fail', true);
           setStateMerged((prevState) => ({
             gradeList: grade ? prevState.gradeList.concat(grade) : prevState.gradeList,
           }));
@@ -839,7 +885,9 @@ export const useTestEngine = (props: Props) => {
       return;
     }
 
-    const grade = currentGrade(current, 'fail');
+    // A flashcard turned over and graded a fail is a self-grade. Every other
+    // path here shows the answer the learner did not give.
+    const grade = currentGrade(current, 'fail', !current.showAnswer);
 
     setStateMerged((prevState) => ({
       gradeList: grade ? prevState.gradeList.concat(grade) : prevState.gradeList,
@@ -943,6 +991,7 @@ export const useTestEngine = (props: Props) => {
             hint: pinyin(sentence.chinese, { toneType: 'num' }),
             hintSentence: current.useSound ? sentence.chinese : null,
             showHint: true,
+            hintShown: true,
             hintLoading: false,
             result: '',
           });
@@ -978,7 +1027,7 @@ export const useTestEngine = (props: Props) => {
 
     if (current.answerCategory === 'pinyin' && typeof current.answer === 'string') {
       const hinted = current.answer.split(' ').map((word) => word[0] + '__');
-      setStateMerged({ hint: hinted.join(' '), showHint: true });
+      setStateMerged({ hint: hinted.join(' '), showHint: true, hintShown: true });
     } else if (current.answerCategory === 'meaning' && current.chosenCharacter) {
       showSentenceHint(current.chosenCharacter);
     } else if (current.answerCategory === 'character' && current.writer) {
@@ -991,7 +1040,7 @@ export const useTestEngine = (props: Props) => {
       }
       // The one aid that is the answer, so it caps the question at a lapse. The
       // other aids identify the question the learner is asked, and are free.
-      setStateMerged({ gradeCap: 'lapse' });
+      setStateMerged({ gradeCap: 'lapse', hintShown: true });
       setTimeout(() => {
         current.writer!.hideOutline();
       }, 1000);
@@ -1349,6 +1398,7 @@ export const useTestEngine = (props: Props) => {
       gradeClicked: null,
       showQuestionPinyin: false,
       pauseAutoRecord: false,
+      questionShownAt: Date.now(),
     });
 
     if (current.questionCategory === 'pinyin' && current.useSound && current.chosenCharacter) {
