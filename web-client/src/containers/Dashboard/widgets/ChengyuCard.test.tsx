@@ -1,8 +1,8 @@
 /**
  * Tests for ChengyuCard — the Dashboard's chengyu of the day quiz.
  *
- * The pinyin gives away part of the answer, so it stays hidden until the
- * learner asks for it or answers (#437).
+ * The pinyin gives away part of the answer, so it starts hidden. A toggle
+ * shows and hides it, and an answer shows it (#437).
  */
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
@@ -43,6 +43,7 @@ import userEvent from '@testing-library/user-event';
 
 import { authenticatedState, createTestStore, renderWithProviders } from '../../../test/utils';
 import { copy } from '../../../copy';
+import { dayKey } from '../../../utils/retention';
 import ChengyuCard from './ChengyuCard';
 
 const text = copy.dashboard.chengyu;
@@ -57,22 +58,42 @@ describe('ChengyuCard', () => {
     localStorage.clear();
   });
 
-  it('hides the pinyin until the learner asks for it', async () => {
+  it('toggles the pinyin, which starts hidden', async () => {
     renderCard();
     expect(screen.queryByText('dú')).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: text.showPinyin }));
-
     expect(screen.getByText('dú')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: text.showPinyin })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: text.hidePinyin }));
+    expect(screen.queryByText('dú')).not.toBeInTheDocument();
   });
 
-  it('shows the pinyin once the quiz is answered', async () => {
+  it('puts the pinyin under its character', async () => {
+    renderCard();
+    await userEvent.click(screen.getByRole('button', { name: text.showPinyin }));
+
+    const order = screen.getByText('独').compareDocumentPosition(screen.getByText('dú'));
+    expect(order & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('shows the pinyin once the quiz is answered, and can still hide it', async () => {
     renderCard();
 
     await userEvent.click(screen.getByRole('button', { name: 'to live frugally' }));
+    expect(screen.getByText('dú')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: text.hidePinyin }));
+    expect(screen.queryByText('dú')).not.toBeInTheDocument();
+  });
+
+  it('shows the pinyin on a return visit after today’s answer', () => {
+    localStorage.setItem(
+      'chengyuAnswer',
+      JSON.stringify({ date: dayKey(new Date()), correct: true }),
+    );
+    renderCard();
 
     expect(screen.getByText('dú')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: text.showPinyin })).not.toBeInTheDocument();
   });
 });

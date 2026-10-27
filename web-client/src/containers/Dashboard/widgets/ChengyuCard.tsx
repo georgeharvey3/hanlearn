@@ -65,9 +65,8 @@ const ChengyuCard: React.FC<Props> = ({ loading, userId, words, onSaveWord }) =>
   const [answer, setAnswer] = useState(readAnswer);
   const [sentence, setSentence] = useState<ChengyuSentence | null | undefined>(undefined);
   const [saved, setSaved] = useState(false);
-  // The pinyin gives away part of the answer, so it waits for a tap or the answer.
-  const [pinyinAsked, setPinyinAsked] = useState(false);
-  const pinyinShown = pinyinAsked || answer !== null;
+  // The pinyin gives away part of the answer, so it stays hidden until a toggle or the answer.
+  const [pinyinShown, setPinyinShown] = useState(() => answer !== null);
   const alreadySaved = words.some((w) => w.simp === daily.chengyu);
 
   useEffect(() => {
@@ -87,6 +86,7 @@ const ChengyuCard: React.FC<Props> = ({ loading, userId, words, onSaveWord }) =>
     const correct = option === daily.correct;
     saveAnswer(correct);
     setAnswer({ correct });
+    setPinyinShown(true);
   };
 
   const save = () => {
@@ -148,19 +148,19 @@ const ChengyuCard: React.FC<Props> = ({ loading, userId, words, onSaveWord }) =>
                 key={i}
                 sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}
               >
-                {/* A hidden row keeps its height, so the characters do not move on reveal. */}
+                <Typography
+                  lang="zh"
+                  sx={{ fontFamily: fonts.hanzi, fontSize: { xs: 56, md: 64 }, lineHeight: 1.1 }}
+                >
+                  {c.char}
+                </Typography>
+                {/* A hidden row keeps its height, so the card does not move on a toggle. */}
                 <Typography
                   lang="zh-Latn"
                   aria-hidden={!pinyinShown}
                   sx={{ fontSize: 13, color: colors.textSecondary }}
                 >
                   {pinyinShown ? c.pinyin : '\u00a0'}
-                </Typography>
-                <Typography
-                  lang="zh"
-                  sx={{ fontFamily: fonts.hanzi, fontSize: { xs: 56, md: 64 }, lineHeight: 1.1 }}
-                >
-                  {c.char}
                 </Typography>
                 {answer && c.meaning && (
                   <Typography sx={{ fontSize: 12, color: colors.textSecondary }}>
@@ -171,22 +171,20 @@ const ChengyuCard: React.FC<Props> = ({ loading, userId, words, onSaveWord }) =>
             ))}
           </Box>
 
-          {!pinyinShown && (
-            <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
-              <Button
-                onClick={() => setPinyinAsked(true)}
-                sx={{
-                  minHeight: 44,
-                  px: 2,
-                  textTransform: 'none',
-                  fontSize: 14,
-                  color: colors.textSecondary,
-                }}
-              >
-                {text.showPinyin}
-              </Button>
-            </Box>
-          )}
+          <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
+            <Button
+              onClick={() => setPinyinShown((shown) => !shown)}
+              sx={{
+                minHeight: 44,
+                px: 2,
+                textTransform: 'none',
+                fontSize: 14,
+                color: colors.textSecondary,
+              }}
+            >
+              {pinyinShown ? text.hidePinyin : text.showPinyin}
+            </Button>
+          </Box>
 
           {!answer ? (
             <>
