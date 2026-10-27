@@ -73,7 +73,7 @@ record('node baseline', 0);
 // src/index.ts imports all of these at the top level, and the five dictionary
 // functions are deployed in the same bundle, so they pay this cost too.
 const coldStart = time(() => {
-  require('firebase-functions');
+  require('firebase-functions/v1');
   require('firebase-admin');
   require('@sentry/google-cloud-serverless');
   // src/decompose.ts is re-exported from index.ts, so its require runs on a

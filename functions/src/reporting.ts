@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/google-cloud-serverless';
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 
 /**
  * Error reporting for the Cloud Functions.
