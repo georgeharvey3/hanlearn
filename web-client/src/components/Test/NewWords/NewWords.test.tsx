@@ -1,11 +1,12 @@
 /**
  * Tests for NewWords: the introduction of new words before the test.
  *
- * Each word goes through three steps, Understand, Speak and Write. A step can
- * be skipped, and so can the rest of the introduction. The steps record no
+ * Each word goes through three steps, Understand, Speak and Write. Continue
+ * moves on from any step, finished or not, and Skip to test ends the
+ * introduction. The steps record no
  * result, so the only way out is `startTest`.
  */
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
 vi.mock('../../../services/dictionaryService', () => ({
@@ -124,7 +125,7 @@ describe('NewWords — the session bar and the steps', () => {
     expect(currentStep()).toBe('Speak');
     expect(screen.getByText('Say the word')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Skip' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
     expect(currentStep()).toBe('Write');
   });
 
@@ -186,11 +187,14 @@ describe('NewWords — Speak', () => {
   const toSpeak = async (user: ReturnType<typeof userEvent.setup>) =>
     user.click(screen.getByRole('button', { name: 'Continue' }));
 
-  it('keeps Continue off until the learner says something', async () => {
+  it('Continue opens Write before the learner says anything (#443)', async () => {
     const user = userEvent.setup();
     render([diannao]);
     await toSpeak(user);
-    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Skip' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(currentStep()).toBe('Write');
   });
 
   it('shows each heard syllable and "Well said" for a match', async () => {
@@ -207,8 +211,6 @@ describe('NewWords — Speak', () => {
 
     expect(screen.getByText('Heard')).toBeInTheDocument();
     expect(screen.getByText('Well said')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Skip' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
   });
 
   it('says "Check the tones" when only a tone is wrong', async () => {
@@ -235,7 +237,6 @@ describe('NewWords — Speak', () => {
     act(() => recognizer.end());
 
     expect(screen.getByText('Heard nothing. Try again.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
   });
 
   it('turns the microphone off without speech input', async () => {
@@ -249,23 +250,28 @@ describe('NewWords — Speak', () => {
 });
 
 describe('NewWords — Write', () => {
+  // A traced character flashes for a second before the next one.
+  beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
+  afterEach(() => vi.useRealTimers());
+
   const toWrite = async (user: ReturnType<typeof userEvent.setup>) =>
     user.click(screen.getByRole('button', { name: 'Write' }));
 
-  it('traces each character in turn, then enables Next word', async () => {
+  it('traces each character in turn, then Next word opens the next word', async () => {
     const user = userEvent.setup();
     render([diannao, xiuxi]);
     await toWrite(user);
 
     expect(screen.getByRole('img', { name: 'Trace 电 here' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Next word' })).toBeDisabled();
 
     act(() => completeTrace());
+    expect(screen.getByRole('img', { name: 'Trace 电 here' })).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(1000));
     expect(screen.getByRole('img', { name: 'Trace 脑 here' })).toBeInTheDocument();
 
     act(() => completeTrace());
+    act(() => vi.advanceTimersByTime(1000));
     expect(screen.getByText('Traced')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Skip' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Next word' }));
     expect(screen.getByText('2 / 2')).toBeInTheDocument();
@@ -277,23 +283,23 @@ describe('NewWords — Write', () => {
     render([diannao, xiuxi]);
     await toWrite(user);
     act(() => completeTrace());
+    act(() => vi.advanceTimersByTime(1000));
     act(() => completeTrace());
+    act(() => vi.advanceTimersByTime(1000));
 
     await user.click(screen.getByRole('button', { name: 'Understand' }));
     await toWrite(user);
 
     expect(screen.getByText('Traced')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Next word' })).toBeEnabled();
   });
 
-  it('Skip on the last word starts the test', async () => {
+  it('Start test on the last word starts the test, traced or not', async () => {
     const user = userEvent.setup();
     const startTest = vi.fn();
     render([diannao], startTest);
     await toWrite(user);
 
-    expect(screen.getByRole('button', { name: 'Start test' })).toBeDisabled();
-    await user.click(screen.getByRole('button', { name: 'Skip' }));
+    await user.click(screen.getByRole('button', { name: 'Start test' }));
     expect(startTest).toHaveBeenCalledTimes(1);
   });
 });

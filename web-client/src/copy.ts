@@ -152,8 +152,6 @@ export const copy = {
     // A spoken question asks for the meaning *of* what the learner hears.
     promptOf: ' of',
     lapseMarker: 'Nearly: this question no longer counts as known',
-    // The seal in the corner of the card. Decoration only, hidden from screen readers.
-    seal: '学',
     playPronunciation: 'Play pronunciation',
     loadingAudio: 'Loading audio',
     showPinyin: 'Show pinyin',
@@ -234,7 +232,6 @@ export const copy = {
     writePrompt: 'Trace the word: ',
     traceHere: (char: string) => `Trace ${char} here`,
     traced: 'Traced',
-    skip: 'Skip',
     skipToTest: 'Skip to test',
     continue: 'Continue',
     nextWord: 'Next word',
@@ -283,7 +280,6 @@ export const copy = {
     searching: 'Searching…',
     searchFailed: 'Search failed',
     retry: 'Retry',
-    results: (n: number) => `${n} result${n === 1 ? '' : 's'}`,
     add: 'Add',
     addEntry: (char: string, pinyin: string) => `Add ${char}, ${pinyin}`,
     added: 'Added',
@@ -306,7 +302,8 @@ export const copy = {
     delete: 'Delete',
     cancel: 'Cancel',
     deleteTitle: (name: string) => `Delete ${name}?`,
-    deleteBody: (n: number) => `Its ${n} word${n === 1 ? '' : 's'} go too.`,
+    // The words of the list that no other list holds.
+    deleteBody: (n: number) => `Deletes ${n} word${n === 1 ? '' : 's'}.`,
     heading: (list: string, n: number) => `${list} · ${n} word${n === 1 ? '' : 's'}`,
     study: 'Study',
     studyDue: (n: number) => `Study · ${n} due`,
@@ -316,8 +313,16 @@ export const copy = {
     leechDirections: (directions: string) => `Hard to recall: ${directions}`,
     play: 'Play',
     levelDue: (level: string, due: string) => (due ? `${level} · ${due}` : level),
-    moveTo: 'Move to',
+    editLists: 'Edit lists',
+    listsOf: (char: string) => `Lists for ${char}`,
+    toastListsSaved: 'Lists saved',
+    toastDeleted: 'Word deleted',
+    toastRemovedFrom: (list: string) => `Removed from ${list}`,
+    listsFailed: 'Failed to save lists',
     remove: 'Remove',
+    removeFrom: (list: string) => `Remove from ${list}`,
+    deleteWord: (char: string) => `Delete ${char}?`,
+    deleteWordBody: 'Its progress is deleted too.',
     loading: 'Loading',
     loadFailed: 'Your words didn’t load',
     noWords: 'No words yet',
@@ -327,6 +332,52 @@ export const copy = {
     errorStamp: '错',
     // Words to try on an empty bank. A tap searches for one.
     suggestions: ['你好', '朋友', '学习'],
+  },
+  // The Premade lists tab of the Add words page: the catalogue, and one list of
+  // it. The names of the lists are data, in the catalogue.
+  premadeLists: {
+    // The two tabs of the Add words page.
+    tabs: 'Add words',
+    mine: 'My words',
+    heading: 'Premade lists',
+    browse: 'Browse premade lists',
+    // A list in the catalogue. The new words are the words the learner does not have.
+    size: (n: number, held: number) =>
+      held === 0
+        ? `${n.toLocaleString('en-GB')} words`
+        : `${n.toLocaleString('en-GB')} words · ${(n - held).toLocaleString('en-GB')} new`,
+    // Under the count of new words of one list.
+    newWords: (held: number) =>
+      held === 0 ? 'new words' : `new words · ${held.toLocaleString('en-GB')} added`,
+    filterAll: 'All',
+    filterNew: (n: number) => `New ${n.toLocaleString('en-GB')}`,
+    filterAdded: (n: number) => `Added ${n.toLocaleString('en-GB')}`,
+    // The label of the words of a list, for screen readers.
+    words: 'Words',
+    allLists: 'All lists',
+    add: 'Add list',
+    adding: 'Adding…',
+    loadFailed: 'Couldn’t load lists',
+    toastAdded: (name: string) => `Added ${name}`,
+    toastFailed: 'Failed to add list',
+  },
+  // The list control of the signed-out home page.
+  listSelector: {
+    activeList: 'Active list',
+    allLists: 'All Lists',
+    due: (n: number) => `${n} due`,
+    createLabel: 'Create new list',
+    renameLabel: 'Rename list',
+    deleteLabel: 'Delete list',
+    renameTitle: 'Rename List',
+    rename: 'Rename',
+    createTitle: 'New list',
+    listName: 'List name',
+    create: 'Create',
+    deleteTitle: 'Delete List',
+    deleteBody: (name: string) => `Delete “${name}”? Words only in this list are deleted.`,
+    cancel: 'Cancel',
+    delete: 'Delete',
   },
   // The first screen after sign-in. It shows counts only: a word seen here just
   // before the test asks it primes the answer.
@@ -398,6 +449,8 @@ export const copy = {
     chengyu: {
       label: '今日成语',
       question: 'What does it mean?',
+      showPinyin: 'Show pinyin',
+      hidePinyin: 'Hide pinyin',
       correct: 'Correct',
       itMeans: 'It means',
       addToWords: 'Add to my words',

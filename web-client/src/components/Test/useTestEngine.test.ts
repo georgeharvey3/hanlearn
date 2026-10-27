@@ -83,6 +83,7 @@ vi.mock('pinyin-pro', () => ({
 }));
 
 import { renderHook, act } from '@testing-library/react';
+import { pinyin } from 'pinyin-pro';
 import { useTestEngine } from './useTestEngine';
 import { Word } from '../../types/models';
 import { Props } from './types';
@@ -232,6 +233,23 @@ describe('useTestEngine — checkAnswer for pinyin answers', () => {
 
     expect(result.current.state.result).toBe('Incorrect tones');
   });
+
+  it.each(['peng2 you0', 'peng2 you5', 'peng2 you'])(
+    'accepts %s for a neutral tone, as 0, 5, or no number',
+    (answerInput) => {
+      const result = renderEngineWithState({
+        answerCategory: 'pinyin',
+        answer: 'peng2 you5',
+        answerInput,
+      });
+
+      act(() => {
+        result.current.onSubmitAnswer();
+      });
+
+      expect(result.current.state.result).toBe('Correct');
+    },
+  );
 });
 
 describe('useTestEngine — checkAnswer for meaning answers', () => {
@@ -327,7 +345,7 @@ describe('useTestEngine — the grade of the first attempt', () => {
       result.current.onSubmitAnswer();
     });
 
-    expect(result.current.state.gradeList).toEqual([
+    expect(result.current.state.gradeList).toMatchObject([
       { wordId: 1, direction: 'MP', result: 'pass', toneErrors: 0 },
     ]);
   });
@@ -357,7 +375,7 @@ describe('useTestEngine — the grade of the first attempt', () => {
     });
 
     expect(result.current.state.result).toBe('Correct');
-    expect(result.current.state.gradeList).toEqual([
+    expect(result.current.state.gradeList).toMatchObject([
       { wordId: 1, direction: 'MP', result: 'lapse', toneErrors: 0 },
     ]);
   });
@@ -374,7 +392,7 @@ describe('useTestEngine — the grade of the first attempt', () => {
       });
     }
 
-    expect(result.current.state.gradeList).toEqual([
+    expect(result.current.state.gradeList).toMatchObject([
       { wordId: 1, direction: 'MP', result: 'lapse', toneErrors: 0 },
     ]);
   });
@@ -409,7 +427,7 @@ describe('useTestEngine — the grade of the first attempt', () => {
       result.current.onSubmitAnswer();
     });
 
-    expect(result.current.state.gradeList).toEqual([
+    expect(result.current.state.gradeList).toMatchObject([
       { wordId: 1, direction: 'PM', result: 'lapse', toneErrors: 1 },
     ]);
   });
@@ -440,7 +458,7 @@ describe('useTestEngine — the grade of the first attempt', () => {
       result.current.onSubmitAnswer();
     });
 
-    expect(result.current.state.gradeList).toEqual([
+    expect(result.current.state.gradeList).toMatchObject([
       { wordId: 1, direction: 'MP', result: 'pass', toneErrors: 0 },
     ]);
   });
@@ -482,7 +500,7 @@ describe("useTestEngine — I-don't-know flow", () => {
     });
 
     // The queue pair asks meaning from pinyin, so the grade is recorded against MP.
-    expect(result.current.state.gradeList).toEqual([
+    expect(result.current.state.gradeList).toMatchObject([
       { wordId: 1, direction: 'MP', result: 'fail', toneErrors: 0 },
     ]);
     expect(result.current.state.idkDisabled).toBe(true);
@@ -540,7 +558,7 @@ describe("useTestEngine — I-don't-know flow", () => {
       result.current.onIDontKnow();
     });
 
-    expect(result.current.state.gradeList).toEqual([
+    expect(result.current.state.gradeList).toMatchObject([
       { wordId: 1, direction: 'PM', result: 'fail', toneErrors: 0 },
       { wordId: 1, direction: 'MP', result: 'fail', toneErrors: 0 },
     ]);
@@ -771,7 +789,7 @@ describe('useTestEngine — speech fills the answer input and sends nothing', ()
     });
 
     expect(result.current.state.result).toBe('Correct');
-    expect(result.current.state.gradeList).toEqual([
+    expect(result.current.state.gradeList).toMatchObject([
       { wordId: 1, direction: 'MP', result: 'pass', toneErrors: 0 },
     ]);
   });
@@ -801,7 +819,7 @@ describe('useTestEngine — speech fills the answer input and sends nothing', ()
 
     expect(result.current.state.result).toBe('Correct');
     // The first attempt was wrong, so the question is a lapse.
-    expect(result.current.state.gradeList).toEqual([
+    expect(result.current.state.gradeList).toMatchObject([
       { wordId: 1, direction: 'MP', result: 'lapse', toneErrors: 0 },
     ]);
   });
@@ -835,6 +853,41 @@ describe('useTestEngine — speech fills the answer input and sends nothing', ()
     expect(result.current.state.answerInput).not.toBe('');
     expect(result.current.state.idkDisabled).toBe(false);
     expect(result.current.state.gradeList).toEqual([]);
+  });
+
+  it('grades a pass when a spoken answer reads its neutral tone as 0', () => {
+    const { speak } = setupSpeechRecognition();
+    const pair = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
+    const sparePair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+    const result = renderEngineWithState(
+      {
+        answerCategory: 'pinyin',
+        answer: 'peng2 you5',
+        chosenCharacter: '朋友',
+        pinyinQuizType: 'input',
+        useAutoRecord: false,
+        currentPair: pair,
+        testSet: [makeWord()],
+        queue: [pair, sparePair],
+        charSet: 'simp',
+      },
+      { speechAvailable: true },
+    );
+    // pinyin-pro reads a neutral tone as 0.
+    vi.mocked(pinyin).mockReturnValueOnce(['peng2', 'you0'] as any);
+
+    act(() => {
+      result.current.onListen();
+    });
+    act(() => {
+      speak('朋友');
+    });
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+
+    expect(result.current.state.answerInput).toBe('peng2 you0');
+    expect(result.current.state.result).toBe('Correct');
   });
 });
 
@@ -1144,3 +1197,304 @@ describe('useTestEngine — showSentenceHint (regression: showHint set in sound 
 // ---------------------------------------------------------------------------
 // (Covered in Dashboard.test.tsx — the 'does not call getDashboardStats when userId is null'
 //  test now also verifies that loading resolves to false rather than staying stuck.)
+
+// ---------------------------------------------------------------------------
+// The review log records how the learner got to each grade. See issue #397.
+// ---------------------------------------------------------------------------
+describe('useTestEngine — how the learner got to the grade', () => {
+  const meaningPair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
+  const pinyinPair = { index: '0', aCategory: 'P' as any, qCategory: 'M' as any };
+  const characterPair = { index: '0', aCategory: 'C' as any, qCategory: 'M' as any };
+
+  /** A typed meaning question, with a spare pair so the grade stays in state. */
+  function typedQuestion(overrides: Record<string, unknown> = {}, props: Partial<Props> = {}) {
+    return renderEngineWithState(
+      {
+        answerCategory: 'meaning',
+        answer: ['hello'],
+        chosenCharacter: '你好',
+        meaningQuizType: 'input',
+        currentPair: meaningPair,
+        testSet: [makeWord()],
+        queue: [meaningPair, pinyinPair],
+        charSet: 'simp',
+        gradeList: [],
+        gradeCap: 'pass',
+        toneErrorCount: 0,
+        missCount: 0,
+        hintShown: false,
+        firstWrongAnswer: null,
+        questionShownAt: null,
+        useAutoRecord: false,
+        recognition: null,
+        ...overrides,
+      },
+      props,
+    );
+  }
+
+  function submit(result: ReturnType<typeof typedQuestion>, answer: string) {
+    act(() => {
+      result.current.setStateMerged({ answerInput: answer } as any);
+    });
+    act(() => {
+      result.current.onSubmitAnswer();
+    });
+  }
+
+  it('records a typed pass on the first attempt with no misses and no answer', () => {
+    const result = typedQuestion();
+
+    submit(result, 'hello');
+
+    const [grade] = result.current.state.gradeList;
+    expect(grade).toMatchObject({
+      result: 'pass',
+      mode: 'input',
+      position: 0,
+      misses: 0,
+      hint: false,
+      revealed: false,
+    });
+    expect(grade).not.toHaveProperty('answer');
+  });
+
+  it('records the first wrong answer and each wrong submission of a lapse', () => {
+    const result = typedQuestion();
+
+    submit(result, '  goodbye ');
+    submit(result, 'bye');
+    submit(result, 'hello');
+
+    expect(result.current.state.gradeList[0]).toMatchObject({
+      result: 'lapse',
+      misses: 2,
+      answer: 'goodbye',
+    });
+  });
+
+  it('cuts the first wrong answer to 50 characters', () => {
+    const result = typedQuestion();
+
+    submit(result, 'x'.repeat(60));
+    submit(result, 'hello');
+
+    expect(result.current.state.gradeList[0].answer).toBe('x'.repeat(50));
+  });
+
+  it('adds no miss for a spoken transcript that the learner does not send', () => {
+    const listeners: Record<string, (event: any) => void> = {};
+    (window as any).webkitSpeechRecognition = class {
+      lang = '';
+      start = vi.fn();
+      abort = vi.fn();
+      addEventListener = (event: string, handler: (e: any) => void) => {
+        listeners[event] = handler;
+      };
+    };
+    const result = typedQuestion({}, { speechAvailable: true });
+
+    act(() => {
+      result.current.onListen();
+    });
+    act(() => {
+      listeners['result']?.({ results: [[{ transcript: 'goodbye' }]] });
+    });
+    submit(result, 'hello');
+
+    expect(result.current.state.gradeList[0]).toMatchObject({ result: 'pass', misses: 0 });
+    expect(result.current.state.gradeList[0]).not.toHaveProperty('answer');
+  });
+
+  it('records the position of the grade in the session', () => {
+    const result = typedQuestion({
+      gradeList: [{ wordId: 9, direction: 'PM', result: 'pass', toneErrors: 0 }],
+    });
+
+    submit(result, 'hello');
+
+    expect(result.current.state.gradeList[1].position).toBe(1);
+  });
+
+  it('records a hint that was on screen, though the grade takes it off', () => {
+    const result = typedQuestion({
+      answerCategory: 'pinyin',
+      answer: 'ni3 hao3',
+      currentPair: pinyinPair,
+      queue: [pinyinPair, meaningPair],
+    });
+
+    act(() => {
+      result.current.onHint();
+    });
+    submit(result, 'ni3 hao3');
+
+    expect(result.current.state.gradeList[0]).toMatchObject({
+      direction: 'PM',
+      hint: true,
+      toneErrors: 0,
+    });
+  });
+
+  it('records the time from the question on screen to the grade', () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    const result = typedQuestion({ qNum: 1 });
+    act(() => {
+      // A new question comes on screen.
+      result.current.setStateMerged({ qNum: 2 } as any);
+    });
+
+    now.mockReturnValue(9421);
+    submit(result, 'hello');
+
+    expect(result.current.state.gradeList[0].answerMs).toBe(8421);
+  });
+
+  it('records "I don\'t know" on a typed question as a reveal', () => {
+    const result = typedQuestion();
+
+    act(() => {
+      result.current.onIDontKnow();
+    });
+
+    expect(result.current.state.gradeList[0]).toMatchObject({
+      result: 'fail',
+      mode: 'input',
+      revealed: true,
+    });
+  });
+
+  it('records a flashcard self-grade of fail as no reveal, with no misses or answer', () => {
+    const result = typedQuestion({ meaningQuizType: 'flashcard', showAnswer: true });
+
+    act(() => {
+      result.current.onIDontKnow();
+    });
+
+    const [grade] = result.current.state.gradeList;
+    expect(grade).toMatchObject({ result: 'fail', mode: 'flashcard', revealed: false });
+    expect(grade).not.toHaveProperty('misses');
+    expect(grade).not.toHaveProperty('answer');
+  });
+
+  it('records a flashcard pass in flashcard mode', () => {
+    const result = typedQuestion({ meaningQuizType: 'flashcard', showAnswer: true });
+
+    act(() => {
+      result.current.onCorrectAnswer('pass');
+    });
+
+    expect(result.current.state.gradeList[0]).toMatchObject({
+      result: 'pass',
+      mode: 'flashcard',
+      revealed: false,
+    });
+  });
+
+  describe('a handwriting question', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function handwritingQuestion() {
+      const result = typedQuestion({
+        answerCategory: 'character',
+        questionCategory: 'meaning',
+        answer: '你',
+        chosenCharacter: '你',
+        useHandwriting: true,
+        writer: null,
+        currentPair: characterPair,
+        testSet: [makeWord({ simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' })],
+        queue: [characterPair, meaningPair],
+        qNum: 1,
+      });
+      mockWriter.quiz.mockClear();
+      act(() => {
+        result.current.setStateMerged({ qNum: 2 } as any);
+      });
+      return { result, quiz: mockWriter.quiz.mock.calls[0][0] };
+    }
+
+    it('counts the missed strokes and records no answer', () => {
+      const { result, quiz } = handwritingQuestion();
+
+      act(() => {
+        quiz.onMistake({ mistakesOnStroke: 1, strokeNum: 0, totalMistakes: 1 });
+        quiz.onMistake({ mistakesOnStroke: 2, strokeNum: 0, totalMistakes: 2 });
+        quiz.onComplete();
+      });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      const [grade] = result.current.state.gradeList;
+      expect(grade).toMatchObject({
+        direction: 'CM',
+        result: 'pass',
+        mode: 'handwriting',
+        misses: 2,
+        revealed: false,
+      });
+      expect(grade).not.toHaveProperty('answer');
+    });
+
+    it('records the outline that the writer shows after five misses as a hint', () => {
+      const { result, quiz } = handwritingQuestion();
+
+      act(() => {
+        quiz.onMistake({ mistakesOnStroke: 5, strokeNum: 0, totalMistakes: 5 });
+        quiz.onComplete();
+      });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(result.current.state.gradeList[0]).toMatchObject({ result: 'lapse', hint: true });
+    });
+
+    it('records the reveal of the character as a reveal', async () => {
+      const { result } = handwritingQuestion();
+
+      await act(async () => {
+        result.current.onIDontKnow();
+      });
+
+      expect(result.current.state.gradeList[0]).toMatchObject({
+        result: 'fail',
+        mode: 'handwriting',
+        revealed: true,
+      });
+    });
+  });
+
+  it('sends the detail of each grade with the results of the session', () => {
+    const onFinishTest = vi.fn();
+    const result = typedQuestion({ queue: [meaningPair] }, { onFinishTest });
+
+    submit(result, 'hello');
+
+    expect(onFinishTest).toHaveBeenCalledWith([
+      {
+        word_id: 1,
+        directions: { MP: 'pass' },
+        toneErrors: {},
+        details: {
+          MP: expect.objectContaining({ mode: 'input', position: 0, misses: 0, hint: false }),
+        },
+      },
+    ]);
+  });
+
+  it('sends no results in practice mode', () => {
+    const onFinishTest = vi.fn();
+    const result = typedQuestion({ queue: [meaningPair] }, { onFinishTest, practiceMode: true });
+
+    submit(result, 'hello');
+
+    expect(onFinishTest).not.toHaveBeenCalled();
+  });
+});

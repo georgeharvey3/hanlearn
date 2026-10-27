@@ -24,7 +24,13 @@ import {
   readQuestionsPerSession,
   writeQuestionsPerSession,
 } from '../../utils/sessionSettings';
-import { QuizCategory, QuizType, getQuizType, setQuizType } from '../../utils/audioSettings';
+import {
+  QuizCategory,
+  QuizType,
+  applyAudioSession,
+  getQuizType,
+  setQuizType,
+} from '../../utils/audioSettings';
 import { ChipGroup, FoldGroup, Trail, SegmentedRow, StepperRow, SwitchRow } from './controls';
 import { autoRecordBlock, sentenceReadBlock, ttsBlock, newWordsBlock, quizOptions } from './rules';
 
@@ -121,6 +127,7 @@ const Settings: React.FC<PropsFromRedux> = ({
     setValues((prev) => {
       const next = { ...prev, [key]: value };
       localStorage.setItem(key, String(value));
+      applyAudioSession();
       // Writing needs handwriting, so a Writing focus ends with it.
       if (key === 'useHandwriting' && !value && prev.priority === 'CM') {
         next.priority = 'none';

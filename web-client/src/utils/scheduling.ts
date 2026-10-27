@@ -35,6 +35,13 @@ import { DirectionResult } from '../types/models';
  * Firestore write.
  */
 
+/**
+ * The name of the weights in use, which each review log document records, so
+ * that a calibration compares only the reviews of one set of weights.
+ * A change to the weights must change this name.
+ */
+export const SCHEDULER_NAME = 'fsrs-6-default';
+
 /** The recall probability that the due date aims for. */
 export const TARGET_RETENTION = 0.9;
 
@@ -236,6 +243,15 @@ export function bankOf(interval: number): number {
 export function elapsedDays(lastReview: Date | undefined, now: Date, interval: number): number {
   if (!lastReview) return interval;
   return Math.max(0, Math.floor((now.getTime() - lastReview.getTime()) / MS_PER_DAY));
+}
+
+/**
+ * The recall probability that FSRS predicts for a memory after `elapsed` whole
+ * days: the forgetting curve with the weights of the scheduler. It is the
+ * value that the review log compares with the grade.
+ */
+export function retrievability(memory: Memory, elapsed: number): number {
+  return scheduler.forgetting_curve(elapsed, memory.stability);
 }
 
 /**

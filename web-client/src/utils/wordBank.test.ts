@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isCovered, isInBank, matchesBank } from './wordBank';
+import { isCovered, isInBank, matchesBank, removalDeletes } from './wordBank';
 import { makeDirections } from './directions';
 import { Word } from '../types/models';
 
@@ -82,5 +82,21 @@ describe('isInBank', () => {
 
   it('tells apart two entries with the same characters', () => {
     expect(isInBank({ ...bank[0], id: 77, pinyin: 'fù jin' }, bank)).toBe(false);
+  });
+});
+
+describe('removalDeletes', () => {
+  const word = { id: 1, simp: '朋友', trad: '朋友', pinyin: 'péngyou', meaning: 'friend' };
+
+  it('does not delete a word that another list holds', () => {
+    expect(removalDeletes({ ...word, listIds: ['default', 'hsk1'] }, 'hsk1')).toBe(false);
+  });
+
+  it('deletes a word that only the active list holds', () => {
+    expect(removalDeletes({ ...word, listIds: ['hsk1'] }, 'hsk1')).toBe(true);
+  });
+
+  it('deletes a word from every list in the all-lists view', () => {
+    expect(removalDeletes({ ...word, listIds: ['default', 'hsk1'] }, '__all__')).toBe(true);
   });
 });

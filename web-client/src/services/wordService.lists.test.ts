@@ -1,7 +1,8 @@
 /**
  * Tests for wordService.ts — word list CRUD and utility functions.
  * Covers: getUserWordLists, createWordList, deleteWordList, getListStats,
- * migrateWordsWithoutListId, moveWordToList.
+ * the userWords migrations, and the list membership of a word: addWordToList,
+ * removeWordFromList and setListsOfWord, and the import of a premade list.
  *
  * Firebase Firestore is mocked at the SDK level since wordService IS the service layer.
  */
@@ -25,6 +26,9 @@ const {
   mockOrderBy,
   mockTimestampFromDate,
   mockTimestampNow,
+  mockArrayUnion,
+  mockArrayRemove,
+  mockDeleteField,
 } = vi.hoisted(() => {
   const mockBatchUpdate = vi.fn();
   const mockBatchDelete = vi.fn();
@@ -52,6 +56,9 @@ const {
     mockOrderBy: vi.fn(),
     mockTimestampFromDate: vi.fn((date: Date) => ({ toDate: () => date, _date: date })),
     mockTimestampNow: vi.fn(() => ({ toDate: () => new Date() })),
+    mockArrayUnion: vi.fn((...items: string[]) => ({ __arrayUnion: items })),
+    mockArrayRemove: vi.fn((...items: string[]) => ({ __arrayRemove: items })),
+    mockDeleteField: vi.fn(() => ({ __deleteField: true })),
   };
 });
 
@@ -72,6 +79,9 @@ vi.mock('firebase/firestore', () => ({
     now: mockTimestampNow,
   },
   writeBatch: mockWriteBatch,
+  arrayUnion: mockArrayUnion,
+  arrayRemove: mockArrayRemove,
+  deleteField: mockDeleteField,
 }));
 
 vi.mock('../firebase/config', () => ({ db: {} }));
@@ -86,10 +96,14 @@ import {
   createWordList,
   deleteWordList,
   getListStats,
-  migrateWordsWithoutListId,
+  migrateWordsToListIds,
   migrateWordsWithoutDirections,
   migrateUserWords,
-  moveWordToList,
+  addWordToList,
+  removeWordFromList,
+  setListsOfWord,
+  getHeldWords,
+  addPremadeList,
 } from './wordService';
 import { DIRECTIONS } from '../types/models';
 
@@ -107,19 +121,21 @@ function makeListDoc(id: string, name: string, order: number, createdAt?: object
   };
 }
 
-function makeWordDocWithList(id: string, listId: string | undefined, dueDaysFromNow = 0) {
+/** A userWords document in the lists given, as Firestore holds it. */
+function makeWordDocInLists(id: string, membership: object, dueDaysFromNow = 0) {
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + dueDaysFromNow);
   return {
     id,
     ref: `users/u1/userWords/${id}`,
+    exists: () => true,
     data: () => ({
       wordId: id,
       wordData: { simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' },
       amendedMeaning: null,
       bank: 1,
-      listId,
       dueDate: { toDate: () => dueDate },
+      ...membership,
     }),
   };
 }
@@ -260,16 +276,35 @@ describe('deleteWordList', () => {
     expect(mockGetDocs).not.toHaveBeenCalled();
   });
 
-  it('deletes all words in the list and the list document via a batch', async () => {
+  it('deletes the words in no other list and takes the list off the others', async () => {
     mockGetDocs.mockResolvedValue(
-      makeFakeSnapshot([makeWordDocWithList('w1', 'list-1'), makeWordDocWithList('w2', 'list-1')]),
+      makeFakeSnapshot([
+        makeWordDocInLists('w1', { listIds: ['list-1'] }),
+        makeWordDocInLists('w2', { listIds: ['list-1', 'default'] }),
+      ]),
     );
 
     await deleteWordList('user-1', 'list-1');
 
-    // 2 words + 1 list doc = 3 batch.delete calls
-    expect(mockBatchDelete).toHaveBeenCalledTimes(3);
+    const deleted = mockBatchDelete.mock.calls.map(([ref]) => ref.path ?? ref);
+    expect(deleted).toContain('users/u1/userWords/w1');
+    expect(deleted).toContain('users/user-1/wordLists/list-1');
+    expect(deleted).not.toContain('users/u1/userWords/w2');
+    expect(mockBatchUpdate).toHaveBeenCalledWith('users/u1/userWords/w2', {
+      listIds: { __arrayRemove: ['list-1'] },
+    });
     expect(mockBatchCommit).toHaveBeenCalledOnce();
+  });
+
+  it('keeps a shared word with its schedule', async () => {
+    mockGetDocs.mockResolvedValue(
+      makeFakeSnapshot([makeWordDocInLists('w2', { listIds: ['list-1', 'hsk1'] })]),
+    );
+
+    await deleteWordList('user-1', 'list-1');
+
+    const update = mockBatchUpdate.mock.calls[0][1];
+    expect(Object.keys(update)).toEqual(['listIds']);
   });
 
   it('deletes the list document even when there are no words', async () => {
@@ -282,12 +317,28 @@ describe('deleteWordList', () => {
     expect(mockBatchCommit).toHaveBeenCalledOnce();
   });
 
-  it('uses where query to find words by listId', async () => {
-    mockGetDocs.mockResolvedValue(makeFakeSnapshot([]));
+  it('writes in batches of 500 or fewer, with the list document in the last', async () => {
+    const docs = Array.from({ length: 700 }, (_, i) =>
+      makeWordDocInLists(`w${i}`, { listIds: ['list-1'] }),
+    );
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot(docs));
+    const batches: string[][] = [];
+    mockWriteBatch.mockImplementation((() => {
+      const ops: string[] = [];
+      batches.push(ops);
+      return {
+        update: (ref: string) => ops.push(ref),
+        delete: (ref: { path?: string } | string) =>
+          ops.push(typeof ref === 'string' ? ref : (ref.path ?? '')),
+        commit: mockBatchCommit,
+      };
+    }) as any);
 
-    await deleteWordList('user-1', 'list-abc');
+    await deleteWordList('user-1', 'list-1');
 
-    expect(mockWhere).toHaveBeenCalledWith('listId', '==', 'list-abc');
+    expect(batches.every((ops) => ops.length <= 500)).toBe(true);
+    expect(batches.flat()).toHaveLength(701);
+    expect(batches[batches.length - 1]).toContain('users/user-1/wordLists/list-1');
   });
 });
 
@@ -296,35 +347,22 @@ describe('deleteWordList', () => {
 describe('getListStats', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('returns correct total and due counts per list', async () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
 
+  const wordDoc = (id: string, membership: object, dueDate: Date) => ({
+    id,
+    data: () => ({ ...membership, dueDate: { toDate: () => new Date(dueDate) } }),
+  });
+
+  it('returns correct total and due counts per list', async () => {
     mockGetDocs.mockResolvedValue(
       makeFakeSnapshot([
-        {
-          id: 'w1',
-          data: () => ({
-            listId: 'default',
-            dueDate: { toDate: () => yesterday },
-          }),
-        },
-        {
-          id: 'w2',
-          data: () => ({
-            listId: 'default',
-            dueDate: { toDate: () => tomorrow },
-          }),
-        },
-        {
-          id: 'w3',
-          data: () => ({
-            listId: 'list-1',
-            dueDate: { toDate: () => yesterday },
-          }),
-        },
+        wordDoc('w1', { listIds: ['default'] }, yesterday),
+        wordDoc('w2', { listIds: ['default'] }, tomorrow),
+        wordDoc('w3', { listIds: ['list-1'] }, yesterday),
       ]),
     );
 
@@ -336,21 +374,31 @@ describe('getListStats', () => {
     expect(stats['list-1'].due).toBe(1);
   });
 
-  it('treats words without listId as belonging to "default"', async () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-
+  it('counts a word in each list that holds it, and one time for all lists', async () => {
     mockGetDocs.mockResolvedValue(
       makeFakeSnapshot([
-        {
-          id: 'w1',
-          data: () => ({
-            // no listId field — legacy word
-            dueDate: { toDate: () => yesterday },
-          }),
-        },
+        wordDoc('w1', { listIds: ['default', 'hsk1'] }, yesterday),
+        wordDoc('w2', { listIds: ['hsk1'] }, tomorrow),
       ]),
     );
+
+    const stats = await getListStats('user-1');
+
+    expect(stats['default']).toEqual({ due: 1, total: 1 });
+    expect(stats['hsk1']).toEqual({ due: 1, total: 2 });
+    expect(stats['__all__']).toEqual({ due: 1, total: 2 });
+  });
+
+  it('reads a word that the backfill has not reached from its listId', async () => {
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([wordDoc('w1', { listId: 'hsk1' }, yesterday)]));
+
+    const stats = await getListStats('user-1');
+
+    expect(stats['hsk1']).toEqual({ due: 1, total: 1 });
+  });
+
+  it('treats words without a list as belonging to "default"', async () => {
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([wordDoc('w1', {}, yesterday)]));
 
     const stats = await getListStats('user-1');
 
@@ -369,17 +417,8 @@ describe('getListStats', () => {
   it('counts a word due today as due', async () => {
     const todayMidnight = new Date();
     todayMidnight.setHours(0, 0, 0, 0);
-
     mockGetDocs.mockResolvedValue(
-      makeFakeSnapshot([
-        {
-          id: 'w1',
-          data: () => ({
-            listId: 'default',
-            dueDate: { toDate: () => todayMidnight },
-          }),
-        },
-      ]),
+      makeFakeSnapshot([wordDoc('w1', { listIds: ['default'] }, todayMidnight)]),
     );
 
     const stats = await getListStats('user-1');
@@ -388,20 +427,8 @@ describe('getListStats', () => {
   });
 
   it('does not count a word due tomorrow', async () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-
     mockGetDocs.mockResolvedValue(
-      makeFakeSnapshot([
-        {
-          id: 'w1',
-          data: () => ({
-            listId: 'default',
-            dueDate: { toDate: () => tomorrow },
-          }),
-        },
-      ]),
+      makeFakeSnapshot([wordDoc('w1', { listIds: ['default'] }, tomorrow)]),
     );
 
     const stats = await getListStats('user-1');
@@ -411,9 +438,9 @@ describe('getListStats', () => {
   });
 });
 
-// ─── migrateWordsWithoutListId ────────────────────────────────────────────────
+// ─── migrateWordsToListIds ────────────────────────────────────────────────────
 
-describe('migrateWordsWithoutListId', () => {
+describe('migrateWordsToListIds', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockBatchCommit.mockResolvedValue(undefined);
@@ -424,42 +451,49 @@ describe('migrateWordsWithoutListId', () => {
     });
   });
 
-  it('returns 0 and does not write when all words already have listId', async () => {
+  it('converts listId to a one-item listIds and removes listId', async () => {
+    mockGetDocs.mockResolvedValue(
+      makeFakeSnapshot([{ id: 'w1', ref: 'ref1', data: () => ({ listId: 'hsk1' }) }]),
+    );
+
+    const count = await migrateWordsToListIds('user-1');
+
+    expect(count).toBe(1);
+    expect(mockBatchUpdate).toHaveBeenCalledWith('ref1', {
+      listIds: ['hsk1'],
+      listId: { __deleteField: true },
+    });
+  });
+
+  it('gives a word with neither field the General list', async () => {
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([{ id: 'w1', ref: 'ref1', data: () => ({}) }]));
+
+    await migrateWordsToListIds('user-1');
+
+    expect(mockBatchUpdate).toHaveBeenCalledWith('ref1', {
+      listIds: ['default'],
+      listId: { __deleteField: true },
+    });
+  });
+
+  it('writes nothing on a second run', async () => {
     mockGetDocs.mockResolvedValue(
       makeFakeSnapshot([
-        { id: 'w1', ref: 'ref1', data: () => ({ listId: 'default' }) },
-        { id: 'w2', ref: 'ref2', data: () => ({ listId: 'list-1' }) },
+        { id: 'w1', ref: 'ref1', data: () => ({ listIds: ['default'] }) },
+        { id: 'w2', ref: 'ref2', data: () => ({ listIds: ['list-1', 'default'] }) },
       ]),
     );
 
-    const count = await migrateWordsWithoutListId('user-1');
+    const count = await migrateWordsToListIds('user-1');
 
     expect(count).toBe(0);
     expect(mockBatchCommit).not.toHaveBeenCalled();
   });
 
-  it('updates words missing listId and returns the count', async () => {
-    mockGetDocs.mockResolvedValue(
-      makeFakeSnapshot([
-        { id: 'w1', ref: 'ref1', data: () => ({ listId: 'default' }) },
-        { id: 'w2', ref: 'ref2', data: () => ({}) }, // no listId
-        { id: 'w3', ref: 'ref3', data: () => ({}) }, // no listId
-      ]),
-    );
-
-    const count = await migrateWordsWithoutListId('user-1');
-
-    expect(count).toBe(2);
-    expect(mockBatchUpdate).toHaveBeenCalledTimes(2);
-    expect(mockBatchUpdate).toHaveBeenCalledWith('ref2', { listId: 'default' });
-    expect(mockBatchUpdate).toHaveBeenCalledWith('ref3', { listId: 'default' });
-    expect(mockBatchCommit).toHaveBeenCalledOnce();
-  });
-
   it('returns 0 when user has no words', async () => {
     mockGetDocs.mockResolvedValue(makeFakeSnapshot([]));
 
-    const count = await migrateWordsWithoutListId('user-1');
+    const count = await migrateWordsToListIds('user-1');
 
     expect(count).toBe(0);
     expect(mockBatchCommit).not.toHaveBeenCalled();
@@ -495,7 +529,7 @@ describe('migrateWordsWithoutDirections', () => {
 
   it('copies bank and dueDate into all five directions of a legacy document', async () => {
     mockGetDocs.mockResolvedValue(
-      makeFakeSnapshot([makeMigrationDoc('w1', { bank: 3, dueDate, listId: 'default' })]),
+      makeFakeSnapshot([makeMigrationDoc('w1', { bank: 3, dueDate, listIds: ['default'] })]),
     );
 
     const count = await migrateWordsWithoutDirections('user-1');
@@ -515,7 +549,7 @@ describe('migrateWordsWithoutDirections', () => {
         makeMigrationDoc('w1', {
           bank: 1,
           dueDate,
-          listId: 'default',
+          listIds: ['default'],
           directions: fullDirections(1, dueDate),
         }),
       ]),
@@ -534,7 +568,7 @@ describe('migrateWordsWithoutDirections', () => {
         makeMigrationDoc('w1', {
           bank: 2,
           dueDate,
-          listId: 'default',
+          listIds: ['default'],
           directions: { CM: { bank: 5, dueDate: cmDueDate } },
         }),
       ]),
@@ -548,12 +582,12 @@ describe('migrateWordsWithoutDirections', () => {
     expect(update.directions.MC).toEqual({ bank: 2, dueDate });
   });
 
-  it('leaves listId alone', async () => {
+  it('leaves the lists alone', async () => {
     mockGetDocs.mockResolvedValue(makeFakeSnapshot([makeMigrationDoc('w1', { bank: 1, dueDate })]));
 
     await migrateWordsWithoutDirections('user-1');
 
-    expect(mockBatchUpdate.mock.calls[0][1]).not.toHaveProperty('listId');
+    expect(mockBatchUpdate.mock.calls[0][1]).not.toHaveProperty('listIds');
   });
 
   it('returns 0 when the user has no words', async () => {
@@ -588,7 +622,7 @@ describe('migrateUserWords', () => {
     expect(mockGetDocs).toHaveBeenCalledOnce();
     expect(mockBatchUpdate).toHaveBeenCalledOnce();
     const update = mockBatchUpdate.mock.calls[0][1];
-    expect(update.listId).toBe('default');
+    expect(update.listIds).toEqual(['default']);
     expect(Object.keys(update.directions)).toHaveLength(5);
     expect(mockBatchCommit).toHaveBeenCalledOnce();
   });
@@ -597,16 +631,19 @@ describe('migrateUserWords', () => {
     mockGetDocs.mockResolvedValue(
       makeFakeSnapshot([
         makeMigrationDoc('w1', { bank: 1, dueDate, directions: fullDirections(1, dueDate) }),
-        makeMigrationDoc('w2', { bank: 1, dueDate, listId: 'list-1' }),
+        makeMigrationDoc('w2', { bank: 1, dueDate, listIds: ['list-1'] }),
       ]),
     );
 
     const count = await migrateUserWords('user-1');
 
     expect(count).toBe(2);
-    expect(mockBatchUpdate).toHaveBeenCalledWith('ref-w1', { listId: 'default' });
+    expect(mockBatchUpdate).toHaveBeenCalledWith('ref-w1', {
+      listIds: ['default'],
+      listId: { __deleteField: true },
+    });
     const w2Update = mockBatchUpdate.mock.calls[1][1];
-    expect(w2Update).not.toHaveProperty('listId');
+    expect(w2Update).not.toHaveProperty('listIds');
     expect(w2Update.directions).toBeDefined();
   });
 
@@ -616,7 +653,7 @@ describe('migrateUserWords', () => {
         makeMigrationDoc('w1', {
           bank: 1,
           dueDate,
-          listId: 'default',
+          listIds: ['default'],
           directions: fullDirections(1, dueDate),
         }),
       ]),
@@ -627,25 +664,246 @@ describe('migrateUserWords', () => {
   });
 });
 
-// ─── moveWordToList ───────────────────────────────────────────────────────────
+// ─── addWordToList ────────────────────────────────────────────────────────────
 
-describe('moveWordToList', () => {
-  beforeEach(() => vi.clearAllMocks());
+describe('addWordToList', () => {
+  const word = { id: 42, simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' };
 
-  it('calls updateDoc with the new listId', async () => {
-    mockUpdateDoc.mockResolvedValue(undefined);
-
-    await moveWordToList('user-1', 42, 'new-list');
-
-    expect(mockUpdateDoc).toHaveBeenCalledOnce();
-    expect(mockUpdateDoc.mock.calls[0][1]).toEqual({ listId: 'new-list' });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetDocs.mockResolvedValue(makeFakeSnapshot([]));
   });
 
-  it('uses the correct Firestore document path', async () => {
+  it('creates a word that the learner does not have in the list', async () => {
+    mockGetDoc.mockResolvedValue({ exists: () => false });
+
+    const existingWord = await addWordToList('user-1', word, 'hsk1');
+
+    expect(existingWord).toBeNull();
+    expect(mockSetDoc).toHaveBeenCalledOnce();
+    expect(mockSetDoc.mock.calls[0][1]).toMatchObject({ bank: 1, listIds: ['hsk1'] });
+  });
+
+  it('puts a word that the learner has into a second list', async () => {
+    mockGetDoc.mockResolvedValue(makeWordDocInLists('42', { listIds: ['default'] }));
+
+    await addWordToList('user-1', word, 'hsk1');
+
+    expect(mockUpdateDoc).toHaveBeenCalledOnce();
+    expect(mockUpdateDoc.mock.calls[0][1]).toEqual({ listIds: { __arrayUnion: ['hsk1'] } });
+  });
+
+  it('does not write the schedule of a word that the learner has', async () => {
+    mockGetDoc.mockResolvedValue(makeWordDocInLists('42', { listIds: ['default'] }, 30));
+
+    const existingWord = await addWordToList('user-1', word, 'hsk1');
+
+    expect(mockSetDoc).not.toHaveBeenCalled();
+    expect(existingWord?.listIds).toEqual(['default', 'hsk1']);
+    expect(existingWord?.due_date).toBeDefined();
+  });
+});
+
+// ─── removeWordFromList ───────────────────────────────────────────────────────
+
+describe('removeWordFromList', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('takes the word out of one of its two lists', async () => {
+    mockGetDoc.mockResolvedValue(makeWordDocInLists('42', { listIds: ['default', 'hsk1'] }));
+
+    const deleted = await removeWordFromList('user-1', 42, 'hsk1');
+
+    expect(deleted).toBe(false);
+    expect(mockDeleteDoc).not.toHaveBeenCalled();
+    expect(mockUpdateDoc.mock.calls[0][1]).toEqual({ listIds: { __arrayRemove: ['hsk1'] } });
+  });
+
+  it('deletes the word when it leaves its last list', async () => {
+    mockGetDoc.mockResolvedValue(makeWordDocInLists('42', { listIds: ['hsk1'] }));
+
+    const deleted = await removeWordFromList('user-1', 42, 'hsk1');
+
+    expect(deleted).toBe(true);
+    expect(mockDeleteDoc).toHaveBeenCalledOnce();
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
+  });
+
+  it('deletes the word from every list when no list is given', async () => {
+    const deleted = await removeWordFromList('user-1', 42);
+
+    expect(deleted).toBe(true);
+    expect(mockDeleteDoc).toHaveBeenCalledOnce();
+  });
+});
+
+// ─── setListsOfWord ───────────────────────────────────────────────────────────
+
+describe('setListsOfWord', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('writes the lists of the word', async () => {
     mockUpdateDoc.mockResolvedValue(undefined);
 
-    await moveWordToList('user-2', 99, 'list-abc');
+    await setListsOfWord('user-1', 42, ['default', 'hsk1']);
 
-    expect(mockDoc).toHaveBeenCalledWith(expect.anything(), 'users', 'user-2', 'userWords', '99');
+    expect(mockUpdateDoc.mock.calls[0][1]).toEqual({ listIds: ['default', 'hsk1'] });
+    expect(mockDoc).toHaveBeenCalledWith(expect.anything(), 'users', 'user-1', 'userWords', '42');
+  });
+
+  it('refuses an empty set', async () => {
+    await expect(setListsOfWord('user-1', 42, [])).rejects.toThrow();
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Premade lists ────────────────────────────────────────────────────────────
+
+/** Dictionary entries as a premade list carries them, with IDs from `first`. */
+function entries(count: number, first = 1) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: first + i,
+    simp: '字',
+    trad: '字',
+    pinyin: 'zi4',
+    meaning: 'character',
+  }));
+}
+
+/** The learner's words with the IDs given, as one read of userWords returns them. */
+function heldWords(ids: number[], membership: object = { listIds: ['default'] }) {
+  return makeFakeSnapshot(ids.map((id) => makeWordDocInLists(String(id), membership)));
+}
+
+describe('getHeldWords', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('returns the words of the list that the learner has, across all lists', async () => {
+    mockGetDocs.mockResolvedValue(heldWords([2, 3, 99]));
+
+    const held = await getHeldWords('user-1', [1, 2, 3, 4]);
+
+    expect(held.map((w) => w.id)).toEqual([2, 3]);
+    expect(held[0].due_date).toBeTruthy();
+  });
+});
+
+describe('addPremadeList', () => {
+  /** Every write of every batch, by batch, as [kind, path, data]. */
+  let batches: [string, string, any][][];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    batches = [];
+    mockAddDoc.mockResolvedValue({ id: 'hsk-list' });
+    mockBatchCommit.mockResolvedValue(undefined);
+    mockWriteBatch.mockImplementation((() => {
+      const ops: [string, string, any][] = [];
+      batches.push(ops);
+      const write = (kind: string) => (ref: { path: string }, data?: unknown) =>
+        ops.push([kind, ref.path, data]);
+      return {
+        set: write('set'),
+        update: write('update'),
+        delete: write('delete'),
+        commit: mockBatchCommit,
+      };
+    }) as any);
+  });
+
+  /** The userWords reads return `held`; the read of the lists returns none. */
+  function givenHeld(snapshot: ReturnType<typeof makeFakeSnapshot>) {
+    mockGetDocs.mockImplementation(async (ref: unknown) =>
+      ref === 'userWords' ? snapshot : makeFakeSnapshot([]),
+    );
+    mockCollection.mockImplementation((_db: unknown, ...path: string[]) => path[path.length - 1]);
+  }
+
+  it('makes a list with the name of the premade list', async () => {
+    givenHeld(heldWords([]));
+
+    const result = await addPremadeList('user-1', 'HSK 1', entries(2));
+
+    expect(mockAddDoc.mock.calls[0][1]).toMatchObject({ name: 'HSK 1' });
+    expect(result.list).toMatchObject({ id: 'hsk-list', name: 'HSK 1' });
+  });
+
+  it('creates each new word as a new word in the list, due like a word added by hand', async () => {
+    // A learner with more than 9 words gets a new word due tomorrow.
+    givenHeld(heldWords([101, 102, 103, 104, 105, 106, 107, 108, 109, 110]));
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    await addPremadeList('user-1', 'HSK 1', entries(1));
+
+    const [kind, path, data] = batches.flat()[0];
+    expect(kind).toBe('set');
+    expect(path).toBe('users/user-1/userWords/1');
+    expect(data).toMatchObject({
+      wordData: { simp: '字', trad: '字', pinyin: 'zi4', meaning: 'character' },
+      bank: 1,
+      listIds: ['hsk-list'],
+    });
+    expect(data.dueDate.toDate().toDateString()).toBe(tomorrow.toDateString());
+    expect(data.directions.MC).toMatchObject({ bank: 1 });
+  });
+
+  it('cuts a meaning longer than the rules allow at its last whole sense', async () => {
+    givenHeld(heldWords([]));
+    // 点 in CC-CEDICT has 545 characters of senses.
+    const sense = 'a sense of ten words, more or less, to fill';
+    const long = { ...entries(1)[0], meaning: Array(15).fill(sense).join('/') };
+
+    await addPremadeList('user-1', 'HSK 1', [long]);
+
+    const meaning: string = batches.flat()[0][2].wordData.meaning;
+    expect(meaning.length).toBeLessThanOrEqual(500);
+    expect(meaning).toBe(Array(11).fill(sense).join('/'));
+  });
+
+  it('puts a word that the learner has into the list, and writes nothing of its schedule', async () => {
+    givenHeld(heldWords([1]));
+
+    await addPremadeList('user-1', 'HSK 1', entries(1));
+
+    expect(batches.flat()).toEqual([
+      ['update', 'users/user-1/userWords/1', { listIds: { __arrayUnion: ['hsk-list'] } }],
+    ]);
+  });
+
+  it('keeps the list of a word that the backfill has not reached', async () => {
+    givenHeld(heldWords([1], { listId: 'own-list' }));
+
+    await addPremadeList('user-1', 'HSK 1', entries(1));
+
+    expect(batches.flat()[0][2]).toEqual({ listIds: ['own-list', 'hsk-list'] });
+  });
+
+  it('returns how many words it created and how many the learner had', async () => {
+    givenHeld(heldWords([2, 3]));
+
+    const result = await addPremadeList('user-1', 'HSK 1', entries(5));
+
+    expect(result).toMatchObject({ added: 3, held: 2 });
+  });
+
+  it('writes in batches of 500 or fewer', async () => {
+    givenHeld(heldWords([]));
+
+    await addPremadeList('user-1', 'HSK 7–9', entries(1200));
+
+    expect(batches.length).toBeGreaterThan(1);
+    expect(batches.every((ops) => ops.length <= 500)).toBe(true);
+    expect(batches.flat()).toHaveLength(1200);
+  });
+
+  it('deletes the new list when a batch fails, and rejects', async () => {
+    givenHeld(heldWords([]));
+    mockBatchCommit.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('offline'));
+
+    await expect(addPremadeList('user-1', 'HSK 7–9', entries(1200))).rejects.toThrow('offline');
+
+    const deletes = batches.flat().filter(([kind]) => kind === 'delete');
+    expect(deletes.map(([, path]) => path)).toContain('users/user-1/wordLists/hsk-list');
   });
 });

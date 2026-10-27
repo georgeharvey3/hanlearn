@@ -5,10 +5,11 @@ export {
   postCustomWord,
   deleteWord,
   postUpdateMeaning,
-  postMoveWord,
+  postListsOfWord,
   finishTest,
   switchActiveList,
   postCreateWordList,
+  postAddPremadeList,
   postRenameWordList,
   postDeleteWordList,
 } from './word';

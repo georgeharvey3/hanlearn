@@ -1,5 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { getAudioSettings, setAudioSetting, getQuizType, setQuizType } from './audioSettings';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import {
+  applyAudioSession,
+  audioSessionType,
+  getAudioSettings,
+  setAudioSetting,
+  getQuizType,
+  setQuizType,
+} from './audioSettings';
 
 describe('audioSettings', () => {
   beforeEach(() => {
@@ -86,6 +93,54 @@ describe('audioSettings', () => {
       localStorage.setItem('useFlashcards', 'false');
       setQuizType('meaning', 'flashcard');
       expect(getQuizType('meaning')).toBe('flashcard');
+    });
+  });
+
+  describe('audioSessionType', () => {
+    it.each([
+      [true, true, 'playback'],
+      [true, false, 'playback'],
+      [false, true, 'playback'],
+      [false, false, 'ambient'],
+    ] as const)(
+      'useSound %s and useSoundEffects %s give %s',
+      (useSound, useSoundEffects, expected) => {
+        expect(audioSessionType({ useSound, useSoundEffects })).toBe(expected);
+      },
+    );
+  });
+
+  describe('applyAudioSession', () => {
+    const stubAudioSession = () => {
+      const session = { type: 'auto' };
+      Object.defineProperty(navigator, 'audioSession', { value: session, configurable: true });
+      return session;
+    };
+
+    afterEach(() => {
+      Reflect.deleteProperty(navigator, 'audioSession');
+    });
+
+    it('sets the type from the stored settings', () => {
+      const session = stubAudioSession();
+      applyAudioSession();
+      expect(session.type).toBe('playback');
+    });
+
+    it('follows a change to either sound setting', () => {
+      const session = stubAudioSession();
+      setAudioSetting('useSound', false);
+      expect(session.type).toBe('playback');
+      setAudioSetting('useSoundEffects', false);
+      expect(session.type).toBe('ambient');
+      setAudioSetting('useSound', true);
+      expect(session.type).toBe('playback');
+    });
+
+    it('does nothing on a browser without navigator.audioSession', () => {
+      expect('audioSession' in navigator).toBe(false);
+      expect(() => applyAudioSession()).not.toThrow();
+      expect(() => setAudioSetting('useSound', false)).not.toThrow();
     });
   });
 });

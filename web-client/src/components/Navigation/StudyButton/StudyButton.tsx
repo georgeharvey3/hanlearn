@@ -5,16 +5,16 @@ import Box from '@mui/material/Box';
 import { StudyIcon } from '../icons';
 import { colors } from '../../../theme';
 import { RootState } from '../../../types/store';
+import { ALL_LISTS_ID } from '../../../utils/activeList';
 
 /**
- * Words due across all lists, as the list stats last counted them. The shell
+ * Words due across all lists, as the list stats last counted them, each word
+ * one time however many lists hold it. The shell
  * does not load them itself: the list stats read every word, and Home, Add,
  * Study and Stats load them already.
  */
 export const useDueCount = (): number =>
-  useSelector((state: RootState) =>
-    Object.values(state.addWords.listStats).reduce((sum, stats) => sum + (stats?.due ?? 0), 0),
-  );
+  useSelector((state: RootState) => state.addWords.listStats[ALL_LISTS_ID]?.due ?? 0);
 
 interface Props {
   due: number;

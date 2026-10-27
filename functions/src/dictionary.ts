@@ -2,28 +2,20 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as functions from 'firebase-functions';
 import { withErrorReporting } from './reporting';
-
-interface DictionaryEntry {
-  id: number;
-  simp: string;
-  trad: string;
-  pinyin: string;
-  meaning: string;
-}
-
-export interface WordResult {
-  id: number;
-  simp: string;
-  trad: string;
-  pinyin: string;
-  meaning: string;
-}
+import {
+  createSearchIndex,
+  DictionaryEntry,
+  searchDictionary,
+  SearchIndex,
+  WordResult,
+} from './dictionarySearch';
 
 // In-memory dictionary state (persists across warm invocations)
 let dictionaryLoaded = false;
 let entries: DictionaryEntry[] = [];
 const simpIndex: Map<string, DictionaryEntry[]> = new Map();
 const tradIndex: Map<string, DictionaryEntry[]> = new Map();
+let searchIndex: SearchIndex;
 
 /**
  * Load the dictionary from the bundled JSON file into memory.
@@ -47,6 +39,7 @@ function loadDictionary(): void {
     }
     tradIndex.get(entry.trad)!.push(entry);
   }
+  searchIndex = createSearchIndex(entries);
 
   dictionaryLoaded = true;
   console.log(`Dictionary loaded: ${entries.length} entries`);
@@ -205,6 +198,28 @@ export const dictionarySearchWord = dictionaryRuntime.https.onCall(
         );
       }
       return searchWordInternal(character, charSet);
+    }
+  )
+);
+
+/**
+ * The search of the Add Words screen: hanzi, pinyin or English, ranked, at
+ * most 30 entries. `dictionarySearchWord` stays for the exact lookups.
+ */
+export const dictionarySearch = dictionaryRuntime.https.onCall(
+  withErrorReporting(
+    'dictionarySearch',
+    (data: { query: string; charSet: 'simp' | 'trad' }) => {
+      const { query, charSet } = data;
+      const validCharSet = charSet === 'simp' || charSet === 'trad';
+      if (typeof query !== 'string' || query.length > 100 || !validCharSet) {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'query and charSet are required'
+        );
+      }
+      loadDictionary();
+      return searchDictionary(searchIndex, query, charSet);
     }
   )
 );

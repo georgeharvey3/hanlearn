@@ -12,7 +12,7 @@ import { Word, WordList } from '../../types/models';
 import { DIRECTION_LABELS, leechDirections } from '../../utils/directions';
 import { BANK_LABELS } from '../../utils/scheduling';
 import { formatRelativeDueDate } from '../../utils/formatRelativeDueDate';
-import { isCovered } from '../../utils/wordBank';
+import { isCovered, listIdsOf, removalDeletes } from '../../utils/wordBank';
 import { Block } from './BankStates';
 import * as ttsService from '../../services/ttsService';
 
@@ -20,11 +20,12 @@ interface Props {
   word: Word;
   charSet: 'simp' | 'trad';
   lists: WordList[];
+  activeListId: string;
   open: boolean;
   onToggle: () => void;
   onMeaningChange: (id: number, meaning: string) => void;
-  onMove: (id: number, listId: string, label: string) => void;
-  onRemove: (id: number) => void;
+  onEditLists: (word: Word) => void;
+  onRemove: (word: Word) => void;
 }
 
 const rowSx = {
@@ -94,17 +95,18 @@ const actionSx = {
 
 /**
  * One word of the bank. A tap opens it in place: play, the meanings, the leech
- * flag, "Move to" and "Remove". A word due soon shows grey blocks in place of
+ * flag, the lists that hold it and "Remove". A word due soon shows grey blocks in place of
  * its characters, pinyin and meaning until a tap shows it.
  */
 const WordRow: React.FC<Props> = ({
   word,
   charSet,
   lists,
+  activeListId,
   open,
   onToggle,
   onMeaningChange,
-  onMove,
+  onEditLists,
   onRemove,
 }) => {
   const [shown, setShown] = useState(false);
@@ -117,7 +119,15 @@ const WordRow: React.FC<Props> = ({
   // fixing these on its own, so the row names them and leaves what to do about
   // them to the learner. See docs/adr/0010-partial-demotion-and-leeches.md.
   const leeches = leechDirections(word);
-  const targets = lists.filter((l) => l.id !== (word.listId ?? 'default'));
+  const listIds = listIdsOf(word);
+  const listNames = lists.filter((l) => listIds.includes(l.id)).map((l) => l.name);
+  const activeList = lists.find((l) => l.id === activeListId);
+  // Removal from one of several lists keeps the word, so the control names the
+  // list. Otherwise it deletes the word, and the bank asks first.
+  const removeLabel =
+    activeList && !removalDeletes(word, activeListId)
+      ? copy.wordBank.removeFrom(activeList.name)
+      : copy.wordBank.remove;
 
   const play = useCallback(() => {
     setPlaying(true);
@@ -212,24 +222,21 @@ const WordRow: React.FC<Props> = ({
               {copy.wordBank.leechDirections(leeches.map((d) => DIRECTION_LABELS[d]).join(', '))}
             </LeechFlag>
           )}
-          {targets.length > 0 && (
+          {lists.length > 1 && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-              <Overline>{copy.wordBank.moveTo}</Overline>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {targets.map((list) => (
-                  <ButtonBase
-                    key={list.id}
-                    onClick={() => onMove(word.id, list.id, label)}
-                    sx={actionSx}
-                  >
-                    {list.name}
-                  </ButtonBase>
-                ))}
+              <Overline>{copy.wordBank.lists}</Overline>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
+                <Box component="span" sx={{ fontSize: 14 }}>
+                  {listNames.join(', ')}
+                </Box>
+                <ButtonBase onClick={() => onEditLists(word)} sx={actionSx}>
+                  {copy.wordBank.editLists}
+                </ButtonBase>
               </Box>
             </Box>
           )}
           <ButtonBase
-            onClick={() => onRemove(word.id)}
+            onClick={() => onRemove(word)}
             sx={{
               alignSelf: 'flex-start',
               height: 44,
@@ -239,7 +246,7 @@ const WordRow: React.FC<Props> = ({
               color: colors.primaryLight,
             }}
           >
-            {copy.wordBank.remove}
+            {removeLabel}
           </ButtonBase>
         </Box>
       )}

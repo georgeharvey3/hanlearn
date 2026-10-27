@@ -8,7 +8,8 @@ import {
   SetWordsAction,
   FetchWordsFailedAction,
   UpdateMeaningAction,
-  MoveWordAction,
+  AddExistingWordAction,
+  SetListsOfWordAction,
   SetWordListsAction,
   AddWordListAction,
   RemoveWordListAction,
@@ -19,13 +20,14 @@ import {
 } from '../../types/actions';
 import { ListStats } from '../../types/store';
 import * as wordService from '../../services/wordService';
+import { loadPremadeEntries, PremadeList } from '../../services/premadeListService';
 import { recordTestCompletion } from '../../services/streakService';
 import { recordLevelSnapshot } from '../../services/retentionService';
 import { levelCounts } from '../../utils/dashboard';
 import { traceAsync } from '../../services/performanceService';
 import { trackFeatureUsage } from '../../services/analyticsService';
 import { showNotification } from './notifications';
-import { writeActiveList } from '../../utils/activeList';
+import { ALL_LISTS_ID, DEFAULT_LIST_ID, writeActiveList } from '../../utils/activeList';
 import { copy } from '../../copy';
 
 export const addWord = (word: Word): AddWordAction => {
@@ -70,11 +72,35 @@ export const updateMeaning = (wordID: number, newMeaning: string): UpdateMeaning
   };
 };
 
-export const moveWordAction = (wordID: number, newListId: string): MoveWordAction => {
+export const addExistingWord = (word: Word): AddExistingWordAction => {
   return {
-    type: actionTypes.MOVE_WORD,
+    type: actionTypes.ADD_EXISTING_WORD,
+    word,
+  };
+};
+
+export const setListsOfWordAction = (wordID: number, listIds: string[]): SetListsOfWordAction => {
+  return {
+    type: actionTypes.SET_LISTS_OF_WORD,
     wordID,
-    newListId,
+    listIds,
+  };
+};
+
+/**
+ * Read the list stats again. A word can be in more than one list, so a change
+ * to one word can move the counts of lists the store does not hold.
+ */
+const refreshListStats = (): AppThunk => {
+  return async (dispatch, getState) => {
+    const { auth } = getState();
+    if (!auth.userId) return;
+    try {
+      dispatch(setListStats(await wordService.getListStats(auth.userId)));
+    } catch (error) {
+      console.error('Failed to refresh list stats:', error);
+      Sentry.captureException(error);
+    }
   };
 };
 
@@ -135,7 +161,7 @@ export const initWords = (): AppThunk => {
     dispatch({ type: actionTypes.FETCH_WORDS });
 
     try {
-      // Backfill listId and the per-direction scheduling map on legacy words
+      // Backfill listIds and the per-direction scheduling map on legacy words
       // before querying by list. Both run in one pass over the collection.
       await wordService.migrateUserWords(auth.userId);
 
@@ -238,6 +264,33 @@ export const postCreateWordList = (name: string): AppThunk => {
 };
 
 /**
+ * Add a premade list: make a word list from it and make that the active list.
+ * Resolves to whether the list was added.
+ */
+export const postAddPremadeList = (premade: PremadeList): AppThunk<Promise<boolean>> => {
+  return async (dispatch, getState) => {
+    const { auth } = getState();
+    if (!auth.userId) return false;
+
+    try {
+      const entries = await loadPremadeEntries(premade.id);
+      const { list } = await wordService.addPremadeList(auth.userId, premade.name, entries);
+      dispatch(addWordList(list));
+      await dispatch(switchActiveList(list.id));
+      await dispatch(refreshListStats());
+      dispatch(showNotification(copy.premadeLists.toastAdded(premade.name)));
+      trackFeatureUsage('premade_list_added');
+      return true;
+    } catch (error) {
+      console.error('Failed to add premade list:', error);
+      Sentry.captureException(error);
+      dispatch(showNotification(copy.premadeLists.toastFailed, 'error'));
+      return false;
+    }
+  };
+};
+
+/**
  * Rename a word list
  */
 export const postRenameWordList = (listId: string, newName: string): AppThunk => {
@@ -258,18 +311,23 @@ export const postRenameWordList = (listId: string, newName: string): AppThunk =>
 };
 
 /**
- * Delete a word list and all its words
+ * Delete a word list. Its words that are in no other list go with it; the
+ * others stay in their other lists.
  */
 export const postDeleteWordList = (listId: string): AppThunk => {
   return async (dispatch, getState) => {
-    const { auth } = getState();
+    const { auth, addWords } = getState();
     if (!auth.userId) return;
 
     try {
       await wordService.deleteWordList(auth.userId, listId);
       dispatch(removeWordList(listId));
-      // Deleting the active list moves the learner to General.
-      writeActiveList(getState().addWords.activeListId);
+      // Deleting the active list moves the learner to General. The store held
+      // the words of the deleted list, so it loads the words of General.
+      if (addWords.activeListId === listId) {
+        await dispatch(switchActiveList(getState().addWords.activeListId));
+      }
+      await dispatch(refreshListStats());
       dispatch(showNotification('List deleted'));
     } catch (error) {
       console.error('Failed to delete word list:', error);
@@ -289,9 +347,11 @@ export const postWord = (word: Word): AppThunk => {
 
     try {
       // '__all__' is a virtual list for cross-list mode; words must belong to a real list
-      const targetListId = addWords.activeListId === '__all__' ? 'default' : addWords.activeListId;
-      await wordService.addWordToList(auth.userId, word, targetListId);
-      dispatch(addWord({ ...word, listId: targetListId }));
+      const targetListId =
+        addWords.activeListId === ALL_LISTS_ID ? DEFAULT_LIST_ID : addWords.activeListId;
+      const existingWord = await wordService.addWordToList(auth.userId, word, targetListId);
+      if (existingWord) dispatch(addExistingWord(existingWord));
+      else dispatch(addWord({ ...word, listIds: [targetListId] }));
       dispatch(showNotification(copy.wordBank.toastAdded(word.simp)));
       trackFeatureUsage('word_added');
     } catch (error) {
@@ -334,17 +394,31 @@ export const postCustomWord = (word: {
 };
 
 /**
- * Remove a word from the user's word list in Firestore
+ * Take a word out of the active list. A word that leaves its last list is
+ * deleted with its schedule. In the all-lists view, the word is deleted from
+ * every list.
  */
 export const deleteWord = (wordID: number): AppThunk => {
   return async (dispatch, getState) => {
-    const { auth } = getState();
+    const { auth, addWords } = getState();
     if (!auth.userId) return;
 
     try {
-      await wordService.removeWordFromList(auth.userId, wordID);
+      const { activeListId, lists } = addWords;
+      const allLists = activeListId === ALL_LISTS_ID;
+      const deleted = await wordService.removeWordFromList(
+        auth.userId,
+        wordID,
+        allLists ? undefined : activeListId,
+      );
       dispatch(removeWord(wordID));
-      dispatch(showNotification('Word removed'));
+      await dispatch(refreshListStats());
+      const listName = lists.find((l) => l.id === activeListId)?.name ?? '';
+      dispatch(
+        showNotification(
+          deleted ? copy.wordBank.toastDeleted : copy.wordBank.toastRemovedFrom(listName),
+        ),
+      );
     } catch (error) {
       console.error('Failed to delete word:', error);
       Sentry.captureException(error);
@@ -374,35 +448,23 @@ export const postUpdateMeaning = (wordID: number, newMeaning: string): AppThunk 
 };
 
 /**
- * Move a word to a different list. Refreshes list stats so due-count
- * badges reflect the new distribution.
+ * Set the lists that hold a word. The schedule does not change. Refreshes list
+ * stats so the counts reflect the new lists.
  */
-export const postMoveWord = (wordID: number, newListId: string, wordLabel?: string): AppThunk => {
+export const postListsOfWord = (wordID: number, listIds: string[]): AppThunk => {
   return async (dispatch, getState) => {
-    const { auth, addWords } = getState();
+    const { auth } = getState();
     if (!auth.userId) return;
 
-    const targetList = addWords.lists.find((l) => l.id === newListId);
-
     try {
-      await wordService.moveWordToList(auth.userId, wordID, newListId);
-      dispatch(moveWordAction(wordID, newListId));
-
-      try {
-        const stats = await wordService.getListStats(auth.userId);
-        dispatch(setListStats(stats));
-      } catch (statsError) {
-        console.error('Failed to refresh list stats after move:', statsError);
-        Sentry.captureException(statsError);
-      }
-
-      const destination = targetList?.name ?? 'list';
-      const subject = wordLabel ? `"${wordLabel}"` : 'Word';
-      dispatch(showNotification(`${subject} moved to ${destination}`));
+      await wordService.setListsOfWord(auth.userId, wordID, listIds);
+      dispatch(setListsOfWordAction(wordID, listIds));
+      await dispatch(refreshListStats());
+      dispatch(showNotification(copy.wordBank.toastListsSaved));
     } catch (error) {
-      console.error('Failed to move word:', error);
+      console.error('Failed to set the lists of a word:', error);
       Sentry.captureException(error);
-      dispatch(showNotification('Failed to move word', 'error'));
+      dispatch(showNotification(copy.wordBank.listsFailed, 'error'));
     }
   };
 };
@@ -429,9 +491,9 @@ export const finishTest = (results: WordDirectionResults[]): AppThunk => {
             wordService.getListStats(auth.userId!),
           ]);
           const updatedWords =
-            addWords.activeListId === '__all__'
+            addWords.activeListId === ALL_LISTS_ID
               ? allWords
-              : allWords.filter((word) => word.listId === addWords.activeListId);
+              : allWords.filter((word) => word.listIds?.includes(addWords.activeListId));
           dispatch(setWords(updatedWords));
           dispatch(setListStats(stats));
 

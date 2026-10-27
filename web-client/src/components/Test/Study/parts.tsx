@@ -225,8 +225,6 @@ interface StudyCardProps {
   height?: number;
   /** The lapse marker: the question can no longer count as known. */
   lapse?: boolean;
-  /** Whether the seal sits in the corner. A card with a full reveal drops it. */
-  seal?: boolean;
   /** A control pinned to a top corner, such as the pronunciation button. */
   corner?: React.ReactNode;
   sx?: SxProps<Theme>;
@@ -234,14 +232,7 @@ interface StudyCardProps {
 }
 
 /** The white card the question sits on. */
-export const StudyCard: React.FC<StudyCardProps> = ({
-  height,
-  lapse,
-  seal = true,
-  corner,
-  sx,
-  children,
-}) => (
+export const StudyCard: React.FC<StudyCardProps> = ({ height, lapse, corner, sx, children }) => (
   <Box
     sx={[
       {
@@ -281,30 +272,6 @@ export const StudyCard: React.FC<StudyCardProps> = ({
           bgcolor: colors.warning,
         }}
       />
-    )}
-    {seal && (
-      <Box
-        aria-hidden="true"
-        sx={{
-          position: 'absolute',
-          right: 14,
-          bottom: 14,
-          width: 26,
-          height: 26,
-          boxSizing: 'border-box',
-          border: `2px solid ${colors.primaryLight}`,
-          borderRadius: '3px',
-          color: colors.primaryLight,
-          fontFamily: fonts.hanzi,
-          fontSize: 14,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {copy.test.seal}
-      </Box>
     )}
   </Box>
 );

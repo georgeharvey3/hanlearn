@@ -11,6 +11,7 @@ admin.initializeApp();
 
 // Re-export dictionary Cloud Functions
 export {
+  dictionarySearch,
   dictionarySearchWord,
   dictionaryLookupCharacter,
   dictionaryLookupCharacterByTrad,

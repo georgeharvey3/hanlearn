@@ -81,11 +81,40 @@ export default defineConfig(async () => {
       port: 3000,
     },
     test: {
-      globals: true,
-      environment: 'jsdom',
-      setupFiles: ['./src/setupTests.ts'],
-      exclude: ['**/node_modules/**', '**/e2e/**'],
       testTimeout: 15000,
+      projects: [
+        {
+          extends: true,
+          test: {
+            name: 'web-client',
+            globals: true,
+            environment: 'jsdom',
+            setupFiles: ['./src/setupTests.ts'],
+            exclude: ['**/node_modules/**', '**/e2e/**'],
+          },
+        },
+        {
+          // The catalogue resolver of build:dict lives in migration/, which has
+          // no test run of its own, so CI runs its tests here. Its own root
+          // keeps the dev server's file access inside web-client/.
+          test: {
+            name: 'migration',
+            root: '../migration',
+            environment: 'node',
+            include: ['*.test.js'],
+          },
+        },
+        {
+          // The same for the pure modules of the Cloud Functions, which have no
+          // test run of their own either.
+          test: {
+            name: 'functions',
+            root: '../functions',
+            environment: 'node',
+            include: ['src/**/*.test.ts'],
+          },
+        },
+      ],
     },
   };
 });

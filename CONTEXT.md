@@ -42,6 +42,36 @@ still hold them:
 | `qaCombinations` | `DIRECTIONS`                                      |
 | "QA combination" | Direction                                         |
 
+## Word list and premade list
+
+A **word list** is a named group of the learner's words. The learner owns it:
+they can rename it, delete it, and put words in and take them out. A word can
+be in more than one list. The schedule belongs to the word and not to the list,
+so a word in two lists has one memory, and a review from either list moves it.
+**General** is the built-in list. It is a list like any other, and a word is in
+it only when the learner, or the app on their behalf, puts it there. The one
+difference is that the learner cannot delete General.
+
+Every word is in at least one list. A word that leaves its last list is deleted
+with its memory, whether the learner takes it out or deletes the list. Deleting
+a list takes it off each of its words, and a word that is still in another list
+stays, with its schedule.
+
+A **premade list** is an entry in a catalogue that the app ships, for example
+a set of words for one exam level. When the learner **adds** a premade list,
+the app makes an ordinary word list from it. After that, the word list belongs
+to the learner, and nothing links it back to the catalogue: a change to the
+catalogue does not change the learner's list.
+
+A word of the premade list that the learner already has keeps its schedule and
+goes into the new list too. Every other word enters as a new word, due at once,
+like a word the learner adds by hand. The cap on new words per session sets the
+pace, and the words of one import come in a random order.
+
+Each word of a premade list is one dictionary entry. A word of the source that
+has more than one entry takes the one a person chose for it, and the choice is
+recorded with the catalogue.
+
 ## Stability, difficulty and interval
 
 FSRS schedules the reviews. It holds two numbers for the memory of one
@@ -97,6 +127,30 @@ cleared, so a pass does not remove the flag.
 
 The counter is separate from the **tone errors**, which count incorrect tones on
 pinyin answers and say nothing about whether the learner recalled the word.
+
+## Review log
+
+The **review log** records each graded question of a session: the word, the
+direction, the grade, the answer mode, and the memory of the direction before
+and after the review. It exists to measure the scheduler, not to show the
+learner anything. It answers two questions that the daily rollup cannot:
+
+- **Calibration**: whether the reviews that FSRS predicted at a recall
+  probability of, for example, 0.7 pass at about that rate.
+- **Personal weights**: whether FSRS weights fitted to the learner's own history
+  predict better than the default weights.
+
+One **review** is one graded question. A buried direction is not reviewed, so it
+has no entry. Practice mode is not a review, so it has no entry. The new word
+introduction has no grade, so the first entry of a direction is its first graded
+question.
+
+Each entry names the **scheduler** that made it, that is, the weights in use.
+Calibration compares only entries of one scheduler.
+
+The log starts empty from its release and is not backfilled. Calibration can use
+every entry. A fit of personal weights can use only the directions whose first
+review is in the log, because a fit reads the whole history of a direction.
 
 ## Bank and level
 
@@ -309,3 +363,13 @@ and it takes the same grade as any other incorrect answer.
 
 The direction counts the tone errors that it collects, so that a later feature
 can show the learner which words hold the tones that they do not know.
+
+## Neutral tone
+
+The **neutral tone** is the tone of a syllable that has no tone of its own,
+such as the 的 in 我的. An answer can write it in three ways: `0`, `5`, or no
+number. The three forms are the same answer.
+
+A syllable that the answer gives a neutral tone takes only the neutral tone. A
+full tone on it is a tone error, because 东西 dōngxi and 东西 dōngxī are two
+different words.

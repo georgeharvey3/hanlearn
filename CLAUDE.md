@@ -70,16 +70,18 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 #### Service Layer
 
 - [web-client/src/services/wordService.ts](web-client/src/services/wordService.ts) - All Firestore operations for word management
-- [web-client/src/services/dictionaryService.ts](web-client/src/services/dictionaryService.ts) - Static dictionary loading and search (lazy-loaded, indexed in-memory)
+- [web-client/src/services/dictionaryService.ts](web-client/src/services/dictionaryService.ts) - Dictionary search and lookups, through Cloud Functions callables
+- [web-client/src/services/premadeListService.ts](web-client/src/services/premadeListService.ts) - Loads the catalogue of premade lists and the entries of one list from `/premade-lists/`; `wordService.addPremadeList` writes the import
 - [web-client/src/services/streakService.ts](web-client/src/services/streakService.ts) - Read/write `testCompletions` subcollection; calculates streak from completion dates
 - [web-client/src/services/dashboardService.ts](web-client/src/services/dashboardService.ts) - Aggregates the Dashboard's data: the session sizes, per-direction bank counts, the words due ahead and the `reviewStats` history. The counting rules are pure, in [web-client/src/utils/dashboard.ts](web-client/src/utils/dashboard.ts)
 - [web-client/src/services/retentionService.ts](web-client/src/services/retentionService.ts) - Read/write the `reviewStats` daily rollup; the session's write joins the `finishTest` batch, and the level snapshot follows it
+- [web-client/src/services/reviewLogService.ts](web-client/src/services/reviewLogService.ts) - Builds the `reviewLog` entry of each graded question. `finishTest` writes the document after its batch, and a failed write does not lose the session. `node migration/export-review-log.js --uid <userId>` exports the log of one learner to a CSV file for the FSRS optimizer
 - [web-client/src/services/sentenceService.ts](web-client/src/services/sentenceService.ts) - Firebase AI Logic: generates and caches example sentences in `sentenceCache`
 - [web-client/src/services/chengyuSentenceService.ts](web-client/src/services/chengyuSentenceService.ts) - Generates example sentences for chengyu display
 - [web-client/src/services/decompositionService.ts](web-client/src/services/decompositionService.ts) - Calls cloud function to decompose characters into radicals/components
 - [web-client/src/services/ttsService.ts](web-client/src/services/ttsService.ts) - Text-to-speech via Howler.js; called directly from components (not via Redux)
 
-Note: `ttsService`, `sentenceService`, `decompositionService`, and `dictionaryService` are called directly from components (not via Redux thunks) — this is intentional for operations that are UI-local and do not need shared global state.
+Note: `ttsService`, `sentenceService`, `decompositionService`, `dictionaryService`, and `premadeListService` are called directly from components (not via Redux thunks) — this is intentional for operations that are UI-local and do not need shared global state.
 
 #### Component Pattern
 
@@ -108,11 +110,12 @@ users/{userId}/
   │   │       lastReview: Timestamp, toneErrors?: number, lapses?: number
   │   │     }
   │   │   }
-  │   └── listId?: string        # Optional word list membership
+  │   └── listIds: string[]      # The word lists that hold the word, never empty. A word
+  │                              # that leaves its last list is deleted. Replaces `listId`
   ├── testCompletions/{dateId}   # Streak tracking (dateId = YYYY-MM-DD)
   │   ├── testsCount: number
   │   └── completedAt: Timestamp
-  └── reviewStats/{dateId}       # Scheduler measurement (dateId = YYYY-MM-DD)
+  ├── reviewStats/{dateId}       # Scheduler measurement (dateId = YYYY-MM-DD)
       ├── date: string           # Same value as the doc id, so the range query needs no index
       ├── updatedAt: Timestamp
       └── directions: {          # Counters per direction, written as increments
@@ -123,6 +126,15 @@ users/{userId}/
           }
       └── levels?: { 1..5: number } # Words of the whole collection at each level,
                                     # as the day's last session left them (Dashboard progress chart)
+  └── reviewLog/{autoId}         # One document per saved session, write-once (#397)
+      ├── version: 1, date: string, reviewedAt: Timestamp
+      ├── scheduler: string      # The weights in use: 'fsrs-6-default'
+      └── reviews: [{            # One entry per graded question, no UI
+            wordId, direction, grade, mode?,
+            before: { stability, difficulty, lastReview, retrievability } | null,
+            after: { stability, difficulty, interval },
+            position?, toneErrors, misses?, hint?, revealed?, answerMs?, answer?
+          }]
 
 words/{wordId}                   # Read-only shared dictionary (admin-managed)
 chengyus/{chengyuId}             # Read-only (admin-managed)
@@ -139,6 +151,8 @@ Security rules in [firestore.rules](firestore.rules): users can only access thei
 [functions/src/index.ts](functions/src/index.ts) - Callable functions for server-side operations:
 
 - `getDailyChengyu` - Rotates through chengyus daily
+- `dictionarySearch` - The search of the Add Words screen: hanzi, pinyin or English, ranked in tiers, at most 30 entries. The rules are pure, in [functions/src/dictionarySearch.ts](functions/src/dictionarySearch.ts) (#425)
+- `dictionarySearchWord` - The exact lookup of an entry by its characters
 - `lookupChengyuChar` - Character details for chengyu quiz
 
 #### Authentication
@@ -147,7 +161,9 @@ Security rules in [firestore.rules](firestore.rules): users can only access thei
 
 ### Static Dictionary
 
-The CC-CEDICT dictionary (~124K entries) is served as static JSON at `/dictionary.json` to avoid Firestore read costs. Built via `npm run build:dict` which parses the source file and outputs to `web-client/public/dictionary.json`.
+The CC-CEDICT dictionary (~124K entries) is built via `npm run build:dict`, which parses the source file and writes `functions/data/dictionary.json`. The Cloud Functions in [functions/src/dictionary.ts](functions/src/dictionary.ts) load it and answer the client's searches, so the client never downloads it. The build also writes a copy to `web-client/public/dictionary.json`.
+
+The same build writes the catalogue of **premade lists** (HSK 3.0) to `web-client/public/premade-lists/`. A pure resolver, [migration/premadeCatalogue.js](migration/premadeCatalogue.js), gives each source word one dictionary entry, and [migration/hsk/overrides.json](migration/hsk/overrides.json) settles the ambiguous words. If a word does not resolve, the build fails. See [migration/hsk/README.md](migration/hsk/README.md). The build also writes the HSK frequency rank `q` onto each HSK entry of `dictionary.json`, and `dictionarySearch` ranks by it, because CC-CEDICT has no frequency field.
 
 ### Spaced Repetition Algorithm
 
@@ -234,6 +250,7 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 - Use `src/test/utils.tsx` for render helpers that wrap with Redux store and Router
 - Firebase calls should be mocked at the service layer (not at the Firebase SDK level)
 - Test scripts: `npm test` (watch), `npm run test:run` (CI, single run), `npm run test:coverage`
+- The same run covers two more Vitest projects in `web-client/vite.config.ts`: `migration` (`migration/*.test.js`) and `functions` (`functions/src/**/*.test.ts`, the pure modules of the Cloud Functions). Neither directory has a test run of its own
 
 ### Firestore Rules Tests (Vitest + the Firestore emulator)
 

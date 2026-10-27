@@ -10,6 +10,9 @@ export const ACTIVE_LIST_KEY = 'activeListId';
 
 export const DEFAULT_LIST_ID = 'default';
 
+/** The virtual list of every word. It is never a list of a word. */
+export const ALL_LISTS_ID = '__all__';
+
 /** The stored list ID, or 'default' when it is missing, empty or unreadable. */
 export const readActiveList = (): string => {
   try {

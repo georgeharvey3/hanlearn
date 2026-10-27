@@ -155,7 +155,8 @@ interface Props {
   charSet: 'simp' | 'trad';
   stateOf: (entry: Word) => EntryState;
   onAdd: (entry: Word) => void;
-  onAddOwn: (meaning: string) => void;
+  /** Absent for a search in pinyin or English, which offers no own-word form. */
+  onAddOwn?: (meaning: string) => void;
   onRetry: () => void;
 }
 
@@ -198,12 +199,11 @@ const SearchResults: React.FC<Props> = ({
     );
   }
   if (status !== 'done') return null;
-  if (results.length === 0) return <OwnWordForm key={query} query={query} onAdd={onAddOwn} />;
+  if (results.length === 0) {
+    return onAddOwn ? <OwnWordForm key={query} query={query} onAdd={onAddOwn} /> : null;
+  }
   return (
     <Box>
-      <Overline component="h2" sx={{ m: 0, mb: 0.5, fontWeight: 400 }}>
-        {copy.wordBank.results(results.length)}
-      </Overline>
       {results.map((entry) => (
         <ResultRow
           key={`${entry.id}-${entry.pinyin}`}

@@ -20,7 +20,7 @@ interface ScoreCardProps {
 
 /** The score of the session: the known questions, a bar of the three results, and their counts. */
 const ScoreCard: React.FC<ScoreCardProps> = ({ tally, practiceMode, filter, onFilter }) => (
-  <StudyCard seal={false} sx={{ mt: 3, py: 3.5 }}>
+  <StudyCard sx={{ mt: 3, py: 3.5 }}>
     <Box data-testid="summary-score" sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
       <Box sx={{ fontSize: 64, fontWeight: 700, lineHeight: 1, color: colors.primaryDark }}>
         {tally.pass}

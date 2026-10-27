@@ -4,6 +4,7 @@
  */
 import { Word } from '../types/models';
 import { isNewWord } from './directions';
+import { ALL_LISTS_ID, DEFAULT_LIST_ID } from './activeList';
 
 /**
  * A word due within this many days shows no characters, pinyin or meaning on
@@ -66,3 +67,18 @@ export function findInBank(entry: Word, bank: Word[]): Word | undefined {
 }
 
 export const isInBank = (entry: Word, bank: Word[]): boolean => !!findInBank(entry, bank);
+
+/**
+ * Whether taking the word out of the active list deletes it with its schedule:
+ * no other list holds it, or the view is all lists, where removal takes the
+ * word out of every list.
+ */
+export function removalDeletes(word: Word, activeListId: string): boolean {
+  if (activeListId === ALL_LISTS_ID) return true;
+  return listIdsOf(word).every((id) => id === activeListId);
+}
+
+/** The lists that hold a word. A word built without them is in General. */
+export function listIdsOf(word: Word): string[] {
+  return word.listIds?.length ? word.listIds : [DEFAULT_LIST_ID];
+}

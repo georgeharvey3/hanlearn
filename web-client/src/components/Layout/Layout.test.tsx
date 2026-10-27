@@ -43,7 +43,7 @@ const signedIn = () => {
   const stats = (due: number) => ({ due }) as ListStats;
   return {
     ...state,
-    addWords: { ...state.addWords!, listStats: { a: stats(5), b: stats(7) } },
+    addWords: { ...state.addWords!, listStats: { a: stats(5), b: stats(7), __all__: stats(12) } },
   };
 };
 

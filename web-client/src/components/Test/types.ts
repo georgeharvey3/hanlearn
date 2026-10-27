@@ -56,6 +56,18 @@ export interface TestState {
   gradeCap: Exclude<DirectionResult, 'fail'>;
   /** Tone errors collected on the current question. */
   toneErrorCount: number;
+  /**
+   * Wrong submissions of a typed answer, or missed strokes of a drawn one, on
+   * the current question. A spoken transcript is not a submission until the
+   * learner sends it. The review log reads it.
+   */
+  missCount: number;
+  /** Whether a hint was on screen at any time during the current question. */
+  hintShown: boolean;
+  /** The first wrong typed answer of the current question, or null. */
+  firstWrongAnswer: string | null;
+  /** When the current question came on screen, in ms, or null before the first. */
+  questionShownAt: number | null;
   scoreList: WordScore[];
   testFinished: boolean;
   showInputChars: string[];

@@ -40,8 +40,11 @@ const {
     mockIncrement: vi.fn((n: number) => ({ __increment: n })),
     mockGetDoc: vi.fn(),
     mockGetDocs: vi.fn(),
-    mockDoc: vi.fn((_db: unknown, ...path: string[]) => ({ path: path.join('/') })),
-    mockCollection: vi.fn(),
+    // `doc(collectionRef)` with no path is an auto id in that collection.
+    mockDoc: vi.fn((parent: { path?: string }, ...path: string[]) =>
+      path.length > 0 ? { path: path.join('/') } : { path: `${parent?.path}/auto-id` },
+    ),
+    mockCollection: vi.fn((_db: unknown, ...path: string[]) => ({ path: path.join('/') })),
     mockSetDoc: vi.fn(),
     mockDeleteDoc: vi.fn(),
     mockUpdateDoc: vi.fn(),
@@ -73,6 +76,7 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 vi.mock('../firebase/config', () => ({ db: {} }));
+vi.mock('./errorReporting', () => ({ reportError: vi.fn() }));
 vi.mock('./dictionaryService', () => ({
   searchWord: vi.fn(),
   lookupCharacter: vi.fn(),
@@ -89,6 +93,7 @@ import {
   addCustomWord,
 } from './wordService';
 import { lookupCharacter, lookupCharacterByTrad } from './dictionaryService';
+import { reportError } from './errorReporting';
 import { DIRECTIONS, DirectionResult } from '../types/models';
 
 /** The interval in days that each bank seeds, for a document without one. */
@@ -782,7 +787,7 @@ describe('finishTest — the review counts it records', () => {
 
   /** The rollup document the session wrote, as a plain object of counts. */
   function rollup() {
-    const [, data] = mockBatchSet.mock.calls[0];
+    const [, data] = mockBatchSet.mock.calls.find(([ref]) => ref.path.includes('/reviewStats/'))!;
     const directions: Record<string, Record<string, number>> = {};
     for (const [direction, counters] of Object.entries(
       data.directions as Record<string, Record<string, { __increment: number }>>,
@@ -799,10 +804,11 @@ describe('finishTest — the review counts it records', () => {
 
     await finishTest('user-1', [{ word_id: 1, directions: allAsked('pass') }]);
 
-    expect(mockBatchSet).toHaveBeenCalledTimes(1);
+    const rollups = mockBatchSet.mock.calls.filter(([ref]) => ref.path.includes('/reviewStats/'));
+    expect(rollups).toHaveLength(1);
     expect(mockBatchCommit).toHaveBeenCalledTimes(1);
-    expect(mockBatchSet.mock.calls[0][0].path).toContain('users/user-1/reviewStats/');
-    expect(mockBatchSet.mock.calls[0][2]).toEqual({ merge: true });
+    expect(rollups[0][0].path).toContain('users/user-1/reviewStats/');
+    expect(rollups[0][2]).toEqual({ merge: true });
   });
 
   it('counts a correct first attempt on a learned direction as a review pass', async () => {
@@ -885,6 +891,236 @@ describe('finishTest — the review counts it records', () => {
     await finishTest('user-1', []);
 
     expect(mockBatchSet).not.toHaveBeenCalled();
+  });
+});
+
+describe('finishTest — the review log it writes', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockBatchCommit.mockResolvedValue(undefined);
+    mockWriteBatch.mockReturnValue({
+      update: mockBatchUpdate,
+      set: mockBatchSet,
+      commit: mockBatchCommit,
+    });
+  });
+
+  /** The review log writes of the session: the reference and the document. */
+  function logWrites() {
+    return mockSetDoc.mock.calls.filter(([ref]) => ref.path.includes('/reviewLog/'));
+  }
+
+  function reviewLog() {
+    const writes = logWrites();
+    expect(writes).toHaveLength(1);
+    return writes[0][1];
+  }
+
+  /** A direction that FSRS has scheduled, last reviewed `daysAgo` days ago. */
+  function learned(daysAgo: number, stability = 4.2, difficulty = 5.5) {
+    const reviewed = new Date(Date.now() - daysAgo * DAY);
+    const lastReview = { toDate: () => reviewed };
+    return {
+      ...storedDirection(2, new Date(2026, 0, 1), { stability, difficulty, interval: 4 }),
+      lastReview,
+    };
+  }
+
+  it('writes one document after the reschedules are saved', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+
+    await finishTest('user-1', [
+      { word_id: 1, directions: { MC: 'pass' } },
+      { word_id: 2, directions: { PC: 'lapse' } },
+    ]);
+
+    const [ref, data] = logWrites()[0];
+    expect(ref.path).toBe('users/user-1/reviewLog/auto-id');
+    expect(data.version).toBe(1);
+    expect(data.scheduler).toBe('fsrs-6-default');
+    expect(data.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(data.reviewedAt.toDate()).toBeInstanceOf(Date);
+    expect(data.reviews).toHaveLength(2);
+    expect(mockBatchSet.mock.calls.some(([ref]) => ref.path.includes('/reviewLog/'))).toBe(false);
+    expect(mockBatchCommit.mock.invocationCallOrder[0]).toBeLessThan(
+      mockSetDoc.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('keeps the session saved when the review log write fails', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+    const failure = new Error('permission-denied');
+    mockSetDoc.mockRejectedValueOnce(failure);
+
+    const newDates = await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+    expect(newDates).toHaveProperty('你好');
+    await vi.waitFor(() =>
+      expect(reportError).toHaveBeenCalledWith(failure, { feature: 'review-log' }),
+    );
+  });
+
+  it('writes no review log when the reschedules fail to save', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+    mockBatchCommit.mockRejectedValueOnce(new Error('offline'));
+
+    await expect(
+      finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]),
+    ).rejects.toThrow('offline');
+
+    expect(logWrites()).toHaveLength(0);
+  });
+
+  it('writes one entry for each asked direction and none for a buried one', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+
+    await finishTest('user-1', [{ word_id: 7, directions: { MC: 'pass', CM: 'fail' } }]);
+
+    const entries = reviewLog().reviews;
+    expect(entries.map((e: { direction: string }) => e.direction).sort()).toEqual(['CM', 'MC']);
+    expect(entries.find((e: { direction: string }) => e.direction === 'MC')).toMatchObject({
+      wordId: 7,
+      grade: 'pass',
+    });
+    expect(entries.find((e: { direction: string }) => e.direction === 'CM').grade).toBe('fail');
+  });
+
+  it('records no memory before the review for a direction that was never passed', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(1, '你好', true, allDirections(1)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(reviewLog().reviews[0].before).toBeNull();
+  });
+
+  it('records the seeded memory of a legacy direction', async () => {
+    // Bank 3 and no FSRS fields: FSRS reads a stability of 7 days, the bank's
+    // seed, and the difficulty of the starting ease, about 3.6.
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    const { before } = reviewLog().reviews[0];
+    expect(before.stability).toBe(7);
+    expect(before.difficulty).toBeCloseTo(3.6, 1);
+    expect(before.lastReview).toBeNull();
+  });
+
+  it('records the predicted recall at the time of the review', async () => {
+    mockGetDoc.mockResolvedValue(
+      makeFakeDoc(2, '你好', true, { ...allDirections(2), MC: learned(1), MP: learned(20) }),
+    );
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass', MP: 'fail' } }]);
+
+    const entries = reviewLog().reviews;
+    const recall = (d: string) =>
+      entries.find((e: { direction: string }) => e.direction === d).before.retrievability;
+    // One day into a stability of 4.2 days is above the 0.9 of day 4.2, and
+    // twenty days is far below it.
+    expect(recall('MC')).toBeGreaterThan(0.9);
+    expect(recall('MC')).toBeLessThan(1);
+    expect(recall('MP')).toBeGreaterThan(0);
+    expect(recall('MP')).toBeLessThan(0.9);
+  });
+
+  it('records the memory before as the direction held it', async () => {
+    const direction = learned(3, 4.2, 5.5);
+    mockGetDoc.mockResolvedValue(
+      makeFakeDoc(2, '你好', true, { ...allDirections(2), MC: direction }),
+    );
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(reviewLog().reviews[0].before).toMatchObject({
+      stability: 4.2,
+      difficulty: 5.5,
+      lastReview: direction.lastReview,
+    });
+  });
+
+  it('records the memory after as the memory written to the word', async () => {
+    mockGetDoc.mockResolvedValue(
+      makeFakeDoc(2, '你好', true, { ...allDirections(2), MC: learned(3), PC: learned(3) }),
+    );
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass', PC: 'lapse' } }]);
+
+    const written = mockBatchUpdate.mock.calls[0][1].directions;
+    for (const entry of reviewLog().reviews) {
+      const { stability, difficulty, interval } = written[entry.direction];
+      expect(entry.after).toEqual({ stability, difficulty, interval });
+    }
+  });
+
+  it('records the review time that FSRS scheduled with', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    const written = mockBatchUpdate.mock.calls[0][1].directions.MC.lastReview.toDate();
+    expect(reviewLog().reviewedAt.toDate()).toEqual(written);
+  });
+
+  it('records how the learner got to the grade', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+
+    await finishTest('user-1', [
+      {
+        word_id: 1,
+        directions: { PC: 'lapse' },
+        toneErrors: { PC: 1 },
+        details: {
+          PC: {
+            mode: 'input',
+            position: 4,
+            misses: 2,
+            hint: true,
+            revealed: false,
+            answerMs: 8421,
+            answer: 'ni3hao4',
+          },
+        },
+      },
+    ]);
+
+    expect(reviewLog().reviews[0]).toMatchObject({
+      mode: 'input',
+      position: 4,
+      toneErrors: 1,
+      misses: 2,
+      hint: true,
+      revealed: false,
+      answerMs: 8421,
+      answer: 'ni3hao4',
+    });
+  });
+
+  it('leaves out the fields that a session saved before the release does not hold', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(Object.keys(reviewLog().reviews[0]).sort()).toEqual(
+      ['after', 'before', 'direction', 'grade', 'toneErrors', 'wordId'].sort(),
+    );
+  });
+
+  it('writes no review log when the session graded nothing', async () => {
+    await finishTest('user-1', []);
+
+    expect(logWrites()).toHaveLength(0);
+  });
+
+  it('writes no review log when no graded word exists any more', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', false));
+
+    await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
+    expect(logWrites()).toHaveLength(0);
   });
 });
 
@@ -1125,7 +1361,11 @@ describe('getDueUserWords', () => {
 
 // ─── addWordToList ────────────────────────────────────────────────────────────
 describe('addWordToList', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // The learner does not have the word yet.
+    mockGetDoc.mockResolvedValue({ exists: () => false });
+  });
 
   const sampleWord = { id: 99, simp: '书', trad: '書', pinyin: 'shū', meaning: 'book' };
 
@@ -1232,7 +1472,8 @@ describe('updateWordMeaning', () => {
 describe('addCustomWord', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // addWordToList (called internally) needs getDocs + setDoc
+    // addWordToList (called internally) needs getDoc, getDocs and setDoc
+    mockGetDoc.mockResolvedValue({ exists: () => false });
     mockGetDocs.mockResolvedValue(makeFakeSnapshot([]));
     mockSetDoc.mockResolvedValue(undefined);
   });
