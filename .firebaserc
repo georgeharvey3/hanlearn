@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "hanlearn-dd14f"
+    "default": "hanlearn-dd14f",
+    "staging": "hanlearn-staging"
   }
 }

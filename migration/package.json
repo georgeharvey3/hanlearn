@@ -4,7 +4,8 @@
   "description": "Migration scripts for HanLearn Firebase migration",
   "scripts": {
     "import": "npx ts-node import_firestore.ts",
-    "export:review-log": "node export-review-log.js"
+    "export:review-log": "node export-review-log.js",
+    "seed:staging": "node seed-staging.js"
   },
   "dependencies": {
     "firebase-admin": "^12.0.0"
