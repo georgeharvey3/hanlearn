@@ -47,6 +47,23 @@ const answerQuizType = (state: TestState): QuizType | null => {
 const answerMode = (state: TestState): AnswerMode =>
   state.answerCategory === 'character' ? 'handwriting' : (answerQuizType(state) ?? 'input');
 
+/** The fields of a grade that the review log records, and no others. */
+const GRADE_DETAIL_KEYS = [
+  'mode',
+  'position',
+  'misses',
+  'hint',
+  'revealed',
+  'answerMs',
+  'answer',
+] as const satisfies readonly (keyof GradeDetail)[];
+
+/** How the learner got to a grade, with each field the grade does not hold left out. */
+const gradeDetailOf = (grade: DirectionGrade): GradeDetail =>
+  Object.fromEntries(
+    GRADE_DETAIL_KEYS.filter((key) => grade[key] !== undefined).map((key) => [key, grade[key]]),
+  ) as GradeDetail;
+
 /**
  * The characters to offer a component breakdown for once a question is graded.
  *
@@ -384,7 +401,7 @@ export const useTestEngine = (props: Props) => {
           directions[grade.direction] = grade.result;
           if (grade.toneErrors > 0) toneErrors[grade.direction] = grade.toneErrors;
           // A grade from a session saved before the review log has no detail.
-          const { wordId: _id, direction: _d, result: _r, toneErrors: _t, ...detail } = grade;
+          const detail = gradeDetailOf(grade);
           if (Object.keys(detail).length > 0) details[grade.direction] = detail;
           // One summary row per question, which is one direction of one word.
           wordScores.push({
@@ -711,8 +728,10 @@ export const useTestEngine = (props: Props) => {
         onMistake: (strokeData) => {
           setStateMerged((prevState) => ({
             missCount: prevState.missCount + 1,
+            // Hanzi Writer shows the outline here by itself, so the hint was
+            // on screen as much as when the learner asks for it.
             ...(strokeData.mistakesOnStroke >= missesBeforeHint
-              ? { gradeCap: 'lapse' as const }
+              ? { gradeCap: 'lapse' as const, hintShown: true }
               : {}),
           }));
         },

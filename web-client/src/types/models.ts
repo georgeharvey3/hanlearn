@@ -109,6 +109,10 @@ export type AnswerMode = 'input' | 'flashcard' | 'handwriting';
  * How the learner got to a grade. The review log records it, and the schedule
  * does not read it. See issue #397.
  *
+ * `position` is the index of the grade in the grade list of the session, so
+ * the order of the questions survives `finishTest` grouping the results by
+ * word.
+ *
  * Every field is optional, because a session saved before the review log holds
  * grades without them.
  *
@@ -151,8 +155,7 @@ export interface WordScore {
  *
  * `toneErrors` counts the attempts at this question that gave the correct
  * syllables with an incorrect tone. It is 0 for every question that does not
- * ask for pinyin. `position` is the index of the grade in the grade list of
- * the session.
+ * ask for pinyin.
  */
 export interface DirectionGrade extends GradeDetail {
   wordId: number;

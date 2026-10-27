@@ -1442,6 +1442,20 @@ describe('useTestEngine — how the learner got to the grade', () => {
       expect(grade).not.toHaveProperty('answer');
     });
 
+    it('records the outline that the writer shows after five misses as a hint', () => {
+      const { result, quiz } = handwritingQuestion();
+
+      act(() => {
+        quiz.onMistake({ mistakesOnStroke: 5, strokeNum: 0, totalMistakes: 5 });
+        quiz.onComplete();
+      });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(result.current.state.gradeList[0]).toMatchObject({ result: 'lapse', hint: true });
+    });
+
     it('records the reveal of the character as a reveal', async () => {
       const { result } = handwritingQuestion();
 

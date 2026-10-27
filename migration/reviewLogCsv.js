@@ -9,7 +9,12 @@
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-/** The FSRS rating of each grade: Good for a pass, Again for a lapse or a fail. */
+/**
+ * The FSRS rating of each grade: Good for a pass, Again for a lapse or a fail.
+ * It must agree with `RATINGS` in web-client/src/utils/scheduling.ts, and
+ * `elapsed_days` below with `elapsedDays` there. This script is plain Node,
+ * so it cannot import the TypeScript module.
+ */
 const RATINGS = { pass: 3, lapse: 1, fail: 1 };
 
 const REVIEW_LOG_COLUMNS = [
