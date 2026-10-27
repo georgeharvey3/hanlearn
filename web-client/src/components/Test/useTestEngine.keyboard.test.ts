@@ -226,7 +226,7 @@ describe('useTestEngine — keyboard Ctrl+i triggers onIDontKnow', () => {
     });
 
     // The queue pair asks meaning from pinyin, so the grade lands on MP, once.
-    expect(result.current.state.gradeList).toEqual([
+    expect(result.current.state.gradeList).toMatchObject([
       { wordId: 1, direction: 'MP', result: 'fail', toneErrors: 0 },
     ]);
     expect(result.current.state.idkDisabled).toBe(true);
@@ -311,7 +311,7 @@ describe('useTestEngine — keyboard "i" key triggers onIDontKnow from non-input
     });
 
     // The queue pair asks meaning from pinyin, so the grade lands on MP, once.
-    expect(result.current.state.gradeList).toEqual([
+    expect(result.current.state.gradeList).toMatchObject([
       { wordId: 1, direction: 'MP', result: 'fail', toneErrors: 0 },
     ]);
   });
@@ -465,7 +465,7 @@ describe('useTestEngine — keyboard ArrowUp confirms answer in flashcard mode',
     });
 
     expect(result.current.state.gradeClicked).toBe('lapse');
-    expect(result.current.state.gradeList).toEqual([
+    expect(result.current.state.gradeList).toMatchObject([
       { wordId: 1, direction: 'MP', result: 'lapse', toneErrors: 0 },
     ]);
   });
@@ -500,7 +500,7 @@ describe('useTestEngine — keyboard ArrowDown marks IDK in flashcard mode', () 
 
     expect(result.current.state.gradeClicked).toBe('fail');
     // The queue pair asks meaning from pinyin, so the grade lands on MP, once.
-    expect(result.current.state.gradeList).toEqual([
+    expect(result.current.state.gradeList).toMatchObject([
       { wordId: 1, direction: 'MP', result: 'fail', toneErrors: 0 },
     ]);
   });
@@ -951,7 +951,7 @@ describe('useTestEngine — the finishTest payload', () => {
     finishSession({}, [word], onFinishTest);
 
     expect(onFinishTest).toHaveBeenCalledWith([
-      { word_id: 1, directions: { MP: 'pass' }, toneErrors: {} },
+      expect.objectContaining({ word_id: 1, directions: { MP: 'pass' }, toneErrors: {} }),
     ]);
   });
 
@@ -1014,7 +1014,8 @@ describe('useTestEngine — the finishTest payload', () => {
     );
 
     const [payload] = onFinishTest.mock.calls[0];
-    expect(payload[0]).toEqual({ word_id: 1, directions: { MP: 'pass' }, toneErrors: {} });
+    expect(payload[0]).toMatchObject({ word_id: 1, directions: { MP: 'pass' }, toneErrors: {} });
+    // The second word's grade is from before the review log, so it has no detail.
     expect(payload[1]).toEqual({ word_id: 2, directions: { CM: 'fail' }, toneErrors: {} });
   });
 });

@@ -172,6 +172,32 @@ service cloud.firestore {
               || validLevels(request.resource.data.levels));
       }
 
+      // ReviewLog subcollection: one document per saved session, with one entry
+      // per graded question. See issue #397. `finishTest` writes it after the
+      // batch that reschedules the words, so a rejection here loses the log of
+      // one session and not the session. Each case of the rules tests still
+      // writes the shape the app writes.
+      //
+      // The rules check the top level only. Rules have no loop, so each entry
+      // needs its own unrolled check, and a session of 50 questions passes the
+      // limit of 1000 expressions for one request: in the emulator, even
+      // `is map` on each entry stops at 30 entries. The log is the owner's own
+      // data and nothing else reads it, so a bad entry harms only the export.
+      match /reviewLog/{logId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId
+          && request.resource.data.keys().hasOnly(['version', 'date', 'reviewedAt', 'scheduler', 'reviews'])
+          && request.resource.data.keys().hasAll(['version', 'date', 'reviewedAt', 'scheduler', 'reviews'])
+          && request.resource.data.version == 1
+          && request.resource.data.date is string
+          && request.resource.data.reviewedAt is timestamp
+          && request.resource.data.scheduler is string
+          && request.resource.data.reviews is list
+          && request.resource.data.reviews.size() >= 1;
+        // Write-once: no client changes or deletes the history after the session.
+        allow update, delete: if false;
+      }
+
       // TestCompletions subcollection (streak tracking)
       match /testCompletions/{dateId} {
         allow read: if request.auth != null && request.auth.uid == userId;

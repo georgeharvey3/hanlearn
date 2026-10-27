@@ -75,6 +75,7 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 - [web-client/src/services/streakService.ts](web-client/src/services/streakService.ts) - Read/write `testCompletions` subcollection; calculates streak from completion dates
 - [web-client/src/services/dashboardService.ts](web-client/src/services/dashboardService.ts) - Aggregates the Dashboard's data: the session sizes, per-direction bank counts, the words due ahead and the `reviewStats` history. The counting rules are pure, in [web-client/src/utils/dashboard.ts](web-client/src/utils/dashboard.ts)
 - [web-client/src/services/retentionService.ts](web-client/src/services/retentionService.ts) - Read/write the `reviewStats` daily rollup; the session's write joins the `finishTest` batch, and the level snapshot follows it
+- [web-client/src/services/reviewLogService.ts](web-client/src/services/reviewLogService.ts) - Builds the `reviewLog` entry of each graded question. `finishTest` writes the document after its batch, and a failed write does not lose the session. `node migration/export-review-log.js --uid <userId>` exports the log of one learner to a CSV file for the FSRS optimizer
 - [web-client/src/services/sentenceService.ts](web-client/src/services/sentenceService.ts) - Firebase AI Logic: generates and caches example sentences in `sentenceCache`
 - [web-client/src/services/chengyuSentenceService.ts](web-client/src/services/chengyuSentenceService.ts) - Generates example sentences for chengyu display
 - [web-client/src/services/decompositionService.ts](web-client/src/services/decompositionService.ts) - Calls cloud function to decompose characters into radicals/components
@@ -114,7 +115,7 @@ users/{userId}/
   ├── testCompletions/{dateId}   # Streak tracking (dateId = YYYY-MM-DD)
   │   ├── testsCount: number
   │   └── completedAt: Timestamp
-  └── reviewStats/{dateId}       # Scheduler measurement (dateId = YYYY-MM-DD)
+  ├── reviewStats/{dateId}       # Scheduler measurement (dateId = YYYY-MM-DD)
       ├── date: string           # Same value as the doc id, so the range query needs no index
       ├── updatedAt: Timestamp
       └── directions: {          # Counters per direction, written as increments
@@ -125,6 +126,15 @@ users/{userId}/
           }
       └── levels?: { 1..5: number } # Words of the whole collection at each level,
                                     # as the day's last session left them (Dashboard progress chart)
+  └── reviewLog/{autoId}         # One document per saved session, write-once (#397)
+      ├── version: 1, date: string, reviewedAt: Timestamp
+      ├── scheduler: string      # The weights in use: 'fsrs-6-default'
+      └── reviews: [{            # One entry per graded question, no UI
+            wordId, direction, grade, mode?,
+            before: { stability, difficulty, lastReview, retrievability } | null,
+            after: { stability, difficulty, interval },
+            position?, toneErrors, misses?, hint?, revealed?, answerMs?, answer?
+          }]
 
 words/{wordId}                   # Read-only shared dictionary (admin-managed)
 chengyus/{chengyuId}             # Read-only (admin-managed)

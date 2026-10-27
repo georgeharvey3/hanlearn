@@ -8,11 +8,14 @@ import {
   arrayUnion,
   arrayRemove,
   deleteField,
+  deleteDoc,
+  getDoc,
   Timestamp,
   type Firestore,
 } from 'firebase/firestore';
 
 import { loadRules, asUser } from './helpers';
+import { QUESTIONS_PER_SESSION_MAX } from '../../web-client/src/utils/sessionSettings';
 
 /**
  * The Firestore rules, exercised against the emulator.
@@ -363,6 +366,121 @@ describe('reviewStats', () => {
     await assertFails(
       setDoc(ref(otherDb, path), { ...base(), directions: {} }, { merge: true }),
     );
+  });
+});
+
+describe('reviewLog', () => {
+  const path = 'users/user-1/reviewLog/session-1';
+
+  /** One entry, as `finishTest` writes it for a typed question with every design field. */
+  const entry = (extra: Record<string, unknown> = {}) => ({
+    wordId: 101,
+    direction: 'PC',
+    grade: 'lapse',
+    mode: 'input',
+    before: {
+      stability: 4.2,
+      difficulty: 5.5,
+      lastReview: Timestamp.now(),
+      retrievability: 0.87,
+    },
+    after: { stability: 2.1, difficulty: 6.3, interval: 2 },
+    position: 0,
+    toneErrors: 1,
+    misses: 2,
+    hint: false,
+    revealed: false,
+    answerMs: 8421,
+    answer: 'ni3hao4',
+    ...extra,
+  });
+
+  /** An entry of a session saved before the review log: no mode, no design fields. */
+  const legacyEntry = () => ({
+    wordId: 102,
+    direction: 'MC',
+    grade: 'pass',
+    before: {
+      stability: 3,
+      difficulty: 3.6,
+      lastReview: null,
+      retrievability: 0.9,
+    },
+    after: { stability: 9.4, difficulty: 3.5, interval: 9 },
+  });
+
+  const session = (reviews: unknown[], extra: Record<string, unknown> = {}) => ({
+    version: 1,
+    date: '2026-10-27',
+    reviewedAt: Timestamp.now(),
+    scheduler: 'fsrs-6-default',
+    reviews,
+    ...extra,
+  });
+
+  it('accepts the document a session writes', async () => {
+    await assertSucceeds(setDoc(ref(db, path), session([entry()])));
+  });
+
+  it('accepts a direction that was never passed', async () => {
+    await assertSucceeds(
+      setDoc(ref(db, path), session([entry({ before: null, grade: 'fail', revealed: true })])),
+    );
+  });
+
+  it('accepts the entries of a session saved before the release', async () => {
+    await assertSucceeds(setDoc(ref(db, path), session([legacyEntry()])));
+  });
+
+  it('accepts a flashcard and a handwriting entry, with no misses or answer', async () => {
+    const { misses: _m, answer: _a, ...flashcard } = entry({ mode: 'flashcard' });
+    const { answer: _b, ...handwriting } = entry({
+      mode: 'handwriting',
+      direction: 'CM',
+    });
+    await assertSucceeds(setDoc(ref(db, path), session([flashcard, handwriting])));
+  });
+
+  it('accepts a session of the longest length the settings allow', async () => {
+    const reviews = Array.from({ length: QUESTIONS_PER_SESSION_MAX }, (_, position) =>
+      entry({ wordId: position, position }),
+    );
+    await assertSucceeds(setDoc(ref(db, path), session(reviews)));
+  });
+
+  it('rejects a session with no entries', async () => {
+    await assertFails(setDoc(ref(db, path), session([])));
+  });
+
+  it('rejects an extra top-level field', async () => {
+    await assertFails(setDoc(ref(db, path), session([entry()], { notes: 'x' })));
+  });
+
+  it('rejects a wrong type at the top level', async () => {
+    await assertFails(setDoc(ref(db, path), session([entry()], { version: 2 })));
+    await assertFails(setDoc(ref(db, path), session([entry()], { date: 20261027 })));
+    await assertFails(setDoc(ref(db, path), session([entry()], { reviewedAt: '2026-10-27' })));
+    await assertFails(setDoc(ref(db, path), session([entry()], { scheduler: 6 })));
+    await assertFails(setDoc(ref(db, path), session([entry()], { reviews: entry() })));
+  });
+
+  it('is write-once: no update and no delete', async () => {
+    await assertSucceeds(setDoc(ref(db, path), session([entry()])));
+
+    await assertFails(updateDoc(ref(db, path), { scheduler: 'fsrs-6-personal' }));
+    await assertFails(setDoc(ref(db, path), session([entry({ grade: 'pass' })])));
+    await assertFails(deleteDoc(ref(db, path)));
+  });
+
+  it('lets the owner read the log', async () => {
+    await assertSucceeds(setDoc(ref(db, path), session([entry()])));
+    await assertSucceeds(getDoc(ref(db, path)));
+  });
+
+  it("keeps one user out of another user's log", async () => {
+    await assertFails(setDoc(ref(otherDb, path), session([entry()])));
+    await assertSucceeds(setDoc(ref(db, path), session([entry()])));
+    await assertFails(getDoc(ref(otherDb, path)));
   });
 });
 

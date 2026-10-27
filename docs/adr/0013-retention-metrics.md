@@ -7,6 +7,8 @@ Date: 2026-09-02
 Accepted. The rollup stays. On 2026-10-25 the `/stats` page was removed (#406).
 The Dashboard shows the recall of each direction and the load ahead. A learner
 cannot act on the other metrics, so the app no longer computes them.
+The review log (#397) records each review of a session, for the measurements
+that a daily average cannot give.
 
 ## Context
 

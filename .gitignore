@@ -38,6 +38,7 @@ Thumbs.db
 migration/service-account.json
 migration/*.json
 !migration/package.json
+migration/review-log-*.csv
 
 
 # Playwright
