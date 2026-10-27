@@ -1,3 +1,4 @@
+// The 1st gen API. From firebase-functions 5, the root import gives 2nd gen (#451).
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { checkRateLimit, RATE_LIMITS } from './rateLimit';
