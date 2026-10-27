@@ -10,6 +10,8 @@ import { parseMeanings } from '../../../utils/meaningUtils';
 import { Word } from '../../../types/models';
 
 const TRACE_SIZE = 260;
+/** How long the traced character stays in the box while it flashes, as in the test. */
+const FLASH_MS = 1000;
 
 /** A Hanzi Writer quiz in a box with the guide lines of the handwriting field. */
 const TraceBox: React.FC<{ char: string; onDone: () => void }> = ({ char, onDone }) => {
@@ -23,6 +25,7 @@ const TraceBox: React.FC<{ char: string; onDone: () => void }> = ({ char, onDone
     const el = ref.current;
     if (!el || !window.HanziWriter) return;
     el.innerHTML = '';
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const writer = window.HanziWriter.create(el, char, {
         width: TRACE_SIZE,
@@ -34,14 +37,23 @@ const TraceBox: React.FC<{ char: string; onDone: () => void }> = ({ char, onDone
         outlineColor: colors.outline,
         drawingColor: colors.primaryDark,
         showHintAfterMisses: 2,
+        highlightOnComplete: true,
+        highlightCompleteColor: colors.primaryDark,
         charDataLoader: loadCharData,
         onLoadCharDataError: onCharDataError,
       });
-      writer.quiz({ onComplete: () => done.current() });
+      // The box stays while Hanzi Writer flashes the finished character, so the
+      // learner sees the whole character before the next one replaces it.
+      writer.quiz({
+        onComplete: () => {
+          timer = setTimeout(() => done.current(), FLASH_MS);
+        },
+      });
     } catch {
       // Hanzi Writer has no data for some characters. Skip passes the step.
     }
     return () => {
+      clearTimeout(timer);
       el.innerHTML = '';
     };
   }, [char]);

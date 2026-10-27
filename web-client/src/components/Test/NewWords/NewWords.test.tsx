@@ -6,7 +6,7 @@
  * introduction. The steps record no
  * result, so the only way out is `startTest`.
  */
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
 vi.mock('../../../services/dictionaryService', () => ({
@@ -250,6 +250,10 @@ describe('NewWords — Speak', () => {
 });
 
 describe('NewWords — Write', () => {
+  // A traced character flashes for a second before the next one.
+  beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
+  afterEach(() => vi.useRealTimers());
+
   const toWrite = async (user: ReturnType<typeof userEvent.setup>) =>
     user.click(screen.getByRole('button', { name: 'Write' }));
 
@@ -261,9 +265,12 @@ describe('NewWords — Write', () => {
     expect(screen.getByRole('img', { name: 'Trace 电 here' })).toBeInTheDocument();
 
     act(() => completeTrace());
+    expect(screen.getByRole('img', { name: 'Trace 电 here' })).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(1000));
     expect(screen.getByRole('img', { name: 'Trace 脑 here' })).toBeInTheDocument();
 
     act(() => completeTrace());
+    act(() => vi.advanceTimersByTime(1000));
     expect(screen.getByText('Traced')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Next word' }));
@@ -276,7 +283,9 @@ describe('NewWords — Write', () => {
     render([diannao, xiuxi]);
     await toWrite(user);
     act(() => completeTrace());
+    act(() => vi.advanceTimersByTime(1000));
     act(() => completeTrace());
+    act(() => vi.advanceTimersByTime(1000));
 
     await user.click(screen.getByRole('button', { name: 'Understand' }));
     await toWrite(user);
