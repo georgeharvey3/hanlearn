@@ -449,6 +449,8 @@ export const copy = {
     chengyu: {
       label: '今日成语',
       question: 'What does it mean?',
+      showPinyin: 'Show pinyin',
+      hidePinyin: 'Hide pinyin',
       correct: 'Correct',
       itMeans: 'It means',
       addToWords: 'Add to my words',
