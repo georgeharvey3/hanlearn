@@ -234,7 +234,6 @@ export const copy = {
     writePrompt: 'Trace the word: ',
     traceHere: (char: string) => `Trace ${char} here`,
     traced: 'Traced',
-    skip: 'Skip',
     skipToTest: 'Skip to test',
     continue: 'Continue',
     nextWord: 'Next word',

@@ -55,8 +55,8 @@ function useSpeak(): { speak: (text: string) => void; loading: boolean } {
 /**
  * The introduction of new words, before the test. Each word goes through three
  * steps that echo the directions of the test: Understand (meaning), Speak
- * (sound) and Write (characters). Every step can be skipped, and so can the
- * rest of the introduction. Nothing here records a result.
+ * (sound) and Write (characters). Continue moves on from any step, finished or
+ * not, and Skip to test ends the introduction. Nothing here records a result.
  */
 const NewWords: React.FC<NewWordsProps> = ({ words, startTest }) => {
   const history = useHistory();
@@ -94,9 +94,8 @@ const NewWords: React.FC<NewWordsProps> = ({ words, startTest }) => {
     else startTest?.();
   }, [index, lastWord, startTest, step]);
 
-  // Understand has nothing to finish, so Continue is always on. Speak and
-  // Write wait for the learner, or for Skip.
-  const canContinue = current === 'understand' || done[current];
+  // Continue is always on: no step blocks the learner. A disabled Continue on
+  // Speak read as a dead button (#443).
   const onContinue = useCallback(() => {
     if (current === 'understand') markDone('understand');
     advance();
@@ -104,11 +103,11 @@ const NewWords: React.FC<NewWordsProps> = ({ words, startTest }) => {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'ArrowRight' && canContinue) onContinue();
+      if (event.key === 'ArrowRight') onContinue();
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [canContinue, onContinue]);
+  }, [onContinue]);
 
   if (!word) return null;
 
@@ -174,16 +173,9 @@ const NewWords: React.FC<NewWordsProps> = ({ words, startTest }) => {
       >
         {copy.newWords.skipToTest}
       </ButtonBase>
-      <Box sx={{ display: 'flex', gap: 1.25 }}>
-        {!canContinue && (
-          <StudyButton onClick={advance} sx={{ flex: '0 0 35%' }}>
-            {copy.newWords.skip}
-          </StudyButton>
-        )}
-        <StudyButton variant="primary" disabled={!canContinue} onClick={onContinue}>
-          {primaryLabel}
-        </StudyButton>
-      </Box>
+      <StudyButton variant="primary" onClick={onContinue}>
+        {primaryLabel}
+      </StudyButton>
       <AudioSettingsDrawer
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
