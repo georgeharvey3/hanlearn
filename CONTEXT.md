@@ -128,6 +128,30 @@ cleared, so a pass does not remove the flag.
 The counter is separate from the **tone errors**, which count incorrect tones on
 pinyin answers and say nothing about whether the learner recalled the word.
 
+## Review log
+
+The **review log** records each graded question of a session: the word, the
+direction, the grade, the answer mode, and the memory of the direction before
+and after the review. It exists to measure the scheduler, not to show the
+learner anything. It answers two questions that the daily rollup cannot:
+
+- **Calibration**: whether the reviews that FSRS predicted at a recall
+  probability of, for example, 0.7 pass at about that rate.
+- **Personal weights**: whether FSRS weights fitted to the learner's own history
+  predict better than the default weights.
+
+One **review** is one graded question. A buried direction is not reviewed, so it
+has no entry. Practice mode is not a review, so it has no entry. The new word
+introduction has no grade, so the first entry of a direction is its first graded
+question.
+
+Each entry names the **scheduler** that made it, that is, the weights in use.
+Calibration compares only entries of one scheduler.
+
+The log starts empty from its release and is not backfilled. Calibration can use
+every entry. A fit of personal weights can use only the directions whose first
+review is in the log, because a fit reads the whole history of a direction.
+
 ## Bank and level
 
 The band of the interval of a word or of one direction, an integer from 1 to 5.
