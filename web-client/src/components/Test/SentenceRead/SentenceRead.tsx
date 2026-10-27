@@ -518,7 +518,7 @@ const SentenceRead: React.FC<Props> = ({
     return (
       <StudyScreen>
         {top}
-        <StudyCard seal={false} sx={{ mt: 2.5, px: 2.5, py: 2.25, gap: 0.75 }}>
+        <StudyCard sx={{ mt: 2.5, px: 2.5, py: 2.25, gap: 0.75 }}>
           <Box
             component="p"
             lang="zh"
@@ -621,7 +621,6 @@ const SentenceRead: React.FC<Props> = ({
       </Box>
       <StudyCard
         height={260}
-        seal={false}
         sx={{ mt: 1.5, gap: 2, justifyContent: textShown ? 'flex-start' : 'center' }}
       >
         {state.useSound && (

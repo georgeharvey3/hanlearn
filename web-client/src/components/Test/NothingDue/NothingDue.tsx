@@ -51,7 +51,7 @@ const NothingDue: React.FC<NothingDueProps> = ({
   return (
     <StudyScreen>
       <StudyTop stage={copy.study.stageTest} done={0} total={0} onEnd={onHome} />
-      <StudyCard seal={false} sx={{ mt: 3, py: 5 }}>
+      <StudyCard sx={{ mt: 3, py: 5 }}>
         <Box
           aria-hidden="true"
           sx={{
