@@ -65,6 +65,9 @@ const ChengyuCard: React.FC<Props> = ({ loading, userId, words, onSaveWord }) =>
   const [answer, setAnswer] = useState(readAnswer);
   const [sentence, setSentence] = useState<ChengyuSentence | null | undefined>(undefined);
   const [saved, setSaved] = useState(false);
+  // The pinyin gives away part of the answer, so it waits for a tap or the answer.
+  const [pinyinAsked, setPinyinAsked] = useState(false);
+  const pinyinShown = pinyinAsked || answer !== null;
   const alreadySaved = words.some((w) => w.simp === daily.chengyu);
 
   useEffect(() => {
@@ -145,8 +148,13 @@ const ChengyuCard: React.FC<Props> = ({ loading, userId, words, onSaveWord }) =>
                 key={i}
                 sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}
               >
-                <Typography lang="zh-Latn" sx={{ fontSize: 13, color: colors.textSecondary }}>
-                  {c.pinyin}
+                {/* A hidden row keeps its height, so the characters do not move on reveal. */}
+                <Typography
+                  lang="zh-Latn"
+                  aria-hidden={!pinyinShown}
+                  sx={{ fontSize: 13, color: colors.textSecondary }}
+                >
+                  {pinyinShown ? c.pinyin : '\u00a0'}
                 </Typography>
                 <Typography
                   lang="zh"
@@ -162,6 +170,23 @@ const ChengyuCard: React.FC<Props> = ({ loading, userId, words, onSaveWord }) =>
               </Box>
             ))}
           </Box>
+
+          {!pinyinShown && (
+            <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
+              <Button
+                onClick={() => setPinyinAsked(true)}
+                sx={{
+                  minHeight: 44,
+                  px: 2,
+                  textTransform: 'none',
+                  fontSize: 14,
+                  color: colors.textSecondary,
+                }}
+              >
+                {text.showPinyin}
+              </Button>
+            </Box>
+          )}
 
           {!answer ? (
             <>
