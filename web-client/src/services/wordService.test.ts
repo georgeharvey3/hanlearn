@@ -76,6 +76,7 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 vi.mock('../firebase/config', () => ({ db: {} }));
+vi.mock('./errorReporting', () => ({ reportError: vi.fn() }));
 vi.mock('./dictionaryService', () => ({
   searchWord: vi.fn(),
   lookupCharacter: vi.fn(),
@@ -92,6 +93,7 @@ import {
   addCustomWord,
 } from './wordService';
 import { lookupCharacter, lookupCharacterByTrad } from './dictionaryService';
+import { reportError } from './errorReporting';
 import { DIRECTIONS, DirectionResult } from '../types/models';
 
 /** The interval in days that each bank seeds, for a document without one. */
@@ -907,7 +909,7 @@ describe('finishTest — the review log it writes', () => {
 
   /** The review log writes of the session: the reference and the document. */
   function logWrites() {
-    return mockBatchSet.mock.calls.filter(([ref]) => ref.path.includes('/reviewLog/'));
+    return mockSetDoc.mock.calls.filter(([ref]) => ref.path.includes('/reviewLog/'));
   }
 
   function reviewLog() {
@@ -926,7 +928,7 @@ describe('finishTest — the review log it writes', () => {
     };
   }
 
-  it('writes one document in the same batch as the reschedules', async () => {
+  it('writes one document after the reschedules are saved', async () => {
     mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
 
     await finishTest('user-1', [
@@ -941,7 +943,35 @@ describe('finishTest — the review log it writes', () => {
     expect(data.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(data.reviewedAt.toDate()).toBeInstanceOf(Date);
     expect(data.reviews).toHaveLength(2);
+    expect(mockBatchSet.mock.calls.some(([ref]) => ref.path.includes('/reviewLog/'))).toBe(false);
+    expect(mockBatchCommit.mock.invocationCallOrder[0]).toBeLessThan(
+      mockSetDoc.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('keeps the session saved when the review log write fails', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+    const failure = new Error('permission-denied');
+    mockSetDoc.mockRejectedValueOnce(failure);
+
+    const newDates = await finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]);
+
     expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+    expect(newDates).toHaveProperty('你好');
+    await vi.waitFor(() =>
+      expect(reportError).toHaveBeenCalledWith(failure, { feature: 'review-log' }),
+    );
+  });
+
+  it('writes no review log when the reschedules fail to save', async () => {
+    mockGetDoc.mockResolvedValue(makeFakeDoc(3, '你好', true, allDirections(3)));
+    mockBatchCommit.mockRejectedValueOnce(new Error('offline'));
+
+    await expect(
+      finishTest('user-1', [{ word_id: 1, directions: { MC: 'pass' } }]),
+    ).rejects.toThrow('offline');
+
+    expect(logWrites()).toHaveLength(0);
   });
 
   it('writes one entry for each asked direction and none for a buried one', async () => {

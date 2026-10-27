@@ -1,5 +1,6 @@
-import { collection, doc, Timestamp, type WriteBatch } from 'firebase/firestore';
+import { collection, doc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { reportError } from './errorReporting';
 import { Direction, DirectionResult, GradeDetail } from '../types/models';
 import { dayKey } from '../utils/retention';
 import { Memory, SCHEDULER_NAME, retrievability } from '../utils/scheduling';
@@ -15,11 +16,16 @@ import { Memory, SCHEDULER_NAME, retrievability } from '../utils/scheduling';
  * in `migration/` exports it as a CSV for the FSRS optimizer. See issue #397.
  *
  * One document per session, not one per review: a review per document costs up
- * to 50 more writes per session and moves the batch nearer its limit of 500,
- * which `finishTest` does not split. No analysis queries one review in
+ * to 50 writes per session, and a session per document costs one. No analysis
+ * queries one review in
  * Firestore, because the export flattens the documents. A session of 50
  * questions is about 20 KB, far below the 1 MiB limit of a document. The shape
  * is versioned, so a later change can tell old documents from new.
+ *
+ * The log is written after the reschedules are saved, and not in their batch.
+ * A log that fails to save costs one session of measurement, and the session
+ * itself is kept. A session that fails to save writes no log, so the log holds
+ * no review that did not change the schedule.
  */
 
 /** The version of the document shape. */
@@ -90,26 +96,31 @@ export function reviewEntry(input: ReviewInput): ReviewLogEntry {
 }
 
 /**
- * Add the session's review log to the batch that reschedules the words, so
- * the log and the schedule are saved together or not at all. A session that
- * graded nothing writes no document.
+ * Write the session's review log, after `finishTest` has saved the
+ * reschedules. A session that graded nothing writes no document.
+ *
+ * It never throws: a failure is reported, and the session stays saved.
+ * `finishTest` does not wait for it, so the end of a session has no delay.
  *
  * `now` is the time that FSRS scheduled with, so the elapsed days in the log
  * match the elapsed days that FSRS read.
  */
-export function addReviewLogToBatch(
-  batch: WriteBatch,
+export async function recordReviewLog(
   userId: string,
   reviews: ReviewLogEntry[],
   now: Date,
-): void {
+): Promise<void> {
   if (reviews.length === 0) return;
 
-  batch.set(doc(collection(db, 'users', userId, 'reviewLog')), {
-    version: REVIEW_LOG_VERSION,
-    date: dayKey(now),
-    reviewedAt: Timestamp.fromDate(now),
-    scheduler: SCHEDULER_NAME,
-    reviews,
-  });
+  try {
+    await setDoc(doc(collection(db, 'users', userId, 'reviewLog')), {
+      version: REVIEW_LOG_VERSION,
+      date: dayKey(now),
+      reviewedAt: Timestamp.fromDate(now),
+      scheduler: SCHEDULER_NAME,
+      reviews,
+    });
+  } catch (error) {
+    reportError(error, { feature: 'review-log' });
+  }
 }

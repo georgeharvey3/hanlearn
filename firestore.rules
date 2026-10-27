@@ -173,9 +173,10 @@ service cloud.firestore {
       }
 
       // ReviewLog subcollection: one document per saved session, with one entry
-      // per graded question. See issue #397. `finishTest` writes it in the
-      // batch that reschedules the words, so a rejection here fails the whole
-      // session: each case of the rules tests writes the shape the app writes.
+      // per graded question. See issue #397. `finishTest` writes it after the
+      // batch that reschedules the words, so a rejection here loses the log of
+      // one session and not the session. Each case of the rules tests still
+      // writes the shape the app writes.
       //
       // The rules check the top level only. Rules have no loop, so each entry
       // needs its own unrolled check, and a session of 50 questions passes the

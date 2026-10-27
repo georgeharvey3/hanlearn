@@ -43,7 +43,7 @@ import {
 } from '../utils/scheduling';
 import { searchDictionary, lookupCharacter, lookupCharacterByTrad } from './dictionaryService';
 import { addSessionToBatch } from './retentionService';
-import { addReviewLogToBatch, reviewEntry, type ReviewLogEntry } from './reviewLogService';
+import { recordReviewLog, reviewEntry, type ReviewLogEntry } from './reviewLogService';
 import type { ReviewOutcome } from '../utils/retention';
 import {
   amendedMeaningSchema,
@@ -641,9 +641,12 @@ export const finishTest = async (
   // In the same batch as the reschedules: the session records what it measured
   // and what it scheduled together, or neither.
   addSessionToBatch(batch, userId, outcomes, now);
-  addReviewLogToBatch(batch, userId, reviews, now);
 
   await batch.commit();
+
+  // Outside the batch: a review log that fails to save must not lose the
+  // session. It is not awaited, and it reports its own failure.
+  void recordReviewLog(userId, reviews, now);
   return newDates;
 };
 
