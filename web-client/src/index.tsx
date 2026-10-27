@@ -15,6 +15,7 @@ import './index.css';
 import App from './App';
 import * as serviceWorker from './serviceWorker';
 import { initPerformanceMonitoring } from './services/performanceService';
+import { applyAudioSession } from './utils/audioSettings';
 import { RootState } from './types/store';
 import { AppAction } from './types/actions';
 
@@ -46,6 +47,7 @@ root.render(
 );
 
 initPerformanceMonitoring();
+applyAudioSession();
 
 // If you want your app to work offline and load faster, you can change
 // unregister() to register() below. Note this comes with some pitfalls.

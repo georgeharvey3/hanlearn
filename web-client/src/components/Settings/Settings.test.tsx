@@ -291,6 +291,22 @@ describe('Settings — Sound', () => {
     await user.click(header('Sound'));
     expect(header('Sound')).toHaveTextContent('Off');
   });
+
+  it('sets the iOS audio session type from the sound switches', async () => {
+    const session = { type: 'auto' };
+    Object.defineProperty(navigator, 'audioSession', { value: session, configurable: true });
+    try {
+      const user = userEvent.setup();
+      renderSettings();
+      await open(user, 'Sound');
+      await user.click(screen.getByRole('switch', { name: 'Text-to-speech' }));
+      expect(session.type).toBe('playback');
+      await user.click(screen.getByRole('switch', { name: 'Sound effects' }));
+      expect(session.type).toBe('ambient');
+    } finally {
+      Reflect.deleteProperty(navigator, 'audioSession');
+    }
+  });
 });
 
 describe('Settings — a browser without speech', () => {

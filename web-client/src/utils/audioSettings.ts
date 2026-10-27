@@ -41,8 +41,29 @@ export const getAudioSettings = (): AudioSettings => ({
   pinyinQuizType: getQuizType('pinyin'),
 });
 
+export type AudioSessionType = 'playback' | 'ambient';
+
+// iOS mutes the 'ambient' category with the silent switch, and Web Audio gets
+// it by default. 'playback' plays through the switch but pauses other apps'
+// audio, so it is used only while a sound setting is on.
+export const audioSessionType = (
+  settings: Pick<AudioSettings, 'useSound' | 'useSoundEffects'>,
+): AudioSessionType => (settings.useSound || settings.useSoundEffects ? 'playback' : 'ambient');
+
+// navigator.audioSession is Safari 17+ only, and lib.dom does not declare it.
+interface AudioSessionNavigator {
+  audioSession?: { type: AudioSessionType };
+}
+
+export const applyAudioSession = (): void => {
+  const { audioSession } = navigator as AudioSessionNavigator;
+  if (!audioSession) return;
+  audioSession.type = audioSessionType(getAudioSettings());
+};
+
 export const setAudioSetting = (key: AudioSettingKey, value: boolean): AudioSettings => {
   localStorage.setItem(key, String(value));
+  applyAudioSession();
 
   return getAudioSettings();
 };
