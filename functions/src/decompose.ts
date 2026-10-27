@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as hanziDecomposer from 'hanzi/lib/hanzidecomposer.js';
 import { checkRateLimit, RATE_LIMITS } from './rateLimit';
 import {
