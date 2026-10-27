@@ -28,13 +28,20 @@ The owner of the Firebase account does these steps one time.
 4. Create the Firestore database in the same region as production.
 5. Enable Hosting.
 6. Change the project to the Blaze plan. Set a budget alert on the billing account.
-7. In AI Logic, enable the Gemini Developer API. In Google Cloud, enable the Cloud Text-to-Speech API and the Agent Platform API (`aiplatform.googleapis.com`, earlier named Vertex AI API). The example sentences, the audio, and the sentence score use them.
-8. Add the key of a service account as the GitHub secret `FIREBASE_SERVICE_ACCOUNT_STAGING`.
-9. Add the web configuration as the GitHub secrets `STAGING_FIREBASE_API_KEY`, `STAGING_FIREBASE_AUTH_DOMAIN`, `STAGING_FIREBASE_PROJECT_ID`, `STAGING_FIREBASE_STORAGE_BUCKET`, `STAGING_FIREBASE_MESSAGING_SENDER_ID`, and `STAGING_FIREBASE_APP_ID`.
-10. Run the `Deploy to Staging` workflow from the Actions tab.
-11. Seed the staging data.
+7. In AI Logic, enable the Gemini Developer API. The example sentences use it.
+8. In Google Cloud, enable these APIs. The deploy account cannot enable an API, so the first deploy stops if one is missing.
+   - Cloud Functions API, Cloud Build API, and Artifact Registry API, for the functions deploy
+   - Cloud Text-to-Speech API, for the audio
+   - Agent Platform API (`aiplatform.googleapis.com`, earlier named Vertex AI API), for the sentence score
+9. In Project settings > Service accounts, generate a key for the Firebase Admin SDK account. Add it as the GitHub secret `FIREBASE_SERVICE_ACCOUNT_STAGING`.
+10. In Google Cloud IAM, give that account these roles: Cloud Functions Admin, Service Account User, Firebase Hosting Admin, Firebase Rules Admin, Cloud Datastore Index Admin, and Artifact Registry Administrator.
+11. Add the web configuration as the GitHub secrets `STAGING_FIREBASE_API_KEY`, `STAGING_FIREBASE_AUTH_DOMAIN`, `STAGING_FIREBASE_PROJECT_ID`, `STAGING_FIREBASE_STORAGE_BUCKET`, `STAGING_FIREBASE_MESSAGING_SENDER_ID`, and `STAGING_FIREBASE_APP_ID`.
+12. Run the `Deploy to Staging` workflow from the Actions tab. GitHub shows this button only when the workflow is on `develop`. A push to `develop` also starts it.
+13. Seed the staging data.
 
-The first deploy uses `--force`. This flag sets the cleanup policy of Artifact Registry, so the function images stay in the free 0.5 GB. To make sure that the policy exists, run `firebase functions:artifacts:setpolicy --project staging` after the first deploy.
+If the build of one function fails with "Build error details not available", run the workflow again. On the first deploy, one function of eleven failed this way and the next run deployed it.
+
+The first deploy uses `--force`. This flag sets the cleanup policy of Artifact Registry, so the function images stay in the free 0.5 GB. The first deploy set it on 2026-10-27, and it deletes images older than 1 day.
 
 The preview channels that the old workflow opened on `hanlearn-dd14f` stay live until they expire. To remove them now, run `firebase hosting:channel:list --project hanlearn-dd14f`. Then run `firebase hosting:channel:delete <channel> --project hanlearn-dd14f` for each `pr-` channel.
 
