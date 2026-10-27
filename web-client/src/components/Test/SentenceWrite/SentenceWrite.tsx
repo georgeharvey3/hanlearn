@@ -622,7 +622,6 @@ const SentenceWrite: React.FC<Props> = ({
     <StudyScreen>
       {top}
       <StudyCard
-        seal={false}
         height={240}
         sx={{ mt: 3, px: 2.75, pt: 3.5, pb: 2.75, gap: state.showTranslation ? 2.25 : 2.75 }}
       >

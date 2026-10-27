@@ -152,8 +152,6 @@ export const copy = {
     // A spoken question asks for the meaning *of* what the learner hears.
     promptOf: ' of',
     lapseMarker: 'Nearly: this question no longer counts as known',
-    // The seal in the corner of the card. Decoration only, hidden from screen readers.
-    seal: '学',
     playPronunciation: 'Play pronunciation',
     loadingAudio: 'Loading audio',
     showPinyin: 'Show pinyin',
