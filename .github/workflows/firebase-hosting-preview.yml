@@ -37,17 +37,8 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.STAGING_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.STAGING_FIREBASE_APP_ID }}
 
-      # A preview once read and wrote the production Firestore. See issue #46.
       - name: Check that the build does not reach production
-        run: |
-          if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = hanlearn-dd14f ]; then
-            echo "::error::STAGING_FIREBASE_PROJECT_ID is empty or names the production project"
-            exit 1
-          fi
-          if grep -rqF hanlearn-dd14f web-client/dist; then
-            echo "::error::The build holds the production project id"
-            exit 1
-          fi
+        run: scripts/check-not-production.sh
         env:
           PROJECT_ID: ${{ secrets.STAGING_FIREBASE_PROJECT_ID }}
 

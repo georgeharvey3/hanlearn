@@ -34,7 +34,9 @@ The owner of the Firebase account does these steps one time.
 10. Run the `Deploy to Staging` workflow from the Actions tab.
 11. Seed the staging data.
 
-The first deploy uses `--force`. This flag sets the cleanup policy of Artifact Registry, so the function images stay in the free 0.5 GB.
+The first deploy uses `--force`. This flag sets the cleanup policy of Artifact Registry, so the function images stay in the free 0.5 GB. To make sure that the policy exists, run `firebase functions:artifacts:setpolicy --project staging` after the first deploy.
+
+The preview channels that the old workflow opened on `hanlearn-dd14f` stay live until they expire. To remove them now, run `firebase hosting:channel:list --project hanlearn-dd14f`. Then run `firebase hosting:channel:delete <channel> --project hanlearn-dd14f` for each `pr-` channel.
 
 ## Seed the staging data
 

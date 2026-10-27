@@ -10,7 +10,7 @@ const PRODUCTION_PROJECT_ID = 'hanlearn-dd14f';
 
 /** Stop before a write that would reach the production project. */
 function assertNotProduction(projectId) {
-  if (!projectId) throw new Error('No project id. Give the key of the staging service account.');
+  if (!projectId) throw new Error('No project ID. Give the key of the staging service account.');
   if (projectId === PRODUCTION_PROJECT_ID) {
     throw new Error(`${projectId} is the production project. The seed writes to staging only.`);
   }
