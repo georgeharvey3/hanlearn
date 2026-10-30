@@ -39,18 +39,37 @@ export interface SeenOffset {
  */
 export interface CurrentQuestion {
   pair: QueuePair;
-  gradeCap: Exclude<DirectionResult, 'fail'>;
-  /** Whether the learner asked for a hint. */
-  hint: boolean;
-  /** Whether the disambiguator is on the card, and whether it was at any time. */
-  disambiguator: boolean;
-  disambiguatorShown: boolean;
-  alternatives: string[];
-  misses: number;
-  toneErrors: number;
-  /** The first wrong typed answer, or null. */
-  answer: string | null;
+  /** The engine state of the question, with the names the engine gives it. */
+  aids: {
+    gradeCap: Exclude<DirectionResult, 'fail'>;
+    hintShown: boolean;
+    showDisambiguator: boolean;
+    disambiguatorShown: boolean;
+    alternativesSent: string[];
+    missCount: number;
+    toneErrorCount: number;
+    firstWrongAnswer: string | null;
+  };
 }
+
+/** Whether a stored value is a current question this build can restore. */
+const isCurrentQuestion = (value: unknown): value is CurrentQuestion => {
+  if (typeof value !== 'object' || value === null) return false;
+  const { pair, aids } = value as Partial<CurrentQuestion>;
+  return (
+    typeof pair?.index === 'string' &&
+    typeof pair.aCategory === 'string' &&
+    typeof pair.qCategory === 'string' &&
+    (aids?.gradeCap === 'pass' || aids?.gradeCap === 'lapse') &&
+    typeof aids.hintShown === 'boolean' &&
+    typeof aids.showDisambiguator === 'boolean' &&
+    typeof aids.disambiguatorShown === 'boolean' &&
+    Array.isArray(aids.alternativesSent) &&
+    typeof aids.missCount === 'number' &&
+    typeof aids.toneErrorCount === 'number' &&
+    (aids.firstWrongAnswer === null || typeof aids.firstWrongAnswer === 'string')
+  );
+};
 
 /** The vocab stage's progress: what is left to ask, and what it has graded. */
 export interface VocabProgress {
@@ -136,8 +155,7 @@ function isSavedSession(value: unknown): value is SavedSession {
     record.seenOffsets !== null &&
     (record.alternatives === undefined ||
       (typeof record.alternatives === 'object' && record.alternatives !== null)) &&
-    (record.current === undefined ||
-      (typeof record.current === 'object' && record.current !== null))
+    (record.current === undefined || isCurrentQuestion(record.current))
   );
 }
 

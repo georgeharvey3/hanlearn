@@ -303,3 +303,33 @@ describe('useTestEngine — the CM initials', () => {
     ]);
   });
 });
+
+describe('useTestEngine — a late sentence', () => {
+  it('leaves the cap of the next question of the same word as it was', async () => {
+    let resolve: (sentence: typeof SENTENCE) => void = () => {};
+    vi.mocked(getHintSentence).mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    const result = question(CHANG, 'MC', ['long'], '长');
+
+    act(() => {
+      result.current.onHint();
+    });
+    // The same word, asked in another direction.
+    act(() => {
+      result.current.setStateMerged({
+        currentPair: { index: '0', aCategory: 'P', qCategory: 'C' },
+        answer: 'chang2',
+        answerCategory: 'pinyin',
+      });
+    });
+    await act(async () => {
+      resolve(SENTENCE);
+    });
+
+    expect(result.current.state.gradeCap).toBe('pass');
+    expect(result.current.state.showHint).toBe(false);
+  });
+});

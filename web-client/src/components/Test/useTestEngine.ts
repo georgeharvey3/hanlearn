@@ -131,14 +131,18 @@ const initialsOf = (answer: string): string =>
     .map((syllable) => syllable[0] + '__')
     .join(' ');
 
+type QuestionShape = Pick<TestState, 'questionCategory' | 'answerCategory' | 'answer'>;
+
 /**
- * Whether the initials of a `PM` question are on the card as its disambiguator.
- * They are the same text as its hint, so a hint press then costs nothing.
+ * The `PM` disambiguator: the initials, shown where the hint shows. Any other
+ * direction shows its disambiguator on the card, so this is empty for it.
  */
-const initialsDisambiguate = (state: TestState): boolean =>
-  state.showDisambiguator &&
-  state.questionCategory === 'meaning' &&
-  state.answerCategory === 'pinyin';
+const initialsDisambiguator = (question: QuestionShape) =>
+  question.questionCategory === 'meaning' &&
+  question.answerCategory === 'pinyin' &&
+  typeof question.answer === 'string'
+    ? { hint: initialsOf(question.answer), showHint: true }
+    : {};
 
 /** A log entry of an answer: trimmed, and cut to the length the review log keeps. */
 const logged = (input: string): string =>
@@ -689,11 +693,7 @@ export const useTestEngine = (props: Props) => {
           alternativesSent: prevState.alternativesSent.concat(logged(input)),
           showDisambiguator: true,
           disambiguatorShown: true,
-          ...(prevState.questionCategory === 'meaning' &&
-          prevState.answerCategory === 'pinyin' &&
-          typeof prevState.answer === 'string'
-            ? { hint: initialsOf(prevState.answer), showHint: true }
-            : {}),
+          ...initialsDisambiguator(prevState),
         }));
         if (
           current.useAutoRecord &&
@@ -1077,12 +1077,16 @@ export const useTestEngine = (props: Props) => {
   const showSentenceHint = useCallback(
     (word: string): void => {
       setStateMerged({ hintLoading: true });
+      // The question can move on while the sentence loads, to the same word
+      // in another direction. Drop a late answer, so that a hint never lands
+      // on, or caps, another question.
+      const asked = getState().currentPair;
+      const moved = (current: TestState) =>
+        current.chosenCharacter !== word || current.currentPair !== asked;
       getHintSentence(word)
         .then((sentence) => {
           const current = getState();
-          // The question can move on while the sentence loads. Drop a late
-          // answer so a hint never lands on the wrong word.
-          if (current.chosenCharacter !== word) {
+          if (moved(current)) {
             setStateMerged({ hintLoading: false });
             return;
           }
@@ -1106,7 +1110,7 @@ export const useTestEngine = (props: Props) => {
           }
         })
         .catch(() => {
-          if (getState().chosenCharacter !== word) {
+          if (moved(getState())) {
             setStateMerged({ hintLoading: false });
             return;
           }
@@ -1137,9 +1141,11 @@ export const useTestEngine = (props: Props) => {
     }
 
     if (current.answerCategory === 'pinyin' && typeof current.answer === 'string') {
+      // In `PM` the initials are also the disambiguator, and once it shows,
+      // they cost nothing.
       const hint = initialsOf(current.answer);
       setStateMerged(
-        initialsDisambiguate(current)
+        current.showDisambiguator && current.questionCategory === 'meaning'
           ? { hint, showHint: true }
           : { hint, showHint: true, gradeCap: 'lapse', hintShown: true },
       );
@@ -1303,20 +1309,8 @@ export const useTestEngine = (props: Props) => {
         // reload neither undoes a hint nor gives a free one.
         ...(head
           ? {
-              gradeCap: head.gradeCap,
-              hintShown: head.hint,
-              showDisambiguator: head.disambiguator,
-              disambiguatorShown: head.disambiguatorShown,
-              alternativesSent: head.alternatives,
-              missCount: head.misses,
-              toneErrorCount: head.toneErrors,
-              firstWrongAnswer: head.answer,
-              ...(head.disambiguator &&
-              initialVals.questionCategory === 'meaning' &&
-              initialVals.answerCategory === 'pinyin' &&
-              typeof initialVals.answer === 'string'
-                ? { hint: initialsOf(initialVals.answer), showHint: true }
-                : {}),
+              ...head.aids,
+              ...(head.aids.showDisambiguator ? initialsDisambiguator(initialVals) : {}),
             }
           : {}),
         showErrorMessage: false,
@@ -1626,7 +1620,7 @@ export const useTestEngine = (props: Props) => {
   // The head of the queue, once the learner has done something on it. A graded
   // question has left the queue, so its state is not saved.
   const headPair = state.queue[0];
-  const touched =
+  const headInProgress =
     headPair !== undefined &&
     headPair === state.currentPair &&
     state.outcome === null &&
@@ -1634,23 +1628,25 @@ export const useTestEngine = (props: Props) => {
       state.hintShown ||
       state.disambiguatorShown ||
       state.alternativesSent.length > 0);
-  const current = useMemo(
+  const currentQuestion = useMemo(
     (): CurrentQuestion | undefined =>
-      touched
+      headInProgress
         ? {
             pair: headPair,
-            gradeCap: state.gradeCap,
-            hint: state.hintShown,
-            disambiguator: state.showDisambiguator,
-            disambiguatorShown: state.disambiguatorShown,
-            alternatives: state.alternativesSent,
-            misses: state.missCount,
-            toneErrors: state.toneErrorCount,
-            answer: state.firstWrongAnswer,
+            aids: {
+              gradeCap: state.gradeCap,
+              hintShown: state.hintShown,
+              showDisambiguator: state.showDisambiguator,
+              disambiguatorShown: state.disambiguatorShown,
+              alternativesSent: state.alternativesSent,
+              missCount: state.missCount,
+              toneErrorCount: state.toneErrorCount,
+              firstWrongAnswer: state.firstWrongAnswer,
+            },
           }
         : undefined,
     [
-      touched,
+      headInProgress,
       headPair,
       state.gradeCap,
       state.hintShown,
@@ -1672,14 +1668,14 @@ export const useTestEngine = (props: Props) => {
       // Saved only once the call returns, so that a session resumed before
       // then still makes it.
       ...(state.alternatives ? { alternatives: state.alternatives } : {}),
-      ...(current ? { current } : {}),
+      ...(currentQuestion ? { current: currentQuestion } : {}),
     });
   }, [
     state.queue,
     state.gradeList,
     state.initialQueueLength,
     state.alternatives,
-    current,
+    currentQuestion,
     reportProgress,
   ]);
 

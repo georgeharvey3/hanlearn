@@ -390,18 +390,6 @@ own word, and only an answer for that word passes it.
 After an alternative answer, the app shows the disambiguator of the direction.
 See [Aid](#aid).
 
-The card offers the disambiguator only after an alternative answer, so that it
-cannot replace the recall on the first attempt.
-
-- A pinyin question (`MP`) offers the characters.
-- A character question that asks for the meaning (`MC`) offers the pinyin.
-- A character question that asks for the pinyin (`PC`) offers the first letter
-  of each syllable. This cue is part of the answer. The learner has already
-  given a valid reading, so the cue picks a reading and does not prompt a
-  recall. When two readings differ only in tone, as 好 `hao3` and `hao4` do,
-  the cue does not separate them.
-- `PM` has no disambiguator yet.
-
 ## Attempt
 
 An **attempt** is one answer that the learner sends. The learner sends it with
