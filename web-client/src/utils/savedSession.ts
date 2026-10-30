@@ -1,5 +1,6 @@
 import { DirectionGrade, QueuePair, Word, WordScore } from '../types/models';
 import { dayKey } from './retention';
+import { RemoteAlternatives } from './alternativeAnswers';
 
 /**
  * The unfinished session held in localStorage, so that a learner who closes the
@@ -37,6 +38,11 @@ export interface VocabProgress {
   gradeList: DirectionGrade[];
   /** The queue length the session started with, so the bar reads the same. */
   initialQueueLength: number;
+  /**
+   * The alternative answers the Cloud Function gave when the session started,
+   * so that a resumed session makes no call. Absent until the call returns.
+   */
+  alternatives?: RemoteAlternatives;
 }
 
 export interface SavedSession extends VocabProgress {
@@ -105,7 +111,9 @@ function isSavedSession(value: unknown): value is SavedSession {
     Array.isArray(record.gradeList) &&
     Array.isArray(record.scoreList) &&
     typeof record.seenOffsets === 'object' &&
-    record.seenOffsets !== null
+    record.seenOffsets !== null &&
+    (record.alternatives === undefined ||
+      (typeof record.alternatives === 'object' && record.alternatives !== null))
   );
 }
 
@@ -231,6 +239,7 @@ export function restoreSession(saved: SavedSession, words: Word[]): RestoredSess
       queue: saved.queue,
       gradeList: saved.gradeList,
       initialQueueLength: saved.initialQueueLength,
+      ...(saved.alternatives ? { alternatives: saved.alternatives } : {}),
     },
   };
 }

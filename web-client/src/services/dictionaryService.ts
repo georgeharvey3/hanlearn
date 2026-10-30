@@ -11,6 +11,7 @@ import { Word } from '../types/models';
 import { searchInputSchema } from '../validation/schemas';
 import { traceAsync } from './performanceService';
 import { retryTransient } from '../utils/retry';
+import { AlternativeDirection } from '../utils/alternativeAnswers';
 
 /**
  * Search for words by exact character match.
@@ -104,6 +105,24 @@ export async function substringMatch(text: string, charSet: 'simp' | 'trad'): Pr
       'dictionarySubstringMatch',
     );
     const result = await retryTransient(() => fn({ text: parsed.data, charSet }));
+    return result.data;
+  });
+}
+
+/**
+ * The alternative answers of the question values of one session, in the order
+ * sent: for each value, the answers of every entry of CC-CEDICT that fits it.
+ */
+export async function fetchAlternatives(
+  charSet: 'simp' | 'trad',
+  questions: { direction: AlternativeDirection; value: string | string[] }[],
+): Promise<string[][]> {
+  return traceAsync('dictionary_alternatives', async () => {
+    const fn = httpsCallable<{ charSet: string; questions: typeof questions }, string[][]>(
+      functions,
+      'dictionaryAlternatives',
+    );
+    const result = await retryTransient(() => fn({ charSet, questions }));
     return result.data;
   });
 }

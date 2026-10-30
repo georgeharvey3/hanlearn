@@ -392,6 +392,7 @@ describe('reviewLog', () => {
     revealed: false,
     answerMs: 8421,
     answer: 'ni3hao4',
+    alternatives: ['ni3 hao5'],
     ...extra,
   });
 
@@ -432,9 +433,14 @@ describe('reviewLog', () => {
     await assertSucceeds(setDoc(ref(db, path), session([legacyEntry()])));
   });
 
-  it('accepts a flashcard and a handwriting entry, with no misses or answer', async () => {
-    const { misses: _m, answer: _a, ...flashcard } = entry({ mode: 'flashcard' });
-    const { answer: _b, ...handwriting } = entry({
+  it('accepts a flashcard and a handwriting entry, with no misses, answer or alternatives', async () => {
+    const {
+      misses: _m,
+      answer: _a,
+      alternatives: _c,
+      ...flashcard
+    } = entry({ mode: 'flashcard' });
+    const { answer: _b, alternatives: _d, ...handwriting } = entry({
       mode: 'handwriting',
       direction: 'CM',
     });

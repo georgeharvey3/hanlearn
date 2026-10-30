@@ -20,6 +20,10 @@ vi.mock('../../store/actions/index', () => ({
   switchActiveList: vi.fn(() => ({ type: 'SWITCH_LIST_NOOP' })),
 }));
 
+vi.mock('../../services/wordService', () => ({
+  getUserWords: vi.fn().mockResolvedValue([]),
+}));
+
 // Howler is used by child components — mock it globally
 vi.mock('howler', () => ({
   Howl: vi.fn().mockImplementation(() => ({ play: vi.fn(), stop: vi.fn() })),
@@ -63,6 +67,7 @@ import TestWords from './TestWords';
 import { clearSavedSession } from '../../utils/savedSession';
 import { renderWithProviders, authenticatedState, createTestStore } from '../../test/utils';
 import * as wordActions from '../../store/actions/index';
+import * as wordService from '../../services/wordService';
 
 const mockedInitWords = vi.mocked(wordActions.initWords);
 
@@ -337,6 +342,51 @@ describe('TestWords — active session with due words', () => {
       expect(screen.getByTestId('mock-test')).toBeInTheDocument();
     });
     expect(screen.queryByText('Done')).not.toBeInTheDocument();
+  });
+});
+
+describe('TestWords — the collection for alternative answers', () => {
+  const storeFor = (activeListId: string, words: import('../../types/models').Word[]) =>
+    createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId,
+        words,
+        listStats: {},
+        loading: false,
+        error: false,
+      },
+    });
+
+  it('hands the session every word of the learner, not only the list', async () => {
+    const listWord = dueWord(1, '你好', 2);
+    const otherWord = futureWord(2, '再见');
+    vi.mocked(wordService.getUserWords).mockResolvedValue([listWord, otherWord]);
+
+    renderWithProviders(<TestWords />, { store: storeFor('default', [listWord]) });
+
+    await waitFor(() => expect(capturedTestProps.collection).toEqual([listWord, otherWord]));
+    expect(wordService.getUserWords).toHaveBeenCalledWith('test-user-123');
+  });
+
+  it('hands the list until the collection arrives, and if it never does', async () => {
+    const listWord = dueWord(1, '你好', 2);
+    vi.mocked(wordService.getUserWords).mockRejectedValue(new Error('offline'));
+
+    renderWithProviders(<TestWords />, { store: storeFor('default', [listWord]) });
+
+    await waitFor(() => expect(screen.getByTestId('mock-test')).toBeInTheDocument());
+    expect(capturedTestProps.collection).toEqual([listWord]);
+  });
+
+  it('reads nothing more when the session already covers all lists', async () => {
+    const word = dueWord(1, '你好', 2);
+
+    renderWithProviders(<TestWords />, { store: storeFor('__all__', [word]) });
+
+    await waitFor(() => expect(capturedTestProps.collection).toEqual([word]));
+    expect(wordService.getUserWords).not.toHaveBeenCalled();
   });
 });
 

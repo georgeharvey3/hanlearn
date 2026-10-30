@@ -198,6 +198,7 @@ export const copy = {
       nearly: 'Nearly',
       tryAgain: 'Try again',
       tones: 'Incorrect tones',
+      otherWord: 'Another word fits',
       notKnown: 'Not known',
       listening: 'Listening…',
       heardNothing: "Couldn't hear anything",

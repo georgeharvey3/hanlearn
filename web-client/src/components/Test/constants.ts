@@ -58,6 +58,8 @@ export const createInitialState = (props: Props): TestState => {
     missCount: 0,
     hintShown: false,
     firstWrongAnswer: null,
+    alternativesSent: [],
+    alternatives: props.resume?.alternatives ?? null,
     questionShownAt: null,
     scoreList: devScoreList,
     testFinished: props.devTestFinished ?? false,

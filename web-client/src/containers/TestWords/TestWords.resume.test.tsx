@@ -209,6 +209,27 @@ describe('TestWords — saving the running session', () => {
     expect(saved.initialQueueLength).toBe(3);
   });
 
+  it('saves the alternative answers when they arrive, with the queue unchanged', async () => {
+    renderWithProviders(<TestWords />, { store: storeWithWords() });
+    await waitFor(() => expect(screen.getByTestId('mock-test')).toBeInTheDocument());
+    const progress = { queue: [pair('2')], gradeList: [grade], initialQueueLength: 3 };
+    reportProgress(progress);
+
+    reportProgress({ ...progress, alternatives: { 'MC:你好': ['hi'] } });
+
+    await waitFor(() => expect(readSavedSession()?.alternatives).toEqual({ 'MC:你好': ['hi'] }));
+  });
+
+  it('hands the saved alternative answers back on resume', async () => {
+    saveSession(savedSession({ alternatives: { 'MC:你好': ['hi'] } }));
+    renderWithProviders(<TestWords />, { store: storeWithWords() });
+
+    await userEvent.click(await screen.findByRole('button', { name: /resume/i }));
+
+    await waitFor(() => expect(screen.getByTestId('mock-test')).toBeInTheDocument());
+    expect(capturedTestProps.resume).toMatchObject({ alternatives: { 'MC:你好': ['hi'] } });
+  });
+
   it('clears the saved session once the learner reaches the summary', async () => {
     renderWithProviders(<TestWords />, { store: storeWithWords() });
     await waitFor(() => expect(screen.getByTestId('mock-test')).toBeInTheDocument());

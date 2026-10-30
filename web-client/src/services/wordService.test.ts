@@ -1082,6 +1082,7 @@ describe('finishTest — the review log it writes', () => {
             revealed: false,
             answerMs: 8421,
             answer: 'ni3hao4',
+            alternatives: ['ni3 hao5'],
           },
         },
       },
@@ -1096,6 +1097,7 @@ describe('finishTest — the review log it writes', () => {
       revealed: false,
       answerMs: 8421,
       answer: 'ni3hao4',
+      alternatives: ['ni3 hao5'],
     });
   });
 
