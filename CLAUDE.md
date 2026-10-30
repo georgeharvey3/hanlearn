@@ -127,7 +127,7 @@ users/{userId}/
       └── levels?: { 1..5: number } # Words of the whole collection at each level,
                                     # as the day's last session left them (Dashboard progress chart)
   └── reviewLog/{autoId}         # One document per saved session, write-once (#397)
-      ├── version: 1, date: string, reviewedAt: Timestamp
+      ├── version: 2, date: string, reviewedAt: Timestamp  # 1 before #396: `hint` was free
       ├── scheduler: string      # The weights in use: 'fsrs-6-default'
       └── reviews: [{            # One entry per graded question, no UI
             wordId, direction, grade, mode?,
@@ -135,7 +135,7 @@ users/{userId}/
             after: { stability, difficulty, interval },
             position?, toneErrors, misses?, hint?, revealed?, answerMs?, answer?,
             alternatives?,       # The alternative answers sent, in order (#348)
-            disambiguator?       # After an alternative answer: whether the learner looked at the cue
+            disambiguator?       # Whether the cue that names the word showed; free (#396)
           }]
 
 words/{wordId}                   # Read-only shared dictionary (admin-managed)

@@ -36,6 +36,7 @@ import {
   questionKey,
   takesAlternatives,
 } from '../../utils/alternativeAnswers';
+import { CurrentQuestion } from '../../utils/savedSession';
 
 /**
  * Misses on one stroke before the handwriting quiz shows the stroke outline.
@@ -122,6 +123,22 @@ const typedAnswer = (state: TestState): { answers: string[]; category: AnswerCat
   }
   return null;
 };
+
+/** The pinyin hint: the first letter of each syllable, then blanks. */
+const initialsOf = (answer: string): string =>
+  answer
+    .split(' ')
+    .map((syllable) => syllable[0] + '__')
+    .join(' ');
+
+/**
+ * Whether the initials of a `PM` question are on the card as its disambiguator.
+ * They are the same text as its hint, so a hint press then costs nothing.
+ */
+const initialsDisambiguate = (state: TestState): boolean =>
+  state.showDisambiguator &&
+  state.questionCategory === 'meaning' &&
+  state.answerCategory === 'pinyin';
 
 /** A log entry of an answer: trimmed, and cut to the length the review log keeps. */
 const logged = (input: string): string =>
@@ -358,11 +375,8 @@ export const useTestEngine = (props: Props) => {
       ...(mode === 'input' && state.firstWrongAnswer !== null
         ? { answer: state.firstWrongAnswer }
         : {}),
-      // The card offers the disambiguator only after an alternative answer, so
-      // the field says whether a learner who had it used it.
-      ...(state.alternativesSent.length > 0
-        ? { alternatives: state.alternativesSent, disambiguator: state.disambiguatorShown }
-        : {}),
+      ...(state.alternativesSent.length > 0 ? { alternatives: state.alternativesSent } : {}),
+      disambiguator: state.disambiguatorShown,
     };
   };
 
@@ -545,21 +559,22 @@ export const useTestEngine = (props: Props) => {
   /**
    * End the current question with a grade and move to the next one.
    *
-   * `grade` is what the learner reported in flashcard mode. Every other answer
-   * mode reads the cap the question carries, which is `pass` until a wrong
-   * attempt, five misses on one stroke, or the stroke outline drops it.
+   * `grade` is what the learner reported in flashcard mode, held to the cap of
+   * the question, so a hint never reports a `pass`. Every other answer mode
+   * reads the cap, which is `pass` until a wrong attempt, a hint, or five
+   * misses on one stroke drops it.
    */
   const onCorrectAnswer = useCallback(
     (grade?: DirectionResult): void => {
       const current = getState();
-      const result = grade ?? current.gradeCap;
+      const result = grade && grade !== 'pass' ? grade : current.gradeCap;
       const recorded = currentGrade(current, result);
 
       setStateMerged((prevState) => ({
         // A typed answer that follows a wrong one is still correct, and the
         // feedback line says so. The amber marker beside the question is what
         // reports the lapse. Only the flashcard button reports itself here.
-        result: grade === 'lapse' ? copy.test.status.nearly : copy.test.status.correct,
+        result: grade && result === 'lapse' ? copy.test.status.nearly : copy.test.status.correct,
         outcome: result,
         idkDisabled: true,
         submitDisabled: true,
@@ -666,10 +681,19 @@ export const useTestEngine = (props: Props) => {
         onCorrectAnswer();
       } else if (match === 'alternative') {
         // Not wrong and not right: the grade, the misses and the tone errors
-        // stay as they are, and the learner answers again. See issue #348.
+        // stay as they are, and the learner answers again. The disambiguator
+        // shows at once and costs nothing. In `PM` it is the initials, which
+        // show where the hint shows. See issues #348 and #396.
         setStateMerged((prevState) => ({
           result: copy.test.status.otherWord,
           alternativesSent: prevState.alternativesSent.concat(logged(input)),
+          showDisambiguator: true,
+          disambiguatorShown: true,
+          ...(prevState.questionCategory === 'meaning' &&
+          prevState.answerCategory === 'pinyin' &&
+          typeof prevState.answer === 'string'
+            ? { hint: initialsOf(prevState.answer), showHint: true }
+            : {}),
         }));
         if (
           current.useAutoRecord &&
@@ -788,10 +812,10 @@ export const useTestEngine = (props: Props) => {
         onMistake: (strokeData) => {
           setStateMerged((prevState) => ({
             missCount: prevState.missCount + 1,
-            // Hanzi Writer shows the outline here by itself, so the hint was
-            // on screen as much as when the learner asks for it.
+            // Hanzi Writer shows the outline here by itself. The learner did
+            // not ask for it, so it is no hint: `misses` records it.
             ...(strokeData.mistakesOnStroke >= missesBeforeHint
-              ? { gradeCap: 'lapse' as const, hintShown: true }
+              ? { gradeCap: 'lapse' as const }
               : {}),
           }));
         },
@@ -1066,10 +1090,13 @@ export const useTestEngine = (props: Props) => {
             setStateMerged({ result: copy.test.status.noSentence, hintLoading: false });
             return;
           }
+          // Only a sentence on screen caps the question: a hint that does
+          // not load costs nothing.
           setStateMerged({
             hint: pinyin(sentence.chinese, { toneType: 'num' }),
             hintSentence: current.useSound ? sentence.chinese : null,
             showHint: true,
+            gradeCap: 'lapse',
             hintShown: true,
             hintLoading: false,
             result: '',
@@ -1089,6 +1116,11 @@ export const useTestEngine = (props: Props) => {
     [getState, onSpeak, setStateMerged],
   );
 
+  /**
+   * Show the hint of the current question, or hide it. A hint gives one step of
+   * the answer, so it caps the question at a lapse, once however many presses
+   * follow. See docs/adr/0018-a-hint-caps-the-grade.md.
+   */
   const onHint = useCallback((): void => {
     const current = getState();
     // A graded question has its answer on the card, and a hint there would
@@ -1105,8 +1137,12 @@ export const useTestEngine = (props: Props) => {
     }
 
     if (current.answerCategory === 'pinyin' && typeof current.answer === 'string') {
-      const hinted = current.answer.split(' ').map((word) => word[0] + '__');
-      setStateMerged({ hint: hinted.join(' '), showHint: true, hintShown: true });
+      const hint = initialsOf(current.answer);
+      setStateMerged(
+        initialsDisambiguate(current)
+          ? { hint, showHint: true }
+          : { hint, showHint: true, gradeCap: 'lapse', hintShown: true },
+      );
     } else if (current.answerCategory === 'meaning' && current.chosenCharacter) {
       showSentenceHint(current.chosenCharacter);
     } else if (current.answerCategory === 'character' && current.writer) {
@@ -1117,8 +1153,6 @@ export const useTestEngine = (props: Props) => {
       } catch {
         return;
       }
-      // The one aid that is the answer, so it caps the question at a lapse. The
-      // other aids identify the question the learner is asked, and are free.
       setStateMerged({ gradeCap: 'lapse', hintShown: true });
       setTimeout(() => {
         current.writer!.hideOutline();
@@ -1244,6 +1278,14 @@ export const useTestEngine = (props: Props) => {
       }
 
       const initialVals = testLogic.assignQA(plan.words, queue, current.charSet);
+      const resumed = props.resume?.current;
+      const head =
+        resumed &&
+        resumed.pair.index === initialVals.pair.index &&
+        resumed.pair.aCategory === initialVals.pair.aCategory &&
+        resumed.pair.qCategory === initialVals.pair.qCategory
+          ? resumed
+          : null;
       setStateMerged((prevState) => ({
         testSet: plan.words,
         queue: queue,
@@ -1257,6 +1299,26 @@ export const useTestEngine = (props: Props) => {
         // measures the whole session rather than the part that is left.
         initialQueueLength: props.resume?.initialQueueLength ?? queue.length,
         gradeList: props.resume?.gradeList ?? prevState.gradeList,
+        // The question at the head goes on as the learner left it, so a
+        // reload neither undoes a hint nor gives a free one.
+        ...(head
+          ? {
+              gradeCap: head.gradeCap,
+              hintShown: head.hint,
+              showDisambiguator: head.disambiguator,
+              disambiguatorShown: head.disambiguatorShown,
+              alternativesSent: head.alternatives,
+              missCount: head.misses,
+              toneErrorCount: head.toneErrors,
+              firstWrongAnswer: head.answer,
+              ...(head.disambiguator &&
+              initialVals.questionCategory === 'meaning' &&
+              initialVals.answerCategory === 'pinyin' &&
+              typeof initialVals.answer === 'string'
+                ? { hint: initialsOf(initialVals.answer), showHint: true }
+                : {}),
+            }
+          : {}),
         showErrorMessage: false,
         qNum: prevState.qNum + 1,
       }));
@@ -1561,6 +1623,45 @@ export const useTestEngine = (props: Props) => {
    * one answer is the case that loses the most. See issue #305.
    */
   const reportProgress = props.isDemo ? undefined : props.onProgress;
+  // The head of the queue, once the learner has done something on it. A graded
+  // question has left the queue, so its state is not saved.
+  const headPair = state.queue[0];
+  const touched =
+    headPair !== undefined &&
+    headPair === state.currentPair &&
+    state.outcome === null &&
+    (state.gradeCap !== 'pass' ||
+      state.hintShown ||
+      state.disambiguatorShown ||
+      state.alternativesSent.length > 0);
+  const current = useMemo(
+    (): CurrentQuestion | undefined =>
+      touched
+        ? {
+            pair: headPair,
+            gradeCap: state.gradeCap,
+            hint: state.hintShown,
+            disambiguator: state.showDisambiguator,
+            disambiguatorShown: state.disambiguatorShown,
+            alternatives: state.alternativesSent,
+            misses: state.missCount,
+            toneErrors: state.toneErrorCount,
+            answer: state.firstWrongAnswer,
+          }
+        : undefined,
+    [
+      touched,
+      headPair,
+      state.gradeCap,
+      state.hintShown,
+      state.showDisambiguator,
+      state.disambiguatorShown,
+      state.alternativesSent,
+      state.missCount,
+      state.toneErrorCount,
+      state.firstWrongAnswer,
+    ],
+  );
   useEffect(() => {
     if (!reportProgress) return;
     if (state.initialQueueLength === 0) return;
@@ -1571,8 +1672,16 @@ export const useTestEngine = (props: Props) => {
       // Saved only once the call returns, so that a session resumed before
       // then still makes it.
       ...(state.alternatives ? { alternatives: state.alternatives } : {}),
+      ...(current ? { current } : {}),
     });
-  }, [state.queue, state.gradeList, state.initialQueueLength, state.alternatives, reportProgress]);
+  }, [
+    state.queue,
+    state.gradeList,
+    state.initialQueueLength,
+    state.alternatives,
+    current,
+    reportProgress,
+  ]);
 
   const refreshSettings = useCallback(
     (updated: AudioSettings): void => {

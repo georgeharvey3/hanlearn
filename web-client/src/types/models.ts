@@ -118,15 +118,17 @@ export type AnswerMode = 'input' | 'flashcard' | 'handwriting';
  *
  * `misses` counts the wrong submissions of a typed answer, or the missed
  * strokes of a drawn one. A spoken transcript is not an attempt, so it adds no
- * miss. `hint` is whether a hint was on screen before the grade, and `revealed`
+ * miss. `hint` is whether the learner asked for a hint, which caps the grade at
+ * `lapse`; the outline after five misses on one stroke is not one. `revealed` is
  * whether the grade came from "I don't know" or the handwriting reveal; a
  * flashcard self-grade of `fail` is not a reveal. `answerMs` runs from the
  * question on screen to the grade, hidden tab included. `answer` is the first
  * wrong typed answer, cut to `MAX_LOGGED_ANSWER_LENGTH` characters.
  * `alternatives` lists the alternative answers the learner sent, in order, each
- * cut the same way. An alternative answer is not a miss. `disambiguator`, set
- * only after an alternative answer, is whether the learner then looked at the
- * cue that names the asked word. See issue #348.
+ * cut the same way. An alternative answer is not a miss. `disambiguator` is
+ * whether the cue that names the asked word was on the card: after an
+ * alternative answer, or on the `CM` button. It never changes the grade. See
+ * issues #348 and #396.
  */
 export interface GradeDetail {
   mode?: AnswerMode;

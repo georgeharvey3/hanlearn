@@ -448,27 +448,6 @@ describe('useTestEngine — the grade of the first attempt', () => {
     expect(result.current.state.toneErrorCount).toBe(0);
   });
 
-  it('leaves the grade alone when the learner asks for a hint', () => {
-    const result = meaningQuestion({
-      answerCategory: 'pinyin',
-      answer: 'ni3 hao3',
-      answerInput: 'ni3 hao3',
-    });
-
-    act(() => {
-      result.current.onHint();
-    });
-    expect(result.current.state.gradeCap).toBe('pass');
-
-    act(() => {
-      result.current.onSubmitAnswer();
-    });
-
-    expect(result.current.state.gradeList).toMatchObject([
-      { wordId: 1, direction: 'MP', result: 'pass', toneErrors: 0 },
-    ]);
-  });
-
   it('caps the question at a lapse when the learner asks for the stroke outline', () => {
     const result = meaningQuestion({ answerCategory: 'character', writer: mockWriter });
 
@@ -1448,7 +1427,9 @@ describe('useTestEngine — how the learner got to the grade', () => {
       expect(grade).not.toHaveProperty('answer');
     });
 
-    it('records the outline that the writer shows after five misses as a hint', () => {
+    // The learner did not ask for this outline, and `misses` records it. See
+    // issue #396.
+    it('caps five misses on one stroke at a lapse, and records no hint', () => {
       const { result, quiz } = handwritingQuestion();
 
       act(() => {
@@ -1459,7 +1440,11 @@ describe('useTestEngine — how the learner got to the grade', () => {
         vi.advanceTimersByTime(1000);
       });
 
-      expect(result.current.state.gradeList[0]).toMatchObject({ result: 'lapse', hint: true });
+      expect(result.current.state.gradeList[0]).toMatchObject({
+        result: 'lapse',
+        hint: false,
+        misses: 1,
+      });
     });
 
     it('records the reveal of the character as a reveal', async () => {

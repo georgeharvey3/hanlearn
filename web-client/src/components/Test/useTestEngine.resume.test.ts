@@ -32,6 +32,7 @@ vi.mock('../../services/ttsService', () => ({
 import { renderHook, act } from '@testing-library/react';
 
 import { useTestEngine } from './useTestEngine';
+import { getHintSentence } from '../../services/sentenceService';
 import { Props } from './types';
 import { QueuePair, Word, WordDirectionResults } from '../../types/models';
 import { SessionPlan } from './Logic/TestLogic';
@@ -179,5 +180,76 @@ describe('useTestEngine — reporting progress', () => {
     renderEngine(makeProps({ onProgress, isDemo: true }));
 
     expect(onProgress).not.toHaveBeenCalled();
+  });
+});
+
+// A reload must not undo the cap of a hint, or let a learner reload to get a
+// free one. See issue #396.
+describe('useTestEngine — resuming a question that had an aid', () => {
+  const resumeAfter = async (aid: (engine: ReturnType<typeof renderEngine>) => Promise<void>) => {
+    const onProgress = vi.fn();
+    const first = renderEngine(makeProps({ onProgress }));
+    await aid(first);
+    const saved = onProgress.mock.calls.at(-1)![0] as VocabProgress;
+    first.unmount();
+
+    const { result } = renderEngine(makeProps({ resume: saved }));
+    act(() => {
+      result.current.onCorrectAnswer();
+    });
+    return result.current.state.gradeList;
+  };
+
+  it('keeps the cap of a hint', async () => {
+    vi.mocked(getHintSentence).mockResolvedValueOnce({
+      chinese: '你好吗',
+      english: 'How are you?',
+    });
+
+    const grades = await resumeAfter(async ({ result }) => {
+      await act(async () => {
+        result.current.onHint();
+      });
+    });
+
+    expect(grades).toMatchObject([{ wordId: 1, result: 'lapse', hint: true }]);
+  });
+
+  it('keeps the disambiguator, at no cost', async () => {
+    const grades = await resumeAfter(async ({ result }) => {
+      act(() => {
+        result.current.onToggleDisambiguator();
+      });
+    });
+
+    expect(grades).toMatchObject([{ wordId: 1, result: 'pass', disambiguator: true }]);
+  });
+
+  it('starts the next question fresh', async () => {
+    vi.mocked(getHintSentence).mockResolvedValueOnce({
+      chinese: '你好吗',
+      english: 'How are you?',
+    });
+    const onProgress = vi.fn();
+    const first = renderEngine(makeProps({ onProgress }));
+    await act(async () => {
+      first.result.current.onHint();
+    });
+    act(() => {
+      first.result.current.onCorrectAnswer();
+    });
+    const saved = onProgress.mock.calls.at(-1)![0] as VocabProgress;
+    first.unmount();
+
+    const { result } = renderEngine(makeProps({ resume: saved }));
+    act(() => {
+      result.current.onCorrectAnswer();
+    });
+
+    expect(result.current.state.gradeList.at(-1)).toMatchObject({
+      wordId: 2,
+      result: 'pass',
+      hint: false,
+    });
   });
 });
