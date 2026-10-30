@@ -86,6 +86,21 @@ const SpokenSentence: React.FC<{
   );
 };
 
+/** One dashed box per syllable, each holding its first letter and blanks. */
+const Initials: React.FC<{ initials: string[]; label: string }> = ({ initials, label }) => (
+  <Box
+    role="img"
+    aria-label={label}
+    sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1.25 }}
+  >
+    {initials.map((initial, i) => (
+      <Box key={i} aria-hidden="true" sx={{ ...dashed, px: 1.25, py: 0.5, fontSize: 20 }}>
+        {initial}
+      </Box>
+    ))}
+  </Box>
+);
+
 /** The hint, drawn inside the card under the question. */
 const Hint: React.FC<{ state: TestState; onPlaySentence: () => void }> = ({
   state,
@@ -96,17 +111,10 @@ const Hint: React.FC<{ state: TestState; onPlaySentence: () => void }> = ({
   if (state.answerCategory === 'pinyin') {
     const initials = state.hint.split(' ');
     return (
-      <Box
-        role="img"
-        aria-label={copy.test.hintLabel(initials.map((i) => i.replace(/_/g, '')).join(', '))}
-        sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1.25 }}
-      >
-        {initials.map((initial, i) => (
-          <Box key={i} aria-hidden="true" sx={{ ...dashed, px: 1.25, py: 0.5, fontSize: 20 }}>
-            {initial}
-          </Box>
-        ))}
-      </Box>
+      <Initials
+        initials={initials}
+        label={copy.test.hintLabel(initials.map((i) => i.replace(/_/g, '')).join(', '))}
+      />
     );
   }
 
@@ -174,6 +182,10 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
   const answerColor = failed ? colors.primaryLight : colors.text;
 
   const pinyin = word?.pinyin ?? '';
+  const firstLetters = pinyin
+    .split(' ')
+    .filter(Boolean)
+    .map((syllable) => syllable[0].toLowerCase());
   const meanings = asList(state.questionCategory === 'meaning' ? state.question : state.answer);
   const meaningText = meanings.join(' · ');
   const speak = () => state.chosenCharacter && onSpeak(state.chosenCharacter);
@@ -194,15 +206,19 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
     </IconButton>
   );
 
-  // The disambiguator names the asked word, and gives no part of the answer:
-  // the characters of a pinyin question, or the pinyin of a character question
-  // that asks for the meaning. It shows only after an alternative answer, when
-  // the question has proved ambiguous. See issue #348.
+  // The disambiguator names the asked word: the characters of a pinyin
+  // question, the pinyin of a character question that asks for the meaning,
+  // and the first letter of each syllable of one that asks for the pinyin. It
+  // shows only after an alternative answer, when the question has proved
+  // ambiguous. The initials are part of the answer, but by then the
+  // learner has given a valid reading, so they pick a reading rather than prompt
+  // a recall. See issue #348.
   const disambiguable =
     !revealed &&
     state.alternativesSent.length > 0 &&
-    state.answerCategory === 'meaning' &&
-    (state.questionCategory === 'pinyin' || state.questionCategory === 'character');
+    (state.questionCategory === 'character'
+      ? state.answerCategory === 'meaning' || state.answerCategory === 'pinyin'
+      : state.questionCategory === 'pinyin' && state.answerCategory === 'meaning');
   const disambiguated = disambiguable && state.showDisambiguator;
   const disambiguatorToggle = (show: string, hide: string) =>
     disambiguable && (
@@ -224,8 +240,22 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
         <Box lang="zh" sx={hanziSx(hanziSize(hanzi, size))}>
           {hanzi}
         </Box>
-        {disambiguated && <Pinyin text={pinyin} size={22} />}
-        {disambiguatorToggle(copy.test.showPinyin, copy.test.hidePinyin)}
+        {asked('pinyin') ? (
+          <>
+            {disambiguated && (
+              <Initials
+                initials={firstLetters.map((letter) => letter + '__')}
+                label={copy.test.initialsLabel(firstLetters.join(', '))}
+              />
+            )}
+            {disambiguatorToggle(copy.test.showInitials, copy.test.hideInitials)}
+          </>
+        ) : (
+          <>
+            {disambiguated && <Pinyin text={pinyin} size={22} />}
+            {disambiguatorToggle(copy.test.showPinyin, copy.test.hidePinyin)}
+          </>
+        )}
         {revealed && flashcard && !compact && <CardRule />}
         {revealed && (
           <Pinyin

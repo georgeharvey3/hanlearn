@@ -366,12 +366,17 @@ After an alternative answer, the learner gets a **disambiguator**: a cue that
 narrows the question to its own word and gives no part of the answer. A
 disambiguator is not an aid that changes the grade.
 
-The disambiguator is the part of the word that the question does not show and
-does not ask for. A pinyin question (`MP`) offers the characters, and a
-character question that asks for the meaning (`MC`) offers the pinyin. The card
-offers it only after an alternative answer, so that it cannot replace the recall
-on the first attempt. `PM` and `PC` have no disambiguator yet, because the other
-part of the word is their answer.
+The card offers the disambiguator only after an alternative answer, so that it
+cannot replace the recall on the first attempt.
+
+- A pinyin question (`MP`) offers the characters.
+- A character question that asks for the meaning (`MC`) offers the pinyin.
+- A character question that asks for the pinyin (`PC`) offers the first letter
+  of each syllable. This cue is part of the answer. The learner has already
+  given a valid reading, so the cue picks a reading and does not prompt a
+  recall. When two readings differ only in tone, as 好 `hao3` and `hao4` do,
+  the cue does not separate them.
+- `PM` has no disambiguator yet.
 
 ## Attempt
 

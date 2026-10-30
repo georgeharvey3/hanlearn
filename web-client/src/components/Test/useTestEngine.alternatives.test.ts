@@ -327,3 +327,19 @@ describe('useTestEngine — the disambiguator after an alternative answer', () =
     expect(result.current.state.gradeList[0]).not.toHaveProperty('disambiguator');
   });
 });
+
+describe('useTestEngine — the initials of a pinyin answer (PC)', () => {
+  it('keeps the pass when the learner looks at the initials', () => {
+    const result = typedQuestion(CHANG, 'PC', 'chang2', '长');
+
+    submit(result, 'zhang3');
+    act(() => {
+      result.current.onToggleDisambiguator();
+    });
+    submit(result, 'chang2');
+
+    expect(result.current.state.gradeList).toMatchObject([
+      { result: 'pass', alternatives: ['zhang3'], disambiguator: true, hint: false },
+    ]);
+  });
+});

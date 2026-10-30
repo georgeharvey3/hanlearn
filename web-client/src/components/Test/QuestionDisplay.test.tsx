@@ -137,10 +137,37 @@ describe('QuestionDisplay — the pinyin of a character question (MC)', () => {
 
     expect(screen.getByText('cháng')).toBeInTheDocument();
   });
+});
 
-  it('never offers the pinyin when the pinyin is the answer (PC)', () => {
-    renderCard(questionState(chang, 'PC', { alternativesSent: ['zhang3'] }));
+describe('QuestionDisplay — the initials of a pinyin answer (PC)', () => {
+  const showInitials = () => screen.queryByRole('button', { name: copy.test.showInitials });
 
-    expect(showPinyin()).not.toBeInTheDocument();
+  it('offers neither the pinyin nor the initials before an alternative answer', () => {
+    renderCard(questionState(word('长', 'chang2', 'long'), 'PC'));
+
+    expect(screen.queryByRole('button', { name: copy.test.showPinyin })).not.toBeInTheDocument();
+    expect(showInitials()).not.toBeInTheDocument();
+  });
+
+  it('offers the initials, never the pinyin, after an alternative answer', () => {
+    const onToggle = renderCard(
+      questionState(word('长', 'chang2', 'long'), 'PC', { alternativesSent: ['zhang3'] }),
+    );
+
+    expect(screen.queryByRole('button', { name: copy.test.showPinyin })).not.toBeInTheDocument();
+    showInitials()!.click();
+    expect(onToggle).toHaveBeenCalled();
+  });
+
+  it('shows the first letter of each syllable once the learner asks for them', () => {
+    renderCard(
+      questionState(word('长城', 'Chang2 cheng2', 'the Great Wall'), 'PC', {
+        alternativesSent: ['zhang3 cheng2'],
+        showDisambiguator: true,
+      }),
+    );
+
+    expect(screen.getByRole('img', { name: copy.test.initialsLabel('c, c') })).toBeInTheDocument();
+    expect(screen.queryByText('cháng chéng')).not.toBeInTheDocument();
   });
 });
