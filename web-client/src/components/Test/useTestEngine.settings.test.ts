@@ -27,6 +27,8 @@ vi.mock('./constants', () => ({
     gradeList: [],
     gradeCap: 'pass',
     toneErrorCount: 0,
+    alternativesSent: [],
+    alternatives: null,
     scoreList: [],
     testFinished: false,
     showInputChars: [],
@@ -60,6 +62,10 @@ vi.mock('./constants', () => ({
     interaction: false,
     speechResult: false,
   })),
+}));
+
+vi.mock('../../services/dictionaryService', () => ({
+  fetchAlternatives: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('../../services/sentenceService', () => ({

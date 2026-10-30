@@ -18,6 +18,7 @@ export {
   dictionaryLookupCharacterByTrad,
   dictionaryConvertText,
   dictionarySubstringMatch,
+  dictionaryAlternatives,
 } from './dictionary';
 
 // Re-export TTS Cloud Function

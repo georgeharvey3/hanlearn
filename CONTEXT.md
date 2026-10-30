@@ -309,6 +309,9 @@ The retries stay. A wrong answer gives "Try again", and the learner can answer
 again as many times as they want. The retries give feedback and learning value.
 They do not change the grade of the question.
 
+An alternative answer is not a graded attempt. The first attempt that grades the
+question is the first one that is not an alternative answer.
+
 `fail` keeps the meaning it always had: the learner did not retrieve the answer.
 `lapse` is the middle grade for a retrieval that succeeded late. See
 [docs/adr/0007-grade-the-first-attempt.md](docs/adr/0007-grade-the-first-attempt.md).
@@ -345,6 +348,35 @@ There is one exception. The stroke outline of a character question is the answer
 and not a way to identify the question. A learner who asks for the outline gets
 the same grade as a learner who missed one stroke five times. Both cap the
 question at `lapse`.
+
+## Alternative answer
+
+An **alternative answer** is an answer that fits the question shown but belongs
+to a word other than the one the question asks. For a meaning question, the
+other word shares at least one gloss with the glosses shown. For a pinyin
+question, the other word has the same pinyin. For a character question, the
+other word has the same characters, as a character with two readings does.
+
+The other word can be one the learner holds or one they do not. Either way, an
+alternative answer is not wrong and not right. It costs the learner nothing: the
+grade does not drop, and the learner answers again. The question still asks its
+own word, and only an answer for that word passes it.
+
+After an alternative answer, the learner gets a **disambiguator**: a cue that
+narrows the question to its own word and gives no part of the answer. A
+disambiguator is not an aid that changes the grade.
+
+The card offers the disambiguator only after an alternative answer, so that it
+cannot replace the recall on the first attempt.
+
+- A pinyin question (`MP`) offers the characters.
+- A character question that asks for the meaning (`MC`) offers the pinyin.
+- A character question that asks for the pinyin (`PC`) offers the first letter
+  of each syllable. This cue is part of the answer. The learner has already
+  given a valid reading, so the cue picks a reading and does not prompt a
+  recall. When two readings differ only in tone, as 好 `hao3` and `hao4` do,
+  the cue does not separate them.
+- `PM` has no disambiguator yet.
 
 ## Attempt
 

@@ -11,6 +11,7 @@ import {
 import { QuizType } from '../../utils/audioSettings';
 import { VocabProgress } from '../../utils/savedSession';
 import { SessionPlan } from './Logic/TestLogic';
+import { RemoteAlternatives } from '../../utils/alternativeAnswers';
 
 /**
  * The words each sentence stage runs for.
@@ -66,6 +67,14 @@ export interface TestState {
   hintShown: boolean;
   /** The first wrong typed answer of the current question, or null. */
   firstWrongAnswer: string | null;
+  /** The alternative answers sent on the current question, in order. */
+  alternativesSent: string[];
+  /**
+   * The alternative answers of the session from the dictionary, by question.
+   * Null until the call at the start of the session returns, and for good
+   * when it fails: the learner's own words still apply.
+   */
+  alternatives: RemoteAlternatives | null;
   /** When the current question came on screen, in ms, or null before the first. */
   questionShownAt: number | null;
   scoreList: WordScore[];
@@ -125,8 +134,14 @@ export interface TestState {
    * again. Null when sound is off or the hint is not a sentence.
    */
   hintSentence: string | null;
-  /** Whether the character of a spoken pinyin question is on the card. */
-  showQuestionCharacter: boolean;
+  /**
+   * Whether the disambiguator is on the card: the characters of a pinyin
+   * question (`MP`), or the pinyin of a character question (`MC`). The card
+   * offers it only after an alternative answer. See issue #348.
+   */
+  showDisambiguator: boolean;
+  /** Whether the disambiguator was on the card at any time during the current question. */
+  disambiguatorShown: boolean;
   /** The character of the answer the learner is writing, counted from 0. */
   writingIndex: number;
   /**
@@ -155,6 +170,11 @@ export interface ReduxProps {
 
 export interface OwnProps {
   words: Word[];
+  /**
+   * Every word of the learner, not only the session's, for the alternative
+   * answers. The demo and the unit tests fall back to `words`.
+   */
+  collection?: Word[];
   /**
    * The plan the session runs, built by TestWords so that the Learn step and
    * the queue agree on which new words the session admits. The engine plans for

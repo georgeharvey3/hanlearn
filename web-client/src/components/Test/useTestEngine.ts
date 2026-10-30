@@ -1,5 +1,5 @@
 import { AudioSettings, QuizType, getQuizType } from '../../utils/audioSettings';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { pinyin } from 'pinyin-pro';
 
 import * as testLogic from './Logic/TestLogic';
@@ -12,6 +12,8 @@ import {
   DirectionResult,
   GradeDetail,
   MAX_LOGGED_ANSWER_LENGTH,
+  QueuePair,
+  Word,
   WordDirectionResults,
   WordScore,
 } from '../../types/models';
@@ -23,7 +25,17 @@ import { reportError } from '../../services/errorReporting';
 import { copy } from '../../copy';
 import { colors } from '../../theme';
 import { WRITER_SIZE } from './handwriting';
-import { dropNeutralTone } from '../../utils/pinyinMarks';
+import { fetchAlternatives } from '../../services/dictionaryService';
+import {
+  AlternativeDirection,
+  AnswerCategory,
+  RemoteAlternatives,
+  answerMatches,
+  buildAlternativeIndex,
+  ownWordAlternatives,
+  questionKey,
+  takesAlternatives,
+} from '../../utils/alternativeAnswers';
 
 /**
  * Misses on one stroke before the handwriting quiz shows the stroke outline.
@@ -56,6 +68,8 @@ const GRADE_DETAIL_KEYS = [
   'revealed',
   'answerMs',
   'answer',
+  'alternatives',
+  'disambiguator',
 ] as const satisfies readonly (keyof GradeDetail)[];
 
 /** How the learner got to a grade, with each field the grade does not hold left out. */
@@ -88,13 +102,30 @@ const FRESH_QUESTION = {
   hint: null,
   hintSentence: null,
   showHint: false,
-  showQuestionCharacter: false,
+  showDisambiguator: false,
+  disambiguatorShown: false,
   outcome: null,
   gradeClicked: null,
   missCount: 0,
   hintShown: false,
   firstWrongAnswer: null,
+  alternativesSent: [] as string[],
 } as const;
+
+/** The answer the current question asks for, as the matching reads it. */
+const typedAnswer = (state: TestState): { answers: string[]; category: AnswerCategory } | null => {
+  if (state.answerCategory === 'pinyin' && typeof state.answer === 'string') {
+    return { answers: [state.answer], category: 'pinyin' };
+  }
+  if (state.answerCategory === 'meaning' && Array.isArray(state.answer)) {
+    return { answers: state.answer, category: 'meaning' };
+  }
+  return null;
+};
+
+/** A log entry of an answer: trimmed, and cut to the length the review log keeps. */
+const logged = (input: string): string =>
+  Array.from(input.trim()).slice(0, MAX_LOGGED_ANSWER_LENGTH).join('');
 
 /**
  * Clear the HanziWriter mount point.
@@ -117,6 +148,14 @@ export const useTestEngine = (props: Props) => {
   const applySpeechRef = useRef<(speech: string) => void>(() => {});
   const initializedRef = useRef(false);
   const missesBeforeHint = props.isDemo ? DEMO_MISSES_BEFORE_HINT : MISSES_BEFORE_HINT;
+
+  // The learner's own words, as a source of alternative answers. The index is
+  // rebuilt only when the collection changes, not on each question.
+  const alternativeWords = props.collection ?? props.words;
+  const alternativeIndex = useMemo(
+    () => buildAlternativeIndex(alternativeWords, state.charSet),
+    [alternativeWords, state.charSet],
+  );
 
   useEffect(() => {
     stateRef.current = state;
@@ -318,6 +357,11 @@ export const useTestEngine = (props: Props) => {
       ...(state.questionShownAt !== null ? { answerMs: Date.now() - state.questionShownAt } : {}),
       ...(mode === 'input' && state.firstWrongAnswer !== null
         ? { answer: state.firstWrongAnswer }
+        : {}),
+      // The card offers the disambiguator only after an alternative answer, so
+      // the field says whether a learner who had it used it.
+      ...(state.alternativesSent.length > 0
+        ? { alternatives: state.alternativesSent, disambiguator: state.disambiguatorShown }
         : {}),
     };
   };
@@ -586,27 +630,29 @@ export const useTestEngine = (props: Props) => {
     onCorrectAnswer('lapse');
   }, [onCorrectAnswer]);
 
+  /**
+   * Whether the input answers the asked word, another word that fits the
+   * question shown, or neither. The asked word is matched first, so its own
+   * answer is never an alternative. The alternatives come from the learner's
+   * words and from the dictionary call at the start of the session.
+   */
   const checkAnswer = useCallback(
-    (cleanInput: string): boolean => {
+    (input: string): 'asked' | 'alternative' | 'wrong' => {
       const current = getState();
-      cleanInput = testLogic.removePunctuation(cleanInput.trim());
+      const expected = typedAnswer(current);
+      if (!expected) return 'wrong';
+      if (answerMatches(input, expected.answers, expected.category)) return 'asked';
 
-      if (current.answerCategory === 'pinyin' && typeof current.answer === 'string') {
-        let cleanAnswer = testLogic.removePunctuation(current.answer);
-        cleanInput = dropNeutralTone(cleanInput.replace(/ /g, ''));
-        cleanAnswer = dropNeutralTone(cleanAnswer.replace(/ /g, ''));
-        return cleanInput === cleanAnswer;
-      } else if (Array.isArray(current.answer)) {
-        let match = false;
-        current.answer.forEach((meaning) => {
-          const cleanAnswer = testLogic.removePunctuation(meaning);
-          match = match || cleanInput === cleanAnswer;
-        });
-        return match;
-      }
-      return false;
+      if (!current.currentPair || current.question === null) return 'wrong';
+      const direction = testLogic.directionOf(current.currentPair);
+      const alternatives = ownWordAlternatives(
+        alternativeIndex,
+        direction,
+        current.question,
+      ).concat(current.alternatives?.[questionKey(direction, current.question)] ?? []);
+      return answerMatches(input, alternatives, expected.category) ? 'alternative' : 'wrong';
     },
-    [getState],
+    [alternativeIndex, getState],
   );
 
   // The submission path for every attempt the learner sends. On a wrong answer
@@ -615,8 +661,24 @@ export const useTestEngine = (props: Props) => {
   const submitAnswer = useCallback(
     (input: string): void => {
       const current = getState();
-      if (checkAnswer(input)) {
+      const match = checkAnswer(input);
+      if (match === 'asked') {
         onCorrectAnswer();
+      } else if (match === 'alternative') {
+        // Not wrong and not right: the grade, the misses and the tone errors
+        // stay as they are, and the learner answers again. See issue #348.
+        setStateMerged((prevState) => ({
+          result: copy.test.status.otherWord,
+          alternativesSent: prevState.alternativesSent.concat(logged(input)),
+        }));
+        if (
+          current.useAutoRecord &&
+          !current.pauseAutoRecord &&
+          props.speechAvailable &&
+          answerQuizType(current) === 'input'
+        ) {
+          onListen();
+        }
       } else {
         if (current.useSoundEffects) {
           fail.play();
@@ -641,9 +703,7 @@ export const useTestEngine = (props: Props) => {
           gradeCap: 'lapse',
           toneErrorCount: prevState.toneErrorCount + (toneError ? 1 : 0),
           missCount: prevState.missCount + 1,
-          firstWrongAnswer:
-            prevState.firstWrongAnswer ??
-            Array.from(input.trim()).slice(0, MAX_LOGGED_ANSWER_LENGTH).join(''),
+          firstWrongAnswer: prevState.firstWrongAnswer ?? logged(input),
         }));
         if (
           current.useAutoRecord &&
@@ -1099,11 +1159,52 @@ export const useTestEngine = (props: Props) => {
     }
   }, [getState, setStateMerged]);
 
-  const showCharacter = useCallback((): void => {
-    setStateMerged((prevState) => ({ showQuestionCharacter: !prevState.showQuestionCharacter }));
+  /** Put the disambiguator on the card, or take it off. It never changes the grade. */
+  const onToggleDisambiguator = useCallback((): void => {
+    setStateMerged((prevState) => ({
+      showDisambiguator: !prevState.showDisambiguator,
+      disambiguatorShown: prevState.disambiguatorShown || !prevState.showDisambiguator,
+    }));
   }, [setStateMerged]);
 
   // --- Initialization ---
+
+  /**
+   * Ask the dictionary for the alternative answers of the session, once, as it
+   * starts. Each question value is sent once. A failed call, offline say, leaves
+   * the learner's own words as the only source, and a question answered before
+   * the call returns has only those too.
+   */
+  const loadAlternatives = useCallback(
+    (words: Word[], queue: QueuePair[], charSet: 'simp' | 'trad'): void => {
+      const questions = new Map<
+        string,
+        { direction: AlternativeDirection; value: string | string[] }
+      >();
+      for (const pair of queue) {
+        const direction = testLogic.directionOf(pair);
+        if (!takesAlternatives(direction)) continue;
+        const { question } = testLogic.assignQA(words, [pair], charSet);
+        const key = questionKey(direction, question);
+        if (!questions.has(key)) questions.set(key, { direction, value: question });
+      }
+      if (questions.size === 0) return;
+
+      const keys = Array.from(questions.keys());
+      fetchAlternatives(charSet, Array.from(questions.values()))
+        .then((answers) => {
+          const alternatives: RemoteAlternatives = {};
+          keys.forEach((key, i) => {
+            if (answers[i]?.length) alternatives[key] = answers[i];
+          });
+          setStateMerged({ alternatives });
+        })
+        .catch((error) => {
+          reportError(error, { feature: 'alternative-answers', level: 'warning' });
+        });
+    },
+    [setStateMerged],
+  );
 
   const onInitialiseTestSet = useCallback(
     (useHandwriting: boolean): void => {
@@ -1138,6 +1239,10 @@ export const useTestEngine = (props: Props) => {
         return;
       }
 
+      if (!props.isDemo && !props.resume?.alternatives) {
+        loadAlternatives(plan.words, queue, current.charSet);
+      }
+
       const initialVals = testLogic.assignQA(plan.words, queue, current.charSet);
       setStateMerged((prevState) => ({
         testSet: plan.words,
@@ -1158,6 +1263,7 @@ export const useTestEngine = (props: Props) => {
     },
     [
       getState,
+      loadAlternatives,
       props.isDemo,
       props.plan,
       props.practiceMode,
@@ -1462,8 +1568,11 @@ export const useTestEngine = (props: Props) => {
       queue: state.queue,
       gradeList: state.gradeList,
       initialQueueLength: state.initialQueueLength,
+      // Saved only once the call returns, so that a session resumed before
+      // then still makes it.
+      ...(state.alternatives ? { alternatives: state.alternatives } : {}),
     });
-  }, [state.queue, state.gradeList, state.initialQueueLength, reportProgress]);
+  }, [state.queue, state.gradeList, state.initialQueueLength, state.alternatives, reportProgress]);
 
   const refreshSettings = useCallback(
     (updated: AudioSettings): void => {
@@ -1498,7 +1607,7 @@ export const useTestEngine = (props: Props) => {
     onToggleShowPinyin,
     onToggleComponents,
     onContinue,
-    showCharacter,
+    onToggleDisambiguator,
     refreshSettings,
   };
 };

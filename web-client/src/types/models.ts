@@ -123,6 +123,10 @@ export type AnswerMode = 'input' | 'flashcard' | 'handwriting';
  * flashcard self-grade of `fail` is not a reveal. `answerMs` runs from the
  * question on screen to the grade, hidden tab included. `answer` is the first
  * wrong typed answer, cut to `MAX_LOGGED_ANSWER_LENGTH` characters.
+ * `alternatives` lists the alternative answers the learner sent, in order, each
+ * cut the same way. An alternative answer is not a miss. `disambiguator`, set
+ * only after an alternative answer, is whether the learner then looked at the
+ * cue that names the asked word. See issue #348.
  */
 export interface GradeDetail {
   mode?: AnswerMode;
@@ -132,6 +136,8 @@ export interface GradeDetail {
   revealed?: boolean;
   answerMs?: number;
   answer?: string;
+  alternatives?: string[];
+  disambiguator?: boolean;
 }
 
 /** The longest first wrong answer the review log keeps. */

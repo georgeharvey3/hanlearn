@@ -14,6 +14,10 @@ vi.mock('howler', () => ({
   },
 }));
 
+vi.mock('../../services/dictionaryService', () => ({
+  fetchAlternatives: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock('../../services/sentenceService', () => ({
   checkSentenceAvailability: vi.fn().mockResolvedValue(false),
   getHintSentence: vi.fn().mockResolvedValue(null),

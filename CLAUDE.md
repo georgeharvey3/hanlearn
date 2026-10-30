@@ -81,7 +81,7 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 - [web-client/src/services/decompositionService.ts](web-client/src/services/decompositionService.ts) - Calls cloud function to decompose characters into radicals/components
 - [web-client/src/services/ttsService.ts](web-client/src/services/ttsService.ts) - Text-to-speech via Howler.js; called directly from components (not via Redux)
 
-Note: `ttsService`, `sentenceService`, `decompositionService`, `dictionaryService`, and `premadeListService` are called directly from components (not via Redux thunks) — this is intentional for operations that are UI-local and do not need shared global state.
+Note: `ttsService`, `sentenceService`, `decompositionService`, `dictionaryService`, and `premadeListService` are called directly from components (not via Redux thunks) — this is intentional for operations that are UI-local and do not need shared global state. `TestWords` also calls `wordService.getUserWords` directly: the store holds only the active list, and the session needs the whole collection for its alternative answers (#348).
 
 #### Component Pattern
 
@@ -133,7 +133,9 @@ users/{userId}/
             wordId, direction, grade, mode?,
             before: { stability, difficulty, lastReview, retrievability } | null,
             after: { stability, difficulty, interval },
-            position?, toneErrors, misses?, hint?, revealed?, answerMs?, answer?
+            position?, toneErrors, misses?, hint?, revealed?, answerMs?, answer?,
+            alternatives?,       # The alternative answers sent, in order (#348)
+            disambiguator?       # After an alternative answer: whether the learner looked at the cue
           }]
 
 words/{wordId}                   # Read-only shared dictionary (admin-managed)
@@ -153,6 +155,7 @@ Security rules in [firestore.rules](firestore.rules): users can only access thei
 - `getDailyChengyu` - Rotates through chengyus daily
 - `dictionarySearch` - The search of the Add Words screen: hanzi, pinyin or English, ranked in tiers, at most 30 entries. The rules are pure, in [functions/src/dictionarySearch.ts](functions/src/dictionarySearch.ts) (#425)
 - `dictionarySearchWord` - The exact lookup of an entry by its characters
+- `dictionaryAlternatives` - The alternative answers of the questions of one session, from all of CC-CEDICT. The rules are pure, in [functions/src/alternativeAnswers.ts](functions/src/alternativeAnswers.ts) (#348)
 - `lookupChengyuChar` - Character details for chengyu quiz
 
 #### Authentication

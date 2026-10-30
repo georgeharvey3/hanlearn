@@ -1,7 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as functions from 'firebase-functions/v1';
+import { checkRateLimit, RATE_LIMITS } from './rateLimit';
 import { withErrorReporting } from './reporting';
+import {
+  AlternativeIndex,
+  alternativeAnswers,
+  createAlternativeIndex,
+  readAlternativesRequest,
+} from './alternativeAnswers';
 import {
   createSearchIndex,
   DictionaryEntry,
@@ -16,6 +23,9 @@ let entries: DictionaryEntry[] = [];
 const simpIndex: Map<string, DictionaryEntry[]> = new Map();
 const tradIndex: Map<string, DictionaryEntry[]> = new Map();
 let searchIndex: SearchIndex;
+// Built on the first call of dictionaryAlternatives only, so that the other
+// dictionary functions do not carry it.
+let alternativeIndex: AlternativeIndex | null = null;
 
 /**
  * Load the dictionary from the bundled JSON file into memory.
@@ -283,4 +293,41 @@ export const dictionarySubstringMatch = dictionaryRuntime.https.onCall(
       return substringMatchInternal(text, charSet);
     }
   )
+);
+
+/**
+ * The alternative answers of the questions of one session: for each question
+ * value, the answers of every entry that fits it. The client sends each value
+ * once, when the session starts, and gets the lists back in the same order.
+ * See issue #348.
+ */
+export const dictionaryAlternatives = dictionaryRuntime.https.onCall(
+  withErrorReporting('dictionaryAlternatives', async (data: unknown, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+    await checkRateLimit(
+      context.auth.uid,
+      'dictionaryAlternatives',
+      RATE_LIMITS.dictionaryAlternatives
+    );
+
+    const request = readAlternativesRequest(data);
+    if (!request) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'charSet and questions are required'
+      );
+    }
+
+    loadDictionary();
+    alternativeIndex ??= createAlternativeIndex(entries);
+    const index = alternativeIndex;
+    return request.questions.map((question) =>
+      alternativeAnswers(index, question, request.charSet)
+    );
+  })
 );
