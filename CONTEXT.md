@@ -326,7 +326,8 @@ gives it in a different way:
 | Handwriting | drawn with no stroke missed 5 times | drawn after 5 misses on a stroke | the reveal ran         |
 
 Flashcard is a recognition task with no attempt to read, so the learner grades
-the question. This is why the reveal shows three buttons and not two.
+the question. This is why the reveal shows three buttons and not two. After a
+hint, the learner can report only `lapse` or `fail`.
 
 The handwriting quiz counts the misses on each stroke, and it shows the stroke
 outline after five misses on one stroke. Five misses is the point where the app
@@ -335,19 +336,43 @@ word of more than one character takes the worst grade of its characters.
 
 ## Aid
 
-An **aid** is help that the learner asks for during a question. The hint, the
-character of a pinyin question, and the pinyin of a character question are all
-aids.
+An **aid** is help that the learner gets during a question: the learner asks for
+it, or the app gives it after an alternative answer. There are two
+kinds: the hint and the disambiguator. The kind is what the aid does for the
+question, not what it shows, so the same text can be a hint in one place and a
+disambiguator in another.
 
-An aid does not change the grade. A meaning gloss or a bare pinyin can fit more
-than one word, so the learner sometimes needs an aid to find out which word the
-question asks. A grade that counted aids would grade this ambiguity and not the
-memory of the learner.
+A **hint** gives one step of the answer. A learner who needed it did not recall
+the answer alone, so a hint caps the question at `lapse`. Each answer category
+has one hint, and a hint has no second step:
 
-There is one exception. The stroke outline of a character question is the answer
-and not a way to identify the question. A learner who asks for the outline gets
-the same grade as a learner who missed one stroke five times. Both cap the
-question at `lapse`.
+| Answer    | Hint                                   |
+| --------- | -------------------------------------- |
+| Pinyin    | the initial of each syllable           |
+| Meaning   | the pinyin of an example sentence      |
+| Character | the stroke outline, shown for a moment |
+
+A hint that does not load shows nothing, so it costs nothing.
+
+A **disambiguator** narrows the question to its own word. It does not change the
+grade, because it measures the question and not the memory of the learner. Each
+direction has one:
+
+| Direction | Disambiguator                          | Available                     |
+| --------- | -------------------------------------- | ----------------------------- |
+| `PM`      | the initial of each syllable           | after an alternative answer   |
+| `MP`      | the character                          | after an alternative answer   |
+| `MC`      | the pinyin of the reading asked        | after an alternative answer   |
+| `PC`      | the meaning of the reading asked       | after an alternative answer   |
+| `CM`      | the initial of each syllable           | on request, on every question |
+
+In `PM` the initials are a hint until the learner gives an alternative answer,
+and a disambiguator after it. In `CM` the answer is the character and the
+learner is expected to know the pinyin, so the initials give no step of the
+answer.
+
+The pinyin of a spoken `MP` question is not an aid. It is the same question in
+text, as the learner sees it with the sound off.
 
 ## Alternative answer
 
@@ -362,9 +387,8 @@ alternative answer is not wrong and not right. It costs the learner nothing: the
 grade does not drop, and the learner answers again. The question still asks its
 own word, and only an answer for that word passes it.
 
-After an alternative answer, the learner gets a **disambiguator**: a cue that
-narrows the question to its own word and gives no part of the answer. A
-disambiguator is not an aid that changes the grade.
+After an alternative answer, the app shows the disambiguator of the direction.
+See [Aid](#aid).
 
 The card offers the disambiguator only after an alternative answer, so that it
 cannot replace the recall on the first attempt.
