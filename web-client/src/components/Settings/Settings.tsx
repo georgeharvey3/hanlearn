@@ -34,7 +34,7 @@ import {
 import { ChipGroup, FoldGroup, Trail, SegmentedRow, StepperRow, SwitchRow } from './controls';
 import { autoRecordBlock, sentenceReadBlock, ttsBlock, newWordsBlock, quizOptions } from './rules';
 
-type Priority = 'none' | 'MP' | 'PM' | 'MC' | 'CM';
+type Priority = 'none' | 'MP' | 'PM' | 'MC' | 'PC' | 'CM';
 
 type Group = 'session' | 'answers' | 'focus' | 'stages' | 'sound' | 'account';
 
@@ -61,7 +61,7 @@ interface Values extends Record<Flag, boolean> {
   priority: Priority;
 }
 
-const SKILLS: Exclude<Priority, 'none'>[] = ['MP', 'PM', 'MC', 'CM'];
+const SKILLS: Exclude<Priority, 'none'>[] = ['MP', 'PM', 'MC', 'PC', 'CM'];
 
 const readPriority = (): Priority => {
   const stored = localStorage.getItem('priority');
