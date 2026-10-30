@@ -50,3 +50,61 @@ jobs:
           projectId: ${{ secrets.STAGING_FIREBASE_PROJECT_ID }}
           channelId: pr-${{ github.event.pull_request.number }}
           expires: 7d
+
+  # The hosting channel belongs to the PR, but the staging project has one set
+  # of Cloud Functions. This job deploys the functions of the PR to it, so that
+  # a preview can call a function that develop does not have yet. Until the
+  # next push to develop, staging and every other preview run these functions.
+  # The job names each function, so it never deletes one that this branch does
+  # not have. See docs/environments.md.
+  deploy-functions:
+    needs: build-and-preview
+    runs-on: ubuntu-latest
+    # One preview deploy at a time. A newer push cancels a pending one, and the
+    # last deploy wins anyway. The group is not the staging-deploy group of
+    # deploy-staging.yml, because a pending preview would cancel a pending
+    # staging deploy there.
+    concurrency:
+      group: preview-functions
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install functions dependencies
+        run: npm ci
+        working-directory: functions
+
+      - name: Build dictionary
+        run: npm run build:dict
+
+      - name: Build functions
+        run: npm run build
+        working-directory: functions
+
+      - name: List the functions of the branch
+        id: functions
+        run: |
+          only=$(node -e "console.log(Object.keys(require('./functions/lib/index.js')).map((name) => 'functions:' + name).join(','))")
+          echo "only=$only" >> "$GITHUB_OUTPUT"
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy the functions to staging
+        run: firebase deploy --only "$ONLY" --project "$PROJECT_ID" --non-interactive
+        env:
+          ONLY: ${{ steps.functions.outputs.only }}
+          PROJECT_ID: ${{ secrets.STAGING_FIREBASE_PROJECT_ID }}
