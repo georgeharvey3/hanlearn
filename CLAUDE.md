@@ -134,7 +134,8 @@ users/{userId}/
             before: { stability, difficulty, lastReview, retrievability } | null,
             after: { stability, difficulty, interval },
             position?, toneErrors, misses?, hint?, revealed?, answerMs?, answer?,
-            alternatives?        # The alternative answers sent, in order (#348)
+            alternatives?,       # The alternative answers sent, in order (#348)
+            disambiguator?       # After an alternative answer: whether the learner looked at the cue
           }]
 
 words/{wordId}                   # Read-only shared dictionary (admin-managed)

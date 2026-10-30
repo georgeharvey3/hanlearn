@@ -134,8 +134,14 @@ export interface TestState {
    * again. Null when sound is off or the hint is not a sentence.
    */
   hintSentence: string | null;
-  /** Whether the character of a spoken pinyin question is on the card. */
-  showQuestionCharacter: boolean;
+  /**
+   * Whether the disambiguator is on the card: the characters of a pinyin
+   * question (`MP`), or the pinyin of a character question (`MC`). The card
+   * offers it only after an alternative answer. See issue #348.
+   */
+  showDisambiguator: boolean;
+  /** Whether the disambiguator was on the card at any time during the current question. */
+  disambiguatorShown: boolean;
   /** The character of the answer the learner is writing, counted from 0. */
   writingIndex: number;
   /**

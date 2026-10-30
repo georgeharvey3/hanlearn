@@ -22,7 +22,7 @@ interface QuestionDisplayProps {
   onSpeak: (word: string) => void;
   onPlayHintSentence: () => void;
   onToggleShowPinyin: () => void;
-  showCharacter: () => void;
+  onToggleDisambiguator: () => void;
 }
 
 /** The senses a meaning question shows before "+ N more senses". */
@@ -156,7 +156,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
   onSpeak,
   onPlayHintSentence,
   onToggleShowPinyin,
-  showCharacter,
+  onToggleDisambiguator,
 }) => {
   const [allSenses, setAllSenses] = useState<string | null>(null);
 
@@ -194,6 +194,23 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
     </IconButton>
   );
 
+  // The disambiguator names the asked word, and gives no part of the answer:
+  // the characters of a pinyin question, or the pinyin of a character question
+  // that asks for the meaning. It shows only after an alternative answer, when
+  // the question has proved ambiguous. See issue #348.
+  const disambiguable =
+    !revealed &&
+    state.alternativesSent.length > 0 &&
+    state.answerCategory === 'meaning' &&
+    (state.questionCategory === 'pinyin' || state.questionCategory === 'character');
+  const disambiguated = disambiguable && state.showDisambiguator;
+  const disambiguatorToggle = (show: string, hide: string) =>
+    disambiguable && (
+      <PillToggle pressed={disambiguated} onClick={onToggleDisambiguator}>
+        {disambiguated ? hide : show}
+      </PillToggle>
+    );
+
   const meaningLine = (fontSize: number, color: string, bold: boolean) => (
     <Box sx={{ fontSize, color, fontWeight: bold ? 600 : 400, lineHeight: 1.3 }}>{meaningText}</Box>
   );
@@ -207,6 +224,8 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
         <Box lang="zh" sx={hanziSx(hanziSize(hanzi, size))}>
           {hanzi}
         </Box>
+        {disambiguated && <Pinyin text={pinyin} size={22} />}
+        {disambiguatorToggle(copy.test.showPinyin, copy.test.hidePinyin)}
         {revealed && flashcard && !compact && <CardRule />}
         {revealed && (
           <Pinyin
@@ -315,12 +334,10 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
         </>
       );
     } else if (audio) {
-      const singleChar = hanzi.length === 1;
-      const shownChar = state.showQuestionCharacter && singleChar;
       const shownPinyin = state.showQuestionPinyin;
       content = (
         <>
-          {shownChar ? (
+          {disambiguated ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <PlayButton size={56} loading={state.synthLoading} onClick={speak} />
               <Box component="span" lang="zh" sx={hanziSx(64)}>
@@ -335,11 +352,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
             <PillToggle pressed={shownPinyin} onClick={onToggleShowPinyin}>
               {shownPinyin ? copy.test.hidePinyin : copy.test.showPinyin}
             </PillToggle>
-            {singleChar && (
-              <PillToggle pressed={shownChar} onClick={showCharacter}>
-                {shownChar ? copy.test.hideCharacter : copy.test.showCharacter}
-              </PillToggle>
-            )}
+            {disambiguatorToggle(copy.test.showCharacter, copy.test.hideCharacter)}
           </Box>
           <Hint state={state} onPlaySentence={onPlayHintSentence} />
         </>
@@ -350,6 +363,12 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
           <Box lang="zh-Latn" sx={{ fontSize: 44, letterSpacing: '0.02em' }}>
             {toneMarks(pinyin)}
           </Box>
+          {disambiguated && (
+            <Box lang="zh" sx={hanziSx(64)}>
+              {hanzi}
+            </Box>
+          )}
+          {disambiguatorToggle(copy.test.showCharacter, copy.test.hideCharacter)}
           <Hint state={state} onPlaySentence={onPlayHintSentence} />
         </>
       );

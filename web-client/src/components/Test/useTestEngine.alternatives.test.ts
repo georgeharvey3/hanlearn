@@ -293,3 +293,37 @@ describe('useTestEngine — alternative answers from the dictionary', () => {
     expect(fetchAlternatives).not.toHaveBeenCalled();
   });
 });
+
+describe('useTestEngine — the disambiguator after an alternative answer', () => {
+  it('logs that the learner looked at the disambiguator, and keeps the pass', () => {
+    const result = typedQuestion(SHI_IS, 'MP', ['is'], 'shi4');
+
+    submit(result, 'matter');
+    act(() => {
+      result.current.onToggleDisambiguator();
+    });
+    expect(result.current.state.showDisambiguator).toBe(true);
+    submit(result, 'is');
+
+    expect(result.current.state.gradeList).toMatchObject([
+      { result: 'pass', alternatives: ['matter'], disambiguator: true },
+    ]);
+  });
+
+  it('logs that the learner had the disambiguator and did not use it', () => {
+    const result = typedQuestion(CHANG, 'MC', ['long'], '长');
+
+    submit(result, 'to grow');
+    submit(result, 'long');
+
+    expect(result.current.state.gradeList[0]).toMatchObject({ disambiguator: false });
+  });
+
+  it('logs no disambiguator for a question that got no alternative answer', () => {
+    const result = typedQuestion(CHANG, 'MC', ['long'], '长');
+
+    submit(result, 'long');
+
+    expect(result.current.state.gradeList[0]).not.toHaveProperty('disambiguator');
+  });
+});

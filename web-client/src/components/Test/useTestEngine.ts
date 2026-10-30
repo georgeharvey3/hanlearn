@@ -69,6 +69,7 @@ const GRADE_DETAIL_KEYS = [
   'answerMs',
   'answer',
   'alternatives',
+  'disambiguator',
 ] as const satisfies readonly (keyof GradeDetail)[];
 
 /** How the learner got to a grade, with each field the grade does not hold left out. */
@@ -101,7 +102,8 @@ const FRESH_QUESTION = {
   hint: null,
   hintSentence: null,
   showHint: false,
-  showQuestionCharacter: false,
+  showDisambiguator: false,
+  disambiguatorShown: false,
   outcome: null,
   gradeClicked: null,
   missCount: 0,
@@ -356,7 +358,11 @@ export const useTestEngine = (props: Props) => {
       ...(mode === 'input' && state.firstWrongAnswer !== null
         ? { answer: state.firstWrongAnswer }
         : {}),
-      ...(state.alternativesSent.length > 0 ? { alternatives: state.alternativesSent } : {}),
+      // The card offers the disambiguator only after an alternative answer, so
+      // the field says whether a learner who had it used it.
+      ...(state.alternativesSent.length > 0
+        ? { alternatives: state.alternativesSent, disambiguator: state.disambiguatorShown }
+        : {}),
     };
   };
 
@@ -1153,8 +1159,12 @@ export const useTestEngine = (props: Props) => {
     }
   }, [getState, setStateMerged]);
 
-  const showCharacter = useCallback((): void => {
-    setStateMerged((prevState) => ({ showQuestionCharacter: !prevState.showQuestionCharacter }));
+  /** Put the disambiguator on the card, or take it off. It never changes the grade. */
+  const onToggleDisambiguator = useCallback((): void => {
+    setStateMerged((prevState) => ({
+      showDisambiguator: !prevState.showDisambiguator,
+      disambiguatorShown: prevState.disambiguatorShown || !prevState.showDisambiguator,
+    }));
   }, [setStateMerged]);
 
   // --- Initialization ---
@@ -1597,7 +1607,7 @@ export const useTestEngine = (props: Props) => {
     onToggleShowPinyin,
     onToggleComponents,
     onContinue,
-    showCharacter,
+    onToggleDisambiguator,
     refreshSettings,
   };
 };

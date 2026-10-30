@@ -3,7 +3,7 @@
  * not tested in useTestEngine.test.ts:
  * - refreshSettings: respects synthAvailable / speechAvailable flags
  * - onToggleShowPinyin: only works when questionCategory === 'pinyin'
- * - showCharacter: toggle result to/from chosenCharacter
+ * - onToggleDisambiguator: put the disambiguator on the card and take it off
  * - onInputChanged: updates answerInput and sets pauseAutoRecord
  * - onKeyPress: guards (empty input / submitDisabled) and happy path
  */
@@ -338,32 +338,32 @@ describe('useTestEngine — onToggleShowPinyin', () => {
 });
 
 // ────────────────────────────────────────────────────────────────────────────
-// showCharacter
+// onToggleDisambiguator
 // ────────────────────────────────────────────────────────────────────────────
 
-describe('useTestEngine — showCharacter', () => {
-  it('puts the character on the card', () => {
-    const result = renderEngineWithState({ chosenCharacter: '你', showQuestionCharacter: false });
+describe('useTestEngine — onToggleDisambiguator', () => {
+  it('puts the disambiguator on the card', () => {
+    const result = renderEngineWithState({ chosenCharacter: '你', showDisambiguator: false });
 
     act(() => {
-      result.current.showCharacter();
+      result.current.onToggleDisambiguator();
     });
 
-    expect(result.current.state.showQuestionCharacter).toBe(true);
+    expect(result.current.state.showDisambiguator).toBe(true);
   });
 
   it('takes it off again, and leaves the status line alone', () => {
     const result = renderEngineWithState({
       chosenCharacter: '你',
-      showQuestionCharacter: true,
+      showDisambiguator: true,
       result: 'Try again',
     });
 
     act(() => {
-      result.current.showCharacter();
+      result.current.onToggleDisambiguator();
     });
 
-    expect(result.current.state.showQuestionCharacter).toBe(false);
+    expect(result.current.state.showDisambiguator).toBe(false);
     expect(result.current.state.result).toBe('Try again');
   });
 });
