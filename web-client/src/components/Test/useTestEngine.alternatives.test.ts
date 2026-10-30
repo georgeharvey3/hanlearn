@@ -295,51 +295,62 @@ describe('useTestEngine — alternative answers from the dictionary', () => {
 });
 
 describe('useTestEngine — the disambiguator after an alternative answer', () => {
-  it('logs that the learner looked at the disambiguator, and keeps the pass', () => {
-    const result = typedQuestion(SHI_IS, 'MP', ['is'], 'shi4');
+  it.each([
+    ['MP', SHI_IS, ['is'], 'shi4', 'matter', 'is'],
+    ['MC', CHANG, ['long'], '长', 'to grow', 'long'],
+    ['PC', CHANG, 'chang2', '长', 'zhang3', 'chang2'],
+    ['PM', XUNLIAN, 'xun4 lian4', ['to train', 'to drill'], 'pei2 xun4', 'xun4 lian4'],
+  ] as const)(
+    'shows the %s disambiguator with no tap, and keeps the pass',
+    (direction, asked, answer, question, alternative, correct) => {
+      const result = typedQuestion(
+        asked,
+        direction,
+        answer as string | string[],
+        question as string | string[],
+      );
 
-    submit(result, 'matter');
-    act(() => {
-      result.current.onToggleDisambiguator();
-    });
-    expect(result.current.state.showDisambiguator).toBe(true);
-    submit(result, 'is');
+      submit(result, alternative);
+      expect(result.current.state.showDisambiguator).toBe(true);
+      submit(result, correct);
 
-    expect(result.current.state.gradeList).toMatchObject([
-      { result: 'pass', alternatives: ['matter'], disambiguator: true },
-    ]);
-  });
-
-  it('logs that the learner had the disambiguator and did not use it', () => {
-    const result = typedQuestion(CHANG, 'MC', ['long'], '长');
-
-    submit(result, 'to grow');
-    submit(result, 'long');
-
-    expect(result.current.state.gradeList[0]).toMatchObject({ disambiguator: false });
-  });
+      expect(result.current.state.gradeList).toMatchObject([
+        { result: 'pass', alternatives: [alternative], disambiguator: true, hint: false },
+      ]);
+    },
+  );
 
   it('logs no disambiguator for a question that got no alternative answer', () => {
     const result = typedQuestion(CHANG, 'MC', ['long'], '长');
 
     submit(result, 'long');
 
-    expect(result.current.state.gradeList[0]).not.toHaveProperty('disambiguator');
+    expect(result.current.state.gradeList[0]).toMatchObject({ disambiguator: false });
   });
-});
 
-describe('useTestEngine — the initials of a pinyin answer (PC)', () => {
-  it('keeps the pass when the learner looks at the initials', () => {
+  // In PM the hint and the disambiguator are the same initials, and after an
+  // alternative answer they are already on the card. See issue #396.
+  it('keeps the PM pass when the learner presses the hint after an alternative answer', () => {
+    const result = typedQuestion(XUNLIAN, 'PM', 'xun4 lian4', ['to train', 'to drill']);
+
+    submit(result, 'pei2 xun4');
+    act(() => {
+      result.current.onHint();
+    });
+    submit(result, 'xun4 lian4');
+
+    expect(result.current.state.gradeList).toMatchObject([{ result: 'pass', hint: false }]);
+  });
+
+  it('caps the PC hint after an alternative answer, because the meaning is the disambiguator', () => {
     const result = typedQuestion(CHANG, 'PC', 'chang2', '长');
 
     submit(result, 'zhang3');
     act(() => {
-      result.current.onToggleDisambiguator();
+      result.current.onHint();
     });
     submit(result, 'chang2');
 
-    expect(result.current.state.gradeList).toMatchObject([
-      { result: 'pass', alternatives: ['zhang3'], disambiguator: true, hint: false },
-    ]);
+    expect(result.current.state.gradeList).toMatchObject([{ result: 'lapse', hint: true }]);
   });
 });

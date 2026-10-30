@@ -63,7 +63,10 @@ export interface TestState {
    * learner sends it. The review log reads it.
    */
   missCount: number;
-  /** Whether a hint was on screen at any time during the current question. */
+  /**
+   * Whether the learner asked for a hint during the current question. The
+   * outline that the writer shows after five misses on one stroke is not one.
+   */
   hintShown: boolean;
   /** The first wrong typed answer of the current question, or null. */
   firstWrongAnswer: string | null;

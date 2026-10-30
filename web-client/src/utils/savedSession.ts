@@ -1,4 +1,4 @@
-import { DirectionGrade, QueuePair, Word, WordScore } from '../types/models';
+import { DirectionGrade, DirectionResult, QueuePair, Word, WordScore } from '../types/models';
 import { dayKey } from './retention';
 import { RemoteAlternatives } from './alternativeAnswers';
 
@@ -32,6 +32,45 @@ export interface SeenOffset {
   english: string;
 }
 
+/**
+ * The question at the head of the queue, as far as the learner got with it: its
+ * grade cap, its aids and its attempts. A reload must not undo the cap of a
+ * hint, or give a free one. See issue #396.
+ */
+export interface CurrentQuestion {
+  pair: QueuePair;
+  /** The engine state of the question, with the names the engine gives it. */
+  aids: {
+    gradeCap: Exclude<DirectionResult, 'fail'>;
+    hintShown: boolean;
+    showDisambiguator: boolean;
+    disambiguatorShown: boolean;
+    alternativesSent: string[];
+    missCount: number;
+    toneErrorCount: number;
+    firstWrongAnswer: string | null;
+  };
+}
+
+/** Whether a stored value is a current question this build can restore. */
+const isCurrentQuestion = (value: unknown): value is CurrentQuestion => {
+  if (typeof value !== 'object' || value === null) return false;
+  const { pair, aids } = value as Partial<CurrentQuestion>;
+  return (
+    typeof pair?.index === 'string' &&
+    typeof pair.aCategory === 'string' &&
+    typeof pair.qCategory === 'string' &&
+    (aids?.gradeCap === 'pass' || aids?.gradeCap === 'lapse') &&
+    typeof aids.hintShown === 'boolean' &&
+    typeof aids.showDisambiguator === 'boolean' &&
+    typeof aids.disambiguatorShown === 'boolean' &&
+    Array.isArray(aids.alternativesSent) &&
+    typeof aids.missCount === 'number' &&
+    typeof aids.toneErrorCount === 'number' &&
+    (aids.firstWrongAnswer === null || typeof aids.firstWrongAnswer === 'string')
+  );
+};
+
 /** The vocab stage's progress: what is left to ask, and what it has graded. */
 export interface VocabProgress {
   queue: QueuePair[];
@@ -43,6 +82,8 @@ export interface VocabProgress {
    * so that a resumed session makes no call. Absent until the call returns.
    */
   alternatives?: RemoteAlternatives;
+  /** Absent until the learner does something on the question at the head. */
+  current?: CurrentQuestion;
 }
 
 export interface SavedSession extends VocabProgress {
@@ -113,7 +154,8 @@ function isSavedSession(value: unknown): value is SavedSession {
     typeof record.seenOffsets === 'object' &&
     record.seenOffsets !== null &&
     (record.alternatives === undefined ||
-      (typeof record.alternatives === 'object' && record.alternatives !== null))
+      (typeof record.alternatives === 'object' && record.alternatives !== null)) &&
+    (record.current === undefined || isCurrentQuestion(record.current))
   );
 }
 
@@ -240,6 +282,7 @@ export function restoreSession(saved: SavedSession, words: Word[]): RestoredSess
       gradeList: saved.gradeList,
       initialQueueLength: saved.initialQueueLength,
       ...(saved.alternatives ? { alternatives: saved.alternatives } : {}),
+      ...(saved.current ? { current: saved.current } : {}),
     },
   };
 }

@@ -1,6 +1,7 @@
 /**
  * The disambiguator on the question card. It narrows the question to its own
- * word, so it shows only after an alternative answer. See issue #348.
+ * word. It shows with no tap after an alternative answer, and `CM` has a
+ * button for it on every question. See issues #348 and #396.
  */
 import { vi, describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -27,7 +28,7 @@ const pairOf = (direction: string): QueuePair => ({
 /** The state of an open typed question, before any answer. */
 function questionState(
   asked: Word,
-  direction: 'MP' | 'MC' | 'PC',
+  direction: 'MP' | 'MC' | 'PC' | 'CM',
   overrides: Partial<TestState> = {},
 ): TestState {
   const category = { M: 'meaning', P: 'pinyin', C: 'character' } as const;
@@ -35,10 +36,10 @@ function questionState(
     testSet: [asked],
     currentPair: pairOf(direction),
     chosenCharacter: asked.simp,
-    answerCategory: category[direction[0] as 'M' | 'P'],
-    questionCategory: category[direction[1] as 'P' | 'C'],
-    question: direction[1] === 'P' ? asked.pinyin : asked.simp,
-    answer: direction[0] === 'P' ? asked.pinyin : [asked.meaning],
+    answerCategory: category[direction[0] as 'M' | 'P' | 'C'],
+    questionCategory: category[direction[1] as 'M' | 'P' | 'C'],
+    question: { M: [asked.meaning], P: asked.pinyin, C: asked.simp }[direction[1]],
+    answer: { M: [asked.meaning], P: asked.pinyin, C: asked.simp }[direction[0]],
     meaningQuizType: 'input',
     pinyinQuizType: 'input',
     useSound: true,
@@ -71,7 +72,7 @@ function renderCard(state: TestState) {
   return onToggleDisambiguator;
 }
 
-const showCharacter = () => screen.queryByRole('button', { name: copy.test.showCharacter });
+const anyButton = () => screen.queryByRole('button');
 
 describe('QuestionDisplay — the characters of a pinyin question (MP)', () => {
   it.each([
@@ -82,92 +83,91 @@ describe('QuestionDisplay — the characters of a pinyin question (MP)', () => {
   ])('offers no characters before an alternative answer, for %s', (_, asked, useSound) => {
     renderCard(questionState(asked, 'MP', { useSound }));
 
-    expect(showCharacter()).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Show character' })).not.toBeInTheDocument();
     expect(screen.queryByText(asked.simp)).not.toBeInTheDocument();
   });
 
   it.each([
-    ['a spoken one-character word', word('是', 'shi4', 'is'), true],
-    ['a spoken two-character word', word('权利', 'quan2 li4', 'right'), true],
-    ['a written one-character word', word('是', 'shi4', 'is'), false],
-    ['a written two-character word', word('权利', 'quan2 li4', 'right'), false],
-  ])('offers the characters after an alternative answer, for %s', (_, asked, useSound) => {
-    const onToggle = renderCard(
-      questionState(asked, 'MP', { useSound, alternativesSent: ['matter'] }),
-    );
-
-    showCharacter()!.click();
-    expect(onToggle).toHaveBeenCalled();
-  });
-
-  it('shows the characters once the learner asks for them', () => {
+    ['a spoken two-character word', true],
+    ['a written two-character word', false],
+  ])('shows the characters after an alternative answer, for %s', (_, useSound) => {
     const asked = word('权利', 'quan2 li4', 'right');
     renderCard(
       questionState(asked, 'MP', {
-        useSound: false,
+        useSound,
         alternativesSent: ['power'],
         showDisambiguator: true,
       }),
     );
 
     expect(screen.getByText('权利')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hide character' })).not.toBeInTheDocument();
   });
 });
 
 describe('QuestionDisplay — the pinyin of a character question (MC)', () => {
   const chang = word('长', 'chang2', 'long');
-  const showPinyin = () => screen.queryByRole('button', { name: copy.test.showPinyin });
 
-  it('offers no pinyin before an alternative answer', () => {
+  it('shows no pinyin before an alternative answer', () => {
     renderCard(questionState(chang, 'MC'));
 
-    expect(showPinyin()).not.toBeInTheDocument();
+    expect(screen.queryByText('cháng')).not.toBeInTheDocument();
+    expect(anyButton()).not.toBeInTheDocument();
   });
 
-  it('offers the pinyin after an alternative answer, and shows it on request', () => {
-    const onToggle = renderCard(questionState(chang, 'MC', { alternativesSent: ['to grow'] }));
-    showPinyin()!.click();
-    expect(onToggle).toHaveBeenCalled();
-  });
-
-  it('shows the pinyin once the learner asks for it', () => {
+  it('shows the pinyin after an alternative answer, with no button', () => {
     renderCard(
       questionState(chang, 'MC', { alternativesSent: ['to grow'], showDisambiguator: true }),
     );
 
     expect(screen.getByText('cháng')).toBeInTheDocument();
+    expect(anyButton()).not.toBeInTheDocument();
   });
 });
 
-describe('QuestionDisplay — the initials of a pinyin answer (PC)', () => {
-  const showInitials = () => screen.queryByRole('button', { name: copy.test.showInitials });
+describe('QuestionDisplay — the meaning of a pinyin answer (PC)', () => {
+  const chang = word('长', 'chang2', 'long');
 
-  it('offers neither the pinyin nor the initials before an alternative answer', () => {
-    renderCard(questionState(word('长', 'chang2', 'long'), 'PC'));
+  it('shows no meaning before an alternative answer', () => {
+    renderCard(questionState(chang, 'PC'));
 
-    expect(screen.queryByRole('button', { name: copy.test.showPinyin })).not.toBeInTheDocument();
-    expect(showInitials()).not.toBeInTheDocument();
+    expect(screen.queryByText('long')).not.toBeInTheDocument();
   });
 
-  it('offers the initials, never the pinyin, after an alternative answer', () => {
-    const onToggle = renderCard(
-      questionState(word('长', 'chang2', 'long'), 'PC', { alternativesSent: ['zhang3'] }),
+  it('shows the meaning of the asked reading after an alternative answer, never its pinyin', () => {
+    renderCard(
+      questionState(chang, 'PC', { alternativesSent: ['zhang3'], showDisambiguator: true }),
     );
 
-    expect(screen.queryByRole('button', { name: copy.test.showPinyin })).not.toBeInTheDocument();
+    expect(screen.getByText('long')).toBeInTheDocument();
+    expect(screen.queryByText('cháng')).not.toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(anyButton()).not.toBeInTheDocument();
+  });
+});
+
+describe('QuestionDisplay — the initials of a drawn answer (CM)', () => {
+  const changcheng = word('长城', 'Chang2 cheng2', 'the Great Wall');
+  const showInitials = () => screen.queryByRole('button', { name: copy.test.showInitials });
+
+  it('offers the initials on every question, before any answer', () => {
+    const onToggle = renderCard(questionState(changcheng, 'CM'));
+
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
     showInitials()!.click();
     expect(onToggle).toHaveBeenCalled();
   });
 
   it('shows the first letter of each syllable once the learner asks for them', () => {
-    renderCard(
-      questionState(word('长城', 'Chang2 cheng2', 'the Great Wall'), 'PC', {
-        alternativesSent: ['zhang3 cheng2'],
-        showDisambiguator: true,
-      }),
-    );
+    renderCard(questionState(changcheng, 'CM', { showDisambiguator: true }));
 
     expect(screen.getByRole('img', { name: copy.test.initialsLabel('c, c') })).toBeInTheDocument();
-    expect(screen.queryByText('cháng chéng')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: copy.test.hideInitials })).toBeInTheDocument();
+  });
+
+  it('takes the button off the reveal', () => {
+    renderCard(questionState(changcheng, 'CM', { outcome: 'pass' }));
+
+    expect(showInitials()).not.toBeInTheDocument();
   });
 });

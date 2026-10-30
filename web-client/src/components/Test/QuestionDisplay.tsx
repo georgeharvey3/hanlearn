@@ -5,6 +5,7 @@ import VolumeUpRoundedIcon from '@mui/icons-material/VolumeUpRounded';
 import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
 import { toneMarks } from '../../utils/pinyinMarks';
+import { parseMeanings } from '../../utils/meaningUtils';
 import {
   CardRule,
   CardSize,
@@ -186,7 +187,12 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
     .split(' ')
     .filter(Boolean)
     .map((syllable) => syllable[0].toLowerCase());
-  const meanings = asList(state.questionCategory === 'meaning' ? state.question : state.answer);
+  const meanings =
+    state.questionCategory === 'meaning'
+      ? asList(state.question)
+      : state.answerCategory === 'meaning'
+        ? asList(state.answer)
+        : parseMeanings(word?.meaning ?? '');
   const meaningText = meanings.join(' · ');
   const speak = () => state.chosenCharacter && onSpeak(state.chosenCharacter);
   const playCorner = revealed && state.useSound && (
@@ -206,26 +212,18 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
     </IconButton>
   );
 
-  // The disambiguator names the asked word: the characters of a pinyin
-  // question, the pinyin of a character question that asks for the meaning,
-  // and the first letter of each syllable of one that asks for the pinyin. It
-  // shows only after an alternative answer, when the question has proved
-  // ambiguous. The initials are part of the answer, but by then the
-  // learner has given a valid reading, so they pick a reading rather than prompt
-  // a recall. See issue #348.
-  const disambiguable =
-    !revealed &&
-    state.alternativesSent.length > 0 &&
-    (state.questionCategory === 'character'
-      ? state.answerCategory === 'meaning' || state.answerCategory === 'pinyin'
-      : state.questionCategory === 'pinyin' && state.answerCategory === 'meaning');
-  const disambiguated = disambiguable && state.showDisambiguator;
-  const disambiguatorToggle = (show: string, hide: string) =>
-    disambiguable && (
-      <PillToggle pressed={disambiguated} onClick={onToggleDisambiguator}>
-        {disambiguated ? hide : show}
-      </PillToggle>
-    );
+  // The disambiguator names the asked word with a part of it that the question
+  // does not ask: the characters for `MP`, the pinyin for `MC`, the meaning for
+  // `PC`, and the initials for `CM`. The engine shows it after an alternative
+  // answer, and `CM` has a button for it. `PM` shows its initials where the
+  // hint shows. See issue #396.
+  const disambiguated = !revealed && state.showDisambiguator;
+  const initials = firstLetters.length > 0 && (
+    <Initials
+      initials={firstLetters.map((letter) => letter + '__')}
+      label={copy.test.initialsLabel(firstLetters.join(', '))}
+    />
+  );
 
   const meaningLine = (fontSize: number, color: string, bold: boolean) => (
     <Box sx={{ fontSize, color, fontWeight: bold ? 600 : 400, lineHeight: 1.3 }}>{meaningText}</Box>
@@ -240,22 +238,12 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
         <Box lang="zh" sx={hanziSx(hanziSize(hanzi, size))}>
           {hanzi}
         </Box>
-        {asked('pinyin') ? (
-          <>
-            {disambiguated && (
-              <Initials
-                initials={firstLetters.map((letter) => letter + '__')}
-                label={copy.test.initialsLabel(firstLetters.join(', '))}
-              />
-            )}
-            {disambiguatorToggle(copy.test.showInitials, copy.test.hideInitials)}
-          </>
-        ) : (
-          <>
-            {disambiguated && <Pinyin text={pinyin} size={22} />}
-            {disambiguatorToggle(copy.test.showPinyin, copy.test.hidePinyin)}
-          </>
-        )}
+        {disambiguated &&
+          (asked('pinyin') ? (
+            meaningLine(16, colors.textSecondary, false)
+          ) : (
+            <Pinyin text={pinyin} size={22} />
+          ))}
         {revealed && flashcard && !compact && <CardRule />}
         {revealed && (
           <Pinyin
@@ -327,6 +315,14 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
         {writing && revealed && (
           <Pinyin text={pinyin} size={compact ? 16 : 18} color={colors.textSecondary} />
         )}
+        {writing && !revealed && (
+          <>
+            {disambiguated && initials}
+            <PillToggle pressed={disambiguated} onClick={onToggleDisambiguator}>
+              {disambiguated ? copy.test.hideInitials : copy.test.showInitials}
+            </PillToggle>
+          </>
+        )}
         {!writing && revealed && (
           <>
             {(flashcard || failed) && <CardRule />}
@@ -378,12 +374,9 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
             <PlayButton size={96} loading={state.synthLoading} onClick={speak} />
           )}
           {shownPinyin && <Pinyin text={pinyin} size={24} />}
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <PillToggle pressed={shownPinyin} onClick={onToggleShowPinyin}>
-              {shownPinyin ? copy.test.hidePinyin : copy.test.showPinyin}
-            </PillToggle>
-            {disambiguatorToggle(copy.test.showCharacter, copy.test.hideCharacter)}
-          </Box>
+          <PillToggle pressed={shownPinyin} onClick={onToggleShowPinyin}>
+            {shownPinyin ? copy.test.hidePinyin : copy.test.showPinyin}
+          </PillToggle>
           <Hint state={state} onPlaySentence={onPlayHintSentence} />
         </>
       );
@@ -398,7 +391,6 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
               {hanzi}
             </Box>
           )}
-          {disambiguatorToggle(copy.test.showCharacter, copy.test.hideCharacter)}
           <Hint state={state} onPlaySentence={onPlayHintSentence} />
         </>
       );

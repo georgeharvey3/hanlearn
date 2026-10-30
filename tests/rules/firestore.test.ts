@@ -412,7 +412,7 @@ describe('reviewLog', () => {
   });
 
   const session = (reviews: unknown[], extra: Record<string, unknown> = {}) => ({
-    version: 1,
+    version: 2,
     date: '2026-10-27',
     reviewedAt: Timestamp.now(),
     scheduler: 'fsrs-6-default',
@@ -422,6 +422,18 @@ describe('reviewLog', () => {
 
   it('accepts the document a session writes', async () => {
     await assertSucceeds(setDoc(ref(db, path), session([entry()])));
+  });
+
+  // Version 2 records an asked-for hint and the disambiguator apart (#396).
+  it('accepts a version 2 entry with a hint and a disambiguator', async () => {
+    await assertSucceeds(
+      setDoc(ref(db, path), session([entry({ hint: true, disambiguator: true })])),
+    );
+  });
+
+  // A cached bundle writes version 1 until the version check reloads it.
+  it('accepts a version 1 document', async () => {
+    await assertSucceeds(setDoc(ref(db, path), session([entry()], { version: 1 })));
   });
 
   it('accepts a direction that was never passed', async () => {
@@ -434,15 +446,14 @@ describe('reviewLog', () => {
     await assertSucceeds(setDoc(ref(db, path), session([legacyEntry()])));
   });
 
-  it('accepts a flashcard and a handwriting entry, with no misses, answer, alternatives or disambiguator', async () => {
+  it('accepts a flashcard and a handwriting entry, with no misses, answer or alternatives', async () => {
     const {
       misses: _m,
       answer: _a,
       alternatives: _c,
-      disambiguator: _e,
       ...flashcard
-    } = entry({ mode: 'flashcard' });
-    const { answer: _b, alternatives: _d, disambiguator: _f, ...handwriting } = entry({
+    } = entry({ mode: 'flashcard', disambiguator: false });
+    const { answer: _b, alternatives: _d, ...handwriting } = entry({
       mode: 'handwriting',
       direction: 'CM',
     });
@@ -465,7 +476,7 @@ describe('reviewLog', () => {
   });
 
   it('rejects a wrong type at the top level', async () => {
-    await assertFails(setDoc(ref(db, path), session([entry()], { version: 2 })));
+    await assertFails(setDoc(ref(db, path), session([entry()], { version: 3 })));
     await assertFails(setDoc(ref(db, path), session([entry()], { date: 20261027 })));
     await assertFails(setDoc(ref(db, path), session([entry()], { reviewedAt: '2026-10-27' })));
     await assertFails(setDoc(ref(db, path), session([entry()], { scheduler: 6 })));
