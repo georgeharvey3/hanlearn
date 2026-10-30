@@ -116,6 +116,7 @@ export const copy = {
     MP: 'Listening',
     PM: 'Speaking',
     MC: 'Reading',
+    PC: 'Pronunciation',
     CM: 'Writing',
     onlyPriority: 'Only this skill',
     // Stages
@@ -459,7 +460,7 @@ export const copy = {
     },
     skills: {
       // The skill each direction trains, by its answer-first code.
-      names: { MC: 'Reading', MP: 'Listening', PM: 'Speaking', PC: 'Pronouncing', CM: 'Writing' },
+      names: { MC: 'Reading', MP: 'Listening', PM: 'Speaking', PC: 'Pronunciation', CM: 'Writing' },
       strong: 'Familiar or better',
       recall: 'Recalled, 30 days',
       noWords: 'No words yet',

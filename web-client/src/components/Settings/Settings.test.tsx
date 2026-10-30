@@ -214,6 +214,24 @@ describe('Settings — Focus', () => {
     expect(header('Skill focus')).toHaveTextContent('Listening only');
   });
 
+  it('offers Pronunciation, the character question that asks for the pinyin', async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    await open(user, 'Skill focus');
+
+    await user.click(screen.getByRole('radio', { name: 'Pronunciation' }));
+    expect(localStorage.getItem('priority')).toBe('PC');
+  });
+
+  it('keeps a stored Pronunciation focus', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('priority', 'PC');
+    renderSettings();
+    await open(user, 'Skill focus');
+
+    expect(screen.getByRole('radio', { name: 'Pronunciation' })).toBeChecked();
+  });
+
   it('turns off Only this skill when the focus goes back to none', async () => {
     const user = userEvent.setup();
     localStorage.setItem('priority', 'MC');
