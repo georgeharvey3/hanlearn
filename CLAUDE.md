@@ -299,7 +299,7 @@ feature/xyz ──PR──▸ develop ──PR──▸ main ──▸ productio
 
 ### Release Process
 
-1. Feature branches are merged into `develop` via PR (CI runs automatically). Each PR gets a preview channel of the staging project, and each merge to `develop` deploys staging (`deploy-staging.yml`). No build other than production uses production data. See [docs/environments.md](docs/environments.md) for the staging setup, its seed, and the rollback procedure
+1. Feature branches are merged into `develop` via PR (CI runs automatically). Each PR gets a preview channel of the staging project and deploys its Cloud Functions to staging, and each merge to `develop` deploys staging (`deploy-staging.yml`). No build other than production uses production data. See [docs/environments.md](docs/environments.md) for the staging setup, its seed, and the rollback procedure
 2. When ready to release, create a PR from `develop` → `main`
 3. On merge to `main`, the deploy workflow automatically:
    - Builds web-client and Cloud Functions
