@@ -26,6 +26,11 @@ jobs:
         run: npm ci
         working-directory: web-client
 
+      # The premade lists and the example sentences are build:dict output in
+      # web-client/public/. Without this step the preview has neither.
+      - name: Build dictionary
+        run: npm run build:dict
+
       - name: Build
         run: npm run build
         working-directory: web-client
