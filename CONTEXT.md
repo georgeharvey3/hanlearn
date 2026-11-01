@@ -282,6 +282,36 @@ every word of the session. It does not touch the Write gate, and neither does
 practice mode. The setting is stored as `sentenceStagesForAllWords`, which is
 the name it had when it widened both.
 
+## Example sentence
+
+An **example sentence** is one Chinese sentence that holds a word, with its
+English translation and its source. The sentence stages and the hint show
+example sentences. Do not call the set of them a "sentence bank": a **bank** is
+the band of an interval.
+
+A **segment** is one word of an example sentence, as the splitter cuts it. The
+**target segment** is the segment that is the word under study. A sentence
+matches a word only through a segment, so 生 does not match a sentence that
+holds 学生.
+
+The **HSK level** of a sentence is the highest HSK level of its counted
+segments, other than the target segment. Names and numbers do not count.
+Always write "HSK level" in full, because a bare **level** is the band of an
+interval.
+
+Each sentence of a word comes in at one **fill step**:
+
+| Fill step   | The sentence                                           |
+| ----------- | ------------------------------------------------------ |
+| `strict`    | has no counted segment above the HSK level of the word |
+| `relaxed`   | has one counted segment one HSK level above the word   |
+| `generated` | came from an AI, and passed the strict rule            |
+
+The **origin** of a sentence says whether a person or a machine wrote its
+Chinese and its English. A real sentence with a human translation, a real
+sentence with a machine translation, and a generated sentence are the three
+kinds.
+
 ## Practice
 
 **Practice mode** is the unscored run that ignores due dates. This is the only
