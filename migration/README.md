@@ -90,3 +90,21 @@ The export script reads the `sentenceCache` collection of production. It does no
 2. Run `npm install` in this directory.
 3. Run `node export-sentence-cache.js`.
 4. Commit `sentences/sentence-cache.json`.
+
+## Example Sentence Build
+
+`npm run build:dict` builds the example sentences from the source files, after the premade lists. The build uses no network and no AI. The rules are in `exampleSentences.js`, and `build-dictionary.js` reads and writes the files.
+
+The build writes these files to `web-client/public/sentences/`. They are build output, and git ignores them:
+
+| File | Contents |
+|---|---|
+| `<code point>.json` | The sentences of each word that starts with this character. `56fe.json` holds 图书馆. |
+| `ATTRIBUTION.txt` | One line for each sentence: its id, its source and its author |
+| `LICENSE.txt` | The licence of the files (CC BY-SA 4.0) and of each source |
+
+The build also prints a coverage report. A local run writes the report to `sentences/coverage.md`. CI only prints it. Commit `coverage.md` when it changes, so that a pull request shows the change in coverage.
+
+The build stops on a malformed source record, on a generated sentence that fails the grader, and on a sentence file over 2 MB. It does not stop on low coverage.
+
+If `sentences/generated.json` exists, the build reads it. Each record has the fields of a source record and a `headword`, which is the word that the sentence is for. Issue #468 adds this file.

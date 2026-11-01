@@ -7,6 +7,7 @@ web-client/build
 web-client/public/dictionary.json
 functions/data/dictionary.json
 web-client/public/premade-lists/
+web-client/public/sentences/
 functions/data/char-definitions.json
 functions/lib
 
