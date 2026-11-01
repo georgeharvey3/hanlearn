@@ -57,3 +57,4 @@ __pycache__
 .Python
 env/
 venv/
+migration/sentences/scratch/

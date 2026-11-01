@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { buildExampleSentences, sentenceId } from './exampleSentences';
+import { acceptCandidates, buildExampleSentences, sentenceId } from './exampleSentences';
 
 /**
  * The real CC-CEDICT entries of the given simplified words, numbered by their
@@ -451,7 +451,24 @@ describe('the report and the gaps', () => {
     const hsk1 = result.report.split('\n').find((line) => line.startsWith('| HSK 1 |'));
     // 看 is strict only. 我 and 书 need the relaxed 我行书. The other HSK 1 words have none.
     const hsk1Words = new Set(HSK.filter((w) => w.level === 1).map((w) => w.simp)).size;
-    expect(hsk1).toBe(`| HSK 1 | ${hsk1Words} | 1 | 2 | 0 | ${hsk1Words} | ${hsk1Words - 3} |`);
+    expect(hsk1).toBe(`| HSK 1 | ${hsk1Words} | 1 | 2 | 0 | ${hsk1Words} | ${hsk1Words - 3} | 0 |`);
+  });
+
+  it('reports a word that failed 3 rounds as unfilled, and leaves it out of the gaps', () => {
+    const result = buildExampleSentences({
+      dictionary,
+      hsk: HSK,
+      sources: [{ source: 'tatoeba', records: [record('我看书。')] }],
+      unfilled: ['书', '研究'],
+      licences: LICENCES,
+      toSimplified,
+    });
+    expect(result.gaps.map((gap) => gap.word)).not.toContain('书');
+    expect(result.gaps.map((gap) => gap.word)).not.toContain('研究');
+    expect(result.report.split('\n').find((line) => line.startsWith('| HSK 4 |'))).toMatch(/ \| 1 \|$/);
+    expect(result.report).toContain('## Unfilled after 3 rounds');
+    expect(result.report).toContain('- HSK 1: 书');
+    expect(result.report).toContain('- HSK 4: 研究');
   });
 
   it('lists each HSK word with fewer than 5 sentences, with its cap and need', () => {
@@ -485,5 +502,115 @@ describe('build failures', () => {
       '我们吃饭。', '我们喜欢书。', '我们去中国。', '我们很好。', '我说汉语。', '我们说汉语。']
       .map((t) => record(t, { english }));
     expect(() => build(records)).toThrow(/over the limit of 2 MB/);
+  });
+});
+
+describe('accepting generated candidates', () => {
+  const inputs = (records, { gen = [], unfilled = [] } = {}) => ({
+    dictionary,
+    hsk: HSK,
+    sources: [{ source: 'tatoeba', records }],
+    generated: gen,
+    unfilled,
+    licences: LICENCES,
+    toSimplified,
+  });
+  const accept = (candidates, { records = [], gen = [], rounds = {} } = {}) =>
+    acceptCandidates(inputs(records, { gen }), candidates, rounds);
+
+  it('accepts a candidate that passes and gives each reject its reason', () => {
+    const result = accept([
+      { word: '书', simp: '老师读书。', english: 'The teacher reads.' },
+      { word: '书', simp: '我研究书。', english: 'I study books.' },
+    ]);
+    expect(result.records).toEqual([
+      {
+        source: 'generated',
+        sourceId: sentenceId('老师读书。'),
+        written: 'simp',
+        simp: '老师读书。',
+        trad: null,
+        english: 'The teacher reads.',
+        owner: null,
+        headword: '书',
+        generator: 'claude-code',
+        origin: { chinese: 'machine', english: 'machine' },
+      },
+    ]);
+    expect(result.rejects).toEqual([
+      { word: '书', simp: '我研究书。', reason: 'segments above HSK 1: 研究 (4)' },
+    ]);
+  });
+
+  it('accepts no more sentences than a word needs', () => {
+    // 书 has 3 strict sentences, so it needs 2.
+    const records = [record('我看书。'), record('你读书。'), record('他喜欢书。')];
+    const result = accept(
+      [
+        { word: '书', simp: '老师读书。', english: 'a' },
+        { word: '书', simp: '朋友喜欢书。', english: 'b' },
+        { word: '书', simp: '我们去看书。', english: 'c' },
+        { word: '是', simp: '我们是学生。', english: 'd' },
+      ],
+      { records: [...records, ...['我是。', '你是我们。', '他是老师。', '她是朋友。', '学生是我。'].map((t) => record(t))] },
+    );
+    expect(result.records.map((r) => r.simp)).toEqual(['老师读书。', '朋友喜欢书。']);
+    expect(result.rejects).toEqual([
+      { word: '书', simp: '我们去看书。', reason: 'the word needs no more sentences' },
+      { word: '是', simp: '我们是学生。', reason: 'the word needs no more sentences' },
+    ]);
+  });
+
+  it('rejects a candidate for a word outside HSK', () => {
+    const result = accept([{ word: '汤姆', simp: '汤姆读书。', english: 'Tom reads.' }]);
+    expect(result.rejects).toEqual([{ word: '汤姆', simp: '汤姆读书。', reason: 'is not an HSK word' }]);
+  });
+
+  it('rejects a candidate that is already a sentence, in a source or in the same round', () => {
+    const result = accept(
+      [
+        { word: '书', simp: '我看书。', english: 'a' },
+        { word: '书', simp: '老师读书。', english: 'b' },
+        { word: '书', simp: '老师读书。', english: 'c' },
+      ],
+      { records: [record('我看书。')] },
+    );
+    expect(result.rejects.map((r) => r.reason)).toEqual(['is already a sentence', 'is already a sentence']);
+  });
+
+  it('rejects a candidate too like a sentence that the word has', () => {
+    // {我, 看} of 我看书 against {我, 看, 了} of 我看书了: 2/3 > 0.5.
+    const result = accept(
+      [
+        { word: '书', simp: '我看书了。', english: 'a' },
+        { word: '书', simp: '老师读书。', english: 'b' },
+        { word: '书', simp: '老师读书了。', english: 'c' },
+      ],
+      { records: [record('我看书。')] },
+    );
+    expect(result.records.map((r) => r.simp)).toEqual(['老师读书。']);
+    expect(result.rejects.map((r) => r.reason)).toEqual(['too like 我看书。', 'too like 老师读书。']);
+  });
+
+  it('counts a failed round for each word that the round leaves short', () => {
+    const result = accept(
+      [
+        { word: '书', simp: '我研究书。', english: 'a' },
+        { word: '吃', simp: '我吃饭。', english: 'b' },
+        { word: '吃', simp: '你吃了。', english: 'c' },
+        { word: '吃', simp: '他们吃大饭。', english: 'd' },
+        { word: '吃', simp: '老师去吃饭。', english: 'e' },
+        { word: '吃', simp: '朋友很好吃。', english: 'f' },
+      ],
+      { rounds: { 书: 1, 吃: 2 } },
+    );
+    // 书 is still short. 吃 has its 5, so its count goes.
+    expect(result.rounds).toEqual({ 书: 2 });
+  });
+
+  it('rejects a candidate for a word that failed 3 rounds', () => {
+    const result = accept([{ word: '书', simp: '老师读书。', english: 'a' }], { rounds: { 书: 3 } });
+    expect(result.rejects).toEqual([{ word: '书', simp: '老师读书。', reason: 'the word failed 3 rounds' }]);
+    expect(result.rounds).toEqual({ 书: 3 });
   });
 });
