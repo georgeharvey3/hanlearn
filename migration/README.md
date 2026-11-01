@@ -54,3 +54,39 @@ The `import_firestore.ts` script can import the dictionary to Firestore, but thi
 - Read costs every time users search
 
 Use the static dictionary approach instead.
+
+## Sentence Sources
+
+The example sentences of #465 come from one committed source file for each sentence source. The build reads these source files, so it needs no network. The source files are in `sentences/`:
+
+| Source file | Made by | Licence |
+|---|---|---|
+| `sentences/tatoeba.json` | `fetch-tatoeba.js` | CC BY 2.0 FR |
+| `sentences/wiktionary.json` | `fetch-wiktionary.js` | CC BY-SA 4.0 |
+| `sentences/sentence-cache.json` | `export-sentence-cache.js` | None (Gemini output) |
+
+A source file holds its source, its download date and its licence, then one source record on each line. `sentenceSources.js` holds the rules and gives the fields of a record. A new download shows as a line diff in a pull request.
+
+### Download Tatoeba or Wiktionary again
+
+1. Make sure that `bunzip2` is on the `PATH`. The Tatoeba script needs it.
+2. Run the fetch script of the source:
+
+   ```bash
+   cd migration
+   node fetch-tatoeba.js
+   node fetch-wiktionary.js
+   ```
+
+3. Read the diff of the source file, then commit it.
+
+The Tatoeba script keeps the Mandarin sentences that have a direct link to an English sentence. It drops the sentences with a tag that marks them as wrong, and the sentences that mix simplified and traditional characters. The Wiktionary script keeps the Mandarin usage examples that have an English translation.
+
+### Export sentenceCache
+
+The export script reads the `sentenceCache` collection of production. It does not write to Firestore.
+
+1. Save a service account key of the production project as `service-account.json` in this directory. A key with the Cloud Datastore Viewer role is sufficient.
+2. Run `npm install` in this directory.
+3. Run `node export-sentence-cache.js`.
+4. Commit `sentences/sentence-cache.json`.

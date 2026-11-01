@@ -168,6 +168,8 @@ The CC-CEDICT dictionary (~124K entries) is built via `npm run build:dict`, whic
 
 The same build writes the catalogue of **premade lists** (HSK 3.0) to `web-client/public/premade-lists/`. A pure resolver, [migration/premadeCatalogue.js](migration/premadeCatalogue.js), gives each source word one dictionary entry, and [migration/hsk/overrides.json](migration/hsk/overrides.json) settles the ambiguous words. If a word does not resolve, the build fails. See [migration/hsk/README.md](migration/hsk/README.md). The build also writes the HSK frequency rank `q` onto each HSK entry of `dictionary.json`, and `dictionarySearch` ranks by it, because CC-CEDICT has no frequency field.
 
+The example sentences of #465 start from one committed source file for each of Tatoeba, Wiktionary and the `sentenceCache` export, in `migration/sentences/`. One fetch or export script makes each source file, and the pure parsers are in [migration/sentenceSources.js](migration/sentenceSources.js). See [docs/adr/0019-example-sentences-are-a-committed-build.md](docs/adr/0019-example-sentences-are-a-committed-build.md) and [migration/README.md](migration/README.md).
+
 ### Spaced Repetition Algorithm
 
 The calculation is in [web-client/src/utils/scheduling.ts](web-client/src/utils/scheduling.ts), and `finishTest` in [web-client/src/services/wordService.ts](web-client/src/services/wordService.ts) holds the Firestore write:
