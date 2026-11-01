@@ -89,6 +89,10 @@ function accept(candidates) {
   console.log('');
   console.log(`${result.records.length} passed, ${result.rejects.length} rejected, of ${candidates.length} candidates.`);
   console.log(`The generated file holds ${records.length} sentences: ${GENERATED_PATH}`);
+  const retry = result.short.filter(({ word }) => result.rounds[word] < 3);
+  if (retry.length > 0) {
+    console.log(`Still short: ${retry.map(({ word, needed }) => `${word} (${needed}, round ${result.rounds[word]})`).join(', ')}`);
+  }
   if (newlyFailed.length > 0) console.log(`Unfilled after 3 rounds: ${newlyFailed.join(', ')}`);
 }
 

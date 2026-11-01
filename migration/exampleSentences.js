@@ -768,10 +768,11 @@ const GENERATOR = 'claude-code';
  *   candidates  [{ word, simp, english }]
  *   rounds      the failed rounds of each word so far: { [word]: number }
  *
- * Returns { records, rejects, rounds }:
+ * Returns { records, rejects, rounds, short }:
  *   records     the generated records of the candidates that pass
  *   rejects     [{ word, simp, reason }]
  *   rounds      the failed rounds after this round
+ *   short       [{ word, needed }]: the words of this round that are still short
  */
 function acceptCandidates(inputs, candidates, rounds = {}) {
   const built = buildAll(inputs);
@@ -856,12 +857,15 @@ function acceptCandidates(inputs, candidates, rounds = {}) {
   }
   // A round fails for a word when the word is still short after it.
   const after = { ...rounds };
+  const short = [];
   for (const word of new Set(candidates.map((c) => c.word))) {
     if (!index.hskBySimp.has(word) || (rounds[word] ?? 0) >= MAX_ROUNDS) continue;
-    if (needed.get(word) > 0) after[word] = (rounds[word] ?? 0) + 1;
-    else delete after[word];
+    if (needed.get(word) > 0) {
+      after[word] = (rounds[word] ?? 0) + 1;
+      short.push({ word, needed: needed.get(word) });
+    } else delete after[word];
   }
-  return { records, rejects, rounds: after };
+  return { records, rejects, rounds: after, short };
 }
 
 /** The counted segments of a sentence above the level of a word, as text. */

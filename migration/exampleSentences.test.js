@@ -606,6 +606,7 @@ describe('accepting generated candidates', () => {
     );
     // 书 is still short. 吃 has its 5, so its count goes.
     expect(result.rounds).toEqual({ 书: 2 });
+    expect(result.short).toEqual([{ word: '书', needed: 5 }]);
   });
 
   it('rejects a candidate for a word that failed 3 rounds', () => {
