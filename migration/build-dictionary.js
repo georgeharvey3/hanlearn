@@ -10,13 +10,18 @@
  * Output:
  *   ../web-client/public/dictionary.json
  *   ../web-client/public/premade-lists/ (the catalogue of premade lists)
+ *   ../web-client/public/sentences/ (the example sentences, see #465)
+ *   sentences/coverage.md (the coverage report, on a local run only)
  */
 
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+const { createRequire } = require('module');
 const { ranksOf, resolveCatalogue } = require('./premadeCatalogue');
+const { buildExampleSentences } = require('./exampleSentences');
+const sentenceLicences = require('./sentenceLicences');
 
 /**
  * The HSK 3.0 bands of the catalogue, from drkameleon/complete-hsk-vocabulary
@@ -74,7 +79,92 @@ function buildCatalogue(words, outputDir) {
     'Wrote ' + catalogue.length + ' premade lists to: ' + outputDir +
       ' (' + index.map((list) => list.name + ': ' + list.size).join(', ') + ')',
   );
-  return ranksOf(source, overrides, catalogue);
+  return { catalogue, ranks: ranksOf(source, overrides, catalogue) };
+}
+
+/** The level of each list of HSK_LISTS: 1 to 6, and 7 for HSK 7–9. */
+const levelOfList = (index) => Math.min(index + 1, 7);
+
+/**
+ * Write the example sentence files from the committed source copies in
+ * sentences/, with no network and no AI. A local run also writes the coverage
+ * report to sentences/coverage.md. CI only prints it.
+ *
+ * Fails the build on a malformed source record, on a generated sentence that
+ * fails the grader, and on a sentence file over 2 MB.
+ */
+function buildSentences(words, catalogue, ranks, outputDir) {
+  const sourcesDir = path.join(__dirname, 'sentences');
+  const read = (name) => JSON.parse(fs.readFileSync(path.join(sourcesDir, name), 'utf8'));
+  const sources = ['tatoeba.json', 'wiktionary.json', 'sentence-cache.json'].map(read);
+  const generatedPath = path.join(sourcesDir, 'generated.json');
+  const generated = fs.existsSync(generatedPath) ? read('generated.json').records : [];
+
+  // opencc-js is a dependency of web-client, which CI installs before this
+  // build. The root and migration/ have no install step in the deploy jobs.
+  const OpenCC = createRequire(path.join(__dirname, '..', 'web-client', 'package.json'))('opencc-js');
+  const toSimplified = OpenCC.Converter({ from: 'tw', to: 'cn' });
+
+  const hsk = catalogue.flatMap((list, i) =>
+    list.entries.map((entry) => ({
+      simp: entry.simp,
+      level: levelOfList(i),
+      entry,
+      q: ranks.get(entry.id),
+    })),
+  );
+  const result = buildExampleSentences({
+    dictionary: words,
+    hsk,
+    sources,
+    generated,
+    licences: sentenceLicences,
+    toSimplified,
+  });
+
+  fs.rmSync(outputDir, { recursive: true, force: true });
+  fs.mkdirSync(outputDir, { recursive: true });
+  for (const [name, content] of Object.entries(result.files)) {
+    fs.writeFileSync(path.join(outputDir, name + '.json'), JSON.stringify(content));
+  }
+  fs.writeFileSync(path.join(outputDir, 'ATTRIBUTION.txt'), result.attribution.join('\n') + '\n');
+  fs.writeFileSync(path.join(outputDir, 'LICENSE.txt'), licenceText(sources));
+
+  console.log(
+    'Wrote ' + Object.keys(result.files).length + ' sentence files and ' +
+      result.attribution.length + ' sentences to: ' + outputDir +
+      ' (' + result.rejects.length + ' sentences dropped)',
+  );
+  console.log('');
+  console.log(result.report);
+  if (!process.env.CI) {
+    fs.writeFileSync(path.join(sourcesDir, 'coverage.md'), result.report);
+    console.log('Also wrote: ' + path.join(sourcesDir, 'coverage.md'));
+  }
+}
+
+/** The text of LICENSE.txt: the licence of the files and of each source. */
+function licenceText(sources) {
+  const lines = [
+    'The example sentence files in this directory are licensed under CC BY-SA 4.0',
+    '(https://creativecommons.org/licenses/by-sa/4.0/), because some sentences come',
+    'from Wiktionary, which is share-alike. This licence covers these data files',
+    'only, not the HanLearn app.',
+    '',
+    'ATTRIBUTION.txt names the source and the author of each sentence.',
+    '',
+    'Sources:',
+  ];
+  for (const { source, downloaded, licence } of sources) {
+    lines.push('');
+    lines.push('- ' + source + ' (downloaded ' + downloaded + '): ' + licence.name +
+      (licence.url ? ' (' + licence.url + ')' : ''));
+    lines.push('  ' + licence.attribution);
+  }
+  lines.push('');
+  lines.push('- The segments, pinyin and glosses come from CC-CEDICT (https://cc-cedict.org),');
+  lines.push('  CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/).');
+  return lines.join('\n') + '\n';
 }
 
 /**
@@ -166,7 +256,10 @@ async function buildDictionary() {
   }
 
   console.log('Writing the premade lists...');
-  const ranks = buildCatalogue(words, path.join(outputDir, 'premade-lists'));
+  const { catalogue, ranks } = buildCatalogue(words, path.join(outputDir, 'premade-lists'));
+
+  console.log('Writing the example sentences...');
+  buildSentences(words, catalogue, ranks, path.join(outputDir, 'sentences'));
 
   // Write as compact JSON (no pretty printing to save space). An HSK word
   // carries the frequency rank `q` of the source, which the dictionary search
