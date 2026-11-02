@@ -5,7 +5,7 @@
  * #468 and sentences/GENERATE.md.
  *
  * Each call is one round for each word of its candidates. A word that is
- * still short after 3 rounds stays unfilled, and the coverage report lists it.
+ * still short after MAX_ROUNDS rounds stays unfilled, and the coverage report lists it.
  *
  * Usage:
  *   node sentence-accept.js <candidates.json>...
@@ -16,7 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const { readCedict, resolveHsk, sentenceInputs, GENERATED_PATH } = require('./build-dictionary');
-const { acceptCandidates } = require('./exampleSentences');
+const { acceptCandidates, unfilledOf, MAX_ROUNDS } = require('./exampleSentences');
 
 const LICENCE = {
   name: 'None',
@@ -84,16 +84,16 @@ function accept(candidates) {
   for (const reject of result.rejects) {
     console.log(`REJECT ${reject.word} ${reject.simp} : ${reject.reason}`);
   }
-  const failed = Object.entries(result.rounds).filter(([, count]) => count >= 3).map(([word]) => word);
-  const newlyFailed = failed.filter((word) => !((generatedFile.rounds ?? {})[word] >= 3));
+  const before = new Set(unfilledOf(generatedFile));
+  const newlyFailed = unfilledOf({ rounds: result.rounds }).filter((word) => !before.has(word));
   console.log('');
   console.log(`${result.records.length} passed, ${result.rejects.length} rejected, of ${candidates.length} candidates.`);
   console.log(`The generated file holds ${records.length} sentences: ${GENERATED_PATH}`);
-  const retry = result.short.filter(({ word }) => result.rounds[word] < 3);
+  const retry = result.short.filter(({ word }) => result.rounds[word] < MAX_ROUNDS);
   if (retry.length > 0) {
     console.log(`Still short: ${retry.map(({ word, needed }) => `${word} (${needed}, round ${result.rounds[word]})`).join(', ')}`);
   }
-  if (newlyFailed.length > 0) console.log(`Unfilled after 3 rounds: ${newlyFailed.join(', ')}`);
+  if (newlyFailed.length > 0) console.log(`Unfilled after ${MAX_ROUNDS} rounds: ${newlyFailed.join(', ')}`);
 }
 
 main();

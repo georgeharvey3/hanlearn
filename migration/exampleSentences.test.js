@@ -614,4 +614,11 @@ describe('accepting generated candidates', () => {
     expect(result.rejects).toEqual([{ word: '书', simp: '老师读书。', reason: 'the word failed 3 rounds' }]);
     expect(result.rounds).toEqual({ 书: 3 });
   });
+
+  it('rejects a candidate longer than the cap of its word', () => {
+    const result = accept([{ word: '书', simp: '我们的老师今天很喜欢看书。', english: 'a' }]);
+    expect(result.rejects).toEqual([
+      { word: '书', simp: '我们的老师今天很喜欢看书。', reason: 'longer than the cap of 10 characters (12)' },
+    ]);
+  });
 });

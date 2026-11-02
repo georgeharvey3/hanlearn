@@ -1,7 +1,7 @@
 # Generate example sentences
 
 This file is the prompt for a Claude Code session that writes example
-sentences for the HSK words that the real sources do not fill. A developer
+sentences for the HSK words that the source files do not fill. A developer
 starts the session. See issue #468.
 
 The build does not read this file. It reads `generated.json`, which the
@@ -74,7 +74,7 @@ A candidates file is a JSON array of these objects.
 
 Each run of the accept script is one round for each word in its file. If a
 word is still short after 3 rounds, the word is unfilled. The accept script
-then rejects more candidates for it, and `coverage.md` lists it.
+then rejects all new candidates for it, and `coverage.md` lists it.
 
 The reasons for a reject:
 

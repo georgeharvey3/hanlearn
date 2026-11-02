@@ -25,8 +25,15 @@ const REPORT_FEW = 3;
 /** A sentence file larger than this fails the build. */
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
-/** A word that fails this many rounds of generation stays unfilled. */
+/**
+ * A word that fails this many rounds of generation stays unfilled. A tunable
+ * cap: three rounds fix most rejects, and a word that still fails needs a
+ * person, not more candidates.
+ */
 const MAX_ROUNDS = 3;
+
+/** The generator name of each record that acceptCandidates writes. */
+const GENERATOR = 'claude-code';
 
 /** The HSK level of a segment that is not an HSK word, a name or a number. */
 const NOT_HSK = 7;
@@ -755,9 +762,6 @@ function buildAll({ dictionary, hsk, sources, generated = [], unfilled = [], lic
   };
 }
 
-/** The generator name of each record that acceptCandidates writes. */
-const GENERATOR = 'claude-code';
-
 /**
  * Grade the candidates that Claude Code wrote for the gaps, with the rules of
  * the build. See #468.
@@ -868,7 +872,7 @@ function acceptCandidates(inputs, candidates, rounds = {}) {
   return { records, rejects, rounds: after, short };
 }
 
-/** The counted segments of a sentence above the level of a word, as text. */
+/** The counted segments of a sentence above the HSK level of a word, as text. */
 function aboveOf(sentence, word, wordLevel) {
   return sentence.segments
     .map((segment, i) => ({ text: segment.text, level: sentence.levels[i] }))
@@ -894,6 +898,7 @@ const unfilledOf = (generatedFile) =>
 module.exports = {
   acceptCandidates,
   unfilledOf,
+  MAX_ROUNDS,
   buildExampleSentences,
   sentenceId,
   toneMarks,
