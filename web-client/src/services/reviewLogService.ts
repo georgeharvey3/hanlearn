@@ -28,8 +28,13 @@ import { Memory, SCHEDULER_NAME, retrievability } from '../utils/scheduling';
  * no review that did not change the schedule.
  */
 
-/** The version of the document shape. */
-export const REVIEW_LOG_VERSION = 1;
+/**
+ * The version of the document shape. In version 1, `hint` was a free aid, and
+ * it also covered the outline after five misses. In version 2, `hint` is only a
+ * hint that the learner asked for, which caps the question at `lapse`, and
+ * `disambiguator` records a free aid on every entry. See issue #396.
+ */
+export const REVIEW_LOG_VERSION = 2;
 
 /** The memory of a direction before a review, as FSRS read it. */
 export interface MemoryBefore {

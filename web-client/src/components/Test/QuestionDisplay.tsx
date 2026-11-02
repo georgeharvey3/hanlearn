@@ -5,6 +5,7 @@ import VolumeUpRoundedIcon from '@mui/icons-material/VolumeUpRounded';
 import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
 import { toneMarks } from '../../utils/pinyinMarks';
+import { parseMeanings } from '../../utils/meaningUtils';
 import {
   CardRule,
   CardSize,
@@ -22,7 +23,7 @@ interface QuestionDisplayProps {
   onSpeak: (word: string) => void;
   onPlayHintSentence: () => void;
   onToggleShowPinyin: () => void;
-  showCharacter: () => void;
+  onToggleDisambiguator: () => void;
 }
 
 /** The senses a meaning question shows before "+ N more senses". */
@@ -86,6 +87,21 @@ const SpokenSentence: React.FC<{
   );
 };
 
+/** One dashed box per syllable, each holding its first letter and blanks. */
+const Initials: React.FC<{ initials: string[]; label: string }> = ({ initials, label }) => (
+  <Box
+    role="img"
+    aria-label={label}
+    sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1.25 }}
+  >
+    {initials.map((initial, i) => (
+      <Box key={i} aria-hidden="true" sx={{ ...dashed, px: 1.25, py: 0.5, fontSize: 20 }}>
+        {initial}
+      </Box>
+    ))}
+  </Box>
+);
+
 /** The hint, drawn inside the card under the question. */
 const Hint: React.FC<{ state: TestState; onPlaySentence: () => void }> = ({
   state,
@@ -96,17 +112,10 @@ const Hint: React.FC<{ state: TestState; onPlaySentence: () => void }> = ({
   if (state.answerCategory === 'pinyin') {
     const initials = state.hint.split(' ');
     return (
-      <Box
-        role="img"
-        aria-label={copy.test.hintLabel(initials.map((i) => i.replace(/_/g, '')).join(', '))}
-        sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1.25 }}
-      >
-        {initials.map((initial, i) => (
-          <Box key={i} aria-hidden="true" sx={{ ...dashed, px: 1.25, py: 0.5, fontSize: 20 }}>
-            {initial}
-          </Box>
-        ))}
-      </Box>
+      <Initials
+        initials={initials}
+        label={copy.test.hintLabel(initials.map((i) => i.replace(/_/g, '')).join(', '))}
+      />
     );
   }
 
@@ -156,7 +165,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
   onSpeak,
   onPlayHintSentence,
   onToggleShowPinyin,
-  showCharacter,
+  onToggleDisambiguator,
 }) => {
   const [allSenses, setAllSenses] = useState<string | null>(null);
 
@@ -174,7 +183,16 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
   const answerColor = failed ? colors.primaryLight : colors.text;
 
   const pinyin = word?.pinyin ?? '';
-  const meanings = asList(state.questionCategory === 'meaning' ? state.question : state.answer);
+  const firstLetters = pinyin
+    .split(' ')
+    .filter(Boolean)
+    .map((syllable) => syllable[0].toLowerCase());
+  const meanings =
+    state.questionCategory === 'meaning'
+      ? asList(state.question)
+      : state.answerCategory === 'meaning'
+        ? asList(state.answer)
+        : parseMeanings(word?.meaning ?? '');
   const meaningText = meanings.join(' · ');
   const speak = () => state.chosenCharacter && onSpeak(state.chosenCharacter);
   const playCorner = revealed && state.useSound && (
@@ -194,6 +212,19 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
     </IconButton>
   );
 
+  // The disambiguator names the asked word with a part of it that the question
+  // does not ask: the characters for `MP`, the pinyin for `MC`, the meaning for
+  // `PC`, and the initials for `CM`. The engine shows it after an alternative
+  // answer, and `CM` has a button for it. `PM` shows its initials where the
+  // hint shows. See issue #396.
+  const disambiguated = !revealed && state.showDisambiguator;
+  const initials = firstLetters.length > 0 && (
+    <Initials
+      initials={firstLetters.map((letter) => letter + '__')}
+      label={copy.test.initialsLabel(firstLetters.join(', '))}
+    />
+  );
+
   const meaningLine = (fontSize: number, color: string, bold: boolean) => (
     <Box sx={{ fontSize, color, fontWeight: bold ? 600 : 400, lineHeight: 1.3 }}>{meaningText}</Box>
   );
@@ -207,6 +238,12 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
         <Box lang="zh" sx={hanziSx(hanziSize(hanzi, size))}>
           {hanzi}
         </Box>
+        {disambiguated &&
+          (asked('pinyin') ? (
+            meaningLine(16, colors.textSecondary, false)
+          ) : (
+            <Pinyin text={pinyin} size={22} />
+          ))}
         {revealed && flashcard && !compact && <CardRule />}
         {revealed && (
           <Pinyin
@@ -278,6 +315,14 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
         {writing && revealed && (
           <Pinyin text={pinyin} size={compact ? 16 : 18} color={colors.textSecondary} />
         )}
+        {writing && !revealed && (
+          <>
+            {disambiguated && initials}
+            <PillToggle pressed={disambiguated} onClick={onToggleDisambiguator}>
+              {disambiguated ? copy.test.hideInitials : copy.test.showInitials}
+            </PillToggle>
+          </>
+        )}
         {!writing && revealed && (
           <>
             {(flashcard || failed) && <CardRule />}
@@ -315,12 +360,10 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
         </>
       );
     } else if (audio) {
-      const singleChar = hanzi.length === 1;
-      const shownChar = state.showQuestionCharacter && singleChar;
       const shownPinyin = state.showQuestionPinyin;
       content = (
         <>
-          {shownChar ? (
+          {disambiguated ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <PlayButton size={56} loading={state.synthLoading} onClick={speak} />
               <Box component="span" lang="zh" sx={hanziSx(64)}>
@@ -331,16 +374,9 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
             <PlayButton size={96} loading={state.synthLoading} onClick={speak} />
           )}
           {shownPinyin && <Pinyin text={pinyin} size={24} />}
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <PillToggle pressed={shownPinyin} onClick={onToggleShowPinyin}>
-              {shownPinyin ? copy.test.hidePinyin : copy.test.showPinyin}
-            </PillToggle>
-            {singleChar && (
-              <PillToggle pressed={shownChar} onClick={showCharacter}>
-                {shownChar ? copy.test.hideCharacter : copy.test.showCharacter}
-              </PillToggle>
-            )}
-          </Box>
+          <PillToggle pressed={shownPinyin} onClick={onToggleShowPinyin}>
+            {shownPinyin ? copy.test.hidePinyin : copy.test.showPinyin}
+          </PillToggle>
           <Hint state={state} onPlaySentence={onPlayHintSentence} />
         </>
       );
@@ -350,6 +386,11 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
           <Box lang="zh-Latn" sx={{ fontSize: 44, letterSpacing: '0.02em' }}>
             {toneMarks(pinyin)}
           </Box>
+          {disambiguated && (
+            <Box lang="zh" sx={hanziSx(64)}>
+              {hanzi}
+            </Box>
+          )}
           <Hint state={state} onPlaySentence={onPlayHintSentence} />
         </>
       );

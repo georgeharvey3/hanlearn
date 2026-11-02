@@ -75,6 +75,36 @@ describe('saveSession / readSavedSession', () => {
   });
 });
 
+describe('saveSession / readSavedSession — the current question', () => {
+  const current = {
+    pair: { index: '1', aCategory: 'M', qCategory: 'C' },
+    aids: {
+      gradeCap: 'lapse',
+      hintShown: true,
+      showDisambiguator: false,
+      disambiguatorShown: false,
+      alternativesSent: [],
+      missCount: 0,
+      toneErrorCount: 0,
+      firstWrongAnswer: null,
+    },
+  } as const;
+
+  it('reads back the aids of the current question', () => {
+    const saved = session({
+      current: { ...current, aids: { ...current.aids, alternativesSent: [] } },
+    });
+    saveSession(saved);
+    expect(readSavedSession()).toEqual(saved);
+  });
+
+  it('returns null for a current question with a malformed field', () => {
+    const malformed = { ...current, aids: { ...current.aids, gradeCap: 'fail' } };
+    localStorage.setItem(SAVED_SESSION_KEY, JSON.stringify(session({ current: malformed as any })));
+    expect(readSavedSession()).toBeNull();
+  });
+});
+
 describe('loadResumableSession', () => {
   it('offers a session saved today, for this learner and list', () => {
     saveSession(session());

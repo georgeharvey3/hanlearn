@@ -31,6 +31,15 @@
         ]
       },
       {
+        "source": "sentences/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
         "source": "fonts/hanzi/**",
         "headers": [
           {

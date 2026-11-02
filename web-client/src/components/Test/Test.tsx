@@ -68,7 +68,7 @@ const Test: React.FC<Props> = (props) => {
     onToggleShowPinyin,
     onToggleComponents,
     onContinue,
-    showCharacter,
+    onToggleDisambiguator,
     refreshSettings,
   } = useTestEngine(props);
 
@@ -125,7 +125,7 @@ const Test: React.FC<Props> = (props) => {
         onSpeak={onSpeak}
         onPlayHintSentence={onPlayHintSentence}
         onToggleShowPinyin={onToggleShowPinyin}
-        showCharacter={showCharacter}
+        onToggleDisambiguator={onToggleDisambiguator}
       />
       {/* The handwriting box sits right under the card; its status goes below it. */}
       {state.answerCategory === 'character' && !state.showComponents && (

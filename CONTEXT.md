@@ -282,6 +282,36 @@ every word of the session. It does not touch the Write gate, and neither does
 practice mode. The setting is stored as `sentenceStagesForAllWords`, which is
 the name it had when it widened both.
 
+## Example sentence
+
+An **example sentence** is one Chinese sentence that holds a word, with its
+English translation and its source. The sentence stages and the hint show
+example sentences. Do not call the set of them a "sentence bank": a **bank** is
+the band of an interval.
+
+A **segment** is one word of an example sentence, as the splitter cuts it. The
+**target segment** is the segment that is the word under study. A sentence
+matches a word only through a segment, so 生 does not match a sentence that
+holds 学生.
+
+The **HSK level** of a sentence is the highest HSK level of its counted
+segments, other than the target segment. Names and numbers do not count.
+Always write "HSK level" in full, because a bare **level** is the band of an
+interval.
+
+Each sentence of a word comes in at one **fill step**:
+
+| Fill step   | The sentence                                           |
+| ----------- | ------------------------------------------------------ |
+| `strict`    | has no counted segment above the HSK level of the word |
+| `relaxed`   | has one counted segment one HSK level above the word   |
+| `generated` | came from an AI, and passed the strict rule            |
+
+The **origin** of a sentence says whether a person or a machine wrote its
+Chinese and its English. A real sentence with a human translation, a real
+sentence with a machine translation, and a generated sentence are the three
+kinds.
+
 ## Practice
 
 **Practice mode** is the unscored run that ignores due dates. This is the only
@@ -309,6 +339,9 @@ The retries stay. A wrong answer gives "Try again", and the learner can answer
 again as many times as they want. The retries give feedback and learning value.
 They do not change the grade of the question.
 
+An alternative answer is not a graded attempt. The first attempt that grades the
+question is the first one that is not an alternative answer.
+
 `fail` keeps the meaning it always had: the learner did not retrieve the answer.
 `lapse` is the middle grade for a retrieval that succeeded late. See
 [docs/adr/0007-grade-the-first-attempt.md](docs/adr/0007-grade-the-first-attempt.md).
@@ -323,7 +356,8 @@ gives it in a different way:
 | Handwriting | drawn with no stroke missed 5 times | drawn after 5 misses on a stroke | the reveal ran         |
 
 Flashcard is a recognition task with no attempt to read, so the learner grades
-the question. This is why the reveal shows three buttons and not two.
+the question. This is why the reveal shows three buttons and not two. After a
+hint, the learner can report only `lapse` or `fail`.
 
 The handwriting quiz counts the misses on each stroke, and it shows the stroke
 outline after five misses on one stroke. Five misses is the point where the app
@@ -332,19 +366,59 @@ word of more than one character takes the worst grade of its characters.
 
 ## Aid
 
-An **aid** is help that the learner asks for during a question. The hint, the
-character of a pinyin question, and the pinyin of a character question are all
-aids.
+An **aid** is help that the learner gets during a question: the learner asks for
+it, or the app gives it after an alternative answer. There are two
+kinds: the hint and the disambiguator. The kind is what the aid does for the
+question, not what it shows, so the same text can be a hint in one place and a
+disambiguator in another.
 
-An aid does not change the grade. A meaning gloss or a bare pinyin can fit more
-than one word, so the learner sometimes needs an aid to find out which word the
-question asks. A grade that counted aids would grade this ambiguity and not the
-memory of the learner.
+A **hint** gives one step of the answer. A learner who needed it did not recall
+the answer alone, so a hint caps the question at `lapse`. Each answer category
+has one hint, and a hint has no second step:
 
-There is one exception. The stroke outline of a character question is the answer
-and not a way to identify the question. A learner who asks for the outline gets
-the same grade as a learner who missed one stroke five times. Both cap the
-question at `lapse`.
+| Answer    | Hint                                   |
+| --------- | -------------------------------------- |
+| Pinyin    | the initial of each syllable           |
+| Meaning   | the pinyin of an example sentence      |
+| Character | the stroke outline, shown for a moment |
+
+A hint that does not load shows nothing, so it costs nothing.
+
+A **disambiguator** narrows the question to its own word. It does not change the
+grade, because it measures the question and not the memory of the learner. Each
+direction has one:
+
+| Direction | Disambiguator                          | Available                     |
+| --------- | -------------------------------------- | ----------------------------- |
+| `PM`      | the initial of each syllable           | after an alternative answer   |
+| `MP`      | the character                          | after an alternative answer   |
+| `MC`      | the pinyin of the reading asked        | after an alternative answer   |
+| `PC`      | the meaning of the reading asked       | after an alternative answer   |
+| `CM`      | the initial of each syllable           | on request, on every question |
+
+In `PM` the initials are a hint until the learner gives an alternative answer,
+and a disambiguator after it. In `CM` the answer is the character and the
+learner is expected to know the pinyin, so the initials give no step of the
+answer.
+
+The pinyin of a spoken `MP` question is not an aid. It is the same question in
+text, as the learner sees it with the sound off.
+
+## Alternative answer
+
+An **alternative answer** is an answer that fits the question shown but belongs
+to a word other than the one the question asks. For a meaning question, the
+other word shares at least one gloss with the glosses shown. For a pinyin
+question, the other word has the same pinyin. For a character question, the
+other word has the same characters, as a character with two readings does.
+
+The other word can be one the learner holds or one they do not. Either way, an
+alternative answer is not wrong and not right. It costs the learner nothing: the
+grade does not drop, and the learner answers again. The question still asks its
+own word, and only an answer for that word passes it.
+
+After an alternative answer, the app shows the disambiguator of the direction.
+See [Aid](#aid).
 
 ## Attempt
 

@@ -4,6 +4,8 @@ import { RouteComponentProps, withRouter, Redirect } from 'react-router-dom';
 import { SessionLaunch, sizeBudget } from '../../utils/dashboard';
 
 import * as wordActions from '../../store/actions/index';
+import * as wordService from '../../services/wordService';
+import { reportError } from '../../services/errorReporting';
 
 import Button from '../../components/UI/Buttons/Button/Button';
 import Spinner from '../../components/UI/Spinner/Spinner';
@@ -154,6 +156,30 @@ const TestWords: React.FC<Props> = ({
   });
 
   const prevWordsLength = useRef(words.length);
+
+  /**
+   * Every word of the learner, for the alternative answers of the session. The
+   * store holds the words of the active list only, so the whole collection is
+   * read once here. Until it arrives, or when the read fails, the list's words
+   * stand in. See issue #348.
+   */
+  const [allWords, setAllWords] = useState<Word[] | null>(null);
+  useEffect(() => {
+    if (isDemo || userId === null || activeListId === ALL_LISTS_ID) return;
+    let live = true;
+    wordService
+      .getUserWords(userId)
+      .then((collection) => {
+        if (live) setAllWords(collection);
+      })
+      .catch((error) => {
+        reportError(error, { feature: 'alternative-answers', level: 'warning' });
+      });
+    return () => {
+      live = false;
+    };
+  }, [activeListId, isDemo, userId]);
+  const collection = activeListId === ALL_LISTS_ID ? words : (allWords ?? words);
 
   /**
    * The words the session may draw on. planSession picks the pairs and applies
@@ -445,7 +471,8 @@ const TestWords: React.FC<Props> = ({
   const onVocabProgress = useCallback((progress: VocabProgress): void => {
     setState((prev) =>
       prev.vocabProgress?.queue === progress.queue &&
-      prev.vocabProgress?.gradeList === progress.gradeList
+      prev.vocabProgress?.gradeList === progress.gradeList &&
+      prev.vocabProgress?.alternatives === progress.alternatives
         ? prev
         : { ...prev, vocabProgress: progress },
     );
@@ -594,6 +621,7 @@ const TestWords: React.FC<Props> = ({
             <Test
               isDemo={isDemo || !!devConfig}
               words={state.selectedWords}
+              collection={collection}
               plan={state.plan ?? undefined}
               resume={state.resume ?? undefined}
               onProgress={onVocabProgress}
@@ -647,6 +675,7 @@ const TestWords: React.FC<Props> = ({
         content = (
           <Test
             words={state.selectedWords}
+            collection={collection}
             plan={state.plan ?? undefined}
             resume={state.resume ?? undefined}
             onProgress={onVocabProgress}

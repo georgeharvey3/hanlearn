@@ -81,7 +81,7 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 - [web-client/src/services/decompositionService.ts](web-client/src/services/decompositionService.ts) - Calls cloud function to decompose characters into radicals/components
 - [web-client/src/services/ttsService.ts](web-client/src/services/ttsService.ts) - Text-to-speech via Howler.js; called directly from components (not via Redux)
 
-Note: `ttsService`, `sentenceService`, `decompositionService`, `dictionaryService`, and `premadeListService` are called directly from components (not via Redux thunks) — this is intentional for operations that are UI-local and do not need shared global state.
+Note: `ttsService`, `sentenceService`, `decompositionService`, `dictionaryService`, and `premadeListService` are called directly from components (not via Redux thunks) — this is intentional for operations that are UI-local and do not need shared global state. `TestWords` also calls `wordService.getUserWords` directly: the store holds only the active list, and the session needs the whole collection for its alternative answers (#348).
 
 #### Component Pattern
 
@@ -127,13 +127,15 @@ users/{userId}/
       └── levels?: { 1..5: number } # Words of the whole collection at each level,
                                     # as the day's last session left them (Dashboard progress chart)
   └── reviewLog/{autoId}         # One document per saved session, write-once (#397)
-      ├── version: 1, date: string, reviewedAt: Timestamp
+      ├── version: 2, date: string, reviewedAt: Timestamp  # 1 before #396: `hint` was free
       ├── scheduler: string      # The weights in use: 'fsrs-6-default'
       └── reviews: [{            # One entry per graded question, no UI
             wordId, direction, grade, mode?,
             before: { stability, difficulty, lastReview, retrievability } | null,
             after: { stability, difficulty, interval },
-            position?, toneErrors, misses?, hint?, revealed?, answerMs?, answer?
+            position?, toneErrors, misses?, hint?, revealed?, answerMs?, answer?,
+            alternatives?,       # The alternative answers sent, in order (#348)
+            disambiguator?       # Whether the cue that names the word showed; free (#396)
           }]
 
 words/{wordId}                   # Read-only shared dictionary (admin-managed)
@@ -153,6 +155,7 @@ Security rules in [firestore.rules](firestore.rules): users can only access thei
 - `getDailyChengyu` - Rotates through chengyus daily
 - `dictionarySearch` - The search of the Add Words screen: hanzi, pinyin or English, ranked in tiers, at most 30 entries. The rules are pure, in [functions/src/dictionarySearch.ts](functions/src/dictionarySearch.ts) (#425)
 - `dictionarySearchWord` - The exact lookup of an entry by its characters
+- `dictionaryAlternatives` - The alternative answers of the questions of one session, from all of CC-CEDICT. The rules are pure, in [functions/src/alternativeAnswers.ts](functions/src/alternativeAnswers.ts) (#348)
 - `lookupChengyuChar` - Character details for chengyu quiz
 
 #### Authentication
@@ -164,6 +167,8 @@ Security rules in [firestore.rules](firestore.rules): users can only access thei
 The CC-CEDICT dictionary (~124K entries) is built via `npm run build:dict`, which parses the source file and writes `functions/data/dictionary.json`. The Cloud Functions in [functions/src/dictionary.ts](functions/src/dictionary.ts) load it and answer the client's searches, so the client never downloads it. The build also writes a copy to `web-client/public/dictionary.json`.
 
 The same build writes the catalogue of **premade lists** (HSK 3.0) to `web-client/public/premade-lists/`. A pure resolver, [migration/premadeCatalogue.js](migration/premadeCatalogue.js), gives each source word one dictionary entry, and [migration/hsk/overrides.json](migration/hsk/overrides.json) settles the ambiguous words. If a word does not resolve, the build fails. See [migration/hsk/README.md](migration/hsk/README.md). The build also writes the HSK frequency rank `q` onto each HSK entry of `dictionary.json`, and `dictionarySearch` ranks by it, because CC-CEDICT has no frequency field.
+
+The example sentences of #465 start from one committed source file for each of Tatoeba, Wiktionary and the `sentenceCache` export, in `migration/sentences/`. One fetch or export script makes each source file, and the pure parsers are in [migration/sentenceSources.js](migration/sentenceSources.js). `build:dict` then writes the example sentence files to `web-client/public/sentences/`, one file for each first character of a word, with `ATTRIBUTION.txt`, `LICENSE.txt` and a coverage report in `migration/sentences/coverage.md`. The rules (splitter, grader, fill steps, ranking) are pure, in [migration/exampleSentences.js](migration/exampleSentences.js). See [docs/adr/0019-example-sentences-are-a-committed-build.md](docs/adr/0019-example-sentences-are-a-committed-build.md) and [migration/README.md](migration/README.md).
 
 ### Spaced Repetition Algorithm
 
@@ -299,7 +304,7 @@ feature/xyz ──PR──▸ develop ──PR──▸ main ──▸ productio
 
 ### Release Process
 
-1. Feature branches are merged into `develop` via PR (CI runs automatically). Each PR gets a preview channel of the staging project, and each merge to `develop` deploys staging (`deploy-staging.yml`). No build other than production uses production data. See [docs/environments.md](docs/environments.md) for the staging setup, its seed, and the rollback procedure
+1. Feature branches are merged into `develop` via PR (CI runs automatically). Each PR gets a preview channel of the staging project and deploys its Cloud Functions to staging, and each merge to `develop` deploys staging (`deploy-staging.yml`). No build other than production uses production data. See [docs/environments.md](docs/environments.md) for the staging setup, its seed, and the rollback procedure
 2. When ready to release, create a PR from `develop` → `main`
 3. On merge to `main`, the deploy workflow automatically:
    - Builds web-client and Cloud Functions

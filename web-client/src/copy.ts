@@ -116,6 +116,7 @@ export const copy = {
     MP: 'Listening',
     PM: 'Speaking',
     MC: 'Reading',
+    PC: 'Pronunciation',
     CM: 'Writing',
     onlyPriority: 'Only this skill',
     // Stages
@@ -156,8 +157,6 @@ export const copy = {
     loadingAudio: 'Loading audio',
     showPinyin: 'Show pinyin',
     hidePinyin: 'Hide pinyin',
-    showCharacter: 'Show character',
-    hideCharacter: 'Hide character',
     answerInput: 'Your answer',
     placeholderMeaning: 'Type the meaning',
     placeholderPinyin: 'Pinyin with tone numbers',
@@ -176,6 +175,9 @@ export const copy = {
     hideHint: 'Hide hint',
     loadingHint: 'Loading hint',
     hintLabel: (hint: string) => `Hint: ${hint}`,
+    showInitials: 'Show initials',
+    hideInitials: 'Hide initials',
+    initialsLabel: (letters: string) => `Syllables start with ${letters}`,
     moreSenses: (count: number) => `+ ${count} more ${count === 1 ? 'sense' : 'senses'}`,
     exampleSentence: 'Example sentence',
     playSentence: 'Play sentence',
@@ -198,6 +200,7 @@ export const copy = {
       nearly: 'Nearly',
       tryAgain: 'Try again',
       tones: 'Incorrect tones',
+      otherWord: 'Valid, but not this word',
       notKnown: 'Not known',
       listening: 'Listening…',
       heardNothing: "Couldn't hear anything",
@@ -459,7 +462,7 @@ export const copy = {
     },
     skills: {
       // The skill each direction trains, by its answer-first code.
-      names: { MC: 'Reading', MP: 'Listening', PM: 'Speaking', PC: 'Pronouncing', CM: 'Writing' },
+      names: { MC: 'Reading', MP: 'Listening', PM: 'Speaking', PC: 'Pronunciation', CM: 'Writing' },
       strong: 'Familiar or better',
       recall: 'Recalled, 30 days',
       noWords: 'No words yet',

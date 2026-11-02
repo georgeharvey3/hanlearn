@@ -31,10 +31,10 @@ const entry = (extra = {}) => ({
 });
 
 /** A review log document as the export reads it. */
-const session = (reviews, id = 'session-1') => ({
+const session = (reviews, id = 'session-1', version = 1) => ({
   id,
   data: {
-    version: 1,
+    version,
     date: '2026-10-27',
     reviewedAt: at(REVIEWED_AT),
     scheduler: 'fsrs-6-default',
@@ -81,11 +81,13 @@ describe('reviewLogRows', () => {
       difficulty_before: 5.5,
       interval_after: 2,
       scheduler: 'fsrs-6-default',
+      log_version: 1,
       session_id: 'session-1',
       position: 0,
       tone_errors: 1,
       misses: 2,
       hint: false,
+      disambiguator: '',
       revealed: false,
       answer_ms: 8421,
       answer: 'ni3hao4',
@@ -111,6 +113,18 @@ describe('reviewLogRows', () => {
 
     expect(row.elapsed_days).toBe('');
     expect(row.stability_before).toBe(4.2);
+  });
+
+  // A version 1 hint was a free aid, and a version 2 hint caps the grade, so a
+  // reader tells them apart by the version (#396).
+  it('records the version of the document and the disambiguator', () => {
+    const [first, second] = reviewLogRows([
+      session([entry({ hint: true })], 'session-1', 1),
+      session([entry({ hint: true, disambiguator: true, position: 1 })], 'session-2', 2),
+    ]);
+
+    expect(first).toMatchObject({ log_version: 1, hint: true, disambiguator: '' });
+    expect(second).toMatchObject({ log_version: 2, hint: true, disambiguator: true });
   });
 
   it('leaves the mode and the design fields empty for an entry saved before the release', () => {

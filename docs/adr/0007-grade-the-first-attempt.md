@@ -1,6 +1,7 @@
 # 7. Grade the first attempt
 
-- Status: accepted
+- Status: superseded in part by
+  [0018-a-hint-caps-the-grade.md](0018-a-hint-caps-the-grade.md)
 - Date: 2026-08-29
 - Issue: #329
 - Related: [0002-direction-level-scheduling.md](0002-direction-level-scheduling.md)
@@ -50,6 +51,8 @@ An attempt is an answer that the learner sends, with the Submit button or with
 the Enter key. Speech recognition puts its transcript in the input and sends
 nothing. The exact-match path is gone, and a Submit button is new, because the
 input had no submit control other than the Enter key.
+
+ADR 0018 replaces the rule of this paragraph.
 
 An aid does not change the grade. A meaning gloss or a bare pinyin can fit more
 than one word, so a learner sometimes needs an aid to find out which word the

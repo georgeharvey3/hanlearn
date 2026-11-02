@@ -13,8 +13,11 @@ No build other than production uses production data. The preview and staging wor
 ## The release flow
 
 1. A feature PR targets `develop`. Its preview channel deploys to the staging project, with a 7-day expiry.
+   The PR also deploys its Cloud Functions to staging. The staging project has one set of functions, so staging and every preview then run the functions of this PR. The next push to `develop` deploys the functions of `develop` again. The workflow names each function of the branch, so it never deletes a function.
 2. A merge to `develop` deploys hosting, functions, rules, and indexes to the live channel of staging.
 3. A PR from `develop` to `main` promotes the change. `deploy.yml` deploys it to production.
+
+The previews and staging share one set of Cloud Functions. The last deploy wins, so two open PRs that change one function overwrite each other.
 
 The previews and staging share one Firestore. A preview that changes the shape of the data can corrupt the staging data. If this occurs, reseed staging (see below).
 

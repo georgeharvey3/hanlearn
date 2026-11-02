@@ -938,7 +938,8 @@ describe('finishTest — the review log it writes', () => {
 
     const [ref, data] = logWrites()[0];
     expect(ref.path).toBe('users/user-1/reviewLog/auto-id');
-    expect(data.version).toBe(1);
+    // Version 2: `hint` is only a hint the learner asked for (#396).
+    expect(data.version).toBe(2);
     expect(data.scheduler).toBe('fsrs-6-default');
     expect(data.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(data.reviewedAt.toDate()).toBeInstanceOf(Date);
@@ -1082,6 +1083,8 @@ describe('finishTest — the review log it writes', () => {
             revealed: false,
             answerMs: 8421,
             answer: 'ni3hao4',
+            alternatives: ['ni3 hao5'],
+            disambiguator: true,
           },
         },
       },
@@ -1096,6 +1099,8 @@ describe('finishTest — the review log it writes', () => {
       revealed: false,
       answerMs: 8421,
       answer: 'ni3hao4',
+      alternatives: ['ni3 hao5'],
+      disambiguator: true,
     });
   });
 

@@ -188,7 +188,9 @@ service cloud.firestore {
         allow create: if request.auth != null && request.auth.uid == userId
           && request.resource.data.keys().hasOnly(['version', 'date', 'reviewedAt', 'scheduler', 'reviews'])
           && request.resource.data.keys().hasAll(['version', 'date', 'reviewedAt', 'scheduler', 'reviews'])
-          && request.resource.data.version == 1
+          // Version 1 stays: a cached bundle writes it until the version
+          // check reloads the app, and its log must not fail.
+          && request.resource.data.version in [1, 2]
           && request.resource.data.date is string
           && request.resource.data.reviewedAt is timestamp
           && request.resource.data.scheduler is string

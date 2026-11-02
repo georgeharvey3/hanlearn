@@ -36,6 +36,7 @@ const baseState = {
   result: '',
   outcome: null,
   gradeClicked: null,
+  gradeCap: 'pass',
   awaitingContinue: false,
 } as unknown as TestState;
 
@@ -124,6 +125,16 @@ describe('TestActions — a flashcard', () => {
     renderActions({ ...flashcard, showAnswer: true });
     expect(screen.getByText('Did you know it?')).toBeInTheDocument();
     for (const name of ['No', 'Nearly', 'Yes']) {
+      expect(screen.getByRole('button', { name })).toBeEnabled();
+    }
+  });
+
+  // A hint caps the question at a lapse, so the reveal offers no pass. See
+  // issue #396.
+  it('offers no Yes after a hint', () => {
+    renderActions({ ...flashcard, showAnswer: true, gradeCap: 'lapse' });
+    expect(screen.queryByRole('button', { name: 'Yes' })).not.toBeInTheDocument();
+    for (const name of ['No', 'Nearly']) {
       expect(screen.getByRole('button', { name })).toBeEnabled();
     }
   });

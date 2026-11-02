@@ -151,10 +151,17 @@ const TestActions: React.FC<TestActionsProps> = ({
           <GradeButton grade="lapse" pressed={state.gradeClicked} onClick={onNearlyKnew}>
             {copy.test.gradeLapse}
           </GradeButton>
-          {/* Wrapped, because the click event would otherwise arrive as the grade. */}
-          <GradeButton grade="pass" pressed={state.gradeClicked} onClick={() => onCorrectAnswer()}>
-            {copy.test.gradePass}
-          </GradeButton>
+          {/* A hint caps the question at a lapse, so it leaves no pass to report. */}
+          {state.gradeCap !== 'lapse' && (
+            /* Wrapped, because the click event would otherwise arrive as the grade. */
+            <GradeButton
+              grade="pass"
+              pressed={state.gradeClicked}
+              onClick={() => onCorrectAnswer()}
+            >
+              {copy.test.gradePass}
+            </GradeButton>
+          )}
         </Box>
         {continueButton}
       </Box>

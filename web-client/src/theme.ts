@@ -147,6 +147,12 @@ const theme = createTheme({
         },
       },
     },
+    // MUI rounds a chip to 16px by default; a pill takes the app's radius.
+    MuiChip: {
+      styleOverrides: {
+        root: ({ theme }) => ({ borderRadius: theme.shape.borderRadius }),
+      },
+    },
     MuiDialog: {
       styleOverrides: {
         paper: {
