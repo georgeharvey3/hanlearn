@@ -379,7 +379,7 @@ const compareRanked = (a, b) =>
  * Pick the sentences of one word, up to the target. The pick walks the
  * shortest first and skips a sentence that overlaps a picked one by more than
  * half. If the word then has fewer than the target, the skipped sentences
- * fill it in rank order.
+ * fill it, shortest first.
  */
 function pick(candidates) {
   const picked = [];
