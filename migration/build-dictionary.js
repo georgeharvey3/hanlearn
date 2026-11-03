@@ -17,10 +17,9 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const readline = require('readline');
 const { createRequire } = require('module');
 const { ranksOf, resolveCatalogue } = require('./premadeCatalogue');
-const { buildExampleSentences } = require('./exampleSentences');
+const { buildExampleSentences, unfilledOf } = require('./exampleSentences');
 const sentenceLicences = require('./sentenceLicences');
 
 /**
@@ -49,20 +48,7 @@ const HSK_LISTS = [
  */
 function buildCatalogue(words, outputDir) {
   const hskDir = path.join(__dirname, 'hsk');
-  const source = HSK_LISTS.map((list) => ({
-    id: list.id,
-    name: list.name,
-    words: JSON.parse(fs.readFileSync(path.join(hskDir, 'source', list.file), 'utf8')).map(
-      (word) => ({
-        simp: word.s,
-        q: word.q,
-        forms: word.f.map((form) => ({ trad: form.t, pinyin: form.i.n })),
-      }),
-    ),
-  }));
-  const overrides = JSON.parse(fs.readFileSync(path.join(hskDir, 'overrides.json'), 'utf8'));
-  const catalogue = resolveCatalogue(source, overrides, words);
-
+  const { catalogue, ranks } = resolveHsk(words);
   fs.rmSync(outputDir, { recursive: true, force: true });
   fs.mkdirSync(outputDir, { recursive: true });
   const index = catalogue.map((list) => ({
@@ -79,26 +65,49 @@ function buildCatalogue(words, outputDir) {
     'Wrote ' + catalogue.length + ' premade lists to: ' + outputDir +
       ' (' + index.map((list) => list.name + ': ' + list.size).join(', ') + ')',
   );
+  return { catalogue, ranks };
+}
+
+/**
+ * Resolve the HSK lists against the dictionary: the catalogue of premade lists
+ * and the HSK rank `q` of each entry. Writes nothing.
+ */
+function resolveHsk(words) {
+  const hskDir = path.join(__dirname, 'hsk');
+  const source = HSK_LISTS.map((list) => ({
+    id: list.id,
+    name: list.name,
+    words: JSON.parse(fs.readFileSync(path.join(hskDir, 'source', list.file), 'utf8')).map(
+      (word) => ({
+        simp: word.s,
+        q: word.q,
+        forms: word.f.map((form) => ({ trad: form.t, pinyin: form.i.n })),
+      }),
+    ),
+  }));
+  const overrides = JSON.parse(fs.readFileSync(path.join(hskDir, 'overrides.json'), 'utf8'));
+  const catalogue = resolveCatalogue(source, overrides, words);
   return { catalogue, ranks: ranksOf(source, overrides, catalogue) };
 }
 
 /** The level of each list of HSK_LISTS: 1 to 6, and 7 for HSK 7–9. */
 const levelOfList = (index) => Math.min(index + 1, 7);
 
+/** The committed generated sentences of #468, or an empty file. */
+const GENERATED_PATH = path.join(__dirname, 'sentences', 'generated.json');
+
 /**
- * Write the example sentence files from the committed source copies in
- * sentences/, with no network and no AI. A local run also writes the coverage
- * report to sentences/coverage.md. CI only prints it.
- *
- * Fails the build on a malformed source record, on a generated sentence that
- * fails the grader, and on a sentence file over 2 MB.
+ * The inputs of buildExampleSentences, from the committed source copies in
+ * sentences/ and the resolved HSK lists. Also gives the generated file as it
+ * is on disk, which the gaps and accept scripts read and write.
  */
-function buildSentences(words, catalogue, ranks, outputDir) {
+function sentenceInputs(words, catalogue, ranks) {
   const sourcesDir = path.join(__dirname, 'sentences');
   const read = (name) => JSON.parse(fs.readFileSync(path.join(sourcesDir, name), 'utf8'));
   const sources = ['tatoeba.json', 'wiktionary.json', 'sentence-cache.json'].map(read);
-  const generatedPath = path.join(sourcesDir, 'generated.json');
-  const generated = fs.existsSync(generatedPath) ? read('generated.json').records : [];
+  const generatedFile = fs.existsSync(GENERATED_PATH)
+    ? JSON.parse(fs.readFileSync(GENERATED_PATH, 'utf8'))
+    : { source: 'generated', records: [], rounds: {} };
 
   // opencc-js is a dependency of web-client, which CI installs before this
   // build. The root and migration/ have no install step in the deploy jobs.
@@ -113,14 +122,34 @@ function buildSentences(words, catalogue, ranks, outputDir) {
       q: ranks.get(entry.id),
     })),
   );
-  const result = buildExampleSentences({
-    dictionary: words,
-    hsk,
-    sources,
-    generated,
-    licences: sentenceLicences,
-    toSimplified,
-  });
+  return {
+    inputs: {
+      dictionary: words,
+      hsk,
+      sources,
+      generated: generatedFile.records,
+      unfilled: unfilledOf(generatedFile),
+      licences: sentenceLicences,
+      toSimplified,
+    },
+    generatedFile,
+  };
+}
+
+/**
+ * Write the example sentence files from the committed source copies in
+ * sentences/, with no network and no AI. A local run also writes the coverage
+ * report to sentences/coverage.md. CI only prints it.
+ *
+ * Fails the build on a malformed source record, on a generated sentence that
+ * fails the grader, and on a sentence file over 2 MB.
+ */
+function buildSentences(words, catalogue, ranks, outputDir) {
+  const sourcesDir = path.join(__dirname, 'sentences');
+  const { inputs, generatedFile } = sentenceInputs(words, catalogue, ranks);
+  // The generated file names its licence like a source file, once it holds sentences.
+  const sources = generatedFile.records.length > 0 ? [...inputs.sources, generatedFile] : inputs.sources;
+  const result = buildExampleSentences(inputs);
 
   fs.rmSync(outputDir, { recursive: true, force: true });
   fs.mkdirSync(outputDir, { recursive: true });
@@ -157,7 +186,7 @@ function licenceText(sources) {
   ];
   for (const { source, downloaded, licence } of sources) {
     lines.push('');
-    lines.push('- ' + source + ' (downloaded ' + downloaded + '): ' + licence.name +
+    lines.push('- ' + source + (downloaded ? ' (downloaded ' + downloaded + ')' : '') + ': ' + licence.name +
       (licence.url ? ' (' + licence.url + ')' : ''));
     lines.push('  ' + licence.attribution);
   }
@@ -202,8 +231,38 @@ function parseCedictLine(line) {
   };
 }
 
-async function buildDictionary() {
+/**
+ * The entries of cedict_ts.u8, numbered by their position in the file. Exits
+ * when the file is missing or is not the frozen file.
+ */
+function readCedict() {
   const cedictPath = path.join(__dirname, 'cedict_ts.u8');
+  if (!fs.existsSync(cedictPath)) {
+    console.error('cedict_ts.u8 not found.');
+    console.error('Download CC-CEDICT from: https://www.mdbg.net/chinese/dictionary?page=cc-cedict');
+    process.exit(1);
+  }
+  const content = fs.readFileSync(cedictPath);
+  const sha256 = crypto.createHash('sha256').update(content).digest('hex');
+  if (sha256 !== CEDICT_SHA256) {
+    console.error('cedict_ts.u8 changed (SHA-256 ' + sha256 + ').');
+    console.error('Dictionary IDs are line positions, and userWords document IDs use them.');
+    console.error('Migrate the userWords IDs before you change the file. See issue #427.');
+    process.exit(1);
+  }
+  const words = [];
+  let id = 1;
+  for (const line of content.toString('utf8').split(/\r?\n/)) {
+    const word = parseCedictLine(line);
+    if (word) {
+      words.push({ id: id, simp: word.simp, trad: word.trad, pinyin: word.pinyin, meaning: word.meaning });
+      id++;
+    }
+  }
+  return words;
+}
+
+function buildDictionary() {
   const outputPath = path.join(__dirname, '..', 'web-client', 'public', 'dictionary.json');
   const functionsOutputPath = path.join(__dirname, '..', 'functions', 'data', 'dictionary.json');
   const charDefinitionsPath = path.join(
@@ -214,39 +273,8 @@ async function buildDictionary() {
     'char-definitions.json'
   );
 
-  if (!fs.existsSync(cedictPath)) {
-    console.error('cedict_ts.u8 not found.');
-    console.error('Download CC-CEDICT from: https://www.mdbg.net/chinese/dictionary?page=cc-cedict');
-    process.exit(1);
-  }
-
-  const sha256 = crypto.createHash('sha256').update(fs.readFileSync(cedictPath)).digest('hex');
-  if (sha256 !== CEDICT_SHA256) {
-    console.error('cedict_ts.u8 changed (SHA-256 ' + sha256 + ').');
-    console.error('Dictionary IDs are line positions, and userWords document IDs use them.');
-    console.error('Migrate the userWords IDs before you change the file. See issue #427.');
-    process.exit(1);
-  }
-
   console.log('Parsing CC-CEDICT...');
-
-  const fileStream = fs.createReadStream(cedictPath, { encoding: 'utf8' });
-  const rl = readline.createInterface({
-    input: fileStream,
-    crlfDelay: Infinity,
-  });
-
-  const words = [];
-  let id = 1;
-
-  for await (const line of rl) {
-    const word = parseCedictLine(line);
-    if (word) {
-      words.push({ id: id, simp: word.simp, trad: word.trad, pinyin: word.pinyin, meaning: word.meaning });
-      id++;
-    }
-  }
-
+  const words = readCedict();
   console.log('Parsed ' + words.length + ' entries');
 
   // Ensure output directory exists
@@ -310,7 +338,13 @@ async function buildDictionary() {
   console.log('Done! The dictionary will be served from /dictionary.json');
 }
 
-buildDictionary().catch((error) => {
-  console.error(error.message);
-  process.exit(1);
-});
+if (require.main === module) {
+  try {
+    buildDictionary();
+  } catch (error) {
+    console.error(error.message);
+    process.exit(1);
+  }
+}
+
+module.exports = { readCedict, resolveHsk, sentenceInputs, GENERATED_PATH };

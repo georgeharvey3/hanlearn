@@ -107,4 +107,17 @@ The build also prints a coverage report. A local run writes the report to `sente
 
 The build stops on a malformed source record, on a generated sentence that fails the grader, and on a sentence file over 2 MB. It does not stop on low coverage.
 
-If `sentences/generated.json` exists, the build reads it. Each record has the fields of a source record and a `headword`, which is the word that the sentence is for. Issue #468 adds this file.
+If `sentences/generated.json` exists, the build reads it. Each record has the fields of a source record and a `headword`, which is the word that the sentence is for.
+
+## Generated Sentences
+
+Claude Code writes sentences for the HSK words that the source files do not fill (#468). A developer starts the session. `sentences/GENERATE.md` is the prompt and the procedure.
+
+| Script | What it does |
+|---|---|
+| `sentence-gaps.js` | Writes `sentences/scratch/gaps.json`: each HSK word with fewer than 5 sentences, with its HSK level, its length cap and the number that it needs |
+| `sentence-accept.js <file>` | Grades the candidates in the file with the rules of the build. Adds the passes to `sentences/generated.json` and prints each reject with its reason |
+
+Both scripts run the build in memory, so they use the same rules as `npm run build:dict`. Git ignores `sentences/scratch/`.
+
+Each run of the accept script is one round for each word of its candidates. `generated.json` counts the failed rounds of each word. A word that is still short after 3 rounds is unfilled. The gaps script leaves it out, and `coverage.md` lists it. A second session gets only the words that are still short.
