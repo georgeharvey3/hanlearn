@@ -90,9 +90,7 @@ describe('Settings — groups', () => {
     expect(header('Study session')).toHaveTextContent(/25 questions · ~\d+ min · Traditional/);
     expect(header('Answers')).toHaveTextContent('Meaning: Flashcard · Pinyin: Input');
     expect(header('Skill focus')).toHaveTextContent('Balanced');
-    expect(header('Session stages')).toHaveTextContent(
-      'New words, Test, Translate sentences, Make sentences',
-    );
+    expect(header('Session stages')).toHaveTextContent('New words, Test');
     expect(header('Sound')).toHaveTextContent('Text-to-speech · Sound effects');
     expect(header('Account')).toHaveTextContent('learner@example.com');
   });
@@ -265,36 +263,21 @@ describe('Settings — Stages', () => {
     const user = userEvent.setup();
     renderSettings();
     await open(user, 'Session stages');
-    await user.click(screen.getByRole('switch', { name: 'Make sentences' }));
-    expect(localStorage.getItem('sentenceWrite')).toBe('false');
+    await user.click(screen.getByRole('switch', { name: /^New words/ }));
+    expect(localStorage.getItem('newWords')).toBe('false');
 
     await user.click(header('Session stages'));
-    expect(header('Session stages')).toHaveTextContent('New words, Test, Translate sentences');
-    expect(header('Session stages')).not.toHaveTextContent('Make sentences');
+    expect(header('Session stages')).toHaveTextContent('Test');
+    expect(header('Session stages')).not.toHaveTextContent('New words');
   });
 
-  it('offers Translate with all words only with Translate sentences', async () => {
+  it('has no switch for the sentence tasks, which are tabs of their own', async () => {
     const user = userEvent.setup();
     renderSettings();
     await open(user, 'Session stages');
-    const allWords = screen.getByRole('switch', { name: /Translate with all words/ });
-    expect(allWords).not.toBeChecked();
-    await user.click(allWords);
-    expect(localStorage.getItem('sentenceStagesForAllWords')).toBe('true');
-
-    await user.click(screen.getByRole('switch', { name: /^Translate sentences/ }));
-    expect(allWords).toBeDisabled();
-    expect(allWords).not.toBeChecked();
-    expect(allWords).toHaveTextContent('Turn on Translate sentences first');
-  });
-
-  it('shortens the session time when a stage is turned off', async () => {
-    const user = userEvent.setup();
-    renderSettings();
-    const before = header('Study session').textContent;
-    await open(user, 'Session stages');
-    await user.click(screen.getByRole('switch', { name: 'Make sentences' }));
-    expect(header('Study session').textContent).not.toBe(before);
+    for (const name of [/Translate sentences/, /Make sentences/, /Translate with all words/]) {
+      expect(screen.queryByRole('switch', { name })).not.toBeInTheDocument();
+    }
   });
 });
 
@@ -365,18 +348,12 @@ describe('Settings — a browser without speech', () => {
     renderSettings(makeStore(false, false));
     for (const name of ['Answers', 'Session stages', 'Sound']) await open(user, name);
 
-    for (const name of [
-      /Auto-start microphone/,
-      /^New words/,
-      /^Translate sentences/,
-      /^Text-to-speech/,
-    ]) {
+    for (const name of [/Auto-start microphone/, /^New words/, /^Text-to-speech/]) {
       const row = screen.getByRole('switch', { name });
       expect(row).toBeDisabled();
       expect(row).not.toBeChecked();
       expect(row).toHaveTextContent('Not supported in this browser');
     }
-    expect(screen.getByRole('switch', { name: 'Make sentences' })).toBeEnabled();
   });
 });
 

@@ -36,7 +36,7 @@ describe('sentenceService', () => {
     it('reads the file of the first character of the word', async () => {
       const { getSegmentedSentence } = await loadService();
 
-      const result = await getSegmentedSentence('学生', 'simp', 0);
+      const result = await getSegmentedSentence('学生', 'simp');
 
       expect(fetchMock).toHaveBeenCalledWith('/sentences/5b66.json');
       expect(result.totalCount).toBe(2);
@@ -48,8 +48,8 @@ describe('sentenceService', () => {
     it('keeps each fetched file in memory for the session', async () => {
       const { getSegmentedSentence, getHintSentence } = await loadService();
 
-      await getSegmentedSentence('学生', 'simp', 0);
-      await getSegmentedSentence('学习', 'trad', 0);
+      await getSegmentedSentence('学生', 'simp');
+      await getSegmentedSentence('学习', 'trad');
       await getHintSentence('学生');
 
       expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -58,7 +58,7 @@ describe('sentenceService', () => {
     it('shows the traditional text of the data', async () => {
       const { getSegmentedSentence } = await loadService();
 
-      const result = await getSegmentedSentence('学生', 'trad', 0);
+      const result = await getSegmentedSentence('学生', 'trad');
 
       expect(result.sentence?.chinese.sentence).toBe('學生們，聽好了！');
       expect(result.sentence?.chinese.highlight).toEqual([[0, 2]]);
@@ -67,7 +67,7 @@ describe('sentenceService', () => {
     it('keeps the punctuation between segments as segments with no entry', async () => {
       const { getSegmentedSentence } = await loadService();
 
-      const result = await getSegmentedSentence('学生', 'trad', 0);
+      const result = await getSegmentedSentence('学生', 'trad');
       const segments = result.sentence!.chinese.segments;
 
       expect(segments.map((segment) => segment.t)).toEqual([
@@ -105,24 +105,24 @@ describe('sentenceService', () => {
       );
       const { getSegmentedSentence } = await loadService();
 
-      const result = await getSegmentedSentence('你', 'simp', 0);
+      const result = await getSegmentedSentence('你', 'simp');
       const { segments, targetIndex } = result.sentence!.chinese;
 
       expect(segments[targetIndex].s).toBe('你');
       expect(segments.map((segment) => segment.s).join('')).toBe('姐，你去哪儿？');
     });
 
-    it('wraps an offset past the last sentence back to the start', async () => {
+    it('takes the sentence with the id, and none for an id the word does not have', async () => {
       const { getSegmentedSentence } = await loadService();
 
-      expect((await getSegmentedSentence('学生', 'simp', 1)).sentence?.id).toBe('s2');
-      expect((await getSegmentedSentence('学生', 'simp', 2)).sentence?.id).toBe('s1');
+      expect((await getSegmentedSentence('学生', 'simp', 's2')).sentence?.id).toBe('s2');
+      expect((await getSegmentedSentence('学生', 'simp', 's3')).sentence).toBeNull();
     });
 
     it('gives no sentence for a word with none in its file', async () => {
       const { getSegmentedSentence } = await loadService();
 
-      const result = await getSegmentedSentence('学校', 'simp', 0);
+      const result = await getSegmentedSentence('学校', 'simp');
 
       expect(result).toEqual({ sentence: null, totalCount: 0 });
     });
@@ -130,7 +130,7 @@ describe('sentenceService', () => {
     it('gives no sentence when the file does not exist', async () => {
       const { getSegmentedSentence } = await loadService();
 
-      const result = await getSegmentedSentence('电脑', 'simp', 0);
+      const result = await getSegmentedSentence('电脑', 'simp');
 
       expect(result).toEqual({ sentence: null, totalCount: 0 });
     });
@@ -145,7 +145,7 @@ describe('sentenceService', () => {
       );
       const { getSegmentedSentence } = await loadService();
 
-      const result = await getSegmentedSentence('电脑', 'simp', 0);
+      const result = await getSegmentedSentence('电脑', 'simp');
 
       expect(result).toEqual({ sentence: null, totalCount: 0 });
     });
@@ -154,8 +154,8 @@ describe('sentenceService', () => {
       fetchMock.mockResolvedValueOnce(new Response('', { status: 503 }));
       const { getSegmentedSentence } = await loadService();
 
-      await expect(getSegmentedSentence('学生', 'simp', 0)).rejects.toThrow('503');
-      expect((await getSegmentedSentence('学生', 'simp', 0)).sentence?.id).toBe('s1');
+      await expect(getSegmentedSentence('学生', 'simp')).rejects.toThrow('503');
+      expect((await getSegmentedSentence('学生', 'simp')).sentence?.id).toBe('s1');
     });
 
     it('keeps the segments as they are when one is not in the text', async () => {
@@ -179,7 +179,7 @@ describe('sentenceService', () => {
       );
       const { getSegmentedSentence } = await loadService();
 
-      const { segments, targetIndex } = (await getSegmentedSentence('你', 'simp', 0)).sentence!
+      const { segments, targetIndex } = (await getSegmentedSentence('你', 'simp')).sentence!
         .chinese;
 
       expect(segments.map((segment) => segment.s)).toEqual(['你', '来', '去']);
@@ -191,7 +191,7 @@ describe('sentenceService', () => {
       const { markSentenceReported } = await import('../utils/reportedSentences');
 
       markSentenceReported('s1');
-      const result = await getSegmentedSentence('学生', 'simp', 0);
+      const result = await getSegmentedSentence('学生', 'simp');
 
       expect(result.totalCount).toBe(1);
       expect(result.sentence?.id).toBe('s2');
@@ -201,8 +201,8 @@ describe('sentenceService', () => {
       fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
       const { getSegmentedSentence } = await loadService();
 
-      await expect(getSegmentedSentence('学生', 'simp', 0)).rejects.toThrow('Failed to fetch');
-      const result = await getSegmentedSentence('学生', 'simp', 0);
+      await expect(getSegmentedSentence('学生', 'simp')).rejects.toThrow('Failed to fetch');
+      const result = await getSegmentedSentence('学生', 'simp');
 
       expect(result.sentence?.id).toBe('s1');
     });
@@ -224,27 +224,16 @@ describe('sentenceService', () => {
     });
   });
 
-  describe('checkSentenceAvailability', () => {
-    it('is true for a word with sentences', async () => {
-      const { checkSentenceAvailability } = await loadService();
+  describe('sentenceIndexOf', () => {
+    it('gives the ids of the sentences of each word, and none for a word with none', async () => {
+      const { sentenceIndexOf } = await loadService();
 
-      expect(await checkSentenceAvailability('学生', 'trad')).toBe(true);
-    });
-
-    it('is false for a word with no sentences', async () => {
-      const { checkSentenceAvailability } = await loadService();
-
-      expect(await checkSentenceAvailability('学校', 'simp')).toBe(false);
-    });
-  });
-
-  describe('takeSentenceStart', () => {
-    it('starts at 0 and moves on by two for each session', async () => {
-      const { takeSentenceStart } = await loadService();
-
-      expect(takeSentenceStart('学生')).toBe(0);
-      expect(takeSentenceStart('学生')).toBe(2);
-      expect(takeSentenceStart('学习')).toBe(0);
+      expect(await sentenceIndexOf(['学生', '学习', '学校', '电脑', '学生'])).toEqual({
+        学生: ['s1', 's2'],
+        学习: ['s3'],
+        学校: [],
+        电脑: [],
+      });
     });
   });
 });

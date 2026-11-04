@@ -10,6 +10,9 @@ vi.mock('../../firebase/config', () => ({
   functions: {},
 }));
 
+const { loadTabStatuses } = vi.hoisted(() => ({ loadTabStatuses: vi.fn() }));
+vi.mock('../../services/sentenceTabsService', () => ({ loadTabStatuses }));
+
 import Layout from './Layout';
 import { useFocusMode } from './focusMode';
 import { renderWithProviders, authenticatedState, createTestStore } from '../../test/utils';
@@ -47,6 +50,20 @@ const signedIn = () => {
   };
 };
 
+/** The status of the sentence tabs: Comprehend holds a word never practised there. */
+const freshComprehend = {
+  comprehend: { ready: true, fresh: true },
+  compose: { ready: true, fresh: false },
+};
+
+beforeEach(() => {
+  loadTabStatuses.mockReset();
+  loadTabStatuses.mockResolvedValue({
+    comprehend: { ready: false, fresh: false },
+    compose: { ready: false, fresh: false },
+  });
+});
+
 const renderShell = (children: React.ReactNode = <div>page</div>, auth = true) =>
   renderWithProviders(<Layout>{children}</Layout>, {
     store: createTestStore(auth ? signedIn() : undefined),
@@ -70,6 +87,21 @@ describe('Layout on a phone', () => {
       '/settings',
     );
     expect(within(nav).queryByRole('link', { name: 'Stats' })).not.toBeInTheDocument();
+  });
+
+  it('lists the sentence tabs in More, with a dot on a tab that holds a new word', async () => {
+    loadTabStatuses.mockResolvedValue(freshComprehend);
+    renderShell();
+    fireEvent.click(await screen.findByRole('button', { name: 'More, new words' }));
+    const sheet = screen.getByRole('dialog', { name: 'More' });
+    expect(within(sheet).getByRole('link', { name: 'Comprehend, new words' })).toHaveAttribute(
+      'href',
+      '/comprehend',
+    );
+    expect(within(sheet).getByRole('link', { name: 'Compose' })).toHaveAttribute(
+      'href',
+      '/compose',
+    );
   });
 
   it('opens Shortcuts and Log out from More', () => {
@@ -109,11 +141,25 @@ describe('Layout on a desktop', () => {
     expect(links.map((l) => l.getAttribute('aria-label') ?? l.textContent)).toEqual([
       'HanLearn',
       'Study, 12 due',
+      'Comprehend',
+      'Compose',
       'Home',
       'Add words',
       'Settings',
     ]);
     expect(screen.queryByRole('banner')).not.toBeInTheDocument();
+  });
+
+  it('puts a dot and no count on a sentence tab that holds a new word', async () => {
+    loadTabStatuses.mockResolvedValue(freshComprehend);
+    renderShell();
+    const nav = screen.getByRole('navigation', { name: 'Main' });
+    expect(await within(nav).findByRole('link', { name: 'Comprehend, new words' })).toHaveAttribute(
+      'href',
+      '/comprehend',
+    );
+    expect(within(nav).getByRole('link', { name: 'Compose' })).toHaveTextContent(/^Compose$/);
+    expect(within(nav).getAllByTestId('tab-dot')).toHaveLength(1);
   });
 
   it('collapses the sidebar to a rail and remembers it', () => {

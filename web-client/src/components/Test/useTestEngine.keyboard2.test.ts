@@ -76,7 +76,6 @@ vi.mock('../../services/dictionaryService', () => ({
 }));
 
 vi.mock('../../services/sentenceService', () => ({
-  checkSentenceAvailability: vi.fn().mockResolvedValue(false),
   getHintSentence: vi.fn().mockResolvedValue(null),
 }));
 
@@ -385,70 +384,5 @@ describe('useTestEngine — onInputChanged updates state', () => {
     });
 
     expect(mockAbort).toHaveBeenCalled();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// onFinishTest sentence-check: catch path when checkSentenceAvailability rejects
-// ---------------------------------------------------------------------------
-describe('useTestEngine — onFinishTest handles sentence check rejection', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('treats rejected sentence checks as unavailable and calls onVocabComplete', async () => {
-    const { checkSentenceAvailability } = await import('../../services/sentenceService');
-    vi.mocked(checkSentenceAvailability).mockRejectedValue(new Error('Network error'));
-
-    const onVocabComplete = vi.fn();
-    const level1Word = makeWord({ id: 1, level: 1 });
-    const pair = { index: '0', aCategory: 'M' as any, qCategory: 'P' as any };
-
-    const result = renderEngineWithState(
-      {
-        answerCategory: 'meaning',
-        answer: ['hello'],
-        answerInput: 'hello',
-        chosenCharacter: '你好',
-        currentPair: pair,
-        testSet: [level1Word],
-        queue: [pair],
-        charSet: 'simp',
-        gradeList: [],
-        gradeCap: 'pass',
-        toneErrorCount: 0,
-        useAutoRecord: false,
-        recognition: null,
-      },
-      {
-        words: [level1Word],
-        isDemo: false,
-        practiceMode: false,
-        finalStage: false,
-        onVocabComplete,
-        onFinishTest: vi.fn(),
-      },
-    );
-
-    act(() => {
-      result.current.onSubmitAnswer();
-    });
-
-    await act(async () => {
-      vi.advanceTimersByTime(1100);
-    });
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(onVocabComplete).toHaveBeenCalled();
   });
 });

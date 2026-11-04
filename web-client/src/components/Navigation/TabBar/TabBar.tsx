@@ -5,6 +5,8 @@ import ButtonBase from '@mui/material/ButtonBase';
 
 import StudyButton, { useDueCount } from '../StudyButton/StudyButton';
 import MoreSheet from './MoreSheet';
+import TabDot from '../TabDot';
+import { useSentenceTabs } from '../../../hooks/useSentenceTabs';
 import { HomeIcon, AddIcon, SettingsIcon, MoreIcon } from '../icons';
 import { routes, isActive } from '../navLinks';
 import { colors, fonts } from '../../../theme';
@@ -38,6 +40,9 @@ const TabBar: React.FC<Props> = ({ onOpenShortcuts }) => {
   const { pathname } = useLocation();
   const due = useDueCount();
   const [moreOpen, setMoreOpen] = useState(false);
+  // The phone has no room for two more tabs, so the sentence tabs sit in More.
+  const sentenceTabs = useSentenceTabs();
+  const fresh = Boolean(sentenceTabs?.comprehend.fresh || sentenceTabs?.compose.fresh);
 
   const tab = (to: string, label: string, icon: React.ReactNode) => (
     <ButtonBase
@@ -88,15 +93,21 @@ const TabBar: React.FC<Props> = ({ onOpenShortcuts }) => {
           <span>{copy.shell.study}</span>
         </ButtonBase>
         {tab(routes.settings, copy.shell.settings, <SettingsIcon />)}
-        <ButtonBase onClick={() => setMoreOpen(true)} sx={tabSx(moreOpen)}>
+        <ButtonBase
+          onClick={() => setMoreOpen(true)}
+          aria-label={fresh ? copy.sentenceTabs.withNew(copy.shell.more) : undefined}
+          sx={{ ...tabSx(moreOpen), position: 'relative' }}
+        >
           <MoreIcon />
           <span>{copy.shell.more}</span>
+          {fresh && <TabDot sx={{ position: 'absolute', top: 10, left: 'calc(50% + 10px)' }} />}
         </ButtonBase>
       </Box>
       <MoreSheet
         open={moreOpen}
         onClose={() => setMoreOpen(false)}
         onOpenShortcuts={onOpenShortcuts}
+        sentenceTabs={sentenceTabs}
       />
     </>
   );

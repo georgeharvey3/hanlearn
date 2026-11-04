@@ -57,9 +57,6 @@ function planSize(dueWords: Word[], size: SessionSize): SizePlan {
   });
   const seconds = estimatePlannedTime(plan, {
     newWordsEnabled: localStorage.getItem('newWords') !== 'false',
-    sentenceReadEnabled: localStorage.getItem('sentenceRead') !== 'false',
-    sentenceWriteEnabled: localStorage.getItem('sentenceWrite') !== 'false',
-    sentenceStagesForAllWords: localStorage.getItem('sentenceStagesForAllWords') === 'true',
   });
   return {
     questions: plan.queue.length,

@@ -68,40 +68,62 @@ export function isNewWord(word: Pick<Word, 'level' | 'directions'>): boolean {
 }
 
 /**
- * The directions the Write stage gate reads: receptive recognition (`MC`, `MP`)
- * and productive recall (`PC`, `PM`).
+ * The directions the gates of the sentence tabs read: receptive recognition
+ * (`MC`, `MP`) and productive recall (`PC`, `PM`).
  *
- * `CM` is left out because handwriting is itself production, and production is
- * the thing the gate holds back. A word whose handwriting direction is still at
- * bank 1 can perfectly well write a sentence with the word in pinyin.
+ * `CM` is left out because handwriting is itself production. A word whose
+ * handwriting direction is still at bank 1 can perfectly well be read in a
+ * sentence, or used in a sentence written in pinyin.
  */
 export const RECALL_DIRECTIONS: readonly Direction[] = ['MC', 'MP', 'PC', 'PM'];
 
 /**
- * The bank every recall direction reaches before the Write stage runs.
+ * The bank every recall direction reaches before the Comprehend tab uses a word.
+ *
+ * Bank 2 is an interval of 1 to 6 days: the learner has recalled the word in
+ * each direction at least once after the day they met it, so the word form is
+ * stable enough to meet in context. The tab has no session, so "new word" has
+ * no meaning there and the gate is a bank of its own. A starting point to tune
+ * with the `sentenceLog` data. See docs/adr/0021-sentence-tasks-are-a-separate-practice.md.
+ */
+export const COMPREHEND_BANK = 2;
+
+/**
+ * The bank every recall direction reaches before the Compose tab uses a word.
  *
  * Bank 3 is an interval of 7 to 29 days, so a word that meets it has survived a
  * week or more in each of the four directions that ask for recall. The research
- * does not name a threshold, so this one is a starting point to tune.
+ * does not name a threshold, so this one is a starting point to tune. It sits
+ * above the Comprehend bank, so every Compose word is a Comprehend word too.
  */
-export const WRITE_STAGE_BANK = 3;
+export const COMPOSE_BANK = 3;
+
+const reachesBank = (word: Pick<Word, 'level' | 'directions'>, bank: number): boolean => {
+  const directions = word.directions;
+  if (!directions) return (word.level ?? 1) >= bank;
+  return RECALL_DIRECTIONS.every((direction) => directions[direction].level >= bank);
+};
 
 /**
- * Whether the learner knows a word well enough for the Write stage to ask them
- * to produce a sentence with it.
+ * Whether the learner knows a word well enough for the Comprehend tab. Every
+ * recall direction has to clear the bar: one strong direction is not knowledge
+ * of the word. The fallback reads the top-level level, for a word built
+ * without scheduling state at all.
+ */
+export function readyForComprehend(word: Pick<Word, 'level' | 'directions'>): boolean {
+  return reachesBank(word, COMPREHEND_BANK);
+}
+
+/**
+ * Whether the learner knows a word well enough for the Compose tab to ask
+ * them to produce a sentence with it.
  *
  * Writing a sentence with a word the learner has only just met impedes the
- * encoding of the word form, so the Write stage waits for partial mastery
- * rather than firing on novelty. Every recall direction has to clear the bar:
- * one strong direction is not knowledge of the word.
- *
- * The fallback reads the top-level level, for a word built without scheduling
- * state at all. See docs/adr/0011-gate-the-write-stage-on-partial-mastery.md.
+ * encoding of the word form, so Compose waits for partial mastery rather than
+ * firing on novelty. See docs/adr/0011-gate-the-write-stage-on-partial-mastery.md.
  */
-export function readyForWriteStage(word: Pick<Word, 'level' | 'directions'>): boolean {
-  const directions = word.directions;
-  if (!directions) return (word.level ?? 1) >= WRITE_STAGE_BANK;
-  return RECALL_DIRECTIONS.every((direction) => directions[direction].level >= WRITE_STAGE_BANK);
+export function readyForCompose(word: Pick<Word, 'level' | 'directions'>): boolean {
+  return reachesBank(word, COMPOSE_BANK);
 }
 
 /**

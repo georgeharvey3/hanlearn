@@ -60,30 +60,18 @@ describe('devTestMode utilities — development environment parsing', () => {
     expect(config!.testFinished).toBe(false);
   });
 
-  it('returns correct config for "read" stage', async () => {
-    Object.defineProperty(window, 'location', {
-      value: { search: '?devStage=read' },
-      writable: true,
-      configurable: true,
-    });
-
-    const { getDevTestConfig } = await import('./devTestMode');
-    const config = getDevTestConfig();
-    expect(config!.stage).toBe('read');
-    expect(config!.testFinished).toBe(false);
-  });
-
-  it('returns correct config for "write" stage', async () => {
-    Object.defineProperty(window, 'location', {
-      value: { search: '?devStage=write' },
-      writable: true,
-      configurable: true,
-    });
-
-    const { getDevTestConfig } = await import('./devTestMode');
-    const config = getDevTestConfig();
-    expect(config!.stage).toBe('write');
-    expect(config!.testFinished).toBe(false);
+  it('rejects the sentence stages that the session no longer has', async () => {
+    for (const stage of ['read', 'write']) {
+      Object.defineProperty(window, 'location', {
+        value: { search: `?devStage=${stage}` },
+        writable: true,
+        configurable: true,
+      });
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const { getDevTestConfig } = await import('./devTestMode');
+      expect(getDevTestConfig()).toBeNull();
+      warnSpy.mockRestore();
+    }
   });
 
   it('returns testFinished=true for "summary" stage', async () => {
@@ -116,14 +104,14 @@ describe('devTestMode utilities — development environment parsing', () => {
 
   it('handles additional query params alongside devStage', async () => {
     Object.defineProperty(window, 'location', {
-      value: { search: '?foo=bar&devStage=read&baz=qux' },
+      value: { search: '?foo=bar&devStage=new&baz=qux' },
       writable: true,
       configurable: true,
     });
 
     const { getDevTestConfig } = await import('./devTestMode');
     const config = getDevTestConfig();
-    expect(config!.stage).toBe('read');
+    expect(config!.stage).toBe('new');
   });
 
   it('isDevTestMode returns true with valid param', async () => {
@@ -150,13 +138,13 @@ describe('devTestMode utilities — development environment parsing', () => {
 
   it('getDevStage returns the stage value', async () => {
     Object.defineProperty(window, 'location', {
-      value: { search: '?devStage=write' },
+      value: { search: '?devStage=summary' },
       writable: true,
       configurable: true,
     });
 
     const { getDevStage } = await import('./devTestMode');
-    expect(getDevStage()).toBe('write');
+    expect(getDevStage()).toBe('summary');
   });
 
   it('getDevStage returns null with no param', async () => {

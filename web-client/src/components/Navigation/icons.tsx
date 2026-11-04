@@ -49,6 +49,22 @@ export const StudyIcon: React.FC<IconProps> = ({ size }) => (
   </Stroke>
 );
 
+// An open book: the Comprehend tab.
+export const ComprehendIcon: React.FC<IconProps> = ({ size }) => (
+  <Stroke size={size}>
+    <path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2z" />
+    <path d="M22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z" />
+  </Stroke>
+);
+
+// A pen on a line: the Compose tab.
+export const ComposeIcon: React.FC<IconProps> = ({ size }) => (
+  <Stroke size={size}>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+  </Stroke>
+);
+
 // A cog with six teeth: the outline of Lucide's "settings" icon (ISC licence).
 export const SettingsIcon: React.FC<IconProps> = ({ size }) => (
   <Stroke size={size}>

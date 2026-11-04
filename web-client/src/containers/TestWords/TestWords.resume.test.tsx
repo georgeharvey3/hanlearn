@@ -33,12 +33,6 @@ vi.mock('../../components/Test/NewWords/NewWords', () => ({
     <div data-testid="mock-new-words">NewWords: {words.map((w) => w.simp).join(',')}</div>
   ),
 }));
-vi.mock('../../components/Test/SentenceRead/SentenceRead', () => ({
-  default: () => <div data-testid="mock-sentence-read">SentenceRead</div>,
-}));
-vi.mock('../../components/Test/SentenceWrite/SentenceWrite', () => ({
-  default: () => <div data-testid="mock-sentence-write">SentenceWrite</div>,
-}));
 vi.mock('../../components/Test/TestSummary/TestSummary', () => ({
   default: () => <div data-testid="mock-test-summary">TestSummary</div>,
 }));
@@ -95,9 +89,6 @@ const savedSession = (overrides: Partial<SavedSession> = {}): SavedSession => ({
   practiceMode: false,
   wordIds: [1, 2, 3],
   newWordIds: [],
-  sentenceReadWordIds: [],
-  sentenceWriteWordIds: [],
-  seenOffsets: {},
   scoreList: [],
   queue: [pair('1'), pair('2')],
   gradeList: [grade],
@@ -150,11 +141,11 @@ describe('TestWords — the offer to resume', () => {
   });
 
   it('resumes at the stage the session reached', async () => {
-    saveSession(savedSession({ stage: 'read', sentenceReadWordIds: [1], queue: [] }));
+    saveSession(savedSession({ stage: 'new' }));
     renderWithProviders(<TestWords />, { store: storeWithWords() });
 
     await userEvent.click(await screen.findByRole('button', { name: /resume/i }));
-    expect(await screen.findByTestId('mock-sentence-read')).toBeInTheDocument();
+    expect(await screen.findByTestId('mock-new-words')).toBeInTheDocument();
   });
 
   it('discards the saved session and plans a new one on Start fresh', async () => {

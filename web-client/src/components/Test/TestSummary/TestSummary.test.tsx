@@ -165,3 +165,37 @@ describe('TestSummary — buttons', () => {
     expect(screen.queryByRole('button', { name: 'Test settings' })).not.toBeInTheDocument();
   });
 });
+
+describe('TestSummary — sentence tabs', () => {
+  const status = (ready: boolean) => ({ ready, fresh: false });
+
+  it('goes to the Comprehend tab or the Compose tab in one tap', async () => {
+    const user = userEvent.setup();
+    const onSentenceTab = vi.fn();
+    renderSummary({
+      sentenceTabs: { comprehend: status(true), compose: status(true) },
+      onSentenceTab,
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Comprehend' }));
+    await user.click(screen.getByRole('button', { name: 'Compose' }));
+    expect(onSentenceTab.mock.calls).toEqual([['comprehend'], ['compose']]);
+  });
+
+  it('hides the button of a tab with nothing to practise', () => {
+    renderSummary({
+      sentenceTabs: { comprehend: status(true), compose: status(false) },
+      onSentenceTab: vi.fn(),
+    });
+
+    expect(screen.getByRole('button', { name: 'Comprehend' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Compose' })).not.toBeInTheDocument();
+  });
+
+  it('shows neither button while the status loads', () => {
+    renderSummary({ sentenceTabs: null, onSentenceTab: vi.fn() });
+
+    expect(screen.queryByRole('button', { name: 'Comprehend' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Compose' })).not.toBeInTheDocument();
+  });
+});

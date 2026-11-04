@@ -23,14 +23,15 @@ export const SAVED_SESSION_KEY = 'savedSession';
 /** Bumped whenever the shape below changes; an older record is discarded. */
 export const SAVED_SESSION_VERSION = 1;
 
-/** The stages a session can be resumed at. `summary` has nothing left to do. */
-export type SavedStage = 'new' | 'vocab' | 'read' | 'write';
-
-export interface SeenOffset {
-  offset: number;
-  text: string;
-  english: string;
-}
+/**
+ * The stages a session can be resumed at. `summary` has nothing left to do.
+ *
+ * A record from before #489 can hold a sentence stage, or the sentence fields
+ * that the session no longer has. The version stays: the extra fields are
+ * ignored, and a record at a sentence stage fails the check, because its
+ * vocabulary was saved already.
+ */
+export type SavedStage = 'new' | 'vocab';
 
 /**
  * The question at the head of the queue, as far as the learner got with it: its
@@ -99,9 +100,6 @@ export interface SavedSession extends VocabProgress {
   /** The plan's words, in plan order: a queue entry's index points into this. */
   wordIds: number[];
   newWordIds: number[];
-  sentenceReadWordIds: number[];
-  sentenceWriteWordIds: number[];
-  seenOffsets: Record<string, SeenOffset>;
   /** The grades so far as the summary reads them. */
   scoreList: WordScore[];
 }
@@ -112,15 +110,11 @@ export interface RestoredSession {
   practiceMode: boolean;
   words: Word[];
   newWords: Word[];
-  sentenceReadWords: Word[];
-  sentenceWriteWords: Word[];
-  seenOffsets: Record<string, SeenOffset>;
   scoreList: WordScore[];
   progress: VocabProgress;
 }
 
-const isStage = (value: unknown): value is SavedStage =>
-  value === 'new' || value === 'vocab' || value === 'read' || value === 'write';
+const isStage = (value: unknown): value is SavedStage => value === 'new' || value === 'vocab';
 
 const isNumberArray = (value: unknown): value is number[] =>
   Array.isArray(value) && value.every((entry) => typeof entry === 'number');
@@ -146,13 +140,9 @@ function isSavedSession(value: unknown): value is SavedSession {
     typeof record.initialQueueLength === 'number' &&
     isNumberArray(record.wordIds) &&
     isNumberArray(record.newWordIds) &&
-    isNumberArray(record.sentenceReadWordIds) &&
-    isNumberArray(record.sentenceWriteWordIds) &&
     Array.isArray(record.queue) &&
     Array.isArray(record.gradeList) &&
     Array.isArray(record.scoreList) &&
-    typeof record.seenOffsets === 'object' &&
-    record.seenOffsets !== null &&
     (record.alternatives === undefined ||
       (typeof record.alternatives === 'object' && record.alternatives !== null)) &&
     (record.current === undefined || isCurrentQuestion(record.current))
@@ -255,10 +245,8 @@ export function restoreSession(saved: SavedSession, words: Word[]): RestoredSess
 
   const planWords = resolve(saved.wordIds);
   const newWords = resolve(saved.newWordIds);
-  const readWords = resolve(saved.sentenceReadWordIds);
-  const writeWords = resolve(saved.sentenceWriteWordIds);
 
-  if (!planWords || !newWords || !readWords || !writeWords) return null;
+  if (!planWords || !newWords) return null;
   if (planWords.length === 0) return null;
 
   // A queue entry that points outside the plan cannot be asked at all.
@@ -273,9 +261,6 @@ export function restoreSession(saved: SavedSession, words: Word[]): RestoredSess
     practiceMode: saved.practiceMode,
     words: planWords,
     newWords,
-    sentenceReadWords: readWords,
-    sentenceWriteWords: writeWords,
-    seenOffsets: saved.seenOffsets,
     scoreList: saved.scoreList,
     progress: {
       queue: saved.queue,
@@ -290,9 +275,6 @@ export function restoreSession(saved: SavedSession, words: Word[]): RestoredSess
 /** How far through a resumable session the learner is, for the offer to say. */
 export function describeSavedSession(saved: SavedSession): string {
   if (saved.stage === 'new') return 'Learning new words';
-  if (saved.stage === 'vocab') {
-    const left = saved.queue.length;
-    return `${left} question${left === 1 ? '' : 's'} left`;
-  }
-  return 'Sentences';
+  const left = saved.queue.length;
+  return `${left} question${left === 1 ? '' : 's'} left`;
 }
