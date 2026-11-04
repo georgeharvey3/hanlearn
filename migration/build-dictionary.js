@@ -17,10 +17,8 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { createRequire } = require('module');
 const { ranksOf, resolveCatalogue } = require('./premadeCatalogue');
 const { buildExampleSentences, unfilledOf } = require('./exampleSentences');
-const sentenceLicences = require('./sentenceLicences');
 
 /**
  * The HSK 3.0 bands of the catalogue, from drkameleon/complete-hsk-vocabulary
@@ -97,22 +95,14 @@ const levelOfList = (index) => Math.min(index + 1, 7);
 const GENERATED_PATH = path.join(__dirname, 'sentences', 'generated.json');
 
 /**
- * The inputs of buildExampleSentences, from the committed source copies in
- * sentences/ and the resolved HSK lists. Also gives the generated file as it
- * is on disk, which the gaps and accept scripts read and write.
+ * The inputs of buildExampleSentences, from the committed generated sentences
+ * and the resolved HSK lists. Also gives the generated file as it is on disk,
+ * which the gaps and accept scripts read and write.
  */
 function sentenceInputs(words, catalogue, ranks) {
-  const sourcesDir = path.join(__dirname, 'sentences');
-  const read = (name) => JSON.parse(fs.readFileSync(path.join(sourcesDir, name), 'utf8'));
-  const sources = ['tatoeba.json', 'wiktionary.json', 'sentence-cache.json'].map(read);
   const generatedFile = fs.existsSync(GENERATED_PATH)
     ? JSON.parse(fs.readFileSync(GENERATED_PATH, 'utf8'))
     : { source: 'generated', records: [], rounds: {} };
-
-  // opencc-js is a dependency of web-client, which CI installs before this
-  // build. The root and migration/ have no install step in the deploy jobs.
-  const OpenCC = createRequire(path.join(__dirname, '..', 'web-client', 'package.json'))('opencc-js');
-  const toSimplified = OpenCC.Converter({ from: 'tw', to: 'cn' });
 
   const hsk = catalogue.flatMap((list, i) =>
     list.entries.map((entry) => ({
@@ -126,29 +116,23 @@ function sentenceInputs(words, catalogue, ranks) {
     inputs: {
       dictionary: words,
       hsk,
-      sources,
       generated: generatedFile.records,
       unfilled: unfilledOf(generatedFile),
-      licences: sentenceLicences,
-      toSimplified,
     },
     generatedFile,
   };
 }
 
 /**
- * Write the example sentence files from the committed source copies in
- * sentences/, with no network and no AI. A local run also writes the coverage
- * report to sentences/coverage.md. CI only prints it.
+ * Write the example sentence files from the committed generated sentences,
+ * with no network and no AI. A local run also writes the coverage report to
+ * sentences/coverage.md. CI only prints it.
  *
- * Fails the build on a malformed source record, on a generated sentence that
- * fails the grader, and on a sentence file over 2 MB.
+ * Fails the build on a malformed generated record, on a generated sentence
+ * that fails the grader, and on a sentence file over 2 MB.
  */
 function buildSentences(words, catalogue, ranks, outputDir) {
-  const sourcesDir = path.join(__dirname, 'sentences');
-  const { inputs, generatedFile } = sentenceInputs(words, catalogue, ranks);
-  // The generated file names its licence like a source file, once it holds sentences.
-  const sources = generatedFile.records.length > 0 ? [...inputs.sources, generatedFile] : inputs.sources;
+  const { inputs } = sentenceInputs(words, catalogue, ranks);
   const result = buildExampleSentences(inputs);
 
   fs.rmSync(outputDir, { recursive: true, force: true });
@@ -156,45 +140,40 @@ function buildSentences(words, catalogue, ranks, outputDir) {
   for (const [name, content] of Object.entries(result.files)) {
     fs.writeFileSync(path.join(outputDir, name + '.json'), JSON.stringify(content));
   }
-  fs.writeFileSync(path.join(outputDir, 'ATTRIBUTION.txt'), result.attribution.join('\n') + '\n');
-  fs.writeFileSync(path.join(outputDir, 'LICENSE.txt'), licenceText(sources));
+  fs.writeFileSync(path.join(outputDir, 'ATTRIBUTION.txt'), ATTRIBUTION);
+  fs.writeFileSync(path.join(outputDir, 'LICENSE.txt'), LICENSE);
 
   console.log(
     'Wrote ' + Object.keys(result.files).length + ' sentence files and ' +
-      result.attribution.length + ' sentences to: ' + outputDir +
-      ' (' + result.rejects.length + ' sentences dropped)',
+      result.count + ' sentences to: ' + outputDir,
   );
   console.log('');
   console.log(result.report);
   if (!process.env.CI) {
-    fs.writeFileSync(path.join(sourcesDir, 'coverage.md'), result.report);
-    console.log('Also wrote: ' + path.join(sourcesDir, 'coverage.md'));
+    const reportPath = path.join(__dirname, 'sentences', 'coverage.md');
+    fs.writeFileSync(reportPath, result.report);
+    console.log('Also wrote: ' + reportPath);
   }
 }
 
-/** The text of LICENSE.txt: the licence of the files and of each source. */
-function licenceText(sources) {
-  const lines = [
-    'The example sentence files in this directory are licensed under CC BY-SA 4.0',
-    '(https://creativecommons.org/licenses/by-sa/4.0/), because some sentences come',
-    'from Wiktionary, which is share-alike. This licence covers these data files',
-    'only, not the HanLearn app.',
-    '',
-    'ATTRIBUTION.txt names the source and the author of each sentence.',
-    '',
-    'Sources:',
-  ];
-  for (const { source, downloaded, licence } of sources) {
-    lines.push('');
-    lines.push('- ' + source + (downloaded ? ' (downloaded ' + downloaded + ')' : '') + ': ' + licence.name +
-      (licence.url ? ' (' + licence.url + ')' : ''));
-    lines.push('  ' + licence.attribution);
-  }
-  lines.push('');
-  lines.push('- The segments, pinyin and glosses come from CC-CEDICT (https://cc-cedict.org),');
-  lines.push('  CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/).');
-  return lines.join('\n') + '\n';
-}
+/** The text of ATTRIBUTION.txt: the source of each part of a sentence file. */
+const ATTRIBUTION = [
+  'Claude Code generated the Chinese and the English of each example sentence',
+  'for HanLearn (see ADR 0020). No third-party licence applies to that text.',
+  '',
+  'The segments, pinyin and glosses come from CC-CEDICT (https://cc-cedict.org),',
+  'CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/).',
+].join('\n') + '\n';
+
+/** The text of LICENSE.txt: the licence of the files. */
+const LICENSE = [
+  'The example sentence files in this directory are licensed under CC BY-SA 4.0',
+  '(https://creativecommons.org/licenses/by-sa/4.0/), because the segment pinyin',
+  'and glosses come from CC-CEDICT (https://cc-cedict.org), which is share-alike.',
+  'This licence covers these data files only, not the HanLearn app.',
+  '',
+  'ATTRIBUTION.txt names the source of each part of the files.',
+].join('\n') + '\n';
 
 /**
  * The SHA-256 of the one cedict_ts.u8 the app ships (2026-01-02).

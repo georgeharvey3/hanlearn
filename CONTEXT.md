@@ -285,7 +285,8 @@ the name it had when it widened both.
 ## Example sentence
 
 An **example sentence** is one Chinese sentence that holds a word, with its
-English translation and its source. The sentence stages and the hint show
+English translation. Claude Code generates every example sentence, and only
+for an HSK word (ADR 0020). The sentence stages and the hint show
 example sentences. Do not call the set of them a "sentence bank": a **bank** is
 the band of an interval.
 
@@ -299,18 +300,15 @@ segments, other than the target segment. Names and numbers do not count.
 Always write "HSK level" in full, because a bare **level** is the band of an
 interval.
 
-Each sentence of a word comes in at one **fill step**:
+The **grader** admits a sentence for a word when it has no counted segment
+above the HSK level of the word, and when it is within the length cap of that
+level. An HSK 7–9 word has no cap and no level rule.
 
-| Fill step   | The sentence                                           |
-| ----------- | ------------------------------------------------------ |
-| `strict`    | has no counted segment above the HSK level of the word |
-| `relaxed`   | has one counted segment one HSK level above the word   |
-| `generated` | came from an AI, and passed the strict rule            |
+A word is **filled** when it has 5 sentences. The **coverage report** lists the
+HSK words that are not filled.
 
 The **origin** of a sentence says whether a person or a machine wrote its
-Chinese and its English. A real sentence with a human translation, a real
-sentence with a machine translation, and a generated sentence are the three
-kinds.
+Chinese and its English. Every sentence now has the origin `machine` for both.
 
 ## Practice
 

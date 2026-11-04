@@ -1,6 +1,6 @@
 # 19. Example sentences are a committed build, not runtime AI
 
-- Status: accepted
+- Status: amended by [0020](0020-every-example-sentence-is-generated.md)
 - Date: 2026-11-01
 - Issue: #465
 
