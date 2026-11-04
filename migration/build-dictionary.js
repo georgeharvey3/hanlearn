@@ -98,6 +98,12 @@ const GENERATED_PATH = path.join(__dirname, 'sentences', 'generated.json');
 const TATOEBA_PATH = path.join(__dirname, 'sentences', 'tatoeba.json');
 
 /**
+ * The committed gloss overrides of #479: the pinyin and the gloss that one
+ * segment text shows, for an error that a person finds in use.
+ */
+const GLOSS_OVERRIDES_PATH = path.join(__dirname, 'sentences', 'gloss-overrides.json');
+
+/**
  * The inputs of buildExampleSentences, from the committed generated and
  * Tatoeba sentences and the resolved HSK lists. Also gives the generated file
  * as it is on disk, which the gaps and accept scripts read and write.
@@ -107,6 +113,7 @@ function sentenceInputs(words, catalogue, ranks) {
     ? JSON.parse(fs.readFileSync(GENERATED_PATH, 'utf8'))
     : { source: 'generated', records: [], rounds: {} };
   const tatoebaFile = JSON.parse(fs.readFileSync(TATOEBA_PATH, 'utf8'));
+  const glossOverrides = JSON.parse(fs.readFileSync(GLOSS_OVERRIDES_PATH, 'utf8')).overrides;
 
   const hsk = catalogue.flatMap((list, i) =>
     list.entries.map((entry) => ({
@@ -123,6 +130,7 @@ function sentenceInputs(words, catalogue, ranks) {
       generated: generatedFile.records,
       tatoeba: tatoebaFile.records,
       unfilled: unfilledOf(generatedFile),
+      glossOverrides,
     },
     generatedFile,
     tatoebaFile,

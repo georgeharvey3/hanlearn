@@ -1,0 +1,26 @@
+{
+  "about": "The pinyin and the gloss that one segment text shows in the example sentences (#479). An override applies to every segment with this text. Each override names a CC-CEDICT entry by its pinyin with tone numbers, and by trad when two entries have the same pinyin. The build stops when an override names no entry, or when a gloss has more than 3 senses. Add an override for an error that a person finds in use.",
+  "overrides": {
+    "地": { "pinyin": "de5", "gloss": "-ly (particle after an adverbial)" },
+    "本": { "pinyin": "ben3", "gloss": "classifier for books, periodicals, files; root; origin" },
+    "场": { "pinyin": "chang3", "gloss": "classifier for events, games, exams; large place; stage" },
+    "款": { "pinyin": "kuan3", "gloss": "classifier for versions or models (of a product); section; funds" },
+    "给": { "pinyin": "gei3", "gloss": "to give; to; for" },
+    "前": { "pinyin": "qian2", "gloss": "before; ago; front" },
+    "后": { "pinyin": "hou4", "trad": "後", "gloss": "after; later; behind" },
+    "上": { "pinyin": "shang4", "gloss": "on; above; up" },
+    "下": { "pinyin": "xia4", "gloss": "down; below; (after a number) a time, once" },
+    "把": { "pinyin": "ba3", "gloss": "(marks the object before the verb); to hold; classifier for things with a handle" },
+    "被": { "pinyin": "bei4", "gloss": "(marks the passive) by; quilt; to cover" },
+    "才": { "pinyin": "cai2", "gloss": "only then; just now; only" },
+    "次": { "pinyin": "ci4", "gloss": "classifier for times or occurrences; next; second" },
+    "点": { "pinyin": "dian3", "gloss": "a bit; o'clock; dot" },
+    "张": { "pinyin": "zhang1", "gloss": "classifier for flat objects, sheets; to open up; to spread" },
+    "条": { "pinyin": "tiao2", "gloss": "classifier for long thin things (river, road, trousers etc); strip; item" },
+    "位": { "pinyin": "wei4", "gloss": "classifier for people (polite); position; place" },
+    "双": { "pinyin": "shuang1", "gloss": "pair; classifier for pairs; two" },
+    "跟": { "pinyin": "gen1", "gloss": "with; and; to follow" },
+    "过": { "pinyin": "guo4", "gloss": "(after a verb) have done before; to cross; to pass (time)" },
+    "回": { "pinyin": "hui2", "gloss": "to go back; to return; classifier for times or acts" }
+  }
+}

@@ -66,6 +66,10 @@ The build uses no network and no AI. The rules are in `exampleSentences.js`, and
 
 Each sentence goes to every HSK word that it holds and passes the grader for. A generated sentence must pass the grader for its `headword`, or the build stops. The build drops a Tatoeba sentence with fewer than 6 Han characters or with a name. A word outside HSK gets no sentences. Each word keeps 3 sentences at most (#482).
 
+Each segment shows the pinyin and the gloss of one CC-CEDICT entry (#479). An override always wins. Without one, an HSK word shows the entry of the premade-list resolver. A single character outside HSK shows the entry that the HSK words with this character read most often, so 居 is *jū* as in 居住. The gloss is the first 3 useful senses of the entry, divided by "; ".
+
+`sentences/gloss-overrides.json` sets the entry and the gloss of one segment text. Each override names the entry by its pinyin with tone numbers, and by `trad` when two entries have the same pinyin. If a person finds a wrong pinyin or gloss in use, add an override for it. The build stops on an override that names no entry.
+
 The build writes these files to `web-client/public/sentences/`. They are build output, and git ignores them:
 
 | File | Contents |
@@ -76,7 +80,7 @@ The build writes these files to `web-client/public/sentences/`. They are build o
 
 The build also prints a coverage report. The report lists each HSK word that has fewer than 3 sentences. A local run writes the report to `sentences/coverage.md`. CI only prints it. Commit `coverage.md` when it changes, so that a pull request shows the change in coverage.
 
-The build stops on a malformed record, on a generated sentence that fails the grader, and on a sentence file over 2 MB. It does not stop on low coverage.
+The build stops on a gloss override that names no entry, on a malformed record, on a generated sentence that fails the grader, and on a sentence file over 2 MB. It does not stop on low coverage.
 
 ## Generated Sentences
 

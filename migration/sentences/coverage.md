@@ -29,4 +29,4 @@ These words have fewer than 3 sentences. `node sentence-gaps.js` gives them to t
 
 ## Files
 
-The largest sentence file is `4e0d.json` (the words that start with 不), at 188 KB. The limit is 2 MB.
+The largest sentence file is `4e0d.json` (the words that start with 不), at 215 KB. The limit is 2 MB.
