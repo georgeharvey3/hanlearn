@@ -16,6 +16,7 @@ import {
 
 import { loadRules, asUser } from './helpers';
 import { QUESTIONS_PER_SESSION_MAX } from '../../web-client/src/utils/sessionSettings';
+import { sentenceReportDocument } from '../../web-client/src/utils/reportedSentences';
 
 /**
  * The Firestore rules, exercised against the emulator.
@@ -522,5 +523,46 @@ describe('testCompletions', () => {
         { merge: true },
       ),
     );
+  });
+});
+
+describe('sentenceReports', () => {
+  const path = 'users/user-1/sentenceReports/4abe78e382';
+  const report = (extra: Record<string, unknown> = {}) => ({
+    ...sentenceReportDocument(
+      {
+        sentenceId: '4abe78e382',
+        word: '你',
+        stage: 'read',
+        sentence: '你會打球嗎？',
+        english: 'Can you play ball?',
+      },
+      Timestamp.now(),
+    ),
+    ...extra,
+  });
+
+  it('accepts the report the sentence stages write', async () => {
+    await assertSucceeds(setDoc(ref(db, path), report()));
+  });
+
+  it('accepts a second report of the same sentence', async () => {
+    await assertSucceeds(setDoc(ref(db, path), report()));
+    await assertSucceeds(setDoc(ref(db, path), report({ stage: 'write' })));
+  });
+
+  it('rejects a report whose id is not the id of its document', async () => {
+    await assertFails(setDoc(ref(db, path), report({ sentenceId: 'other' })));
+  });
+
+  it('rejects an unknown stage or an extra field', async () => {
+    await assertFails(setDoc(ref(db, path), report({ stage: 'test' })));
+    await assertFails(setDoc(ref(db, path), report({ note: 'bad' })));
+  });
+
+  it("keeps one user out of another user's reports", async () => {
+    await assertFails(setDoc(ref(otherDb, path), report()));
+    await assertSucceeds(setDoc(ref(db, path), report()));
+    await assertFails(getDoc(ref(otherDb, path)));
   });
 });

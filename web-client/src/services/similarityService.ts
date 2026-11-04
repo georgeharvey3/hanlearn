@@ -15,7 +15,7 @@ interface SimilarityResult {
  * Previously this called a Cloud Function that used Vertex AI embeddings,
  * but that approach required Vertex AI API setup and kept failing (issue #223).
  * Using Gemini directly on the client mirrors the pattern used by
- * sentenceService.ts and avoids the extra infrastructure dependency.
+ * chengyuSentenceService.ts and avoids the extra infrastructure dependency.
  */
 export async function getSimilarityScore(
   userText: string,

@@ -60,6 +60,10 @@ export const copy = {
     close: 'Close',
     addToList: 'Add to list',
     added: 'Added',
+    addFailed: "Couldn't add the word.",
+    report: 'Report sentence',
+    reported: 'Reported',
+    reportFailed: 'Report failed',
     nextWord: 'Next word',
     nextStage: 'Next stage',
     finish: 'Finish',
@@ -145,6 +149,13 @@ export const copy = {
     // Between two stages in the closed header, for a screen reader. An arrow shows it on screen.
     stageSeparator: ', ',
     soundSummary: (sounds: string[]) => sounds.join(' · ') || 'Off',
+    credits: 'Credits',
+  },
+  credits: {
+    title: 'Credits',
+    licence: 'Licence',
+    sentenceCredits: 'Sentence credits',
+    sentenceLicence: 'Sentence licence',
   },
   test: {
     // "What is the meaning for", with the answer's category between the two.

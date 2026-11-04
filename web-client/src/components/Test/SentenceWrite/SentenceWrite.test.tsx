@@ -27,24 +27,9 @@ vi.mock('../../../services/sentenceService', () => ({
 vi.mock('../../../services/similarityService', () => ({
   getSimilarityScore: vi.fn(),
 }));
-vi.mock('../../../utils/sentenceUtils', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../utils/sentenceUtils')>();
-  return {
-    ...actual,
-    resolveSentence: vi.fn().mockResolvedValue({
-      chinese: {
-        sentence: '你好，我是学生。',
-        words: [
-          '你好',
-          { id: 10, simp: '学生', trad: '學生', pinyin: 'xué shēng', meaning: 'student' },
-        ],
-        highlight: [[0, 2]],
-        targetIndex: 0,
-      },
-      english: { sentence: 'Hello, I am a student.', highlight: [] },
-    }),
-  };
-});
+vi.mock('../../../services/sentenceReportService', () => ({
+  reportSentence: vi.fn(),
+}));
 
 import React from 'react';
 import { screen, waitFor, within } from '@testing-library/react';
@@ -54,6 +39,7 @@ import SentenceWrite from './SentenceWrite';
 import { renderWithProviders, createTestStore } from '../../../test/utils';
 import * as sentenceService from '../../../services/sentenceService';
 import * as similarityService from '../../../services/similarityService';
+import * as sentenceReportService from '../../../services/sentenceReportService';
 import { Word } from '../../../types/models';
 
 const mockedGetSegmentedSentence = vi.mocked(sentenceService.getSegmentedSentence);
@@ -71,10 +57,17 @@ const testWord: Word = {
 
 const mockSentenceResponse = {
   sentence: {
+    id: 'sentence-1',
     chinese: {
       sentence: '你好，我是学生。',
       highlight: [[0, 2]] as number[][],
-      segments: ['你好', '学生'],
+      segments: [
+        { s: '你好', t: '你好', p: 'nǐ hǎo', e: 'hello' },
+        { s: '，', t: '，', p: '', e: '' },
+        { s: '我是', t: '我是', p: '', e: '' },
+        { s: '学生', t: '學生', p: 'xué shēng', e: 'student' },
+        { s: '。', t: '。', p: '', e: '' },
+      ],
       targetIndex: 0,
     },
     english: {
@@ -478,10 +471,11 @@ describe('SentenceWrite — duplicate sentence avoidance', () => {
     // First call returns a sentence whose chinese matches seenText → duplicate
     const duplicateSentence = {
       sentence: {
+        id: 'sentence-2',
         chinese: {
           sentence: '你好，我是学生。',
           highlight: [[0, 2]] as number[][],
-          segments: ['你好'],
+          segments: [{ s: '你好', t: '你好', p: 'nǐ hǎo', e: 'hello' }],
           targetIndex: 0,
         },
         english: {
@@ -515,10 +509,11 @@ describe('SentenceWrite — duplicate sentence avoidance', () => {
     // First call returns sentence whose english matches seenEnglish
     const dupByEnglish = {
       sentence: {
+        id: 'sentence-3',
         chinese: {
           sentence: '你好世界',
           highlight: [[0, 2]] as number[][],
-          segments: ['你好'],
+          segments: [{ s: '你好', t: '你好', p: 'nǐ hǎo', e: 'hello' }],
           targetIndex: 0,
         },
         english: {
@@ -552,10 +547,11 @@ describe('SentenceWrite — duplicate sentence avoidance', () => {
     // Only 1 total sentence available and it's a duplicate
     const dupSentence = {
       sentence: {
+        id: 'sentence-4',
         chinese: {
           sentence: '你好，我是学生。',
           highlight: [[0, 2]] as number[][],
-          segments: ['你好'],
+          segments: [{ s: '你好', t: '你好', p: 'nǐ hǎo', e: 'hello' }],
           targetIndex: 0,
         },
         english: {
@@ -791,5 +787,26 @@ describe('SentenceWrite — a sentence that fails to load', () => {
     await user.click(await screen.findByRole('button', { name: 'Skip and finish' }));
 
     expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('SentenceWrite — report a sentence', () => {
+  it('reports the sentence after the learner checks the answer', async () => {
+    vi.mocked(sentenceReportService.reportSentence).mockResolvedValue(undefined);
+    renderWithProviders(<SentenceWrite words={[testWord]} onComplete={vi.fn()} />, {
+      store: makeStore(),
+    });
+    await userEvent.type(await screen.findByPlaceholderText('用中文写'), '你好{Enter}');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Report sentence' }));
+
+    expect(await screen.findByRole('button', { name: 'Reported' })).toBeDisabled();
+    expect(sentenceReportService.reportSentence).toHaveBeenCalledWith('u1', {
+      sentenceId: 'sentence-1',
+      word: '你好',
+      stage: 'write',
+      sentence: '你好，我是学生。',
+      english: 'Hello, I am a student.',
+    });
   });
 });

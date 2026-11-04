@@ -370,3 +370,12 @@ describe('Settings — Account', () => {
     expect(store.getState().auth.modalOpen).toBe(true);
   });
 });
+
+describe('Settings — Credits', () => {
+  it('opens the Credits screen', async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    await user.click(screen.getByRole('link', { name: 'Credits' }));
+    expect(window.location.pathname).toBe('/credits');
+  });
+});

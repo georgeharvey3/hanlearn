@@ -22,7 +22,6 @@ vi.mock('../../../services/sentenceService', () => ({
 }));
 vi.mock('../../../services/dictionaryService', () => ({
   searchWord: vi.fn(),
-  substringMatch: vi.fn(),
 }));
 vi.mock('../../../services/ttsService', () => ({
   speak: vi.fn(() => ({ play: vi.fn(), stop: vi.fn() })),
@@ -48,7 +47,6 @@ import { Word } from '../../../types/models';
 
 const mockedGetSegmentedSentence = vi.mocked(sentenceService.getSegmentedSentence);
 const mockedSearchWord = vi.mocked(dictionaryService.searchWord);
-const mockedSubstringMatch = vi.mocked(dictionaryService.substringMatch);
 const mockedGetSimilarityScore = vi.mocked(similarityService.getSimilarityScore);
 
 const testWord: Word = {
@@ -72,10 +70,17 @@ const testWord2: Word = {
 };
 
 const mockCloudSentence = {
+  id: 'sentence-1',
   chinese: {
     sentence: '你好，我是学生。',
     highlight: [[0, 2]] as number[][],
-    segments: ['你好', '，', '我是', '学生', '。'],
+    segments: [
+      { s: '你好', t: '你好', p: 'nǐ hǎo', e: 'hello' },
+      { s: '，', t: '，', p: '', e: '' },
+      { s: '我是', t: '我是', p: 'wǒ shì', e: 'to be' },
+      { s: '学生', t: '學生', p: 'xué sheng', e: 'student' },
+      { s: '。', t: '。', p: '', e: '' },
+    ],
     targetIndex: 0,
   },
   english: {
@@ -98,9 +103,6 @@ beforeEach(() => {
     totalCount: 3,
   });
   mockedSearchWord.mockResolvedValue([]);
-  mockedSubstringMatch.mockResolvedValue([
-    { id: -1, simp: '—', trad: '—', pinyin: '', meaning: '' },
-  ]);
   mockedGetSimilarityScore.mockResolvedValue({ score: 85, rawSimilarity: 0.925 });
 });
 

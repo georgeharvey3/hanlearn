@@ -9,6 +9,7 @@ import { toneMarks } from '../../../utils/pinyinMarks';
 import SimilarityScore from '../../UI/SimilarityScore/SimilarityScore';
 import StudyScreen from '../Study/StudyScreen';
 import StudyTop from '../Study/StudyTop';
+import ReportSentenceButton from '../Study/ReportSentenceButton';
 import { MicButton, Overline, StatusLine, StudyButton, StudyCard, hanziSx } from '../Study/parts';
 
 import { beep } from '../constants';
@@ -40,6 +41,8 @@ interface SentenceWriteState {
   loading: boolean;
   // The sentence for the current word could not be fetched
   loadError: boolean;
+  /** The id of the sentence on screen, in the files. */
+  sentenceId: string | null;
   originalChinese: string | null;
   englishPrompt: string | null;
 
@@ -90,20 +93,9 @@ function stripPunctuation(word: string): string {
   return word.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '');
 }
 
-/**
- * Flatten resolved sentence words into a flat array of SentenceWord objects.
- */
-function flattenSentenceWords(words: (string | SentenceWord | SentenceWord[])[]): SentenceWord[] {
-  const result: SentenceWord[] = [];
-  for (const w of words) {
-    if (typeof w === 'string') continue;
-    if (Array.isArray(w)) {
-      result.push(...w);
-    } else {
-      result.push(w);
-    }
-  }
-  return result;
+/** The words of a resolved sentence that have an entry. */
+function sentenceWordsOf(words: (string | SentenceWord)[]): SentenceWord[] {
+  return words.filter((w): w is SentenceWord => typeof w !== 'string');
 }
 
 const SentenceWrite: React.FC<Props> = ({
@@ -121,6 +113,7 @@ const SentenceWrite: React.FC<Props> = ({
     useSound: (localStorage.getItem('useSound') !== 'false' || Boolean(isDemo)) && synthAvailable,
     loading: false,
     loadError: false,
+    sentenceId: null,
     originalChinese: null,
     englishPrompt: null,
     resolvedWords: [],
@@ -178,6 +171,7 @@ const SentenceWrite: React.FC<Props> = ({
         loading: true,
         loadError: false,
         message: '',
+        sentenceId: null,
         originalChinese: null,
         englishPrompt: null,
         resolvedWords: [],
@@ -217,12 +211,13 @@ const SentenceWrite: React.FC<Props> = ({
           }
           const { sentence: fb } = await getSegmentedSentence(word.simp, charSet, 0);
           if (fb && !isDuplicate(fb.chinese.sentence, fb.english.sentence)) {
-            const resolved = await resolveSentence(fb);
+            const resolved = resolveSentence(fb, charSet);
             updateState({
               loading: false,
+              sentenceId: fb.id,
               originalChinese: fb.chinese.sentence,
               englishPrompt: fb.english.sentence,
-              resolvedWords: flattenSentenceWords(resolved.chinese.words),
+              resolvedWords: sentenceWordsOf(resolved.chinese.words),
             });
           } else {
             skipToNextWord();
@@ -239,12 +234,13 @@ const SentenceWrite: React.FC<Props> = ({
           return;
         }
 
-        const resolved = await resolveSentence(sentence);
+        const resolved = resolveSentence(sentence, charSet);
         updateState({
           loading: false,
+          sentenceId: sentence.id,
           originalChinese: sentence.chinese.sentence,
           englishPrompt: sentence.english.sentence,
-          resolvedWords: flattenSentenceWords(resolved.chinese.words),
+          resolvedWords: sentenceWordsOf(resolved.chinese.words),
         });
       } catch (error) {
         console.error('Error fetching sentence for SentenceWrite:', error);
@@ -335,6 +331,7 @@ const SentenceWrite: React.FC<Props> = ({
       wordIndex: nextIndex,
       entered: '',
       submitted: false,
+      sentenceId: null,
       originalChinese: null,
       englishPrompt: null,
       resolvedWords: [],
@@ -607,6 +604,21 @@ const SentenceWrite: React.FC<Props> = ({
             </Box>
           )}
         </Box>
+        <ReportSentenceButton
+          key={state.sentenceId ?? ''}
+          isDemo={isDemo}
+          report={
+            state.sentenceId
+              ? {
+                  sentenceId: state.sentenceId,
+                  word: words[state.wordIndex].simp,
+                  stage: 'write',
+                  sentence: state.originalChinese ?? '',
+                  english: state.englishPrompt ?? '',
+                }
+              : null
+          }
+        />
         <Box sx={{ flex: 1, minHeight: 24 }} />
         <StudyButton variant="primary" onClick={onYesClicked}>
           {isLastWord ? copy.sentence.finish : copy.sentence.nextWord}

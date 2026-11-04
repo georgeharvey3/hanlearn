@@ -200,6 +200,27 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      // SentenceReports subcollection: the learner's reports of example
+      // sentences, one document per sentence (#469). A person reads them with
+      // `node migration/export-sentence-reports.js` and fixes the data in the
+      // next build. A second report of the same sentence replaces the first.
+      match /sentenceReports/{sentenceId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create, update: if request.auth != null && request.auth.uid == userId
+          && request.resource.data.keys().hasOnly(['sentenceId', 'word', 'stage', 'sentence', 'english', 'reportedAt'])
+          && request.resource.data.keys().hasAll(['sentenceId', 'word', 'stage', 'sentence', 'english', 'reportedAt'])
+          && request.resource.data.sentenceId == sentenceId
+          && request.resource.data.word is string
+          && request.resource.data.word.size() <= 50
+          && request.resource.data.stage in ['read', 'write']
+          && request.resource.data.sentence is string
+          && request.resource.data.sentence.size() <= 200
+          && request.resource.data.english is string
+          && request.resource.data.english.size() <= 500
+          && request.resource.data.reportedAt is timestamp;
+        allow delete: if false;
+      }
+
       // TestCompletions subcollection (streak tracking)
       match /testCompletions/{dateId} {
         allow read: if request.auth != null && request.auth.uid == userId;

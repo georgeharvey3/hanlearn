@@ -10,6 +10,7 @@ import SimilarityScore from '../../UI/SimilarityScore/SimilarityScore';
 import StudyScreen from '../Study/StudyScreen';
 import StudyTop from '../Study/StudyTop';
 import WordSheet from '../Study/WordSheet';
+import ReportSentenceButton from '../Study/ReportSentenceButton';
 import {
   MicButton,
   Overline,
@@ -28,7 +29,12 @@ import { RootState } from '../../../types/store';
 import { Word } from '../../../types/models';
 import { AppDispatch } from '../../../types/actions';
 import { getSegmentedSentence, takeSentenceStart } from '../../../services/sentenceService';
-import { resolveSentence, SentenceWord, ResolvedSentence } from '../../../utils/sentenceUtils';
+import {
+  dictionaryEntryOf,
+  resolveSentence,
+  SentenceWord,
+  ResolvedSentence,
+} from '../../../utils/sentenceUtils';
 import * as ttsService from '../../../services/ttsService';
 import { getSimilarityScore } from '../../../services/similarityService';
 import { reportError } from '../../../services/errorReporting';
@@ -64,6 +70,7 @@ const mapStateToProps = (state: RootState) => ({
 
 const mapDispatchToProps = (dispatch: AppDispatch) => ({
   onPostWord: (word: Word) => dispatch(wordActions.postWord(word)),
+  onAddFailed: () => dispatch(wordActions.showNotification(copy.sentence.addFailed, 'error')),
 });
 
 const connector = connect(mapStateToProps, mapDispatchToProps);
@@ -90,6 +97,7 @@ const SentenceRead: React.FC<Props> = ({
   lang,
   addedWords,
   onPostWord,
+  onAddFailed,
   words,
   sentenceWriteEnabled,
   startSentenceWrite,
@@ -234,7 +242,7 @@ const SentenceRead: React.FC<Props> = ({
         return;
       }
 
-      const resolved = await resolveSentence(cloudSentence);
+      const resolved = resolveSentence(cloudSentence, stateRef.current.charSet);
 
       const willSpeak = stateRef.current.useSound;
 
@@ -353,6 +361,17 @@ const SentenceRead: React.FC<Props> = ({
     setState((prevState) => ({ ...prevState, showText: !prevState.showText }));
   };
 
+  // The files carry no dictionary id, and a word document takes the id of its
+  // entry, so adding a word looks the entry up.
+  const onAddWord = (word: SentenceWord): void => {
+    dictionaryEntryOf(word)
+      .then((entry) => (entry ? onPostWord(entry) : onAddFailed()))
+      .catch((error) => {
+        reportError(error, { feature: 'sentence-add-word' });
+        onAddFailed();
+      });
+  };
+
   const onShowPopup = (word: SentenceWord): void => {
     if (stateRef.current.useSound) onSpeakPinyin(word[stateRef.current.charSet]);
     updateState({ popup: word });
@@ -445,13 +464,7 @@ const SentenceRead: React.FC<Props> = ({
           <React.Fragment key={key}>{w[state.charSet]}</React.Fragment>
         );
 
-      return Array.isArray(word) ? (
-        <React.Fragment key={index}>
-          {word.map((sub, subIndex) => renderWord(sub, `${index}-${subIndex}`))}
-        </React.Fragment>
-      ) : (
-        renderWord(word, index)
-      );
+      return renderWord(word, index);
     });
 
   if (state.loadError) {
@@ -567,6 +580,17 @@ const SentenceRead: React.FC<Props> = ({
             </Box>
           )}
         </Box>
+        <ReportSentenceButton
+          key={sentence.id}
+          isDemo={isDemo}
+          report={{
+            sentenceId: sentence.id,
+            word: words[state.wordIndex].simp,
+            stage: 'read',
+            sentence: sentence.chinese.sentence,
+            english: sentence.english.sentence,
+          }}
+        />
         <Box sx={{ flex: 1, minHeight: 24 }} />
         <StudyButton variant="primary" onClick={onYesClicked}>
           {isLast
@@ -706,10 +730,13 @@ const SentenceRead: React.FC<Props> = ({
       <WordSheet
         word={state.popup}
         charSet={state.charSet}
-        added={Boolean(state.popup && addedWords.find((w) => w.id === state.popup!.id))}
+        added={Boolean(
+          state.popup &&
+          addedWords.some((w) => w.simp === state.popup!.simp && w.trad === state.popup!.trad),
+        )}
         onClose={() => updateState({ popup: null })}
         onSpeak={onSpeakPinyin}
-        onAdd={(w) => onPostWord(w as Word)}
+        onAdd={onAddWord}
       />
     </StudyScreen>
   );

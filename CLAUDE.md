@@ -76,7 +76,8 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 - [web-client/src/services/dashboardService.ts](web-client/src/services/dashboardService.ts) - Aggregates the Dashboard's data: the session sizes, per-direction bank counts, the words due ahead and the `reviewStats` history. The counting rules are pure, in [web-client/src/utils/dashboard.ts](web-client/src/utils/dashboard.ts)
 - [web-client/src/services/retentionService.ts](web-client/src/services/retentionService.ts) - Read/write the `reviewStats` daily rollup; the session's write joins the `finishTest` batch, and the level snapshot follows it
 - [web-client/src/services/reviewLogService.ts](web-client/src/services/reviewLogService.ts) - Builds the `reviewLog` entry of each graded question. `finishTest` writes the document after its batch, and a failed write does not lose the session. `node migration/export-review-log.js --uid <userId>` exports the log of one learner to a CSV file for the FSRS optimizer
-- [web-client/src/services/sentenceService.ts](web-client/src/services/sentenceService.ts) - Firebase AI Logic: generates and caches example sentences in `sentenceCache`
+- [web-client/src/services/sentenceService.ts](web-client/src/services/sentenceService.ts) - Reads the example sentences from the files in `/sentences/` on Hosting, and keeps each file in memory for the session. It makes no AI call, no Firestore read and no dictionary call (#469)
+- [web-client/src/services/sentenceReportService.ts](web-client/src/services/sentenceReportService.ts) - Saves the report of a bad example sentence to `sentenceReports`. The sentence service then leaves that sentence out on the same device. `node migration/export-sentence-reports.js` exports the reports of all learners to a CSV file
 - [web-client/src/services/chengyuSentenceService.ts](web-client/src/services/chengyuSentenceService.ts) - Generates example sentences for chengyu display
 - [web-client/src/services/decompositionService.ts](web-client/src/services/decompositionService.ts) - Calls cloud function to decompose characters into radicals/components
 - [web-client/src/services/ttsService.ts](web-client/src/services/ttsService.ts) - Text-to-speech via Howler.js; called directly from components (not via Redux)
@@ -126,6 +127,8 @@ users/{userId}/
           }
       └── levels?: { 1..5: number } # Words of the whole collection at each level,
                                     # as the day's last session left them (Dashboard progress chart)
+  ├── sentenceReports/{sentenceId} # One report of a bad example sentence (#469)
+  │   └── sentenceId, word, stage: 'read' | 'write', sentence, english, reportedAt
   └── reviewLog/{autoId}         # One document per saved session, write-once (#397)
       ├── version: 2, date: string, reviewedAt: Timestamp  # 1 before #396: `hint` was free
       ├── scheduler: string      # The weights in use: 'fsrs-6-default'
@@ -142,7 +145,7 @@ words/{wordId}                   # Read-only shared dictionary (admin-managed)
 chengyus/{chengyuId}             # Read-only (admin-managed)
   └── characters, pinyin, meaning
 dailyChengyu/{dateKey}           # Written by cloud function, read-only to clients
-sentenceCache/{word}             # AI-generated sentences; public read, auth write
+sentenceCache/{word}             # Legacy AI-generated sentences. The app no longer reads or writes it (#469)
 rateLimits/{userId}/...          # Cloud Functions only (Admin SDK); client access denied
 ```
 
@@ -170,7 +173,7 @@ The same build writes the catalogue of **premade lists** (HSK 3.0) to `web-clien
 
 The example sentences of #465 have two committed sources. `migration/sentences/tatoeba.json` holds the Tatoeba sentences of native Mandarin writers (`npm --prefix migration run fetch:tatoeba` downloads it again). `migration/sentences/generated.json` holds the sentences that Claude Code sessions wrote. One grader admits both. Each sentence goes to every HSK word that it holds and passes the grader for. A word outside HSK gets none (#482).
 
-`build:dict` writes the example sentence files to `web-client/public/sentences/`, one file for each first character of a word, with `ATTRIBUTION.txt` (one credit line for each Tatoeba sentence) and `LICENSE.txt`. Each segment shows the pinyin and the first 3 useful senses of one CC-CEDICT entry (#479). `migration/sentences/gloss-overrides.json` sets the entry and the gloss of one segment text. The build also writes a coverage report to `migration/sentences/coverage.md`, which lists the HSK words with fewer than 3 sentences. The rules (splitter, entry choice, gloss, grader, pick) are pure, in [migration/exampleSentences.js](migration/exampleSentences.js). To add more sentences, follow [migration/sentences/GENERATE.md](migration/sentences/GENERATE.md) (#468). See [docs/adr/0019-example-sentences-are-a-committed-build.md](docs/adr/0019-example-sentences-are-a-committed-build.md), [docs/adr/0020-every-example-sentence-is-generated.md](docs/adr/0020-every-example-sentence-is-generated.md) and [migration/README.md](migration/README.md).
+`build:dict` writes the example sentence files to `web-client/public/sentences/`, one file for each first character of a word (the hex code point, for example `5b66.json`). The sentence stages and the hint read only these files, with `ATTRIBUTION.txt` (one credit line for each Tatoeba sentence) and `LICENSE.txt`. Each segment shows the pinyin and the first 3 useful senses of one CC-CEDICT entry (#479). `migration/sentences/gloss-overrides.json` sets the entry and the gloss of one segment text. The build also writes a coverage report to `migration/sentences/coverage.md`, which lists the HSK words with fewer than 3 sentences. The rules (splitter, entry choice, gloss, grader, pick) are pure, in [migration/exampleSentences.js](migration/exampleSentences.js). To add more sentences, follow [migration/sentences/GENERATE.md](migration/sentences/GENERATE.md) (#468). See [docs/adr/0019-example-sentences-are-a-committed-build.md](docs/adr/0019-example-sentences-are-a-committed-build.md), [docs/adr/0020-every-example-sentence-is-generated.md](docs/adr/0020-every-example-sentence-is-generated.md) and [migration/README.md](migration/README.md).
 
 ### Spaced Repetition Algorithm
 

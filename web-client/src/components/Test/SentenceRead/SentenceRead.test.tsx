@@ -12,7 +12,13 @@
  */
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
-vi.mock('../../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('../../../firebase/config', () => ({
+  auth: {},
+  db: {},
+  functions: {},
+  ai: {},
+  analytics: null,
+}));
 vi.mock('howler', () => ({
   Howl: class {
     play = vi.fn();
@@ -25,7 +31,13 @@ vi.mock('../../../services/sentenceService', () => ({
 }));
 vi.mock('../../../services/dictionaryService', () => ({
   searchWord: vi.fn(),
-  substringMatch: vi.fn(),
+}));
+vi.mock('../../../services/wordService', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../services/wordService')>()),
+  addWordToList: vi.fn().mockResolvedValue(null),
+}));
+vi.mock('../../../services/sentenceReportService', () => ({
+  reportSentence: vi.fn(),
 }));
 
 vi.mock('../../../services/ttsService', () => ({
@@ -46,13 +58,14 @@ import SentenceRead from './SentenceRead';
 import { renderWithProviders, authenticatedState, createTestStore } from '../../../test/utils';
 import * as sentenceService from '../../../services/sentenceService';
 import * as dictionaryService from '../../../services/dictionaryService';
+import * as sentenceReportService from '../../../services/sentenceReportService';
 import * as ttsService from '../../../services/ttsService';
 import * as similarityService from '../../../services/similarityService';
 import { Word } from '../../../types/models';
 
 const mockedGetSegmentedSentence = vi.mocked(sentenceService.getSegmentedSentence);
 const mockedSearchWord = vi.mocked(dictionaryService.searchWord);
-const mockedSubstringMatch = vi.mocked(dictionaryService.substringMatch);
+const mockedReportSentence = vi.mocked(sentenceReportService.reportSentence);
 const mockedGetSimilarityScore = vi.mocked(similarityService.getSimilarityScore);
 
 const testWord: Word = {
@@ -65,12 +78,19 @@ const testWord: Word = {
   due_date: new Date().toISOString(),
 };
 
-/** A minimal cloud sentence response for 你好 */
+/** A sentence of the files for 你好, with the punctuation as segments with no entry */
 const mockCloudSentence = {
+  id: 'sentence-1',
   chinese: {
     sentence: '你好，我是学生。',
     highlight: [[0, 2]] as number[][],
-    segments: ['你好', '，', '我是', '学生', '。'],
+    segments: [
+      { s: '你好', t: '你好', p: 'nǐ hǎo', e: 'hello' },
+      { s: '，', t: '，', p: '', e: '' },
+      { s: '我是', t: '我是', p: 'wǒ shì', e: 'to be' },
+      { s: '学生', t: '學生', p: 'xué sheng', e: 'student' },
+      { s: '。', t: '。', p: '', e: '' },
+    ],
     targetIndex: 0,
   },
   english: {
@@ -93,11 +113,8 @@ beforeEach(() => {
     sentence: mockCloudSentence,
     totalCount: 3,
   });
-  // Dictionary lookups return empty (segments shown as plain strings)
   mockedSearchWord.mockResolvedValue([]);
-  mockedSubstringMatch.mockResolvedValue([
-    { id: -1, simp: '—', trad: '—', pinyin: '', meaning: '' },
-  ]);
+  mockedReportSentence.mockResolvedValue(undefined);
   // Default: similarity scoring returns a score of 85
   mockedGetSimilarityScore.mockResolvedValue({ score: 85, rawSimilarity: 0.925 });
 });
@@ -234,64 +251,26 @@ describe('SentenceRead — text mode (useSound=false)', () => {
     });
   });
 
-  it('renders clickable word spans for resolved dictionary words in text mode', async () => {
-    // Return a word object for the non-target segment 我是
-    mockedSearchWord.mockImplementation(async (word: string) => {
-      if (word === '我是') {
-        return [{ id: 99, simp: '我是', trad: '我是', pinyin: 'wǒ shì', meaning: 'I am' }];
-      }
-      return [];
-    });
-
-    const store = createTestStore({
-      ...authenticatedState(),
-      settings: { speechAvailable: false, synthAvailable: false },
-    });
+  it('renders each segment with an entry as a word to tap, with no dictionary call', async () => {
     renderWithProviders(
       <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
-      { store },
+      { store: makeStore() },
     );
 
-    // Wait for the word popup button to appear
-    await waitFor(
-      () => {
-        const popupBtn = screen.queryByRole('button', { name: /show meaning/i });
-        expect(popupBtn).toBeInTheDocument();
-      },
-      { timeout: 3000 },
-    );
+    expect(await screen.findByLabelText('我是: show meaning')).toBeInTheDocument();
+    expect(screen.getByLabelText('學生: show meaning')).toBeInTheDocument();
+    expect(mockedSearchWord).not.toHaveBeenCalled();
   });
 
-  it('renders decomposed sub-word spans when substringMatch returns multiple words', async () => {
-    // segment '学生' → substringMatch returns two sub-words
-    mockedSearchWord.mockResolvedValue([]); // No exact match
-    mockedSubstringMatch.mockImplementation(async (word: string) => {
-      if (word === '学生') {
-        return [
-          { id: 101, simp: '学', trad: '學', pinyin: 'xué', meaning: 'study' },
-          { id: 102, simp: '生', trad: '生', pinyin: 'shēng', meaning: 'life' },
-        ];
-      }
-      return [{ id: -1, simp: '—', trad: '—', pinyin: '', meaning: '' }];
-    });
-
-    const store = createTestStore({
-      ...authenticatedState(),
-      settings: { speechAvailable: false, synthAvailable: false },
-    });
+  it('keeps the punctuation as plain text', async () => {
     renderWithProviders(
       <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
-      { store },
+      { store: makeStore() },
     );
 
-    await waitFor(
-      () => {
-        // Both sub-words should appear as clickable spans
-        const buttons = screen.queryAllByRole('button', { name: /show meaning/i });
-        expect(buttons.length).toBeGreaterThan(0);
-      },
-      { timeout: 3000 },
-    );
+    await screen.findByLabelText('我是: show meaning');
+    expect(screen.queryByLabelText('，: show meaning')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /show meaning/ })).toHaveLength(2);
   });
 
   it('renders target word highlighted in primary colour (not as popup)', async () => {
@@ -381,15 +360,8 @@ describe('SentenceRead — stage completion', () => {
 });
 
 describe('SentenceRead — word popup rendering', () => {
-  // Segment '我是' at index 2 in the cloud sentence resolves to a SentenceWord via searchWord
+  // The dictionary entry of the segment '我是', found when the learner adds it
   const wordMatch = { id: 5, simp: '我是', trad: '我是', pinyin: 'wo3 shi4', meaning: 'to be' };
-
-  beforeEach(() => {
-    mockedSearchWord.mockImplementation((seg: string) => {
-      if (seg === '我是') return Promise.resolve([wordMatch]);
-      return Promise.resolve([]);
-    });
-  });
 
   it('renders a clickable popup span for a resolved SentenceWord segment', async () => {
     renderWithProviders(
@@ -464,12 +436,27 @@ describe('SentenceRead — word popup rendering', () => {
     const popupSpan = await screen.findByLabelText(/我是.*show meaning/i, {}, { timeout: 5000 });
     fireEvent.click(popupSpan);
 
-    // word id=5 is in addedWords → shows a disabled "Added" button
+    // 我是 is in addedWords → shows a disabled "Added" button
     await waitFor(() => {
       const addedBtn = screen.getByRole('button', { name: /^added$/i });
       expect(addedBtn).toBeInTheDocument();
       expect(addedBtn).toBeDisabled();
     });
+  });
+
+  it('adds the dictionary entry of the tapped word to the list', async () => {
+    mockedSearchWord.mockResolvedValue([wordMatch]);
+    const store = makeStore();
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store },
+    );
+
+    fireEvent.click(await screen.findByLabelText('我是: show meaning'));
+    fireEvent.click(screen.getByRole('button', { name: /add to list/i }));
+
+    await waitFor(() => expect(mockedSearchWord).toHaveBeenCalledWith('我是', 'simp'));
+    await waitFor(() => expect(store.getState().addWords.words.some((w) => w.id === 5)).toBe(true));
   });
 });
 
@@ -560,15 +547,6 @@ describe('SentenceRead — slow mode toggle', () => {
 });
 
 describe('SentenceRead — tappable words', () => {
-  const wordMatch = { id: 5, simp: '我是', trad: '我是', pinyin: 'wo3 shi4', meaning: 'to be' };
-
-  beforeEach(() => {
-    mockedSearchWord.mockImplementation((seg: string) => {
-      if (seg === '我是') return Promise.resolve([wordMatch]);
-      return Promise.resolve([]);
-    });
-  });
-
   it('renders each dictionary word as a button', async () => {
     renderWithProviders(
       <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
@@ -632,35 +610,59 @@ describe('SentenceRead — primary button text', () => {
   });
 });
 
-describe('SentenceRead — decomposed array word rendering', () => {
-  // When substringMatch returns 2+ items for a segment, it renders as an array of clickable spans
-  const subWordA = { id: 6, simp: '学', trad: '學', pinyin: 'xue2', meaning: 'to study' };
-  const subWordB = { id: 7, simp: '生', trad: '生', pinyin: 'sheng1', meaning: 'to be born' };
-
-  beforeEach(() => {
-    // searchWord returns nothing — falls through to substringMatch
-    mockedSearchWord.mockResolvedValue([]);
-    mockedSubstringMatch.mockImplementation((seg: string) => {
-      if (seg === '学生') return Promise.resolve([subWordA, subWordB]);
-      // '，' '。' '我是' etc. → single unknown → plain string
-      return Promise.resolve([{ id: -1, simp: '—', trad: '—', pinyin: '', meaning: '' }]);
+describe('SentenceRead — report a sentence', () => {
+  const submit = async () => {
+    fireEvent.change(await screen.findByPlaceholderText(/type your translation/i), {
+      target: { value: 'Hello, I am a student.' },
     });
-  });
+    fireEvent.click(screen.getByRole('button', { name: /check/i }));
+  };
 
-  it('renders each sub-word in a decomposed segment as a separate clickable span', async () => {
+  it('reports the sentence after the learner checks the translation', async () => {
     renderWithProviders(
       <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
       { store: makeStore() },
     );
+    await submit();
 
-    await waitFor(() => {
-      expect(screen.queryByRole('progressbar', { name: 'Loading' })).not.toBeInTheDocument();
-    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Report sentence' }));
 
-    await waitFor(() => {
-      // Both sub-words should be rendered as popup spans
-      expect(screen.getByLabelText(/學.*show meaning/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/生.*show meaning/i)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Reported' })).toBeDisabled());
+    expect(mockedReportSentence).toHaveBeenCalledWith('test-user-123', {
+      sentenceId: 'sentence-1',
+      word: '你好',
+      stage: 'read',
+      sentence: '你好，我是学生。',
+      english: 'Hello, I am a student.',
     });
+  });
+
+  it('offers the report again when it fails', async () => {
+    mockedReportSentence.mockRejectedValue(new Error('offline'));
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStore() },
+    );
+    await submit();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Report sentence' }));
+
+    expect(await screen.findByRole('button', { name: 'Report failed' })).toBeEnabled();
+  });
+
+  it('shows no report button in the tryout', async () => {
+    renderWithProviders(
+      <SentenceRead
+        words={[testWord]}
+        sentenceWriteEnabled={false}
+        startSentenceWrite={vi.fn()}
+        isDemo
+      />,
+      { store: makeStore() },
+    );
+    await submit();
+
+    await screen.findByText(/correct translation/i);
+    expect(screen.queryByRole('button', { name: 'Report sentence' })).not.toBeInTheDocument();
   });
 });

@@ -82,6 +82,17 @@ The build also prints a coverage report. The report lists each HSK word that has
 
 The build stops on a gloss override that names no entry, on a malformed record, on a generated sentence that fails the grader, and on a sentence file over 2 MB. It does not stop on low coverage.
 
+## Reported Sentences
+
+A learner can report a bad sentence from the sentence stages (#469). Each report goes to `users/{userId}/sentenceReports/{sentenceId}`.
+
+1. Run `node export-sentence-reports.js`. It writes `sentence-reports.csv`, with one row for each reported sentence and the most reported first.
+2. For a wrong pinyin or gloss, add an override to `sentences/gloss-overrides.json`.
+3. For a bad generated sentence, change it or remove it in `sentences/generated.json`.
+4. Run `npm run build:dict`.
+
+The script needs `service-account.json`, the same as `export-review-log.js`. Git ignores the CSV file.
+
 ## Generated Sentences
 
 Claude Code writes the sentences for the HSK words that have fewer than 3 (#468). A developer starts the session. `sentences/GENERATE.md` is the prompt and the procedure.

@@ -92,24 +92,6 @@ export async function convertText(text: string, toCharSet: 'simp' | 'trad'): Pro
 }
 
 /**
- * Decompose a Chinese text string into dictionary-matched substrings
- * using greedy forward maximum matching.
- */
-export async function substringMatch(text: string, charSet: 'simp' | 'trad'): Promise<Word[]> {
-  const parsed = searchInputSchema.safeParse(text);
-  if (!parsed.success || parsed.data.length === 0) return [];
-
-  return traceAsync('dictionary_substring_match', async () => {
-    const fn = httpsCallable<{ text: string; charSet: string }, Word[]>(
-      functions,
-      'dictionarySubstringMatch',
-    );
-    const result = await retryTransient(() => fn({ text: parsed.data, charSet }));
-    return result.data;
-  });
-}
-
-/**
  * The alternative answers of the question values of one session, in the order
  * sent: for each value, the answers of every entry of CC-CEDICT that fits it.
  */
