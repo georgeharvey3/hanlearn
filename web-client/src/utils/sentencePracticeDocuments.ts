@@ -8,14 +8,16 @@ import type { SentenceResult } from './sentenceQueue';
 
 export const SENTENCE_LOG_VERSION = 1;
 
+/** Whether the task played the sentence (`audio`) or showed it (`text`). */
+export type SentenceMode = 'audio' | 'text';
+
 /** One grade of one task, as the tab records it. */
 export interface SentenceGrade {
   wordId: number;
   sentenceId: string;
   tab: SentenceTab;
   grade: SentenceResult;
-  /** Whether the task played the sentence (`audio`) or showed it (`text`). */
-  mode: 'audio' | 'text';
+  mode: SentenceMode;
   /** The raw answer of a Compose task. */
   answer?: string;
   /** The time from the start of the task to the reveal. */

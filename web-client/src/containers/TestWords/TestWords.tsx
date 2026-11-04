@@ -507,11 +507,11 @@ const TestWords: React.FC<Props> = ({
   // to resume keeps the app's navigation.
   useFocusMode(!state.pendingResume);
 
-  // The sentence tabs that the finish screen offers. Loaded at the finish only,
-  // so a running session reads nothing for them.
+  // The sentence tabs that the finish screen offers. This screen asks for them
+  // at the finish only. The sidebar of a desktop shares the same load.
   const sentenceTabs = useSentenceTabs(state.stage === 'summary' && !isDemo);
   const onSentenceTab = (tab: SentenceTab): void => {
-    history.push(tab === 'comprehend' ? routes.comprehend : routes.compose);
+    history.push(routes[tab]);
   };
 
   // All dev stages require auth since they use real words from user's list

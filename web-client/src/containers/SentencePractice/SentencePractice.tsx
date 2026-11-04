@@ -19,6 +19,7 @@ import { RootState } from '../../types/store';
 import { QueueData, loadQueueData } from '../../services/sentenceTabsService';
 import { saveGrade } from '../../services/sentencePracticeService';
 import { reportError } from '../../services/errorReporting';
+import { refreshSentenceTabs } from '../../hooks/useSentenceTabs';
 import { SentenceTask, buildSet, recordPractice } from '../../utils/sentenceQueue';
 import { SentenceTab, readSetSize } from '../../utils/sentenceSettings';
 
@@ -83,12 +84,14 @@ const SentencePractice: React.FC<Props> = ({ tab }) => {
   useFocusMode(phase === 'tasks' && !empty);
 
   const advance = useCallback(() => {
-    setPosition((prev) => {
-      const next = prev + 1;
-      if (next >= set.length) setPhase('done');
-      return next;
-    });
-  }, [set.length]);
+    const next = position + 1;
+    setPosition(next);
+    if (next >= set.length) {
+      setPhase('done');
+      // A grade does not change the list stats, so the dots load again here.
+      refreshSentenceTabs();
+    }
+  }, [position, set.length]);
 
   // A word whose sentence does not load leaves the set.
   const onSkip = useCallback(() => advance(), [advance]);
@@ -98,15 +101,10 @@ const SentencePractice: React.FC<Props> = ({ tab }) => {
     if (!task || !userId || !data) return;
     const at = new Date();
     saveGrade(userId, {
+      ...outcome,
       wordId: task.word.id,
       sentenceId: task.sentenceId,
       tab,
-      grade: outcome.result,
-      mode: outcome.mode,
-      ...(outcome.answer !== undefined ? { answer: outcome.answer } : {}),
-      answerMs: outcome.answerMs,
-      revealed: outcome.revealed,
-      lookups: outcome.lookups,
       at,
     }).catch((error) => {
       reportError(error, { feature: 'sentence-save', context: { tab } });
@@ -119,11 +117,11 @@ const SentencePractice: React.FC<Props> = ({ tab }) => {
         wordId: task.word.id,
         tab,
         sentenceId: task.sentenceId,
-        result: outcome.result,
+        result: outcome.grade,
         at,
       }),
     });
-    setTally((prev) => ({ ...prev, [outcome.result]: prev[outcome.result] + 1 }));
+    setTally((prev) => ({ ...prev, [outcome.grade]: prev[outcome.grade] + 1 }));
     advance();
   };
 

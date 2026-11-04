@@ -64,7 +64,7 @@ function clearOfReviews(word: Word, now: Date): boolean {
  * The words that pass the gate of the tab and have no direction due within the
  * clearance. The caller loads the sentence index for these words only.
  */
-export function candidateWords(words: Word[], tab: SentenceTab, now: Date): Word[] {
+export function gatedWords(words: Word[], tab: SentenceTab, now: Date): Word[] {
   return words.filter((word) => GATES[tab](word) && clearOfReviews(word, now));
 }
 
@@ -77,7 +77,7 @@ interface QueueInput {
 }
 
 const eligibleWords = ({ words, index, tab, now }: QueueInput): Word[] =>
-  candidateWords(words, tab, now).filter((word) => (index[word.simp]?.length ?? 0) > 0);
+  gatedWords(words, tab, now).filter((word) => (index[word.simp]?.length ?? 0) > 0);
 
 const practiceOf = (practice: PracticeByWord, word: Word, tab: SentenceTab) =>
   practice[String(word.id)]?.[tab];

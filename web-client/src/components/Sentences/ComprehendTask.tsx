@@ -91,6 +91,7 @@ const ComprehendTask: React.FC<Props> = ({
   const [popup, setPopup] = useState<SentenceWord | null>(null);
 
   // A ref, so that a new callback from the parent does not load the sentence again.
+  const mounted = useRef(true);
   const skip = useRef(onSkip);
   skip.current = onSkip;
   const lookups = useRef(0);
@@ -110,6 +111,7 @@ const ComprehendTask: React.FC<Props> = ({
     setLoad('loading');
     try {
       const { sentence: found } = await getSegmentedSentence(word.simp, charSet, sentenceId);
+      if (!mounted.current) return;
       if (!found) {
         skip.current();
         return;
@@ -120,6 +122,7 @@ const ComprehendTask: React.FC<Props> = ({
       shownAt.current = Date.now();
       if (useSound) play(resolved.chinese.sentence);
     } catch (error) {
+      if (!mounted.current) return;
       reportError(error, { feature: 'sentence-comprehend' });
       setLoad('error');
     }
@@ -128,8 +131,12 @@ const ComprehendTask: React.FC<Props> = ({
   }, [charSet, sentenceId, useSound, word.simp]);
 
   useEffect(() => {
+    mounted.current = true;
     fetchSentence();
-    return () => ttsService.stopAll();
+    return () => {
+      mounted.current = false;
+      ttsService.stopAll();
+    };
   }, [fetchSentence]);
 
   const onToggleSlow = () => {
@@ -168,7 +175,7 @@ const ComprehendTask: React.FC<Props> = ({
   const grade = (result: SentenceResult) => {
     ttsService.stopAll();
     onGrade({
-      result,
+      grade: result,
       mode: useSound ? 'audio' : 'text',
       revealed: textSeen.current,
       lookups: lookups.current,

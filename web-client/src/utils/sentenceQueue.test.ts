@@ -5,7 +5,7 @@ import { makeDirections } from './directions';
 import {
   PracticeByWord,
   buildSet,
-  candidateWords,
+  gatedWords,
   hasNeverPractised,
   recordPractice,
 } from './sentenceQueue';
@@ -57,17 +57,15 @@ describe('the words a tab may use', () => {
     const two = word('书', 2);
     const three = word('吃', 3);
 
-    expect(candidateWords([one, two, three], 'comprehend', NOW)).toEqual([two, three]);
-    expect(candidateWords([one, two, three], 'compose', NOW)).toEqual([three]);
+    expect(gatedWords([one, two, three], 'comprehend', NOW)).toEqual([two, three]);
+    expect(gatedWords([one, two, three], 'compose', NOW)).toEqual([three]);
   });
 
   it('reads the four recall directions and not CM', () => {
     const weakRecall = word('学', 3, 10, { PM: { level: 1 } });
     const weakHandwriting = word('书', 3, 10, { CM: { level: 1 } });
 
-    expect(candidateWords([weakRecall, weakHandwriting], 'compose', NOW)).toEqual([
-      weakHandwriting,
-    ]);
+    expect(gatedWords([weakRecall, weakHandwriting], 'compose', NOW)).toEqual([weakHandwriting]);
   });
 
   it('leaves out a word with a direction due today or tomorrow, overdue included', () => {
@@ -76,7 +74,7 @@ describe('the words a tab may use', () => {
     const tomorrow = word('吃', 3, 10, { PC: { dueInDays: 1 } });
     const later = word('喝', 3, 2);
 
-    expect(candidateWords([overdue, today, tomorrow, later], 'comprehend', NOW)).toEqual([later]);
+    expect(gatedWords([overdue, today, tomorrow, later], 'comprehend', NOW)).toEqual([later]);
   });
 
   it('leaves out a word with no example sentence', () => {

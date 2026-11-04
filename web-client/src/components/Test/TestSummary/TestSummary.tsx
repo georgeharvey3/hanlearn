@@ -11,7 +11,7 @@ import ScoreCard from './ScoreCard';
 import WordTile from './WordTile';
 import { missedWords, summaryRows, tally } from './summary';
 import { TabStatuses } from '../../../services/sentenceTabsService';
-import { SentenceTab } from '../../../utils/sentenceSettings';
+import { SENTENCE_TABS, SentenceTab } from '../../../utils/sentenceSettings';
 
 interface TestSummaryProps {
   scores: WordScore[];
@@ -25,8 +25,6 @@ interface TestSummaryProps {
   sentenceTabs?: TabStatuses | null;
   onSentenceTab?: (tab: SentenceTab) => void;
 }
-
-const SENTENCE_TABS: SentenceTab[] = ['comprehend', 'compose'];
 
 /**
  * The end of a session: the score card, then one tile for each question with

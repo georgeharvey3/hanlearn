@@ -745,6 +745,8 @@ describe("sentenceLog", () => {
   it("rejects an unknown tab or an extra field", async () => {
     await assertFails(setDoc(ref(db, path), { ...entry(), tab: "listen" }));
     await assertFails(setDoc(ref(db, path), { ...entry(), score: 80 }));
+    // Only a Compose task has an answer.
+    await assertFails(setDoc(ref(db, path), { ...entry(), answer: '我' }));
   });
 
   it("is write-once", async () => {

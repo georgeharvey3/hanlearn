@@ -98,6 +98,7 @@ const ComposeTask: React.FC<Props> = ({
   const [message, setMessage] = useState('');
   const recognition = useRef<SpeechRecognition | null>(null);
 
+  const mounted = useRef(true);
   const skip = useRef(onSkip);
   skip.current = onSkip;
   const lookups = useRef(0);
@@ -108,6 +109,7 @@ const ComposeTask: React.FC<Props> = ({
     setLoad('loading');
     try {
       const { sentence: found } = await getSegmentedSentence(word.simp, charSet, sentenceId);
+      if (!mounted.current) return;
       if (!found) {
         skip.current();
         return;
@@ -122,14 +124,17 @@ const ComposeTask: React.FC<Props> = ({
       setLoad('ready');
       shownAt.current = Date.now();
     } catch (error) {
+      if (!mounted.current) return;
       reportError(error, { feature: 'sentence-compose' });
       setLoad('error');
     }
   }, [charSet, sentenceId, word.simp]);
 
   useEffect(() => {
+    mounted.current = true;
     fetchSentence();
     return () => {
+      mounted.current = false;
       recognition.current?.abort();
       ttsService.stopAll();
     };
@@ -189,7 +194,7 @@ const ComposeTask: React.FC<Props> = ({
   const grade = (result: SentenceResult) => {
     ttsService.stopAll();
     onGrade({
-      result,
+      grade: result,
       mode: useSound ? 'audio' : 'text',
       // The task shows no Chinese before the reveal.
       revealed: false,

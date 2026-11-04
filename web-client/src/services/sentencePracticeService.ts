@@ -3,6 +3,7 @@ import { collection, doc, getDocs, setDoc, Timestamp } from 'firebase/firestore'
 import { db } from '../firebase/config';
 import { reportError } from './errorReporting';
 import { PracticeByWord, SentenceResult, TabPractice } from '../utils/sentenceQueue';
+import { SENTENCE_TABS } from '../utils/sentenceSettings';
 import {
   SentenceGrade,
   sentenceLogDocument,
@@ -43,7 +44,7 @@ export async function loadPractice(userId: string): Promise<PracticeByWord> {
   for (const document of snapshot.docs) {
     const data = document.data() as Record<string, StoredTabPractice | undefined>;
     const entry: PracticeByWord[string] = {};
-    for (const tab of ['comprehend', 'compose'] as const) {
+    for (const tab of SENTENCE_TABS) {
       const stored = data[tab];
       if (stored) entry[tab] = fromStored(stored);
     }

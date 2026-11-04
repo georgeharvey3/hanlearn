@@ -4,20 +4,12 @@ import { Box, CircularProgress } from '@mui/material';
 import { copy } from '../../copy';
 import { colors } from '../../theme';
 import { SentenceResult } from '../../utils/sentenceQueue';
+import { SentenceGrade } from '../../utils/sentencePracticeDocuments';
 import { StudyButton, hanziSx } from '../Test/Study/parts';
 import * as ttsService from '../../services/ttsService';
 
-/** What a task reports when the learner grades it. */
-export interface TaskOutcome {
-  result: SentenceResult;
-  mode: 'audio' | 'text';
-  /** Whether the Chinese text showed before the reveal. */
-  revealed: boolean;
-  lookups: number;
-  answerMs: number;
-  /** The raw answer of a Compose task. */
-  answer?: string;
-}
+/** What a task reports when the learner grades it: the grade, less what the tab knows. */
+export type TaskOutcome = Omit<SentenceGrade, 'wordId' | 'sentenceId' | 'tab' | 'at'>;
 
 export const SLOW_SPEED = 0.7;
 

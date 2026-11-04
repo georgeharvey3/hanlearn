@@ -6,10 +6,10 @@ import {
   PracticeByWord,
   SentenceIndex,
   buildSet,
-  candidateWords,
+  gatedWords,
   hasNeverPractised,
 } from '../utils/sentenceQueue';
-import { SentenceTab } from '../utils/sentenceSettings';
+import { SENTENCE_TABS, SentenceTab } from '../utils/sentenceSettings';
 
 /**
  * What the Comprehend and Compose tabs read to build their queue (#489): every
@@ -22,8 +22,6 @@ export interface QueueData {
   index: SentenceIndex;
 }
 
-export const SENTENCE_TABS: readonly SentenceTab[] = ['comprehend', 'compose'];
-
 export async function loadQueueData(
   userId: string,
   tabs: readonly SentenceTab[],
@@ -32,7 +30,7 @@ export async function loadQueueData(
   const [words, practice] = await Promise.all([getUserWords(userId), loadPractice(userId)]);
   const candidates = new Set<string>();
   for (const tab of tabs) {
-    for (const word of candidateWords(words, tab, now)) candidates.add(word.simp);
+    for (const word of gatedWords(words, tab, now)) candidates.add(word.simp);
   }
   const index = await sentenceIndexOf(Array.from(candidates));
   return { words, practice, index };
