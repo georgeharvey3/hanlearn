@@ -361,25 +361,40 @@ const StepIcon: React.FC<{ plus?: boolean }> = ({ plus }) => (
 /** A row with a number and the buttons that step it. */
 export const StepperRow: React.FC<{
   label: string;
-  hint: string;
+  hint?: string;
   value: number;
   min: number;
   max: number;
   step: number;
+  /** The names of the two buttons, read by a screen reader. */
+  fewerLabel?: string;
+  moreLabel?: string;
   onChange: (value: number) => void;
-}> = ({ label, hint, value, min, max, step, onChange }) => {
+}> = ({
+  label,
+  hint,
+  value,
+  min,
+  max,
+  step,
+  fewerLabel = copy.settings.fewer,
+  moreLabel = copy.settings.more,
+  onChange,
+}) => {
   const id = useId();
   return (
-    <Box sx={{ ...rowBase, minHeight: 72, py: 1.5 }}>
+    <Box sx={{ ...rowBase, minHeight: hint ? 72 : 64, py: 1.5 }}>
       <Box component="span" sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
         <span id={id}>{label}</span>
-        <Box component="span" sx={hintSx}>
-          {hint}
-        </Box>
+        {hint && (
+          <Box component="span" sx={hintSx}>
+            {hint}
+          </Box>
+        )}
       </Box>
       <Box role="group" aria-labelledby={id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <ButtonBase
-          aria-label={copy.settings.fewer}
+          aria-label={fewerLabel}
           disabled={value <= min}
           onClick={() => onChange(Math.max(min, value - step))}
           sx={stepSx}
@@ -399,7 +414,7 @@ export const StepperRow: React.FC<{
           {value}
         </Box>
         <ButtonBase
-          aria-label={copy.settings.more}
+          aria-label={moreLabel}
           disabled={value >= max}
           onClick={() => onChange(Math.min(max, value + step))}
           sx={stepSx}
