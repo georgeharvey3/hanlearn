@@ -57,29 +57,34 @@ Use the static dictionary approach instead.
 
 ## Example Sentence Build
 
-Every example sentence of #465 is generated (ADR 0020). `npm run build:dict` builds the sentence files from `sentences/generated.json`, after the premade lists. The build uses no network and no AI. The rules are in `exampleSentences.js`, and `build-dictionary.js` reads and writes the files.
+`npm run build:dict` builds the example sentence files of #465 from two committed sources, after the premade lists (ADR 0020):
 
-Each record of `generated.json` has a `headword`, which is the HSK word that the sentence is for. The build gives each sentence to its headword only. A word outside HSK gets no sentences.
+- `sentences/tatoeba.json`: the Tatoeba sentences of native Mandarin writers, with their English translations. `npm run fetch:tatoeba` downloads the file again. The rules are in `tatoeba.js`.
+- `sentences/generated.json`: the sentences that Claude Code wrote (see Generated Sentences).
+
+The build uses no network and no AI. The rules are in `exampleSentences.js`, and `build-dictionary.js` reads and writes the files.
+
+Each sentence goes to every HSK word that it holds and passes the grader for. A generated sentence must pass the grader for its `headword`, or the build stops. The build drops a Tatoeba sentence with fewer than 6 Han characters or with a name. A word outside HSK gets no sentences. Each word keeps 3 sentences at most (#482).
 
 The build writes these files to `web-client/public/sentences/`. They are build output, and git ignores them:
 
 | File | Contents |
 |---|---|
 | `<code point>.json` | The sentences of each word that starts with this character. `56fe.json` holds 图书馆. |
-| `ATTRIBUTION.txt` | The source of each part of the files: Claude Code for the sentences, CC-CEDICT for the segments |
-| `LICENSE.txt` | The licence of the files: CC BY-SA 4.0, because the segment glosses come from CC-CEDICT |
+| `ATTRIBUTION.txt` | The source of each part of the files, and one line for each Tatoeba sentence with its id and its owners |
+| `LICENSE.txt` | The licence of the files: CC BY-SA 4.0, because the segment glosses come from CC-CEDICT. The Tatoeba sentences are also CC BY 2.0 FR |
 
-The build also prints a coverage report. The report lists each HSK word that has fewer than 5 sentences. A local run writes the report to `sentences/coverage.md`. CI only prints it. Commit `coverage.md` when it changes, so that a pull request shows the change in coverage.
+The build also prints a coverage report. The report lists each HSK word that has fewer than 3 sentences. A local run writes the report to `sentences/coverage.md`. CI only prints it. Commit `coverage.md` when it changes, so that a pull request shows the change in coverage.
 
-The build stops on a malformed generated record, on a generated sentence that fails the grader, and on a sentence file over 2 MB. It does not stop on low coverage.
+The build stops on a malformed record, on a generated sentence that fails the grader, and on a sentence file over 2 MB. It does not stop on low coverage.
 
 ## Generated Sentences
 
-Claude Code writes the sentences for the HSK words that have fewer than 5 (#468). A developer starts the session. `sentences/GENERATE.md` is the prompt and the procedure.
+Claude Code writes the sentences for the HSK words that have fewer than 3 (#468). A developer starts the session. `sentences/GENERATE.md` is the prompt and the procedure.
 
 | Script | What it does |
 |---|---|
-| `sentence-gaps.js` | Writes `sentences/scratch/gaps.json`: each HSK word with fewer than 5 sentences, with its HSK level, its length cap and the number that it needs |
+| `sentence-gaps.js` | Writes `sentences/scratch/gaps.json`: each HSK word with fewer than 3 sentences, with its HSK level, its length cap and the number that it needs |
 | `sentence-accept.js <file>` | Grades the candidates in the file with the rules of the build. Adds the passes to `sentences/generated.json` and prints each reject with its reason |
 
 Both scripts run the build in memory, so they use the same rules as `npm run build:dict`. Git ignores `sentences/scratch/`.

@@ -1,11 +1,12 @@
 # Generate example sentences
 
 This file is the prompt for a Claude Code session that writes example
-sentences for the HSK words that have fewer than 5. Every example sentence
-is generated (ADR 0020). A developer starts the session. See issue #468.
+sentences for the HSK words that have fewer than 3. The Tatoeba sentences
+fill most words, and the generated sentences fill the gaps (ADR 0020). A
+developer starts the session. See issues #468 and #482.
 
 The build does not read this file. It reads `generated.json`, which the
-accept script writes.
+accept script writes, and `tatoeba.json`.
 
 ## Start the session
 
