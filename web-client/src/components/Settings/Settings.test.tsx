@@ -311,8 +311,8 @@ describe('Settings — Sentences', () => {
     renderSettings();
     await open(user, 'Sentences');
 
-    const comprehend = within(screen.getByRole('group', { name: 'Comprehend per set' }));
-    const compose = within(screen.getByRole('group', { name: 'Compose per set' }));
+    const comprehend = within(screen.getByRole('group', { name: 'Comprehend set size' }));
+    const compose = within(screen.getByRole('group', { name: 'Compose set size' }));
 
     const more = comprehend.getByRole('button', { name: 'More' });
     await user.click(more);

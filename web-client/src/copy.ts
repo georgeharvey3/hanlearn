@@ -131,8 +131,8 @@ export const copy = {
     sentenceStagesForAllWords: 'Translate with all words',
     sentenceWrite: 'Make sentences',
     // Sentences: the size of one set of each sentence tab
-    comprehendPerSet: 'Comprehend per set',
-    composePerSet: 'Compose per set',
+    comprehendPerSet: 'Comprehend set size',
+    composePerSet: 'Compose set size',
     // The buttons of a set size; the group is named by its row
     fewerTasks: 'Fewer',
     moreTasks: 'More',
