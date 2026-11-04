@@ -1,57 +1,37 @@
-import { getGenerativeModel } from 'firebase/ai';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Converter } from 'opencc-js';
+/**
+ * The example sentences of the sentence stages and the hint.
+ *
+ * `npm run build:dict` writes them to `/sentences/` on Hosting, one file for
+ * each first character of a word (#465, #469). A sentence costs one fetch of
+ * its file and nothing more: no AI call, no Firestore read, and no dictionary
+ * call, because each segment carries its own pinyin and gloss.
+ */
 
-import { ai, db } from '../firebase/config';
-import { reportError } from './errorReporting';
-import { retryTransient } from '../utils/retry';
+import { SentenceSegment } from '../utils/sentenceUtils';
+import { reportedSentenceIds } from '../utils/reportedSentences';
 
-const model = getGenerativeModel(ai, { model: 'gemini-2.5-flash-lite' });
-const toTraditional = Converter({ from: 'cn', to: 'tw' });
-
-interface SentenceExample {
-  chinese: string;
+/** One sentence of a word, as the build writes it. */
+interface FileSentence {
+  id: string;
+  simp: string;
+  trad: string;
   english: string;
-  segments: string[];
+  segments: SentenceSegment[];
   targetIndex: number;
 }
 
-// Fixed sentences for demo/tryout words — bypasses Firestore and AI entirely.
-const DEMO_SENTENCES: Record<string, SentenceExample[]> = {
-  你好: [
-    {
-      chinese: '你好，欢迎来到这里！',
-      english: 'Hello, welcome here!',
-      segments: ['你好', '欢迎', '来到', '这里'],
-      targetIndex: 0,
-    },
-    {
-      chinese: '请向他们说声你好。',
-      english: 'Please say hello to them.',
-      segments: ['请', '向', '他们', '说声', '你好'],
-      targetIndex: 4,
-    },
-    {
-      chinese: '她走进来时说了你好。',
-      english: 'She said hello when she came in.',
-      segments: ['她', '走进来', '时', '说了', '你好'],
-      targetIndex: 4,
-    },
-    {
-      chinese: '老师对每位学生说你好。',
-      english: 'The teacher said hello to every student.',
-      segments: ['老师', '对', '每位', '学生', '说', '你好'],
-      targetIndex: 5,
-    },
-  ],
-};
+/** One file: the sentences of each word that starts with its character. */
+type SentenceFile = Record<string, FileSentence[]>;
 
 export interface SegmentedSentenceResult {
   sentence: {
+    /** The id of the sentence in the files. */
+    id: string;
     chinese: {
       sentence: string;
       highlight: number[][];
-      segments: string[];
+      /** The segments in order, with the text between them as segments with no entry. */
+      segments: SentenceSegment[];
       targetIndex: number;
     };
     english: {
@@ -65,6 +45,47 @@ export interface SegmentedSentenceResult {
 const SENTENCES_PER_WORD = 5;
 
 const ROTATION_KEY = 'sentenceRotation';
+
+/**
+ * The files fetched in this session. A promise, so that the Read stage and the
+ * availability check that start at the same moment share one fetch. A failed
+ * fetch leaves the map, so the next call tries again.
+ */
+const files = new Map<string, Promise<SentenceFile>>();
+
+/** The name of the file that holds a word: the hex code point of its first character. */
+const fileNameOf = (word: string): string => word.codePointAt(0)!.toString(16);
+
+async function fetchFile(name: string): Promise<SentenceFile> {
+  const response = await fetch(`/sentences/${name}.json`);
+  // A character with no file gets the app page of the SPA rewrite on Hosting,
+  // and a 404 from the dev server. Neither one is an error: the word has no
+  // sentences.
+  // A server error throws, so that the session does not keep an empty copy.
+  if (response.status === 404) return {};
+  if (!response.ok) throw new Error(`Sentence file ${name}: HTTP ${response.status}`);
+  const type = response.headers.get('Content-Type') ?? '';
+  if (!type.includes('json')) return {};
+  return (await response.json()) as SentenceFile;
+}
+
+function fileOf(word: string): Promise<SentenceFile> {
+  const name = fileNameOf(word);
+  let file = files.get(name);
+  if (!file) {
+    file = fetchFile(name);
+    files.set(name, file);
+    file.catch(() => files.delete(name));
+  }
+  return file;
+}
+
+async function sentencesOf(word: string): Promise<FileSentence[]> {
+  if (!word) return [];
+  const file = await fileOf(word);
+  const reported = reportedSentenceIds();
+  return (file[word] ?? []).filter((sentence) => !reported.has(sentence.id));
+}
 
 /**
  * Returns where this session should start in a word's sentences, and moves the
@@ -88,6 +109,7 @@ export function takeSentenceStart(word: string): number {
 
 function calculateHighlightIndices(sentence: string, word: string): number[][] {
   const indices: number[][] = [];
+  if (!word) return indices;
   let startIndex = 0;
   while (true) {
     const index = sentence.indexOf(word, startIndex);
@@ -98,96 +120,51 @@ function calculateHighlightIndices(sentence: string, word: string): number[][] {
   return indices;
 }
 
-async function generateSentencesWithAI(word: string): Promise<SentenceExample[]> {
-  const prompt = `You are helping a Chinese language learner with spaced repetition.
-Generate exactly ${SENTENCES_PER_WORD} short, natural Chinese sentences (15–30 characters each) that each contain the word "${word}". Use Simplified Chinese characters.
+/**
+ * The segments of a sentence with the text between them, so that the stage
+ * shows the punctuation too. The build writes the Han segments only, in order.
+ * The traditional text changes the characters one for one, so the simplified
+ * text gives the position of each segment in both. A sentence that breaks
+ * these rules keeps its segments as they are, with no gaps.
+ */
+function withGaps(sentence: FileSentence): { segments: SentenceSegment[]; targetIndex: number } {
+  const unchanged = { segments: sentence.segments, targetIndex: sentence.targetIndex };
+  const simp = Array.from(sentence.simp);
+  const trad = Array.from(sentence.trad);
+  if (simp.length !== trad.length) return unchanged;
 
-Return ONLY a JSON array in this exact format:
-[{"chinese": "...", "english": "...", "segments": ["word1", "word2", ...], "targetIndex": 0}, ...]
-
-Requirements:
-- Each sentence MUST contain "${word}" as a complete word
-- Consider the HSK level of the target word. Try not to use words in the sentence which are significantly harder than the target word
-- segments should split the sentence into natural Chinese words (Chinese characters only, no punctuation)
-- targetIndex is the 0-based position of "${word}" in the segments array
-- Keep sentences concise and natural
-- Vary the contexts and sentence structures
-- Provide accurate English translations`;
-
-  const result = await retryTransient(() =>
-    model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json' },
-    }),
-  );
-
-  const text = result.response.text();
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch (error) {
-    console.error('AI returned invalid JSON for sentence generation:', text.slice(0, 200));
-    reportError(error, {
-      feature: 'sentence-generation',
-      context: { reason: 'invalid-json', responseLength: text.length },
-    });
-    return [];
-  }
-
-  if (!Array.isArray(parsed)) return [];
-
-  return (
-    parsed as Array<{
-      chinese?: unknown;
-      english?: unknown;
-      segments?: unknown;
-      targetIndex?: unknown;
-    }>
-  )
-    .filter(
-      (item) =>
-        typeof item.chinese === 'string' &&
-        typeof item.english === 'string' &&
-        Array.isArray(item.segments) &&
-        typeof item.targetIndex === 'number' &&
-        item.chinese.includes(word),
-    )
-    .map((item) => ({
-      chinese: item.chinese as string,
-      english: item.english as string,
-      segments: item.segments as string[],
-      targetIndex: item.targetIndex as number,
-    }))
-    .slice(0, SENTENCES_PER_WORD);
-}
-
-async function getOrGenerateSentences(word: string): Promise<SentenceExample[]> {
-  if (DEMO_SENTENCES[word]) {
-    return DEMO_SENTENCES[word];
-  }
-
-  const cacheRef = doc(db, 'sentenceCache', word);
-
-  try {
-    const cached = await getDoc(cacheRef);
-    if (cached.exists()) {
-      return cached.data().sentences as SentenceExample[];
+  const segments: SentenceSegment[] = [];
+  let targetIndex = -1;
+  let at = 0;
+  const gap = (to: number): void => {
+    if (to > at) {
+      segments.push({
+        s: simp.slice(at, to).join(''),
+        t: trad.slice(at, to).join(''),
+        p: '',
+        e: '',
+      });
     }
-  } catch {
-    // Cache read unavailable (e.g. unauthenticated demo user) — fall through to AI
-  }
-
-  const sentences = await generateSentencesWithAI(word);
-
-  if (sentences.length > 0) {
-    try {
-      await setDoc(cacheRef, { sentences, generatedAt: serverTimestamp() });
-    } catch {
-      // Cache write failed (e.g. unauthenticated) — not critical
+    at = to;
+  };
+  for (let i = 0; i < sentence.segments.length; i++) {
+    const segment = sentence.segments[i];
+    const length = Array.from(segment.s).length;
+    let start = at;
+    while (
+      start + length <= simp.length &&
+      simp.slice(start, start + length).join('') !== segment.s
+    ) {
+      start += 1;
     }
+    if (start + length > simp.length) return unchanged;
+    gap(start);
+    if (i === sentence.targetIndex) targetIndex = segments.length;
+    segments.push(segment);
+    at = start + length;
   }
-
-  return sentences;
+  gap(simp.length);
+  return targetIndex === -1 ? unchanged : { segments, targetIndex };
 }
 
 export async function getSegmentedSentence(
@@ -195,7 +172,7 @@ export async function getSegmentedSentence(
   charSet: 'simp' | 'trad',
   offset: number,
 ): Promise<SegmentedSentenceResult> {
-  const examples = await getOrGenerateSentences(word);
+  const examples = await sentencesOf(word);
 
   if (examples.length === 0) {
     return { sentence: null, totalCount: 0 };
@@ -203,25 +180,19 @@ export async function getSegmentedSentence(
 
   // Offsets wrap, so a rotating start never runs off the end of the list.
   const example = examples[offset % examples.length];
-  const convertedWord = charSet === 'trad' ? toTraditional(word) : word;
-  const convertedChinese = charSet === 'trad' ? toTraditional(example.chinese) : example.chinese;
-  const convertedSegments = example.segments.map((seg) =>
-    charSet === 'trad' ? toTraditional(seg) : seg,
+  const { segments, targetIndex } = withGaps(example);
+  const text = charSet === 'trad' ? example.trad : example.simp;
+  const target = segments[targetIndex];
+  const highlight = calculateHighlightIndices(
+    text,
+    target ? target[charSet === 'trad' ? 't' : 's'] : '',
   );
-  const highlight = calculateHighlightIndices(convertedChinese, convertedWord);
 
   return {
     sentence: {
-      chinese: {
-        sentence: convertedChinese,
-        highlight,
-        segments: convertedSegments,
-        targetIndex: example.targetIndex,
-      },
-      english: {
-        sentence: example.english,
-        highlight: [],
-      },
+      id: example.id,
+      chinese: { sentence: text, highlight, segments, targetIndex },
+      english: { sentence: example.english, highlight: [] },
     },
     totalCount: examples.length,
   };
@@ -230,11 +201,10 @@ export async function getSegmentedSentence(
 export async function getHintSentence(
   word: string,
 ): Promise<{ chinese: string; english: string } | null> {
-  const examples = await getOrGenerateSentences(word);
+  const examples = await sentencesOf(word);
   if (examples.length === 0) return null;
-  const randomIndex = Math.floor(Math.random() * examples.length);
-  const selected = examples[randomIndex];
-  return { chinese: selected.chinese, english: selected.english };
+  const selected = examples[Math.floor(Math.random() * examples.length)];
+  return { chinese: selected.simp, english: selected.english };
 }
 
 export async function checkSentenceAvailability(

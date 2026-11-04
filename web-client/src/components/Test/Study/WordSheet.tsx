@@ -74,16 +74,14 @@ const WordSheet: React.FC<WordSheetProps> = ({ word, charSet, added, onClose, on
         </Box>
         <Box sx={{ display: 'flex', gap: 1.25 }}>
           <StudyButton onClick={onClose}>{copy.sentence.close}</StudyButton>
-          {word.id !== -1 && (
-            <StudyButton
-              variant="primary"
-              disabled={added}
-              onClick={() => onAdd(word)}
-              sx={{ height: 48, fontSize: 16 }}
-            >
-              {added ? copy.sentence.added : copy.sentence.addToList}
-            </StudyButton>
-          )}
+          <StudyButton
+            variant="primary"
+            disabled={added}
+            onClick={() => onAdd(word)}
+            sx={{ height: 48, fontSize: 16 }}
+          >
+            {added ? copy.sentence.added : copy.sentence.addToList}
+          </StudyButton>
         </Box>
       </>
     )}

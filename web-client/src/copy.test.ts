@@ -37,6 +37,8 @@ const FILES = [
   'components/Settings/rules.ts',
   'containers/SettingsPage/SettingsPage.tsx',
   'components/Test/Study/WordSheet.tsx',
+  'components/Test/Study/ReportSentenceButton.tsx',
+  'containers/Credits/Credits.tsx',
   'components/Test/TestSummary/TestSummary.tsx',
   'components/Test/TestSummary/ScoreCard.tsx',
   'components/Test/TestSummary/WordTile.tsx',

@@ -18,6 +18,7 @@ const AddWords = React.lazy(() => import('./containers/AddWords/AddWords'));
 const PremadeList = React.lazy(() => import('./containers/PremadeList/PremadeList'));
 const TestWords = React.lazy(() => import('./containers/TestWords/TestWords'));
 const SettingsPage = React.lazy(() => import('./containers/SettingsPage/SettingsPage'));
+const Credits = React.lazy(() => import('./containers/Credits/Credits'));
 
 const mapDispatchToProps = {
   onTryAutoLogin: actions.authCheckState,
@@ -181,6 +182,14 @@ const App: React.FC<Props> = ({
                 render={() => (
                   <ErrorBoundary>
                     <SettingsPage />
+                  </ErrorBoundary>
+                )}
+              />
+              <Route
+                path="/credits"
+                render={() => (
+                  <ErrorBoundary>
+                    <Credits />
                   </ErrorBoundary>
                 )}
               />

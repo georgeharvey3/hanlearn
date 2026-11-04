@@ -2,6 +2,8 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
+import { Link as RouterLink } from 'react-router-dom';
+import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 
 import { RootState } from '../../types/store';
 import { AppDispatch } from '../../types/actions';
@@ -435,6 +437,28 @@ const Settings: React.FC<PropsFromRedux> = ({
           </Box>
         ),
       )}
+
+      <Box
+        component={RouterLink}
+        to="/credits"
+        sx={{
+          minHeight: 64,
+          px: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          bgcolor: colors.card,
+          border: `1px solid ${colors.divider}`,
+          borderRadius: 1,
+          fontSize: 17,
+          fontWeight: 600,
+          color: colors.text,
+          textDecoration: 'none',
+        }}
+      >
+        {text.credits}
+        <ChevronRightRoundedIcon sx={{ color: colors.textSecondary }} />
+      </Box>
     </Box>
   );
 };

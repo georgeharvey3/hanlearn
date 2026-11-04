@@ -1,11 +1,19 @@
 import { vi, describe, it, expect } from 'vitest';
 
 vi.mock('../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('../services/dictionaryService', () => ({ searchWord: vi.fn() }));
 
-import { matchEnglishToSentenceWords, SentenceWord } from './sentenceUtils';
+import {
+  dictionaryEntryOf,
+  matchEnglishToSentenceWords,
+  resolveSentence,
+  SegmentedSentence,
+  SentenceWord,
+} from './sentenceUtils';
+import { searchWord } from '../services/dictionaryService';
 
 const makeSentenceWord = (
-  id: number,
+  id: string,
   simp: string,
   pinyin: string,
   meaning: string,
@@ -18,11 +26,102 @@ const makeSentenceWord = (
 });
 
 const sampleWords: SentenceWord[] = [
-  makeSentenceWord(1, '学生', 'xue2 sheng1', 'student'),
-  makeSentenceWord(2, '继续', 'ji4 xu4', 'to continue/to carry on'),
-  makeSentenceWord(3, '房子', 'fang2 zi', 'house/building'),
-  makeSentenceWord(4, '学习', 'xue2 xi2', 'to study/to learn'),
+  makeSentenceWord('1', '学生', 'xue2 sheng1', 'student'),
+  makeSentenceWord('2', '继续', 'ji4 xu4', 'to continue/to carry on'),
+  makeSentenceWord('3', '房子', 'fang2 zi', 'house/building'),
+  makeSentenceWord('4', '学习', 'xue2 xi2', 'to study/to learn'),
 ];
+
+const sentence: SegmentedSentence = {
+  id: 's1',
+  chinese: {
+    sentence: '學生們，聽好了！',
+    highlight: [[0, 2]],
+    segments: [
+      { s: '学生', t: '學生', p: 'xué sheng', e: 'student; schoolchild' },
+      { s: '们', t: '們', p: 'men', e: 'plural marker for pronouns' },
+      { s: '，', t: '，', p: '', e: '' },
+      { s: '听', t: '聽', p: 'tīng', e: 'to listen to; to hear' },
+      { s: '小李', t: '小李', p: '', e: '' },
+    ],
+    targetIndex: 0,
+  },
+  english: { sentence: 'Listen up, students!', highlight: [] },
+};
+
+describe('resolveSentence', () => {
+  it('builds each word from its segment, with the gloss as its meaning', () => {
+    const resolved = resolveSentence(sentence, 'trad');
+
+    expect(resolved.chinese.words[3]).toEqual({
+      id: '听 tīng',
+      simp: '听',
+      trad: '聽',
+      pinyin: 'tīng',
+      meaning: 'to listen to; to hear',
+    });
+  });
+
+  it('keeps the target and each segment with no entry as plain strings', () => {
+    const resolved = resolveSentence(sentence, 'trad');
+
+    expect(resolved.chinese.words[0]).toBe('學生');
+    expect(resolved.chinese.words[2]).toBe('，');
+    expect(resolved.chinese.words[4]).toBe('小李');
+  });
+
+  it('keeps the sentence, the highlight, the target and the English', () => {
+    const resolved = resolveSentence(sentence, 'trad');
+
+    expect(resolved.chinese.sentence).toBe('學生們，聽好了！');
+    expect(resolved.chinese.highlight).toEqual([[0, 2]]);
+    expect(resolved.chinese.targetIndex).toBe(0);
+    expect(resolved.english.sentence).toBe('Listen up, students!');
+  });
+
+  it('gives the same id to the same entry in two sentences', () => {
+    const [a] = [resolveSentence(sentence, 'trad').chinese.words[3]];
+    const b = resolveSentence({ ...sentence, id: 's2' }, 'trad').chinese.words[3];
+
+    expect((a as SentenceWord).id).toBe((b as SentenceWord).id);
+  });
+});
+
+describe('dictionaryEntryOf', () => {
+  const word: SentenceWord = {
+    id: '行 háng',
+    simp: '行',
+    trad: '行',
+    pinyin: 'háng',
+    meaning: 'row; line',
+  };
+
+  it('finds the dictionary entry with the pinyin of the segment', async () => {
+    vi.mocked(searchWord).mockResolvedValue([
+      { id: 10, simp: '行', trad: '行', pinyin: 'xing2', meaning: 'to walk' },
+      { id: 11, simp: '行', trad: '行', pinyin: 'hang2', meaning: 'row/line' },
+    ]);
+
+    const entry = await dictionaryEntryOf(word);
+
+    expect(searchWord).toHaveBeenCalledWith('行', 'simp');
+    expect(entry?.id).toBe(11);
+  });
+
+  it('takes the first entry of the same characters when no pinyin fits', async () => {
+    vi.mocked(searchWord).mockResolvedValue([
+      { id: 20, simp: '行', trad: '行', pinyin: 'xing2', meaning: 'to walk' },
+    ]);
+
+    expect((await dictionaryEntryOf(word))?.id).toBe(20);
+  });
+
+  it('gives null when the dictionary has no entry', async () => {
+    vi.mocked(searchWord).mockResolvedValue([]);
+
+    expect(await dictionaryEntryOf(word)).toBeNull();
+  });
+});
 
 describe('matchEnglishToSentenceWords', () => {
   it('returns matching words for a single English word', () => {

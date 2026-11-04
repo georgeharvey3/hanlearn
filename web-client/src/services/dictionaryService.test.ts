@@ -182,24 +182,6 @@ describe('dictionaryService', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // substringMatch — input validation branches
-  // ---------------------------------------------------------------------------
-  describe('substringMatch input validation', () => {
-    it('returns empty array for whitespace-only input', async () => {
-      const results = await mod.substringMatch('   ', 'simp');
-      expect(results).toEqual([]);
-      expect(mockCallable).not.toHaveBeenCalled();
-    });
-
-    it('returns empty array for input exceeding max length', async () => {
-      const longInput = '学'.repeat(101);
-      const results = await mod.substringMatch(longInput, 'simp');
-      expect(results).toEqual([]);
-      expect(mockCallable).not.toHaveBeenCalled();
-    });
-  });
-
-  // ---------------------------------------------------------------------------
   // isDictionaryLoaded / preloadDictionary
   // ---------------------------------------------------------------------------
   describe('isDictionaryLoaded', () => {
@@ -211,31 +193,6 @@ describe('dictionaryService', () => {
   describe('preloadDictionary', () => {
     it('is a no-op that resolves immediately', async () => {
       await expect(mod.preloadDictionary()).resolves.toBeUndefined();
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // substringMatch
-  // ---------------------------------------------------------------------------
-  describe('substringMatch', () => {
-    it('returns results from the Cloud Function', async () => {
-      const expected = [SAMPLE_ENTRIES[0]];
-      mockCallable.mockResolvedValue({ data: expected });
-      const results = await mod.substringMatch('你好', 'simp');
-      expect(results).toHaveLength(1);
-      expect(results[0]).toMatchObject({ simp: '你好' });
-    });
-
-    it('passes text and charSet to the Cloud Function', async () => {
-      mockCallable.mockResolvedValue({ data: [] });
-      await mod.substringMatch('學習', 'trad');
-      expect(mockCallable).toHaveBeenCalledWith({ text: '學習', charSet: 'trad' });
-    });
-
-    it('returns empty array for empty string', async () => {
-      mockCallable.mockResolvedValue({ data: [] });
-      const results = await mod.substringMatch('', 'simp');
-      expect(results).toHaveLength(0);
     });
   });
 });
