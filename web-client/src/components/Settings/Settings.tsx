@@ -75,6 +75,13 @@ interface Values extends Record<Flag, boolean> {
 
 const SKILLS: Exclude<Priority, 'none'>[] = ['MP', 'PM', 'MC', 'PC', 'CM'];
 
+// The value and the label of the set size of each sentence tab.
+const SET_SIZES: Record<SentenceTab, 'comprehendPerSet' | 'composePerSet'> = {
+  comprehend: 'comprehendPerSet',
+  compose: 'composePerSet',
+};
+const SENTENCE_TABS = Object.keys(SET_SIZES) as SentenceTab[];
+
 const readPriority = (): Priority => {
   const stored = localStorage.getItem('priority');
   return SKILLS.find((skill) => skill === stored) ?? 'none';
@@ -173,7 +180,7 @@ const Settings: React.FC<PropsFromRedux> = ({
   const setSetSize = useCallback(
     (tab: SentenceTab) => (size: number) => {
       writeSetSize(tab, size);
-      setValues((prev) => ({ ...prev, [`${tab}PerSet`]: readSetSize(tab) }));
+      setValues((prev) => ({ ...prev, [SET_SIZES[tab]]: readSetSize(tab) }));
     },
     [],
   );
@@ -396,26 +403,19 @@ const Settings: React.FC<PropsFromRedux> = ({
       {group(
         'sentences',
         <>
-          <StepperRow
-            label={text.comprehendPerSet}
-            value={values.comprehendPerSet}
-            min={SET_SIZE_MIN}
-            max={SET_SIZE_MAX}
-            step={SET_SIZE_STEP}
-            fewerLabel={text.fewerTasks}
-            moreLabel={text.moreTasks}
-            onChange={setSetSize('comprehend')}
-          />
-          <StepperRow
-            label={text.composePerSet}
-            value={values.composePerSet}
-            min={SET_SIZE_MIN}
-            max={SET_SIZE_MAX}
-            step={SET_SIZE_STEP}
-            fewerLabel={text.fewerTasks}
-            moreLabel={text.moreTasks}
-            onChange={setSetSize('compose')}
-          />
+          {SENTENCE_TABS.map((tab) => (
+            <StepperRow
+              key={tab}
+              label={text[SET_SIZES[tab]]}
+              value={values[SET_SIZES[tab]]}
+              min={SET_SIZE_MIN}
+              max={SET_SIZE_MAX}
+              step={SET_SIZE_STEP}
+              fewerLabel={text.fewerTasks}
+              moreLabel={text.moreTasks}
+              onChange={setSetSize(tab)}
+            />
+          ))}
         </>,
       )}
 

@@ -1,10 +1,10 @@
 /**
- * The "Comprehend per set" and "Compose per set" settings (#395).
+ * The "Comprehend set size" and "Compose set size" settings (#395).
  *
  * A set is the tasks of one visit to a sentence tab (#489). Each tab has its
  * own size, because a Compose task takes longer than a Comprehend task. No
  * study gives a number of sentences, so the default of 5 is a start to tune
- * with the `sentenceLog` data. A tab is opt-in, so the range starts at 1.
+ * with the `sentenceLog` data that #489 adds. A tab is opt-in, so the range starts at 1.
  */
 export type SentenceTab = 'comprehend' | 'compose';
 
