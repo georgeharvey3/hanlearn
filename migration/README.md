@@ -55,56 +55,53 @@ The `import_firestore.ts` script can import the dictionary to Firestore, but thi
 
 Use the static dictionary approach instead.
 
-## Sentence Sources
-
-The example sentences of #465 come from one committed source file for each sentence source. The build reads these source files, so it needs no network. The source files are in `sentences/`:
-
-| Source file | Made by | Licence |
-|---|---|---|
-| `sentences/tatoeba.json` | `fetch-tatoeba.js` | CC BY 2.0 FR |
-| `sentences/wiktionary.json` | `fetch-wiktionary.js` | CC BY-SA 4.0 |
-| `sentences/sentence-cache.json` | `export-sentence-cache.js` | None (Gemini output) |
-
-A source file holds its source, its download date and its licence, then one source record on each line. `sentenceSources.js` holds the rules and gives the fields of a record. A new download shows as a line diff in a pull request.
-
-### Download Tatoeba or Wiktionary again
-
-1. Make sure that `bunzip2` is on the `PATH`. The Tatoeba script needs it.
-2. Run the fetch script of the source:
-
-   ```bash
-   cd migration
-   node fetch-tatoeba.js
-   node fetch-wiktionary.js
-   ```
-
-3. Read the diff of the source file, then commit it.
-
-The Tatoeba script keeps the Mandarin sentences that have a direct link to an English sentence. It drops the sentences with a tag that marks them as wrong, and the sentences that mix simplified and traditional characters. The Wiktionary script keeps the Mandarin usage examples that have an English translation.
-
-### Export sentenceCache
-
-The export script reads the `sentenceCache` collection of production. It does not write to Firestore.
-
-1. Save a service account key of the production project as `service-account.json` in this directory. A key with the Cloud Datastore Viewer role is sufficient.
-2. Run `npm install` in this directory.
-3. Run `node export-sentence-cache.js`.
-4. Commit `sentences/sentence-cache.json`.
-
 ## Example Sentence Build
 
-`npm run build:dict` builds the example sentences from the source files, after the premade lists. The build uses no network and no AI. The rules are in `exampleSentences.js`, and `build-dictionary.js` reads and writes the files.
+`npm run build:dict` builds the example sentence files of #465 from two committed sources, after the premade lists (ADR 0020):
+
+- `sentences/tatoeba.json`: the Tatoeba sentences of native Mandarin writers, with their English translations. `npm run fetch:tatoeba` downloads the file again. The rules are in `tatoeba.js`.
+- `sentences/generated.json`: the sentences that Claude Code wrote (see Generated Sentences).
+
+The build uses no network and no AI. The rules are in `exampleSentences.js`, and `build-dictionary.js` reads and writes the files.
+
+Each sentence goes to every HSK word that it holds and passes the grader for. A generated sentence must pass the grader for its `headword`, or the build stops. The build drops a Tatoeba sentence with fewer than 6 Han characters or with a name. A word outside HSK gets no sentences. Each word keeps 3 sentences at most (#482).
+
+Each segment shows the pinyin and the gloss of one CC-CEDICT entry (#479). An override always wins. Without one, an HSK word shows the entry of the premade-list resolver. A single character outside HSK shows the entry that the HSK words with this character read most often, so 居 is *jū* as in 居住. The gloss is the first 3 useful senses of the entry, divided by "; ".
+
+`sentences/gloss-overrides.json` sets the entry and the gloss of one segment text. Each override names the entry by its pinyin with tone numbers, and by `trad` when two entries have the same pinyin. If a person finds a wrong pinyin or gloss in use, add an override for it. The build stops on an override that names no entry.
 
 The build writes these files to `web-client/public/sentences/`. They are build output, and git ignores them:
 
 | File | Contents |
 |---|---|
 | `<code point>.json` | The sentences of each word that starts with this character. `56fe.json` holds 图书馆. |
-| `ATTRIBUTION.txt` | One line for each sentence: its id, its source and its author |
-| `LICENSE.txt` | The licence of the files (CC BY-SA 4.0) and of each source |
+| `ATTRIBUTION.txt` | The source of each part of the files, and one line for each Tatoeba sentence with its id and its owners |
+| `LICENSE.txt` | The licence of the files: CC BY-SA 4.0, because the segment glosses come from CC-CEDICT. The Tatoeba sentences are also CC BY 2.0 FR |
 
-The build also prints a coverage report. A local run writes the report to `sentences/coverage.md`. CI only prints it. Commit `coverage.md` when it changes, so that a pull request shows the change in coverage.
+The build also prints a coverage report. The report lists each HSK word that has fewer than 3 sentences. A local run writes the report to `sentences/coverage.md`. CI only prints it. Commit `coverage.md` when it changes, so that a pull request shows the change in coverage.
 
-The build stops on a malformed source record, on a generated sentence that fails the grader, and on a sentence file over 2 MB. It does not stop on low coverage.
+The build stops on a gloss override that names no entry, on a malformed record, on a generated sentence that fails the grader, and on a sentence file over 2 MB. It does not stop on low coverage.
 
-If `sentences/generated.json` exists, the build reads it. Each record has the fields of a source record and a `headword`, which is the word that the sentence is for. Issue #468 adds this file.
+## Reported Sentences
+
+A learner can report a bad sentence from the sentence stages (#469). Each report goes to `users/{userId}/sentenceReports/{sentenceId}`.
+
+1. Run `node export-sentence-reports.js`. It writes `sentence-reports.csv`, with one row for each reported sentence and the most reported first.
+2. For a wrong pinyin or gloss, add an override to `sentences/gloss-overrides.json`.
+3. For a bad generated sentence, change it or remove it in `sentences/generated.json`.
+4. Run `npm run build:dict`.
+
+The script needs `service-account.json`, the same as `export-review-log.js`. Git ignores the CSV file.
+
+## Generated Sentences
+
+Claude Code writes the sentences for the HSK words that have fewer than 3 (#468). A developer starts the session. `sentences/GENERATE.md` is the prompt and the procedure.
+
+| Script | What it does |
+|---|---|
+| `sentence-gaps.js` | Writes `sentences/scratch/gaps.json`: each HSK word with fewer than 3 sentences, with its HSK level, its length cap and the number that it needs |
+| `sentence-accept.js <file>` | Grades the candidates in the file with the rules of the build. Adds the passes to `sentences/generated.json` and prints each reject with its reason |
+
+Both scripts run the build in memory, so they use the same rules as `npm run build:dict`. Git ignores `sentences/scratch/`.
+
+Each run of the accept script is one round for each word of its candidates. `generated.json` counts the failed rounds of each word. A word that is still short after 3 rounds is unfilled. The gaps script leaves it out, and `coverage.md` lists it. A second session gets only the words that are still short.

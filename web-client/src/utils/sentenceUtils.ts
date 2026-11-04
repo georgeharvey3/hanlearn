@@ -1,20 +1,40 @@
-import { searchWord, substringMatch } from '../services/dictionaryService';
-import { reportError } from '../services/errorReporting';
+import { searchWord } from '../services/dictionaryService';
+import { Word } from '../types/models';
+import { toneMarks } from './pinyinMarks';
 
+/**
+ * One segment of a sentence file: the simplified and traditional text, the
+ * pinyin in tone marks, and the gloss. A segment with no entry has an empty
+ * pinyin and gloss: punctuation, a name, or a number.
+ */
+export interface SentenceSegment {
+  s: string;
+  t: string;
+  p: string;
+  e: string;
+}
+
+/**
+ * A word of a sentence that the learner can tap. Its `id` names the entry that
+ * the segment shows (the text and the pinyin), not a dictionary entry: the
+ * files carry no dictionary id. `dictionaryEntryOf` finds the entry when the
+ * learner adds the word.
+ */
 export interface SentenceWord {
-  id: number;
+  id: string;
   simp: string;
   trad: string;
   pinyin: string;
   meaning: string;
 }
 
-// What the cloud function / sentence service returns (segmented strings, no lookups)
-export interface CloudSentence {
+/** What the sentence service returns: the segments of one sentence. */
+export interface SegmentedSentence {
+  id: string;
   chinese: {
     sentence: string;
     highlight: number[][];
-    segments: string[];
+    segments: SentenceSegment[];
     targetIndex: number;
   };
   english: {
@@ -25,11 +45,15 @@ export interface CloudSentence {
 
 // Resolved sentence with full word data (used for rendering)
 export interface ResolvedSentence {
+  id: string;
   chinese: {
     sentence: string;
-    words: (string | SentenceWord | SentenceWord[])[];
+    /** The target and each segment with no entry are plain strings. */
+    words: (string | SentenceWord)[];
     highlight: number[][];
     targetIndex: number;
+    /** The entry of the target segment, or null when it has none. */
+    target: SentenceWord | null;
   };
   english: {
     sentence: string;
@@ -38,111 +62,64 @@ export interface ResolvedSentence {
 }
 
 /**
- * Resolve segmented word strings to full word objects using the static dictionary.
- *
- * Each segment is a separate Cloud Function call, so one failed lookup (a cold
- * start timing out on a slow connection, say) must not lose the whole sentence.
- * A segment whose lookup fails stays a plain string: the learner loses the
- * translation help for that one word and keeps the sentence.
+ * Build the words of a sentence from its segments, with no network call. The
+ * target and each segment with no entry stay plain strings, in the character
+ * set of the sentence.
  */
-export async function resolveSentence(cloudSentence: CloudSentence): Promise<ResolvedSentence> {
-  // Collect unique non-target segments
-  const uniqueSegments = new Set<string>();
-  cloudSentence.chinese.segments.forEach((seg, i) => {
-    if (i !== cloudSentence.chinese.targetIndex) {
-      uniqueSegments.add(seg);
-    }
+export function resolveSentence(
+  sentence: SegmentedSentence,
+  charSet: 'simp' | 'trad',
+): ResolvedSentence {
+  const entryOf = (segment: SentenceSegment): SentenceWord => ({
+    id: `${segment.s} ${segment.p}`,
+    simp: segment.s,
+    trad: segment.t,
+    pinyin: segment.p,
+    meaning: segment.e,
   });
-
-  // Resolve all unique segments in parallel via static dictionary
-  const segmentArray = Array.from(uniqueSegments);
-  let lookupFailures = 0;
-  let firstLookupError: unknown;
-  const noteLookupFailure = (error: unknown): void => {
-    lookupFailures += 1;
-    if (firstLookupError === undefined) firstLookupError = error;
-  };
-
-  const lookupResults = await Promise.all(
-    segmentArray.map(async (seg) => {
-      try {
-        const results = await searchWord(seg, 'simp');
-        return { seg, word: results.length > 0 ? results[0] : null };
-      } catch (error) {
-        noteLookupFailure(error);
-        return { seg, word: null, failed: true };
-      }
-    }),
-  );
-  const failedSegments = new Set(lookupResults.filter((r) => r.failed).map((r) => r.seg));
-
-  const wordMap = new Map<string, SentenceWord>();
-  for (const { seg, word } of lookupResults) {
-    if (word) {
-      wordMap.set(seg, {
-        id: word.id,
-        simp: word.simp,
-        trad: word.trad,
-        pinyin: word.pinyin,
-        meaning: word.meaning,
-      });
-    }
-  }
-
-  const words: (SentenceWord | string | SentenceWord[])[] = await Promise.all(
-    cloudSentence.chinese.segments.map(async (seg, i) => {
-      if (i === cloudSentence.chinese.targetIndex) {
-        return seg; // Target word stays as string marker
-      }
-      const resolved = wordMap.get(seg);
-      if (resolved) return resolved;
-      if (failedSegments.has(seg)) return seg;
-
-      // No exact match — decompose into smaller dictionary-matched substrings
-      let subWords: Awaited<ReturnType<typeof substringMatch>>;
-      try {
-        subWords = await substringMatch(seg, 'simp');
-      } catch (error) {
-        noteLookupFailure(error);
-        return seg;
-      }
-      if (subWords.length === 0) return seg;
-      if (subWords.length === 1 && subWords[0].id === -1) {
-        // Single unknown character — keep as plain string
-        return seg;
-      }
-      return subWords.map((w) => ({
-        id: w.id,
-        simp: w.simp,
-        trad: w.trad,
-        pinyin: w.pinyin,
-        meaning: w.meaning,
-      }));
-    }),
-  );
-
-  if (lookupFailures > 0) {
-    reportError(firstLookupError, {
-      feature: 'sentence-resolve',
-      level: 'warning',
-      context: { failedLookups: lookupFailures, segments: cloudSentence.chinese.segments.length },
-    });
-  }
+  const words = sentence.chinese.segments.map((segment, i): string | SentenceWord => {
+    const text = charSet === 'trad' ? segment.t : segment.s;
+    if (i === sentence.chinese.targetIndex || !segment.p) return text;
+    return entryOf(segment);
+  });
+  const targetSegment = sentence.chinese.segments[sentence.chinese.targetIndex];
 
   return {
+    id: sentence.id,
     chinese: {
-      sentence: cloudSentence.chinese.sentence,
-      highlight: cloudSentence.chinese.highlight,
-      targetIndex: cloudSentence.chinese.targetIndex,
+      sentence: sentence.chinese.sentence,
+      highlight: sentence.chinese.highlight,
+      targetIndex: sentence.chinese.targetIndex,
       words,
+      target: targetSegment?.p ? entryOf(targetSegment) : null,
     },
-    english: cloudSentence.english,
+    english: sentence.english,
   };
 }
 
 /**
+ * The dictionary entry of a word of a sentence, to add it to a list: the
+ * Firestore document of a word takes the id of its entry. Prefers the entry
+ * with the pinyin of the segment, then the first one with the same
+ * characters. Null when the dictionary has none.
+ */
+export async function dictionaryEntryOf(word: SentenceWord): Promise<Word | null> {
+  const entries = (await searchWord(word.simp, 'simp')).filter(
+    (entry) => entry.simp === word.simp && entry.id !== -1,
+  );
+  const sameTrad = entries.filter((entry) => entry.trad === word.trad);
+  const candidates = sameTrad.length > 0 ? sameTrad : entries;
+  const plain = (pinyin: string) => pinyin.replace(/\s+/g, '').toLowerCase();
+  return (
+    candidates.find((entry) => plain(toneMarks(entry.pinyin)) === plain(word.pinyin)) ??
+    candidates[0] ??
+    null
+  );
+}
+
+/**
  * Match selected English text against the meaning fields of resolved Chinese sentence words.
- * Used in SentenceWrite to provide English→Chinese translation hints.
+ * Used in the Compose tab to give English→Chinese translation hints.
  */
 export function matchEnglishToSentenceWords(
   englishQuery: string,

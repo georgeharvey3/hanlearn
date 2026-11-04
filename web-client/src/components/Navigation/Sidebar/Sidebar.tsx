@@ -5,6 +5,9 @@ import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 
 import StudyButton, { useDueCount } from '../StudyButton/StudyButton';
+import TabDot from '../TabDot';
+import { useSentenceTabs } from '../../../hooks/useSentenceTabs';
+import { sentenceLinks } from '../sentenceLinks';
 import {
   HomeIcon,
   AddIcon,
@@ -35,6 +38,8 @@ const links = [
   { to: routes.settings, label: copy.shell.settings, icon: <SettingsIcon size={22} /> },
 ];
 
+const SENTENCE_LINKS = sentenceLinks(22);
+
 /**
  * The desktop's sidebar. It starts with the Study button and collapses to a
  * rail of icons; the rail names each icon to a screen reader.
@@ -43,6 +48,7 @@ const Sidebar: React.FC<Props> = ({ collapsed, onToggleCollapsed, onOpenShortcut
   const { pathname } = useLocation();
   const dispatch = useDispatch<AppDispatch>();
   const due = useDueCount();
+  const sentenceTabs = useSentenceTabs();
 
   // An item is a full row when open, and a 48 px icon button in the rail.
   const itemSx = (active = false) => ({
@@ -144,6 +150,29 @@ const Sidebar: React.FC<Props> = ({ collapsed, onToggleCollapsed, onOpenShortcut
           </Box>
         )}
       </ButtonBase>
+
+      {SENTENCE_LINKS.map((link) => {
+        const fresh = sentenceTabs?.[link.tab].fresh ?? false;
+        const active = isActive(pathname, link.to);
+        return (
+          <ButtonBase
+            key={link.to}
+            component={Link}
+            to={link.to}
+            aria-current={active ? 'page' : undefined}
+            aria-label={fresh ? copy.sentenceTabs.withNew(link.label) : link.label}
+            sx={{ ...itemSx(active), position: 'relative' }}
+          >
+            {link.icon}
+            {!collapsed && link.label}
+            {fresh && (
+              <TabDot
+                sx={collapsed ? { position: 'absolute', top: 8, right: 8 } : { ml: 'auto' }}
+              />
+            )}
+          </ButtonBase>
+        );
+      })}
 
       {links.map((link) => (
         <ButtonBase

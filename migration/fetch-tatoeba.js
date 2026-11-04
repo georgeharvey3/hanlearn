@@ -1,6 +1,7 @@
 /**
  * Download the Tatoeba exports and write the Tatoeba source file,
- * sentences/tatoeba.json. sentenceSources.js holds the rules. See issue #466.
+ * sentences/tatoeba.json, with the sentences of native Mandarin writers only.
+ * tatoeba.js holds the rules. See issues #466 and #482.
  *
  * Prerequisites: Node.js 18 or later, and `bunzip2` on the PATH.
  *
@@ -11,8 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { formatSourceFile, scriptSets, tatoebaRecords } = require('./sentenceSources');
-const licences = require('./sentenceLicences');
+const { LICENCE, formatSourceFile, scriptSets, tatoebaRecords } = require('./tatoeba');
 
 const BASE = 'https://downloads.tatoeba.org/exports/per_language';
 
@@ -61,7 +61,7 @@ async function main() {
     formatSourceFile({
       source: 'tatoeba',
       downloaded: new Date().toISOString().slice(0, 10),
-      licence: licences.tatoeba,
+      licence: LICENCE,
       records,
     }),
   );

@@ -58,6 +58,7 @@ describe('Settings — accessibility', () => {
       'Answers',
       'Skill focus',
       'Session stages',
+      'Sentences',
       'Sound',
       'Account',
     ]) {
@@ -75,6 +76,7 @@ describe('Settings — groups', () => {
       'Answers',
       'Skill focus',
       'Session stages',
+      'Sentences',
       'Sound',
       'Account',
     ]) {
@@ -88,9 +90,7 @@ describe('Settings — groups', () => {
     expect(header('Study session')).toHaveTextContent(/25 questions · ~\d+ min · Traditional/);
     expect(header('Answers')).toHaveTextContent('Meaning: Flashcard · Pinyin: Input');
     expect(header('Skill focus')).toHaveTextContent('Balanced');
-    expect(header('Session stages')).toHaveTextContent(
-      'New words, Test, Translate sentences, Make sentences',
-    );
+    expect(header('Session stages')).toHaveTextContent('New words, Test');
     expect(header('Sound')).toHaveTextContent('Text-to-speech · Sound effects');
     expect(header('Account')).toHaveTextContent('learner@example.com');
   });
@@ -263,36 +263,50 @@ describe('Settings — Stages', () => {
     const user = userEvent.setup();
     renderSettings();
     await open(user, 'Session stages');
-    await user.click(screen.getByRole('switch', { name: 'Make sentences' }));
-    expect(localStorage.getItem('sentenceWrite')).toBe('false');
+    await user.click(screen.getByRole('switch', { name: /^New words/ }));
+    expect(localStorage.getItem('newWords')).toBe('false');
 
     await user.click(header('Session stages'));
-    expect(header('Session stages')).toHaveTextContent('New words, Test, Translate sentences');
-    expect(header('Session stages')).not.toHaveTextContent('Make sentences');
+    expect(header('Session stages')).toHaveTextContent('Test');
+    expect(header('Session stages')).not.toHaveTextContent('New words');
   });
 
-  it('offers Translate with all words only with Translate sentences', async () => {
+  it('has no switch for the sentence tasks, which are tabs of their own', async () => {
     const user = userEvent.setup();
     renderSettings();
     await open(user, 'Session stages');
-    const allWords = screen.getByRole('switch', { name: /Translate with all words/ });
-    expect(allWords).not.toBeChecked();
-    await user.click(allWords);
-    expect(localStorage.getItem('sentenceStagesForAllWords')).toBe('true');
+    for (const name of [/Translate sentences/, /Make sentences/, /Translate with all words/]) {
+      expect(screen.queryByRole('switch', { name })).not.toBeInTheDocument();
+    }
+  });
+});
 
-    await user.click(screen.getByRole('switch', { name: /^Translate sentences/ }));
-    expect(allWords).toBeDisabled();
-    expect(allWords).not.toBeChecked();
-    expect(allWords).toHaveTextContent('Turn on Translate sentences first');
+describe('Settings — Sentences', () => {
+  it('shows the size of each set in the closed header, 5 by default', () => {
+    renderSettings();
+    expect(header('Sentences')).toHaveTextContent('Comprehend 5 · Compose 5');
   });
 
-  it('shortens the session time when a stage is turned off', async () => {
+  it('stores the size of each set on its own, from 1 to 10', async () => {
     const user = userEvent.setup();
+    localStorage.setItem('comprehendPerSet', '9');
+    localStorage.setItem('composePerSet', '2');
     renderSettings();
-    const before = header('Study session').textContent;
-    await open(user, 'Session stages');
-    await user.click(screen.getByRole('switch', { name: 'Make sentences' }));
-    expect(header('Study session').textContent).not.toBe(before);
+    await open(user, 'Sentences');
+
+    const comprehend = within(screen.getByRole('group', { name: 'Comprehend set size' }));
+    const compose = within(screen.getByRole('group', { name: 'Compose set size' }));
+
+    const more = comprehend.getByRole('button', { name: 'More' });
+    await user.click(more);
+    expect(localStorage.getItem('comprehendPerSet')).toBe('10');
+    expect(more).toBeDisabled();
+
+    const fewer = compose.getByRole('button', { name: 'Fewer' });
+    await user.click(fewer);
+    expect(localStorage.getItem('composePerSet')).toBe('1');
+    expect(fewer).toBeDisabled();
+    expect(localStorage.getItem('comprehendPerSet')).toBe('10');
   });
 });
 
@@ -334,18 +348,12 @@ describe('Settings — a browser without speech', () => {
     renderSettings(makeStore(false, false));
     for (const name of ['Answers', 'Session stages', 'Sound']) await open(user, name);
 
-    for (const name of [
-      /Auto-start microphone/,
-      /^New words/,
-      /^Translate sentences/,
-      /^Text-to-speech/,
-    ]) {
+    for (const name of [/Auto-start microphone/, /^New words/, /^Text-to-speech/]) {
       const row = screen.getByRole('switch', { name });
       expect(row).toBeDisabled();
       expect(row).not.toBeChecked();
       expect(row).toHaveTextContent('Not supported in this browser');
     }
-    expect(screen.getByRole('switch', { name: 'Make sentences' })).toBeEnabled();
   });
 });
 
@@ -368,5 +376,14 @@ describe('Settings — Account', () => {
     await open(user, 'Account');
     await user.click(screen.getByRole('button', { name: 'Log in' }));
     expect(store.getState().auth.modalOpen).toBe(true);
+  });
+});
+
+describe('Settings — Credits', () => {
+  it('opens the Credits screen', async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    await user.click(screen.getByRole('link', { name: 'Credits' }));
+    expect(window.location.pathname).toBe('/credits');
   });
 });

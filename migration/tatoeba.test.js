@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatSourceFile, scriptSets, tatoebaRecords, wiktionaryRecords } from './sentenceSources';
+import { formatSourceFile, scriptSets, tatoebaRecords } from './tatoeba';
 
 /** Lines in the column order of the Tatoeba exports. */
 const sentence = (id, text, owner = 'alice') =>
@@ -19,6 +19,7 @@ const scripts = scriptSets([
   { trad: '看', simp: '看' },
 ]);
 
+/** The records of the given exports. alice is a native Mandarin writer. */
 const tatoeba = (input) =>
   tatoebaRecords(
     {
@@ -27,7 +28,7 @@ const tatoeba = (input) =>
       english: [],
       transcriptions: [],
       tags: [],
-      userLanguages: [],
+      userLanguages: [level('alice', 5)],
       ...input,
     },
     scripts,
@@ -40,7 +41,6 @@ describe('tatoebaRecords', () => {
       english: [english(10, 'We read.')],
       links: [link(1, 10)],
       transcriptions: [transcription(1, 'Hant', '我們看書。'), transcription(1, 'Latn', 'wo3men5')],
-      userLanguages: [level('alice', 5)],
     });
     expect(records).toEqual([
       {
@@ -51,12 +51,27 @@ describe('tatoebaRecords', () => {
         trad: '我們看書。',
         english: 'We read.',
         owner: 'alice',
-        ownerLevel: 5,
         englishId: '10',
         englishOwner: 'bob',
         origin: { chinese: 'human', english: 'human' },
       },
     ]);
+  });
+
+  it('keeps only the sentences of an owner who gives Mandarin as their native language', () => {
+    const records = tatoeba({
+      sentences: [
+        sentence(1, '我看书。', 'alice'),
+        sentence(2, '我看书。', 'carol'),
+        sentence(3, '我看书。', 'dave'),
+        sentence(4, '我看书。', '\\N'),
+      ],
+      english: [english(10, 'I read.')],
+      links: [1, 2, 3, 4].map((id) => link(id, 10)),
+      transcriptions: [1, 2, 3, 4].map((id) => transcription(id, 'Hant', '我看書。')),
+      userLanguages: [level('alice', 5), level('carol', 4), level('dave', '\\N')],
+    });
+    expect(records.map((r) => r.sourceId)).toEqual(['1']);
   });
 
   it('takes the simplified form of a traditional sentence from its transcription', () => {
@@ -93,10 +108,7 @@ describe('tatoebaRecords', () => {
       sentences: [sentence(1, '我们看書。'), sentence(2, '我看书。')],
       english: [english(10, 'We read.')],
       links: [link(1, 10), link(2, 10)],
-      transcriptions: [
-        transcription(1, 'Hant', '我們看書。'),
-        transcription(2, 'Hant', '我看書。'),
-      ],
+      transcriptions: [transcription(1, 'Hant', '我們看書。'), transcription(2, 'Hant', '我看書。')],
     });
     expect(records.map((r) => r.sourceId)).toEqual(['2']);
   });
@@ -119,126 +131,6 @@ describe('tatoebaRecords', () => {
       transcriptions: [transcription(1, 'Hant', '我看書。')],
     });
     expect(record).toMatchObject({ english: 'I read.', englishId: '4' });
-  });
-
-  it('keeps the skill level of the owner, and null where the owner gave none', () => {
-    const records = tatoeba({
-      sentences: [sentence(1, '我看书。', 'alice'), sentence(2, '我看书。', 'carol'), sentence(3, '我看书。', '\\N')],
-      english: [english(10, 'I read.')],
-      links: [link(1, 10), link(2, 10), link(3, 10)],
-      transcriptions: [1, 2, 3].map((id) => transcription(id, 'Hant', '我看書。')),
-      userLanguages: [level('alice', 3), level('carol', '\\N')],
-    });
-    expect(records.map((r) => [r.owner, r.ownerLevel])).toEqual([
-      ['alice', 3],
-      ['carol', null],
-      [null, null],
-    ]);
-  });
-});
-
-/** One kaikki example. */
-const example = (script, text, roman, english, extra = {}) => ({
-  type: 'example',
-  tags: [`${script}-Chinese`],
-  text,
-  roman,
-  english,
-  translation: english,
-  ...extra,
-});
-
-/** One kaikki JSONL line: a page with one sense that holds the examples. */
-const page = (word, ...examples) =>
-  JSON.stringify({ word, lang: 'Chinese', pos: 'verb', senses: [{ examples }] });
-
-describe('wiktionaryRecords', () => {
-  it('pairs the traditional and simplified records of one example', () => {
-    const records = wiktionaryRecords([
-      page(
-        '看',
-        example('Traditional', '我們看書。', 'Wǒmen kàn shū.', 'We read.'),
-        example('Simplified', '我们看书。', 'Wǒmen kàn shū.', 'We read.'),
-      ),
-    ]);
-    expect(records).toEqual([
-      {
-        source: 'wiktionary',
-        sourceId: '看',
-        written: 'trad',
-        simp: '我们看书。',
-        trad: '我們看書。',
-        english: 'We read.',
-        owner: null,
-        headword: '看',
-        url: 'https://en.wiktionary.org/wiki/%E7%9C%8B#Chinese',
-        origin: { chinese: 'human', english: 'human' },
-      },
-    ]);
-  });
-
-  it('keeps a traditional record with no simplified partner as traditional only', () => {
-    const records = wiktionaryRecords([
-      page('看', example('Traditional', '看看', 'kànkàn', 'to have a look')),
-    ]);
-    expect(records).toMatchObject([{ written: 'trad', simp: null, trad: '看看' }]);
-  });
-
-  it('keeps examples and drops quotations', () => {
-    const records = wiktionaryRecords([
-      page(
-        '看',
-        { type: 'quotation', text: '看', english: 'look', roman: 'kàn' },
-        example('Traditional', '看看', 'kànkàn', 'to have a look'),
-      ),
-    ]);
-    expect(records.map((r) => r.trad)).toEqual(['看看']);
-  });
-
-  it('drops an example with no English or no romanization', () => {
-    const records = wiktionaryRecords([
-      page(
-        '看',
-        example('Traditional', '看看', 'kànkàn', undefined),
-        example('Traditional', '看書', undefined, 'to read'),
-      ),
-    ]);
-    expect(records).toEqual([]);
-  });
-
-  it('keeps Mandarin only', () => {
-    const tagged = (tags, roman = 'kàn') =>
-      example('Traditional', '看', roman, 'to look', { tags: ['Traditional-Chinese', ...tags] });
-    const rawTagged = (rawTags) =>
-      example('Traditional', '看', 'kàn', 'to look', { raw_tags: rawTags });
-    const records = wiktionaryRecords([
-      page(
-        '看',
-        tagged(['Cantonese']),
-        tagged(['Jyutping'], 'hon3'),
-        tagged(['Classical-Chinese']),
-        rawTagged(['Literary Cantonese']),
-        rawTagged(['Wugniu']),
-        rawTagged(['Pe̍h-ōe-jī']),
-        tagged(["Peng'im"], 'kang³'),
-        tagged(['Pinyin']),
-      ),
-    ]);
-    expect(records).toHaveLength(1);
-  });
-
-  it('drops a page with no Han character in its title', () => {
-    const records = wiktionaryRecords([page('( )', example('Traditional', '看看', 'kànkàn', 'to look'))]);
-    expect(records).toEqual([]);
-  });
-
-  it('keeps one record of an example that a page repeats', () => {
-    const pair = [
-      example('Traditional', '我們看書。', 'Wǒmen kàn shū.', 'We read.'),
-      example('Simplified', '我们看书。', 'Wǒmen kàn shū.', 'We read.'),
-    ];
-    const records = wiktionaryRecords([page('看', ...pair, ...pair)]);
-    expect(records).toHaveLength(1);
   });
 });
 

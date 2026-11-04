@@ -82,15 +82,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: |
-            functions/package-lock.json
-            web-client/package-lock.json
-
-      # build:dict converts traditional sentences with opencc-js, a dependency
-      # of web-client (#467).
-      - name: Install web-client dependencies
-        run: npm ci
-        working-directory: web-client
+          cache-dependency-path: functions/package-lock.json
 
       - name: Install functions dependencies
         run: npm ci

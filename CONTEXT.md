@@ -237,7 +237,7 @@ The introduction comes before the test. Each new word goes through three
 **steps**: Understand (the meaning and the parts of each character), Speak (the
 learner says the word) and Write (the learner traces each character). The steps
 record no result, and the learner can skip each one. The Write step is not the
-Write stage of the sentences, which comes after the test.
+Compose tab.
 
 A new word holds no place of its own in the queue. Its due date ranks it against
 every other word, within the direction shares, and a word with no due date is
@@ -250,43 +250,57 @@ question to the next word in the ranking, so the session is no shorter while
 there is anything left to review. See
 [docs/adr/0015-a-cap-on-new-words-per-session.md](docs/adr/0015-a-cap-on-new-words-per-session.md).
 
-## Sentence stages
+## Comprehend tab and Compose tab
 
-The **Read stage** and the **Write stage** are the two halves of the "Sentences"
-step. Read shows a sentence containing the word and asks the learner to
-translate it. Write gives an English prompt and asks the learner to produce the
-Chinese sentence.
+The sentence tasks are two tabs of their own, directly below Study. They are not
+part of a session, and a session ends when its cards end.
 
-The two stages take **separate word lists**, because input and output suit
-opposite ends of learning a word:
+- In the **Comprehend tab**, the learner reads or hears an example sentence,
+  reveals the English, and grades the task as right or wrong.
+- In the **Compose tab**, the learner says or types a Chinese sentence for an
+  English prompt, reveals the reference sentence, and grades the task.
 
-| Stage | Runs for                                                      |
-| ----- | ------------------------------------------------------------- |
-| Read  | a **new word**                                                |
-| Write | a word whose `MC`, `MP`, `PC` and `PM` are all at **bank 3+** |
+The input of each follows `useSound`. With sound on, Comprehend plays the
+sentence and hides the Chinese, and Compose takes the mic and the keyboard. With
+sound off, Comprehend shows the Chinese, and Compose takes the keyboard.
 
-A `fail` on any direction of a word in the session blocks both stages for that
-word: the stages are a reward for a clean run.
+A **set** is the tasks of one visit to a tab. Each tab has a setting for its
+size: "Comprehend set size" and "Compose set size".
 
-A word that meets the Write gate is **ready for the Write stage**, and
-`readyForWriteStage` is the predicate. Writing a sentence with a word the
-learner has only just met impedes the encoding of the word form, so the Write
-stage waits for partial mastery rather than firing on novelty. `CM` is left out
-of the gate because handwriting is itself production. The Write task carries no
-time limit, because the negative effect of early output is worst under time
-pressure. See
-[docs/adr/0011-gate-the-write-stage-on-partial-mastery.md](docs/adr/0011-gate-the-write-stage-on-partial-mastery.md).
+A word is **eligible** for a tab when it has an example sentence, passes the
+gate of the tab, and has no direction due within 2 days, today included. A
+sentence primes the answer of a card review. A `fail` from today is due
+tomorrow, so the 2-day rule also keeps today's misses out.
 
-The **"Translate sentences for all words"** setting widens the Read stage to
-every word of the session. It does not touch the Write gate, and neither does
-practice mode. The setting is stored as `sentenceStagesForAllWords`, which is
-the name it had when it widened both.
+| Tab        | Gate                                             |
+| ---------- | ------------------------------------------------ |
+| Comprehend | `MC`, `MP`, `PC` and `PM` are all at **bank 2+** |
+| Compose    | `MC`, `MP`, `PC` and `PM` are all at **bank 3+** |
+
+`readyForComprehend` and `readyForCompose` are the predicates. Every Compose
+word is a Comprehend word too. Writing a sentence with a word the learner has
+only just met impedes the encoding of the word form, so Compose waits for
+partial mastery. `CM` is left out of both gates, because handwriting is itself
+production. See
+[docs/adr/0011-gate-the-write-stage-on-partial-mastery.md](docs/adr/0011-gate-the-write-stage-on-partial-mastery.md)
+and
+[docs/adr/0021-sentence-tasks-are-a-separate-practice.md](docs/adr/0021-sentence-tasks-are-a-separate-practice.md).
+
+A **weak** result is a grade of wrong. The queue of a tab puts the weak words
+first, then the words never practised in the tab, then the words with a right
+grade. A sentence grade orders the queue of its tab and goes to `sentenceLog`.
+It never changes the schedule of a word.
+
+The Write step of the new word introduction is a different thing from the
+Compose tab.
 
 ## Example sentence
 
 An **example sentence** is one Chinese sentence that holds a word, with its
-English translation and its source. The sentence stages and the hint show
-example sentences. Do not call the set of them a "sentence bank": a **bank** is
+English translation. An example sentence comes from a native Mandarin writer
+on Tatoeba, or Claude Code generates it (ADR 0020). Each sentence goes to every
+HSK word that it holds and passes the grader for. The Comprehend tab, the
+Compose tab and the hint show example sentences. Do not call the set of them a "sentence bank": a **bank** is
 the band of an interval.
 
 A **segment** is one word of an example sentence, as the splitter cuts it. The
@@ -299,24 +313,22 @@ segments, other than the target segment. Names and numbers do not count.
 Always write "HSK level" in full, because a bare **level** is the band of an
 interval.
 
-Each sentence of a word comes in at one **fill step**:
+The **grader** admits a sentence for a word when it has no counted segment
+above the HSK level of the word, and when it is within the length cap of that
+level. An HSK 7–9 word has no cap and no level rule.
 
-| Fill step   | The sentence                                           |
-| ----------- | ------------------------------------------------------ |
-| `strict`    | has no counted segment above the HSK level of the word |
-| `relaxed`   | has one counted segment one HSK level above the word   |
-| `generated` | came from an AI, and passed the strict rule            |
+A word is **filled** when it has 3 sentences. The **coverage report** lists the
+HSK words that are not filled.
 
 The **origin** of a sentence says whether a person or a machine wrote its
-Chinese and its English. A real sentence with a human translation, a real
-sentence with a machine translation, and a generated sentence are the three
-kinds.
+Chinese and its English. A Tatoeba sentence has the origin `human` for both,
+and a generated sentence has `machine` for both.
 
 ## Practice
 
-**Practice mode** is the unscored run that ignores due dates. This is the only
-thing the name covers. The step of the session stepper that holds the sentence
-stages carried the same name before, and it is **"Sentences"** now.
+**Practice mode** is the unscored run that ignores due dates. The Comprehend
+and Compose tabs are not practice mode: their grades are saved, but they do not
+change the schedule of a word.
 
 ## Grade
 

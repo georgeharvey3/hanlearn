@@ -18,6 +18,8 @@ const AddWords = React.lazy(() => import('./containers/AddWords/AddWords'));
 const PremadeList = React.lazy(() => import('./containers/PremadeList/PremadeList'));
 const TestWords = React.lazy(() => import('./containers/TestWords/TestWords'));
 const SettingsPage = React.lazy(() => import('./containers/SettingsPage/SettingsPage'));
+const Credits = React.lazy(() => import('./containers/Credits/Credits'));
+const SentencePractice = React.lazy(() => import('./containers/SentencePractice/SentencePractice'));
 
 const mapDispatchToProps = {
   onTryAutoLogin: actions.authCheckState,
@@ -177,10 +179,34 @@ const App: React.FC<Props> = ({
                 )}
               />
               <Route
+                path="/comprehend"
+                render={() => (
+                  <ErrorBoundary>
+                    <SentencePractice key="comprehend" tab="comprehend" />
+                  </ErrorBoundary>
+                )}
+              />
+              <Route
+                path="/compose"
+                render={() => (
+                  <ErrorBoundary>
+                    <SentencePractice key="compose" tab="compose" />
+                  </ErrorBoundary>
+                )}
+              />
+              <Route
                 path="/settings"
                 render={() => (
                   <ErrorBoundary>
                     <SettingsPage />
+                  </ErrorBoundary>
+                )}
+              />
+              <Route
+                path="/credits"
+                render={() => (
+                  <ErrorBoundary>
+                    <Credits />
                   </ErrorBoundary>
                 )}
               />

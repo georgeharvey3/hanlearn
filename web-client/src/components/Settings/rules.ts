@@ -12,9 +12,6 @@ export const ttsBlock = needs;
 /** New words plays each word, so it needs speech synthesis. */
 export const newWordsBlock = needs;
 
-/** Translate sentences takes a spoken answer, so it needs speech recognition. */
-export const sentenceReadBlock = needs;
-
 /** The microphone starts only for an answer that is typed or spoken. */
 export const autoRecordBlock = (
   speechAvailable: boolean,

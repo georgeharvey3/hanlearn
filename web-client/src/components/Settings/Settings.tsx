@@ -2,6 +2,8 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
+import { Link as RouterLink } from 'react-router-dom';
+import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 
 import { RootState } from '../../types/store';
 import { AppDispatch } from '../../types/actions';
@@ -11,7 +13,6 @@ import { colors, fonts } from '../../theme';
 import { copy } from '../../copy';
 import {
   assumedNewWordCount,
-  assumedWriteWordCount,
   estimateTestTime,
   formatTestTime,
   spreadOverDirections,
@@ -25,6 +26,14 @@ import {
   writeQuestionsPerSession,
 } from '../../utils/sessionSettings';
 import {
+  SET_SIZE_MAX,
+  SET_SIZE_MIN,
+  SET_SIZE_STEP,
+  SentenceTab,
+  readSetSize,
+  writeSetSize,
+} from '../../utils/sentenceSettings';
+import {
   QuizCategory,
   QuizType,
   applyAudioSession,
@@ -32,11 +41,11 @@ import {
   setQuizType,
 } from '../../utils/audioSettings';
 import { ChipGroup, FoldGroup, Trail, SegmentedRow, StepperRow, SwitchRow } from './controls';
-import { autoRecordBlock, sentenceReadBlock, ttsBlock, newWordsBlock, quizOptions } from './rules';
+import { autoRecordBlock, ttsBlock, newWordsBlock, quizOptions } from './rules';
 
 type Priority = 'none' | 'MP' | 'PM' | 'MC' | 'PC' | 'CM';
 
-type Group = 'session' | 'answers' | 'focus' | 'stages' | 'sound' | 'account';
+type Group = 'session' | 'answers' | 'focus' | 'stages' | 'sentences' | 'sound' | 'account';
 
 // The settings that are a plain flag in localStorage, and their defaults.
 const FLAGS = {
@@ -45,9 +54,6 @@ const FLAGS = {
   useSoundEffects: true,
   useAutoRecord: true,
   newWords: true,
-  sentenceRead: true,
-  sentenceWrite: true,
-  sentenceStagesForAllWords: false,
   onlyPriority: false,
 };
 
@@ -56,12 +62,21 @@ type Flag = keyof typeof FLAGS;
 interface Values extends Record<Flag, boolean> {
   charSet: 'simp' | 'trad';
   questionsPerSession: number;
+  comprehendPerSet: number;
+  composePerSet: number;
   meaningQuizType: QuizType;
   pinyinQuizType: QuizType;
   priority: Priority;
 }
 
 const SKILLS: Exclude<Priority, 'none'>[] = ['MP', 'PM', 'MC', 'PC', 'CM'];
+
+// The value and the label of the set size of each sentence tab.
+const SET_SIZES: Record<SentenceTab, 'comprehendPerSet' | 'composePerSet'> = {
+  comprehend: 'comprehendPerSet',
+  compose: 'composePerSet',
+};
+const SENTENCE_TABS = Object.keys(SET_SIZES) as SentenceTab[];
 
 const readPriority = (): Priority => {
   const stored = localStorage.getItem('priority');
@@ -78,6 +93,8 @@ const readValues = (): Values => {
     ...flags,
     charSet: localStorage.getItem('charSet') === 'simp' ? 'simp' : 'trad',
     questionsPerSession: readQuestionsPerSession(),
+    comprehendPerSet: readSetSize('comprehend'),
+    composePerSet: readSetSize('compose'),
     meaningQuizType: getQuizType('meaning'),
     pinyinQuizType: getQuizType('pinyin'),
     priority: readPriority(),
@@ -156,6 +173,14 @@ const Settings: React.FC<PropsFromRedux> = ({
     setValues((prev) => ({ ...prev, questionsPerSession }));
   }, []);
 
+  const setSetSize = useCallback(
+    (tab: SentenceTab) => (size: number) => {
+      writeSetSize(tab, size);
+      setValues((prev) => ({ ...prev, [SET_SIZES[tab]]: readSetSize(tab) }));
+    },
+    [],
+  );
+
   const setCharSet = useCallback((charSet: Values['charSet']) => {
     localStorage.setItem('charSet', charSet);
     setValues((prev) => ({ ...prev, charSet }));
@@ -176,17 +201,12 @@ const Settings: React.FC<PropsFromRedux> = ({
     useSound: ttsBlock(synthAvailable),
     useAutoRecord: autoRecordBlock(speechAvailable, values.meaningQuizType, values.pinyinQuizType),
     newWords: newWordsBlock(synthAvailable),
-    sentenceRead: sentenceReadBlock(speechAvailable),
-    sentenceStagesForAllWords:
-      speechAvailable && values.sentenceRead ? null : copy.settings.needsRead,
   };
 
   // What a switch shows: a blocked switch reads as off.
   const shown = {
     useSound: values.useSound && !block.useSound,
     newWords: values.newWords && !block.newWords,
-    sentenceRead: values.sentenceRead && !block.sentenceRead,
-    sentenceStagesForAllWords: values.sentenceStagesForAllWords && !block.sentenceStagesForAllWords,
   };
 
   // The page has no word list, so it estimates an average session: the
@@ -204,11 +224,7 @@ const Settings: React.FC<PropsFromRedux> = ({
             }),
           ),
           newWordCount: assumedNewWordCount(values.questionsPerSession),
-          writeWordCount: assumedWriteWordCount(values.questionsPerSession),
           newWordsEnabled: shown.newWords,
-          sentenceReadEnabled: shown.sentenceRead,
-          sentenceWriteEnabled: values.sentenceWrite,
-          sentenceStagesForAllWords: shown.sentenceStagesForAllWords,
         }),
       ),
     [
@@ -216,10 +232,7 @@ const Settings: React.FC<PropsFromRedux> = ({
       values.useHandwriting,
       values.priority,
       values.onlyPriority,
-      values.sentenceWrite,
       shown.newWords,
-      shown.sentenceRead,
-      shown.sentenceStagesForAllWords,
     ],
   );
 
@@ -236,16 +249,8 @@ const Settings: React.FC<PropsFromRedux> = ({
         : values.onlyPriority
           ? text.onlySummary(text[values.priority])
           : text[values.priority],
-    stages: (
-      <Trail
-        names={present(
-          shown.newWords && text.newWords,
-          text.test,
-          shown.sentenceRead && text.sentenceRead,
-          values.sentenceWrite && text.sentenceWrite,
-        )}
-      />
-    ),
+    stages: <Trail names={present(shown.newWords && text.newWords, text.test)} />,
+    sentences: text.sentencesSummary(values.comprehendPerSet, values.composePerSet),
     sound: text.soundSummary(
       present(shown.useSound && text.useSound, values.useSoundEffects && text.useSoundEffects),
     ),
@@ -357,16 +362,24 @@ const Settings: React.FC<PropsFromRedux> = ({
         </>,
       )}
 
+      {group('stages', <>{flagRow('newWords', block.newWords)}</>)}
+
       {group(
-        'stages',
+        'sentences',
         <>
-          {flagRow('newWords', block.newWords)}
-          {flagRow('sentenceRead', block.sentenceRead)}
-          {/* Widens the Read stage only. Make sentences keeps its own gate,
-              because writing with a word the learner has only just met impedes
-              learning it. See docs/adr/0011-gate-the-write-stage-on-partial-mastery.md. */}
-          {flagRow('sentenceStagesForAllWords', block.sentenceStagesForAllWords)}
-          {flagRow('sentenceWrite')}
+          {SENTENCE_TABS.map((tab) => (
+            <StepperRow
+              key={tab}
+              label={text[SET_SIZES[tab]]}
+              value={values[SET_SIZES[tab]]}
+              min={SET_SIZE_MIN}
+              max={SET_SIZE_MAX}
+              step={SET_SIZE_STEP}
+              fewerLabel={text.fewerTasks}
+              moreLabel={text.moreTasks}
+              onChange={setSetSize(tab)}
+            />
+          ))}
         </>,
       )}
 
@@ -435,6 +448,28 @@ const Settings: React.FC<PropsFromRedux> = ({
           </Box>
         ),
       )}
+
+      <Box
+        component={RouterLink}
+        to="/credits"
+        sx={{
+          minHeight: 64,
+          px: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          bgcolor: colors.card,
+          border: `1px solid ${colors.divider}`,
+          borderRadius: 1,
+          fontSize: 17,
+          fontWeight: 600,
+          color: colors.text,
+          textDecoration: 'none',
+        }}
+      >
+        {text.credits}
+        <ChevronRightRoundedIcon sx={{ color: colors.textSecondary }} />
+      </Box>
     </Box>
   );
 };

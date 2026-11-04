@@ -73,8 +73,6 @@ export const createInitialState = (props: Props): TestState => {
     useAutoRecord: false,
     showErrorMessage: false,
     redoChar: false,
-    sentenceWords: [],
-    sentenceCheckStatus: 'idle',
     writer: null,
     qNum: 0,
     recognition: null,

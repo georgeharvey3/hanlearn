@@ -4,18 +4,16 @@
  * Usage: Add query params to the URL when running locally:
  *   - ?devStage=new      - Test NewWords component
  *   - ?devStage=vocab    - Test the main Test/vocab component
- *   - ?devStage=read     - Test SentenceRead component
- *   - ?devStage=write    - Test SentenceWrite component
  *   - ?devStage=summary  - Test TestSummary component within Test
  *
  * All stages require authentication and use words from the user's word list.
  *
  * Examples:
- *   http://localhost:3000/test-words?devStage=read
+ *   http://localhost:3000/test-words?devStage=new
  *   http://localhost:3000/test-words?devStage=summary
  */
 
-export type DevStage = 'new' | 'vocab' | 'read' | 'write' | 'summary' | null;
+export type DevStage = 'new' | 'vocab' | 'summary' | null;
 
 export interface DevTestConfig {
   stage: DevStage;
@@ -38,7 +36,7 @@ export function getDevTestConfig(): DevTestConfig | null {
     return null;
   }
 
-  const validStages: DevStage[] = ['new', 'vocab', 'read', 'write', 'summary'];
+  const validStages: DevStage[] = ['new', 'vocab', 'summary'];
   if (!validStages.includes(devStage)) {
     console.warn(`Invalid devStage: ${devStage}. Valid options: ${validStages.join(', ')}`);
     return null;

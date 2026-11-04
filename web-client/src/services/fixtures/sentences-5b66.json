@@ -1,0 +1,58 @@
+{
+  "学生": [
+    {
+      "id": "s1",
+      "simp": "学生们，听好了！",
+      "trad": "學生們，聽好了！",
+      "english": "Listen up, students!",
+      "segments": [
+        { "s": "学生", "t": "學生", "p": "xué sheng", "e": "student; schoolchild" },
+        { "s": "们", "t": "們", "p": "men", "e": "plural marker for pronouns" },
+        { "s": "听", "t": "聽", "p": "tīng", "e": "to listen to; to hear" },
+        { "s": "好", "t": "好", "p": "hǎo", "e": "good; appropriate" },
+        { "s": "了", "t": "了", "p": "le", "e": "(completed action marker)" }
+      ],
+      "targetIndex": 0,
+      "hskLevel": 1,
+      "fill": "tatoeba",
+      "source": { "name": "tatoeba", "id": 13138941 },
+      "origin": { "chinese": "human", "english": "human" }
+    },
+    {
+      "id": "s2",
+      "simp": "那个学生叫小李。",
+      "trad": "那個學生叫小李。",
+      "english": "That student is called Xiao Li.",
+      "segments": [
+        { "s": "那个", "t": "那個", "p": "nà ge", "e": "that one" },
+        { "s": "学生", "t": "學生", "p": "xué sheng", "e": "student; schoolchild" },
+        { "s": "叫", "t": "叫", "p": "jiào", "e": "to be called" },
+        { "s": "小李", "t": "小李", "p": "", "e": "" }
+      ],
+      "targetIndex": 1,
+      "hskLevel": 1,
+      "fill": "generated",
+      "source": { "name": "generated", "id": "s2" },
+      "origin": { "chinese": "machine", "english": "machine" }
+    }
+  ],
+  "学习": [
+    {
+      "id": "s3",
+      "simp": "我在学习中文。",
+      "trad": "我在學習中文。",
+      "english": "I am studying Chinese.",
+      "segments": [
+        { "s": "我", "t": "我", "p": "wǒ", "e": "I; me; my" },
+        { "s": "在", "t": "在", "p": "zài", "e": "(indicating an action in progress)" },
+        { "s": "学习", "t": "學習", "p": "xué xí", "e": "to learn; to study" },
+        { "s": "中文", "t": "中文", "p": "Zhōng wén", "e": "Chinese language" }
+      ],
+      "targetIndex": 2,
+      "hskLevel": 1,
+      "fill": "generated",
+      "source": { "name": "generated", "id": "s3" },
+      "origin": { "chinese": "machine", "english": "machine" }
+    }
+  ]
+}

@@ -46,11 +46,11 @@ vi.mock('../../components/Test/NewWords/NewWords', () => ({
     return <div data-testid="mock-new-words">NewWords: {words.map((w) => w.simp).join(',')}</div>;
   },
 }));
-vi.mock('../../components/Test/SentenceRead/SentenceRead', () => ({
-  default: () => <div data-testid="mock-sentence-read">SentenceRead</div>,
-}));
-vi.mock('../../components/Test/SentenceWrite/SentenceWrite', () => ({
-  default: () => <div data-testid="mock-sentence-write">SentenceWrite</div>,
+vi.mock('../../services/sentenceTabsService', () => ({
+  loadTabStatuses: vi.fn().mockResolvedValue({
+    comprehend: { ready: true, fresh: false },
+    compose: { ready: false, fresh: false },
+  }),
 }));
 vi.mock('../../components/Test/TestSummary/TestSummary', () => ({
   default: (props: Record<string, unknown>) => {
@@ -101,22 +101,6 @@ function dueWord(id: number, simp: string, level = 1): import('../../types/model
     level,
     due_date: new Date(Date.now() - 1000).toISOString(),
   };
-}
-
-/**
- * Call the startSentenceStages prop the mocked Test component captured, which
- * is how the engine hands the container the words of each sentence stage.
- */
-function startStages(words: {
-  read: import('../../types/models').Word[];
-  write: import('../../types/models').Word[];
-}): void {
-  (
-    capturedTestProps.startSentenceStages as (w: {
-      read: import('../../types/models').Word[];
-      write: import('../../types/models').Word[];
-    }) => void
-  )(words);
 }
 
 /** A word not yet due */
@@ -436,6 +420,33 @@ describe('TestWords — summary', () => {
     expect(capturedSummaryProps.practiceMode).toBe(false);
   });
 
+  it('hands the summary the sentence tabs, and opens the tab it asks for', async () => {
+    const store = createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord(1, '你好', 2)],
+        listStats: {},
+        loading: false,
+        error: false,
+      },
+    });
+    renderWithProviders(<TestWords />, { store });
+    await reachSummary([{ char: '你好', direction: 'MC', result: 'pass' }]);
+
+    await waitFor(() => {
+      expect(capturedSummaryProps.sentenceTabs).toEqual({
+        comprehend: { ready: true, fresh: false },
+        compose: { ready: false, fresh: false },
+      });
+    });
+    act(() => {
+      (capturedSummaryProps.onSentenceTab as (tab: string) => void)('comprehend');
+    });
+    expect(window.location.pathname).toBe('/comprehend');
+  });
+
   it('"Practise missed words" starts a practice test of those words only', async () => {
     const words = [dueWord(1, '你好', 2), dueWord(2, '学生', 2)];
     const store = createTestStore({
@@ -523,71 +534,8 @@ describe('TestWords — stage transitions', () => {
   /**
    * These tests use the capturedTestProps ref populated by the mocked Test component.
    * The mocked Test component stores every prop it receives into capturedTestProps on render,
-   * so we can call startSentenceStages / onVocabComplete from the test body.
+   * so we can call onVocabComplete from the test body.
    */
-
-  it('transitions to read stage when startSentenceStages is called from Test component', async () => {
-    const store = createTestStore({
-      ...authenticatedState(),
-      addWords: {
-        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
-        activeListId: 'default',
-        words: [dueWord(1, '你好', 2)],
-        listStats: {},
-        loading: false,
-        error: false,
-      },
-    });
-    renderWithProviders(<TestWords />, { store });
-
-    // Wait for Test to render and capturedTestProps to be populated
-    await waitFor(() => {
-      expect(screen.getByTestId('mock-test')).toBeInTheDocument();
-      expect(typeof capturedTestProps.startSentenceStages).toBe('function');
-    });
-
-    // Simulate Test calling startSentenceStages with the words of each stage
-    startStages({ read: [dueWord(2, '学生', 2)], write: [] });
-
-    await waitFor(() => {
-      expect(screen.getByTestId('mock-sentence-read')).toBeInTheDocument();
-    });
-  });
-
-  it('transitions to write stage when sentenceReadEnabled=false and there are write words', async () => {
-    // Disable sentenceRead via localStorage
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
-      if (key === 'sentenceRead') return 'false';
-      return null;
-    });
-
-    const store = createTestStore({
-      ...authenticatedState(),
-      addWords: {
-        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
-        activeListId: 'default',
-        words: [dueWord(1, '你好', 2)],
-        listStats: {},
-        loading: false,
-        error: false,
-      },
-    });
-    renderWithProviders(<TestWords />, { store });
-
-    await waitFor(() => {
-      expect(screen.getByTestId('mock-test')).toBeInTheDocument();
-      expect(typeof capturedTestProps.startSentenceStages).toBe('function');
-    });
-
-    // The Read stage is off, so its words are dropped and Write runs first.
-    startStages({ read: [dueWord(2, '学生', 2)], write: [dueWord(3, '老师', 3)] });
-
-    await waitFor(() => {
-      expect(screen.getByTestId('mock-sentence-write')).toBeInTheDocument();
-    });
-
-    vi.restoreAllMocks();
-  });
 
   it('shows summary stage when onVocabComplete is called from Test component', async () => {
     const store = createTestStore({
@@ -617,41 +565,6 @@ describe('TestWords — stage transitions', () => {
     await waitFor(() => {
       expect(screen.getByTestId('mock-test-summary')).toBeInTheDocument();
     });
-  });
-
-  it('renders the Read stage with the Write stage off', async () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
-      if (key === 'sentenceWrite') return 'false';
-      return null;
-    });
-
-    const store = createTestStore({
-      ...authenticatedState(),
-      addWords: {
-        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
-        activeListId: 'default',
-        words: [dueWord(1, '你好', 2)],
-        listStats: {},
-        loading: false,
-        error: false,
-      },
-    });
-    renderWithProviders(<TestWords />, { store });
-
-    // Wait for Test component to render
-    await waitFor(() => {
-      expect(screen.getByTestId('mock-test')).toBeInTheDocument();
-      expect(typeof capturedTestProps.startSentenceStages).toBe('function');
-    });
-
-    // Transition to SentenceRead first
-    startStages({ read: [dueWord(2, '学生', 2)], write: [dueWord(3, '老师', 3)] });
-
-    await waitFor(() => {
-      expect(screen.getByTestId('mock-sentence-read')).toBeInTheDocument();
-    });
-
-    vi.restoreAllMocks();
   });
 });
 

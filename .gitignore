@@ -40,6 +40,7 @@ migration/service-account.json
 migration/*.json
 !migration/package.json
 migration/review-log-*.csv
+migration/sentence-reports.csv
 
 
 # Playwright
@@ -57,3 +58,4 @@ __pycache__
 .Python
 env/
 venv/
+migration/sentences/scratch/

@@ -40,32 +40,43 @@ export const copy = {
     loading: 'Loading',
     // The labels of the session's stages, on the bar at the top.
     stageTest: 'Test',
-    stageRead: 'Listen & translate',
-    stageWrite: 'Write in Chinese',
+  },
+  // The Comprehend and Compose tabs (#489).
+  sentenceTabs: {
+    comprehend: 'Comprehend',
+    compose: 'Compose',
+    // The name of a tab with a dot, for a screen reader.
+    withNew: (tab: string) => `${tab}, new words`,
+    nothing: 'Nothing to practise',
+    toStudy: 'Go to Study',
+    showEnglish: 'Show English',
+    right: 'Right',
+    wrong: 'Wrong',
+    done: 'Done',
+    tally: (right: number, wrong: number) => `${right} right · ${wrong} wrong`,
+    practiseMore: 'Practise more',
+    saveFailed: "Couldn't save the grade.",
+    loadFailed: "Couldn't load the sentences.",
   },
   sentence: {
-    // "Translate the sentence with 电脑"
-    readPrompt: 'Translate the sentence with ',
+    // "Sentence with 电脑"
+    readPrompt: 'Sentence with ',
     playSentence: 'Play sentence',
     slowMode: 'Slow speech',
     slowLabel: '0.7×',
     showText: 'Show text',
     hideText: 'Hide text',
     wordMeaning: (word: string) => `${word}: show meaning`,
-    englishTranslation: 'English translation',
-    translationPlaceholder: 'Type your translation…',
-    yourTranslation: 'Your translation',
-    correctTranslation: 'Correct translation',
     noDefinition: 'No definition found',
     close: 'Close',
     addToList: 'Add to list',
     added: 'Added',
-    nextWord: 'Next word',
-    nextStage: 'Next stage',
-    finish: 'Finish',
+    addFailed: "Couldn't add the word.",
+    report: 'Report sentence',
+    reported: 'Reported',
+    reportFailed: 'Report failed',
     loadFailed: "Couldn't load a sentence for this word.",
     skipWord: 'Skip word',
-    skipAndFinish: 'Skip and finish',
     noTranslation: 'No translation found',
     tryAgain: 'Try again',
     mustUse: 'Must use',
@@ -73,18 +84,6 @@ export const copy = {
     writePlaceholder: '用中文写',
     original: 'Original',
     englishWord: (word: string) => `${word}: show Chinese`,
-    // The similarity of a translation to the answer.
-    similarity: 'Similarity',
-    scoring: 'Scoring…',
-    scoreUnavailable: 'Score unavailable',
-    scoreLabel: (score: number) =>
-      score >= 90
-        ? 'Match'
-        : score >= 70
-          ? 'Close match'
-          : score >= 40
-            ? 'Partly right'
-            : 'Keep trying',
   },
   settings: {
     title: 'Settings',
@@ -93,6 +92,7 @@ export const copy = {
     answers: 'Answers',
     focus: 'Skill focus',
     stages: 'Session stages',
+    sentences: 'Sentences',
     sound: 'Sound',
     account: 'Account',
     // Session
@@ -122,9 +122,12 @@ export const copy = {
     // Stages
     newWords: 'New words',
     test: 'Test',
-    sentenceRead: 'Translate sentences',
-    sentenceStagesForAllWords: 'Translate with all words',
-    sentenceWrite: 'Make sentences',
+    // Sentences: the size of one set of each sentence tab
+    comprehendPerSet: 'Comprehend set size',
+    composePerSet: 'Compose set size',
+    // The buttons of a set size; the group is named by its row
+    fewerTasks: 'Fewer',
+    moreTasks: 'More',
     // Sound
     useSound: 'Text-to-speech',
     useSoundEffects: 'Sound effects',
@@ -136,7 +139,6 @@ export const copy = {
     // Why a control is off
     unsupported: 'Not supported in this browser',
     needsInput: 'Set Meaning or Pinyin to Input first',
-    needsRead: 'Turn on Translate sentences first',
     // The one-line values of a closed group
     sessionSummary: (questions: number, time: string, charSet: string) =>
       `${questions} questions · ${time} · ${charSet}`,
@@ -144,7 +146,17 @@ export const copy = {
     onlySummary: (skill: string) => `${skill} only`,
     // Between two stages in the closed header, for a screen reader. An arrow shows it on screen.
     stageSeparator: ', ',
+    sentencesSummary: (comprehend: number, compose: number) =>
+      `Comprehend ${comprehend} · Compose ${compose}`,
     soundSummary: (sounds: string[]) => sounds.join(' · ') || 'Off',
+    credits: 'Credits',
+  },
+  credits: {
+    title: 'Credits',
+    // Before the link to the licence: "Licence: MIT"
+    licence: 'Licence: ',
+    sentenceCredits: 'Sentence credits',
+    sentenceLicence: 'Sentence licence',
   },
   test: {
     // "What is the meaning for", with the answer's category between the two.

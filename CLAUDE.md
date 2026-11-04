@@ -76,12 +76,15 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 - [web-client/src/services/dashboardService.ts](web-client/src/services/dashboardService.ts) - Aggregates the Dashboard's data: the session sizes, per-direction bank counts, the words due ahead and the `reviewStats` history. The counting rules are pure, in [web-client/src/utils/dashboard.ts](web-client/src/utils/dashboard.ts)
 - [web-client/src/services/retentionService.ts](web-client/src/services/retentionService.ts) - Read/write the `reviewStats` daily rollup; the session's write joins the `finishTest` batch, and the level snapshot follows it
 - [web-client/src/services/reviewLogService.ts](web-client/src/services/reviewLogService.ts) - Builds the `reviewLog` entry of each graded question. `finishTest` writes the document after its batch, and a failed write does not lose the session. `node migration/export-review-log.js --uid <userId>` exports the log of one learner to a CSV file for the FSRS optimizer
-- [web-client/src/services/sentenceService.ts](web-client/src/services/sentenceService.ts) - Firebase AI Logic: generates and caches example sentences in `sentenceCache`
+- [web-client/src/services/sentenceService.ts](web-client/src/services/sentenceService.ts) - Reads the example sentences from the files in `/sentences/` on Hosting, and keeps each file in memory for the session. It makes no AI call, no Firestore read and no dictionary call (#469)
+- [web-client/src/services/sentenceReportService.ts](web-client/src/services/sentenceReportService.ts) - Saves the report of a bad example sentence to `sentenceReports`. The sentence service then leaves that sentence out on the same device. `node migration/export-sentence-reports.js` exports the reports of all learners to a CSV file
+- [web-client/src/services/sentencePracticeService.ts](web-client/src/services/sentencePracticeService.ts) - Saves each grade of the Comprehend and Compose tabs: first the queue state in `sentencePractice`, then a write-once entry in `sentenceLog`. A failed log write does not reject the grade (#489)
+- [web-client/src/services/sentenceTabsService.ts](web-client/src/services/sentenceTabsService.ts) - Loads the words, the `sentencePractice` documents and the sentence ids that the two tabs need, and gives the status of each tab for the dot and the finish screen. The queue rules are pure, in [web-client/src/utils/sentenceQueue.ts](web-client/src/utils/sentenceQueue.ts)
 - [web-client/src/services/chengyuSentenceService.ts](web-client/src/services/chengyuSentenceService.ts) - Generates example sentences for chengyu display
 - [web-client/src/services/decompositionService.ts](web-client/src/services/decompositionService.ts) - Calls cloud function to decompose characters into radicals/components
 - [web-client/src/services/ttsService.ts](web-client/src/services/ttsService.ts) - Text-to-speech via Howler.js; called directly from components (not via Redux)
 
-Note: `ttsService`, `sentenceService`, `decompositionService`, `dictionaryService`, and `premadeListService` are called directly from components (not via Redux thunks) — this is intentional for operations that are UI-local and do not need shared global state. `TestWords` also calls `wordService.getUserWords` directly: the store holds only the active list, and the session needs the whole collection for its alternative answers (#348).
+Note: `ttsService`, `sentenceService`, `sentenceReportService`, `sentencePracticeService`, `sentenceTabsService`, `decompositionService`, `dictionaryService`, and `premadeListService` are called directly from components (not via Redux thunks) — this is intentional for operations that are UI-local and do not need shared global state. `TestWords` also calls `wordService.getUserWords` directly: the store holds only the active list, and the session needs the whole collection for its alternative answers (#348).
 
 #### Component Pattern
 
@@ -126,6 +129,14 @@ users/{userId}/
           }
       └── levels?: { 1..5: number } # Words of the whole collection at each level,
                                     # as the day's last session left them (Dashboard progress chart)
+  ├── sentencePractice/{wordId}  # Queue state of the Comprehend and Compose tabs (#489)
+  │   └── comprehend?, compose?: { lastPractised: Timestamp,
+  │         lastResult: 'right' | 'wrong', seen: { [sentenceId]: Timestamp } }
+  ├── sentenceLog/{autoId}       # One write-once entry per sentence grade (#489)
+  │   └── version: 1, date, reviewedAt, wordId, sentenceId, tab, grade,
+  │       mode: 'audio' | 'text', answer? (Compose only), answerMs, revealed, lookups
+  ├── sentenceReports/{sentenceId} # One report of a bad example sentence (#469)
+  │   └── sentenceId, word, stage: 'read' | 'write', sentence, english, reportedAt
   └── reviewLog/{autoId}         # One document per saved session, write-once (#397)
       ├── version: 2, date: string, reviewedAt: Timestamp  # 1 before #396: `hint` was free
       ├── scheduler: string      # The weights in use: 'fsrs-6-default'
@@ -142,7 +153,6 @@ words/{wordId}                   # Read-only shared dictionary (admin-managed)
 chengyus/{chengyuId}             # Read-only (admin-managed)
   └── characters, pinyin, meaning
 dailyChengyu/{dateKey}           # Written by cloud function, read-only to clients
-sentenceCache/{word}             # AI-generated sentences; public read, auth write
 rateLimits/{userId}/...          # Cloud Functions only (Admin SDK); client access denied
 ```
 
@@ -168,7 +178,9 @@ The CC-CEDICT dictionary (~124K entries) is built via `npm run build:dict`, whic
 
 The same build writes the catalogue of **premade lists** (HSK 3.0) to `web-client/public/premade-lists/`. A pure resolver, [migration/premadeCatalogue.js](migration/premadeCatalogue.js), gives each source word one dictionary entry, and [migration/hsk/overrides.json](migration/hsk/overrides.json) settles the ambiguous words. If a word does not resolve, the build fails. See [migration/hsk/README.md](migration/hsk/README.md). The build also writes the HSK frequency rank `q` onto each HSK entry of `dictionary.json`, and `dictionarySearch` ranks by it, because CC-CEDICT has no frequency field.
 
-The example sentences of #465 start from one committed source file for each of Tatoeba, Wiktionary and the `sentenceCache` export, in `migration/sentences/`. One fetch or export script makes each source file, and the pure parsers are in [migration/sentenceSources.js](migration/sentenceSources.js). `build:dict` then writes the example sentence files to `web-client/public/sentences/`, one file for each first character of a word, with `ATTRIBUTION.txt`, `LICENSE.txt` and a coverage report in `migration/sentences/coverage.md`. The rules (splitter, grader, fill steps, ranking) are pure, in [migration/exampleSentences.js](migration/exampleSentences.js). See [docs/adr/0019-example-sentences-are-a-committed-build.md](docs/adr/0019-example-sentences-are-a-committed-build.md) and [migration/README.md](migration/README.md).
+The example sentences of #465 have two committed sources. `migration/sentences/tatoeba.json` holds the Tatoeba sentences of native Mandarin writers (`npm --prefix migration run fetch:tatoeba` downloads it again). `migration/sentences/generated.json` holds the sentences that Claude Code sessions wrote. One grader admits both. Each sentence goes to every HSK word that it holds and passes the grader for. A word outside HSK gets none (#482).
+
+`build:dict` writes the example sentence files to `web-client/public/sentences/`, one file for each first character of a word (the hex code point, for example `5b66.json`). The Comprehend tab, the Compose tab and the hint read only these files, with `ATTRIBUTION.txt` (one credit line for each Tatoeba sentence) and `LICENSE.txt`. Each segment shows the pinyin and the first 3 useful senses of one CC-CEDICT entry (#479). `migration/sentences/gloss-overrides.json` sets the entry and the gloss of one segment text. The build also writes a coverage report to `migration/sentences/coverage.md`, which lists the HSK words with fewer than 3 sentences. The rules (splitter, entry choice, gloss, grader, pick) are pure, in [migration/exampleSentences.js](migration/exampleSentences.js). To add more sentences, follow [migration/sentences/GENERATE.md](migration/sentences/GENERATE.md) (#468). See [docs/adr/0019-example-sentences-are-a-committed-build.md](docs/adr/0019-example-sentences-are-a-committed-build.md), [docs/adr/0020-every-example-sentence-is-generated.md](docs/adr/0020-every-example-sentence-is-generated.md) and [migration/README.md](migration/README.md).
 
 ### Spaced Repetition Algorithm
 
@@ -201,6 +213,7 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 - The `amendedMeaning` field allows users to override dictionary definitions
 - The build stamps its commit into the bundle and into `/version.json`; the app compares the two on load and on returning to the foreground, and reloads itself when a newer build is deployed ([web-client/src/utils/appVersion.ts](web-client/src/utils/appVersion.ts)). Without it a cached `index.html` — an iOS home-screen app keeps one — pins the app to an old bundle indefinitely
 - An unfinished session is saved to `localStorage` (`web-client/src/utils/savedSession.ts`) and offered back on the next visit, because nothing reaches Firestore until a session ends. See [docs/adr/0014-resume-an-unfinished-session.md](docs/adr/0014-resume-an-unfinished-session.md)
+- A study session ends when its cards end. The sentence tasks are the **Comprehend** and **Compose** tabs (`/comprehend`, `/compose`), directly below Study. A sentence grade orders the queue of its tab and never changes the schedule of a word. See [docs/adr/0021-sentence-tasks-are-a-separate-practice.md](docs/adr/0021-sentence-tasks-are-a-separate-practice.md)
 - Chengyu challenges rotate daily based on days since May 24, 2021
 
 ## Design Principles

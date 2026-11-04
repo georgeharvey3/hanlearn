@@ -10,21 +10,21 @@ import { reportError } from '../../services/errorReporting';
 import Button from '../../components/UI/Buttons/Button/Button';
 import Spinner from '../../components/UI/Spinner/Spinner';
 import Test from '../../components/Test/Test';
-import SentenceWrite from '../../components/Test/SentenceWrite/SentenceWrite';
-import SentenceRead from '../../components/Test/SentenceRead/SentenceRead';
 import NewWords from '../../components/Test/NewWords/NewWords';
 import TestSummary from '../../components/Test/TestSummary/TestSummary';
 import { nextDue } from '../../components/Test/TestSummary/summary';
 import NothingDue from '../../components/Test/NothingDue/NothingDue';
 import SessionLoading from '../../components/Test/NothingDue/SessionLoading';
 import { copy } from '../../copy';
+import { useSentenceTabs } from '../../hooks/useSentenceTabs';
+import { routes } from '../../components/Navigation/navLinks';
+import { SentenceTab } from '../../utils/sentenceSettings';
 
 import ErrorBoundary from '../../components/ErrorBoundary/ErrorBoundary';
 import { useFocusMode } from '../../components/Layout/focusMode';
 import * as testLogic from '../../components/Test/Logic/TestLogic';
 import { RootState } from '../../types/store';
 import { Word, WordScore } from '../../types/models';
-import { SentenceStageWords } from '../../components/Test/types';
 import { getDevTestConfig, DevTestConfig } from '../../utils/devTestMode';
 import { makeDirections } from '../../utils/directions';
 import { dayKey } from '../../utils/retention';
@@ -45,13 +45,9 @@ import { Box, Typography } from '@mui/material';
 // Dev test mode config - loaded once on mount
 const devConfig: DevTestConfig | null = getDevTestConfig();
 
-type Stage = 'new' | 'vocab' | 'read' | 'write' | 'summary';
+type Stage = 'new' | 'vocab' | 'summary';
 
 interface TestWordsState {
-  /** The words the Read stage runs for: the ones the learner has just met. */
-  sentenceReadWords: Word[];
-  /** The words the Write stage runs for: the ones the learner already half knows. */
-  sentenceWriteWords: Word[];
   stage: Stage;
   newWords: Word[];
   selectedWords: Word[];
@@ -62,13 +58,9 @@ interface TestWordsState {
    */
   plan: testLogic.SessionPlan | null;
   newWordsEnabled: boolean;
-  sentenceReadEnabled: boolean;
-  sentenceWriteEnabled: boolean;
-  sentenceStagesForAllWords: boolean;
   devTestFinished: boolean; // For testing TestSummary directly
   practiceMode: boolean; // Practice mode ignores due dates and doesn't update them
   wordsInitialized: boolean; // True once word selection has run (prevents flash of "No words due")
-  seenOffsets: Record<string, { offset: number; text: string; english: string }>;
   wordScores: WordScore[];
   /**
    * The unfinished session found in storage, waiting for the learner to say
@@ -132,22 +124,14 @@ const TestWords: React.FC<Props> = ({
   };
 
   const [state, setState] = useState<TestWordsState>({
-    sentenceReadWords: [],
-    sentenceWriteWords: [],
     stage: getInitialStage(),
     newWords: [],
     plan: null,
     selectedWords: [],
     newWordsEnabled: isDemo ? true : localStorage.getItem('newWords') !== 'false',
-    sentenceReadEnabled: isDemo ? true : localStorage.getItem('sentenceRead') !== 'false',
-    sentenceWriteEnabled: isDemo ? true : localStorage.getItem('sentenceWrite') !== 'false',
-    sentenceStagesForAllWords: isDemo
-      ? false
-      : localStorage.getItem('sentenceStagesForAllWords') === 'true',
     devTestFinished: devConfig?.testFinished ?? false,
     practiceMode: false,
     wordsInitialized: false,
-    seenOffsets: {},
     wordScores: [],
     pendingResume: null,
     pendingResumeLabel: '',
@@ -308,8 +292,6 @@ const TestWords: React.FC<Props> = ({
           selectedWords,
           newWords: plan.newWords,
           plan,
-          sentenceReadWords: selectedWords,
-          sentenceWriteWords: selectedWords,
           wordsInitialized: true,
         }));
       } else {
@@ -396,9 +378,6 @@ const TestWords: React.FC<Props> = ({
       selectedWords: missed,
       practiceMode: true,
       wordScores: [],
-      sentenceReadWords: [],
-      sentenceWriteWords: [],
-      seenOffsets: {},
       resume: null,
       vocabProgress: null,
     }));
@@ -433,9 +412,6 @@ const TestWords: React.FC<Props> = ({
         },
         resume: restored.progress,
         vocabProgress: restored.progress,
-        sentenceReadWords: restored.sentenceReadWords,
-        sentenceWriteWords: restored.sentenceWriteWords,
-        seenOffsets: restored.seenOffsets,
         wordScores: restored.scoreList,
         practiceMode: restored.practiceMode,
         wordsInitialized: true,
@@ -478,53 +454,9 @@ const TestWords: React.FC<Props> = ({
     );
   }, []);
 
-  /**
-   * Route the session into whichever sentence stage has words for it.
-   *
-   * The engine gates the two lists, and the two stage settings are applied
-   * here: a stage the learner turned off takes no words, and a stage with no
-   * words is skipped. A session can therefore run Read alone, Write alone,
-   * both, or neither.
-   */
-  // The stage settings are read from `prev` rather than captured, so this
-  // callback keeps one identity for the life of the container: the engine
-  // depends on it, and a new identity every render restarts the question the
-  // engine is on.
-  const onStartSentenceStages = useCallback(
-    (words: SentenceStageWords, scores?: WordScore[]): void => {
-      setState((prev) => {
-        const readWords = prev.sentenceReadEnabled ? words.read : [];
-        const writeWords = prev.sentenceWriteEnabled ? words.write : [];
-
-        return {
-          ...prev,
-          sentenceReadWords: readWords,
-          sentenceWriteWords: writeWords,
-          wordScores: scores ?? prev.wordScores,
-          stage: readWords.length > 0 ? 'read' : writeWords.length > 0 ? 'write' : 'summary',
-        };
-      });
-    },
-    [],
-  );
-
-  const onStartSentenceWrite = (
-    seenOffsets: Record<string, { offset: number; text: string; english: string }>,
-  ): void => {
-    setState((prev) => ({
-      ...prev,
-      seenOffsets,
-      stage: prev.sentenceWriteWords.length > 0 ? 'write' : 'summary',
-    }));
-  };
-
   const onVocabComplete = useCallback((scores: WordScore[]): void => {
     setState((prev) => ({ ...prev, wordScores: scores, stage: 'summary' }));
   }, []);
-
-  const onSentenceWriteComplete = (): void => {
-    setState((prev) => ({ ...prev, stage: 'summary' }));
-  };
 
   /**
    * Keep the running session in storage, and drop it once it is done.
@@ -565,9 +497,6 @@ const TestWords: React.FC<Props> = ({
       practiceMode: state.practiceMode,
       wordIds: state.plan.words.map((word) => word.id),
       newWordIds: state.newWords.map((word) => word.id),
-      sentenceReadWordIds: state.sentenceReadWords.map((word) => word.id),
-      sentenceWriteWordIds: state.sentenceWriteWords.map((word) => word.id),
-      seenOffsets: state.seenOffsets,
       scoreList: state.wordScores,
       ...progress,
     });
@@ -577,6 +506,13 @@ const TestWords: React.FC<Props> = ({
   // "nothing due" screen too; the session bar has the way out. Only the offer
   // to resume keeps the app's navigation.
   useFocusMode(!state.pendingResume);
+
+  // The sentence tabs that the finish screen offers. This screen asks for them
+  // at the finish only. The sidebar of a desktop shares the same load.
+  const sentenceTabs = useSentenceTabs(state.stage === 'summary' && !isDemo);
+  const onSentenceTab = (tab: SentenceTab): void => {
+    history.push(routes[tab]);
+  };
 
   // All dev stages require auth since they use real words from user's list
   // Wait for auth to initialize before redirecting
@@ -625,40 +561,13 @@ const TestWords: React.FC<Props> = ({
               plan={state.plan ?? undefined}
               resume={state.resume ?? undefined}
               onProgress={onVocabProgress}
-              startSentenceStages={onStartSentenceStages}
               onVocabComplete={onVocabComplete}
-              finalStage={!state.sentenceReadEnabled && !state.sentenceWriteEnabled}
               devTestFinished={state.devTestFinished}
               practiceMode={state.practiceMode}
-              sentenceStagesForAllWords={state.sentenceStagesForAllWords}
             />
           </ErrorBoundary>
         );
 
-        break;
-      case 'read':
-        content = (
-          <ErrorBoundary>
-            <SentenceRead
-              words={state.sentenceReadWords}
-              startSentenceWrite={onStartSentenceWrite}
-              sentenceWriteEnabled={state.sentenceWriteWords.length > 0}
-              isDemo={isDemo}
-            />
-          </ErrorBoundary>
-        );
-        break;
-      case 'write':
-        content = (
-          <ErrorBoundary>
-            <SentenceWrite
-              words={state.sentenceWriteWords}
-              seenOffsets={state.seenOffsets}
-              onComplete={onSentenceWriteComplete}
-              isDemo={isDemo}
-            />
-          </ErrorBoundary>
-        );
         break;
       case 'summary':
         content = (
@@ -668,6 +577,8 @@ const TestWords: React.FC<Props> = ({
             practiceMode={state.practiceMode}
             onHome={goHome}
             onPracticeMissed={onPracticeMissed}
+            sentenceTabs={isDemo ? null : sentenceTabs}
+            onSentenceTab={isDemo ? undefined : onSentenceTab}
           />
         );
         break;
@@ -679,11 +590,8 @@ const TestWords: React.FC<Props> = ({
             plan={state.plan ?? undefined}
             resume={state.resume ?? undefined}
             onProgress={onVocabProgress}
-            startSentenceStages={onStartSentenceStages}
             onVocabComplete={onVocabComplete}
-            finalStage={!state.sentenceReadEnabled && !state.sentenceWriteEnabled}
             practiceMode={state.practiceMode}
-            sentenceStagesForAllWords={state.sentenceStagesForAllWords}
           />
         );
     }

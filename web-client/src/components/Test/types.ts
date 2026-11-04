@@ -13,19 +13,6 @@ import { VocabProgress } from '../../utils/savedSession';
 import { SessionPlan } from './Logic/TestLogic';
 import { RemoteAlternatives } from '../../utils/alternativeAnswers';
 
-/**
- * The words each sentence stage runs for.
- *
- * The Read stage takes the words the learner has just met, and the Write stage
- * takes the ones they already half know, so the two lists are built from
- * separate gates rather than sliced from one. See
- * docs/adr/0011-gate-the-write-stage-on-partial-mastery.md.
- */
-export interface SentenceStageWords {
-  read: Word[];
-  write: Word[];
-}
-
 export interface TestState {
   testSet: Word[];
   queue: QueuePair[];
@@ -92,13 +79,6 @@ export interface TestState {
   useAutoRecord: boolean;
   showErrorMessage: boolean;
   redoChar: boolean;
-  /**
-   * Every word either sentence stage may use, deduplicated. The engine hands
-   * the two stage lists to `startSentenceStages`; this one exists so that the
-   * availability check has a single set to run over.
-   */
-  sentenceWords: Word[];
-  sentenceCheckStatus: 'idle' | 'pending' | 'available' | 'unavailable';
   writer: HanziWriterInstance | null;
   qNum: number;
   recognition: SpeechRecognition | null;
@@ -196,12 +176,9 @@ export interface OwnProps {
    */
   onProgress?: (progress: VocabProgress) => void;
   isDemo?: boolean;
-  finalStage?: boolean;
-  startSentenceStages?: (words: SentenceStageWords, scores?: WordScore[]) => void;
   onVocabComplete?: (scores: WordScore[]) => void;
   devTestFinished?: boolean;
   practiceMode?: boolean;
-  sentenceStagesForAllWords?: boolean;
 }
 
 export type Props = ReduxProps & OwnProps & RouteComponentProps;

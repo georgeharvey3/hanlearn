@@ -1,6 +1,6 @@
 # 11. Gate the Write stage on partial mastery
 
-- Status: accepted
+- Status: accepted. Amended by [0021-sentence-tasks-are-a-separate-practice.md](0021-sentence-tasks-are-a-separate-practice.md): the stages are now the Comprehend and Compose tabs
 - Date: 2026-09-02
 - Issue: #333
 - Related: #339 (the Read half of it is decided here), #278,
