@@ -60,6 +60,12 @@ const NUMBER = /^(?:第?[零〇一二两三四五六七八九十百千万亿]+|\
 const SKIPPED_SENSE = /^(?:surname\b|variant of\b|old variant of\b|CL:|see\b)/i;
 const STRIPPED_PREFIX = /^\((?:bound form|literary)\)\s*/;
 
+/**
+ * A gloss shows this many senses at most. A tunable cap: the first sense alone
+ * showed 信 as "letter" in 我信过你 (#479), and more senses make a long gloss.
+ */
+const GLOSS_SENSES = 3;
+
 /** CC-CEDICT capitalizes the pinyin of a proper noun. */
 const isName = (entry) => /^[A-Z]/.test(entry.pinyin);
 
@@ -101,15 +107,50 @@ function markSyllable(syllable) {
 /** CC-CEDICT pinyin with tone numbers, as pinyin with tone marks. */
 const toneMarks = (pinyin) => pinyin.split(' ').map(markSyllable).join(' ');
 
-/** The short English of an entry: its first useful sense. */
+/**
+ * The parts of a text divided by ";" outside parentheses. One CC-CEDICT sense
+ * often holds several, as in "(bound form) to walk; to go; to travel".
+ */
+function partsOf(text) {
+  const parts = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '(') depth++;
+    else if (text[i] === ')') depth = Math.max(0, depth - 1);
+    else if (text[i] === ';' && depth === 0) {
+      parts.push(text.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(text.slice(start));
+  return parts.map((part) => part.trim()).filter((part) => part !== '');
+}
+
+/** A sense without a leading label in parentheses. */
+const bareSense = (sense) => sense.replace(/^\([^)]*\)\s*/, '');
+
+/**
+ * The short English of an entry: its first GLOSS_SENSES useful senses,
+ * divided by "; ". A sense is one part of a CC-CEDICT sense (see partsOf), so
+ * the learner never sees more than GLOSS_SENSES. A useful sense is not a
+ * surname, a variant, a classifier, a cross-reference or a repeat. An entry with no
+ * useful sense shows its first sense.
+ */
 function glossOf(entry) {
   const senses = entry.meaning.split('/').filter((sense) => sense.trim() !== '');
+  const useful = [];
   for (const sense of senses) {
     if (SKIPPED_SENSE.test(sense.trim())) continue;
-    const gloss = sense.trim().replace(STRIPPED_PREFIX, '').trim();
-    if (gloss !== '') return gloss;
+    for (const part of partsOf(sense.trim().replace(STRIPPED_PREFIX, ''))) {
+      const gloss = part.replace(STRIPPED_PREFIX, '').trim();
+      // A repeat is the same sense without its leading label: "(pronoun) this" and "this".
+      const repeats = useful.some((known) => bareSense(known) === bareSense(gloss));
+      if (gloss === '' || SKIPPED_SENSE.test(gloss) || repeats) continue;
+      if (useful.length < GLOSS_SENSES) useful.push(gloss);
+    }
   }
-  return (senses[0] ?? '').trim();
+  return useful.length > 0 ? useful.join('; ') : (senses[0] ?? '').trim();
 }
 
 /** The normalized text of a sentence: the key of the id and of duplicate removal. */
@@ -150,13 +191,77 @@ function indexInputs(dictionary, hsk) {
       qById.set(word.entry.id, word.q);
     }
   }
-  return { bySimp, longest, hskBySimp, qById };
+  return {
+    bySimp,
+    longest,
+    hskBySimp,
+    qById,
+    readings: readingsOf(hskBySimp),
+  };
+}
+
+/**
+ * The committed gloss overrides, as { text: { entry, gloss } }. An override
+ * applies to every segment with its text, an HSK word too. Each override
+ * names one CC-CEDICT entry by its segment text and its pinyin with tone
+ * numbers, and by its traditional form when two entries have the same
+ * pinyin (后 and 後 are both hou4). It can set the gloss. A person adds one
+ * for an error found in use (#479). An override that names no entry is a
+ * problem of the build.
+ */
+function overridesOf(glossOverrides, bySimp, problems) {
+  const overrides = new Map();
+  for (const [text, { pinyin, trad, gloss } = {}] of Object.entries(glossOverrides)) {
+    const entry = (bySimp.get(text) ?? []).find(
+      (e) => e.pinyin === pinyin && (trad === undefined || e.trad === trad),
+    );
+    if (!entry) {
+      problems.push(`gloss override ${text}: no CC-CEDICT entry ${trad ? `${trad} ` : ''}${text} [${pinyin}]`);
+      continue;
+    }
+    if (gloss !== undefined && (typeof gloss !== 'string' || gloss.trim() === '')) {
+      problems.push(`gloss override ${text}: the gloss is empty`);
+      continue;
+    }
+    if (gloss !== undefined && partsOf(gloss).length > GLOSS_SENSES) {
+      problems.push(`gloss override ${text}: the gloss has more than ${GLOSS_SENSES} senses`);
+      continue;
+    }
+    overrides.set(text, { entry, gloss: gloss?.trim() });
+  }
+  return overrides;
+}
+
+/**
+ * The readings of each character in the HSK words: { char: Map(syllable, count) }.
+ * A syllable is lower case with its tone number. A neutral tone does not
+ * count: in a word such as 桌子 it is a weak form, not the reading of the
+ * character alone. A word whose syllables do not match its characters is
+ * skipped.
+ */
+function readingsOf(hskBySimp) {
+  const readings = new Map();
+  for (const { simp, entry } of hskBySimp.values()) {
+    const chars = [...simp];
+    const syllables = entry.pinyin.toLowerCase().split(' ');
+    if (syllables.length !== chars.length) continue;
+    chars.forEach((char, i) => {
+      if (syllables[i].endsWith('5')) return;
+      if (!readings.has(char)) readings.set(char, new Map());
+      const counts = readings.get(char);
+      counts.set(syllables[i], (counts.get(syllables[i]) ?? 0) + 1);
+    });
+  }
+  return readings;
 }
 
 /**
  * The entry of a segment. An HSK word takes the entry of the premade-list
- * resolver. Any other segment takes the entry with the best rank `q`, then the
- * first in CC-CEDICT order. A name entry counts only when no other exists.
+ * resolver. A single character outside HSK takes the entry whose pinyin the
+ * HSK words that hold the character read most often: 居 is jū, as in 居住,
+ * 居民 and 邻居 (#479). Then, and for any other segment, the entry with the
+ * best rank `q` wins, then the first in CC-CEDICT order. A name entry counts
+ * only when no other exists.
  */
 function entryOf(text, index) {
   const hskWord = index.hskBySimp.get(text);
@@ -165,11 +270,14 @@ function entryOf(text, index) {
   if (!entries) return null;
   const common = entries.filter((entry) => !isName(entry));
   const pool = common.length > 0 ? common : entries;
+  const counts = index.readings.get(text);
+  const votes = (entry) => (counts ? (counts.get(entry.pinyin.toLowerCase()) ?? 0) : 0);
+  const rank = (entry) => index.qById.get(entry.id) ?? Infinity;
   let best = pool[0];
   for (const entry of pool) {
-    const q = index.qById.get(entry.id) ?? Infinity;
-    const bestQ = index.qById.get(best.id) ?? Infinity;
-    if (q < bestQ) best = entry;
+    if (votes(entry) > votes(best) || (votes(entry) === votes(best) && rank(entry) < rank(best))) {
+      best = entry;
+    }
   }
   return best;
 }
@@ -338,12 +446,20 @@ function prepare(sentence, index) {
   if (OTHER_LETTER.test(sentence.simp)) return { reason: 'holds Latin letters' };
   const segments = splitSentence(sentence.simp, index);
   if (segments.length === 0) return { reason: 'holds no Han character' };
-  const { trad, segmentTrads } = traditionalOf(sentence.simp, segments);
-  const output = segments.map((segment, i) => ({
+  // An override changes the entry that the output shows, not the split or the grade.
+  const overrides = segments.map((segment) => index.overrides.get(segment.text));
+  const shown = segments.map((segment, i) => (overrides[i] ? { ...segment, entry: overrides[i].entry } : segment));
+  const { trad, segmentTrads } = traditionalOf(sentence.simp, shown);
+  const glossOfSegment = (segment, i) => {
+    if (overrides[i]?.gloss) return overrides[i].gloss;
+    if (segment.entry) return glossOf(segment.entry);
+    return segment.kind === 'number' ? segment.text : '';
+  };
+  const output = shown.map((segment, i) => ({
     s: segment.text,
     t: segmentTrads[i],
     p: segment.entry ? toneMarks(segment.entry.pinyin) : '',
-    e: segment.entry ? glossOf(segment.entry) : segment.kind === 'number' ? segment.text : '',
+    e: glossOfSegment(segment, i),
   }));
   return {
     ...sentence,
@@ -527,6 +643,8 @@ function reportOf(rows, largest) {
  *   generated     the records of the generated file, each with its `headword`
  *   tatoeba       the records of the Tatoeba file
  *   unfilled      the words that failed MAX_ROUNDS rounds
+ *   glossOverrides  { [segment text]: { pinyin, trad?, gloss? } }: the entry and the
+ *                 gloss that a segment shows, from sentences/gloss-overrides.json
  *
  * Each sentence goes to every HSK word that it holds and passes the grader
  * for. A generated sentence must pass for its headword, or the build fails.
@@ -539,8 +657,9 @@ function reportOf(rows, largest) {
  *   report        the coverage report, in Markdown
  *   gaps          each HSK word with fewer than 3 sentences that is not unfilled
  *
- * Throws on a malformed record, on a generated sentence that fails the
- * grader, and on a sentence file over 2 MB. Never throws on coverage.
+ * Throws on a bad gloss override, on a malformed record, on a generated
+ * sentence that fails the grader, and on a sentence file over 2 MB. Never
+ * throws on coverage.
  */
 function buildExampleSentences(inputs) {
   const { files, count, attribution, report, gaps } = buildAll(inputs);
@@ -551,9 +670,10 @@ function buildExampleSentences(inputs) {
  * The build, with the parts of its state that acceptCandidates also reads:
  * the index, the ids of all sentences, and the chosen sentences of each word.
  */
-function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = [] }) {
-  const index = indexInputs(dictionary, hsk);
+function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = [], glossOverrides = {} }) {
   const problems = [];
+  const index = indexInputs(dictionary, hsk);
+  index.overrides = overridesOf(glossOverrides, index.bySimp, problems);
   const sentences = uniqueSentences([...generated, ...tatoeba], problems);
   if (problems.length > 0) throw buildError(problems);
 

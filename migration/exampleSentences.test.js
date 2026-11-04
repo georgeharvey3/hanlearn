@@ -20,6 +20,7 @@ const WORDS = [
   ...'我你他她是生在家看书的发行吃饭了很好大学三十去一下读请文课冷天今说汉语中国人们这那里张王长头',
   '学生', '在家', '看书', '喜欢', '汤姆', '第一', '北京', '头发', '今天', '经济', '研究', '课文',
   '下课', '一下', '中国', '汉语', '假发', '图书馆', '朋友', '我们', '他们', '老师', '电脑', '咖啡',
+  '居', '居住', '居民', '邻居', '信',
 ];
 const dictionary = allEntries.filter((entry) => WORDS.includes(entry.simp));
 
@@ -83,6 +84,10 @@ const HSK = [
   hskWord('研究', 4, 1000),
   hskWord('文', 7, 1391),
   hskWord('张', 2, 600),
+  // 居 is not an HSK word, but these HSK words hold it.
+  hskWord('居住', 3, 3000),
+  hskWord('居民', 4, 4000),
+  hskWord('邻居', 3, 5000),
   hskWord('生', 2, 700),
   // 好 is in two lists: the lower level counts.
   hskWord('好', 3, 15),
@@ -122,8 +127,8 @@ const tatoeba = (simp, overrides = {}) => {
   };
 };
 
-const build = (records, { hsk = HSK, unfilled = [], human = [] } = {}) =>
-  buildExampleSentences({ dictionary, hsk, generated: records, tatoeba: human, unfilled });
+const build = (records, { hsk = HSK, unfilled = [], human = [], glossOverrides } = {}) =>
+  buildExampleSentences({ dictionary, hsk, generated: records, tatoeba: human, unfilled, glossOverrides });
 
 /** The sentences that a build gives a word. */
 const sentencesOf = (result, word) => {
@@ -177,7 +182,19 @@ describe('the entry of a segment', () => {
   it('takes the first CC-CEDICT entry of a word outside HSK: 的 is de', () => {
     // 文 is HSK 7–9, so a sentence with a segment outside HSK passes.
     const sentence = sentenceFor('文', '我的文。');
-    expect(sentence.segments[1]).toMatchObject({ s: '的', p: 'de', e: "of; ~'s (possessive particle)" });
+    // No HSK word of the fixture holds 的, so the reading rule does not apply.
+    expect(sentence.segments[1]).toMatchObject({
+      s: '的',
+      p: 'de',
+      e: "of; ~'s (possessive particle); (used after an attribute when it modifies a noun)",
+    });
+  });
+
+  it('reads a character outside HSK as the HSK words that hold it read it: 居 is jū', () => {
+    // 居 has three entries, and the first common one is jī (an archaic particle).
+    const ju = sentenceFor('文', '我居文。').segments[1];
+    expect(ju).toMatchObject({ s: '居', p: 'jū' });
+    expect(ju.e).toMatch(/^to reside/);
   });
 
   it('uses a name entry only when no other entry exists', () => {
@@ -207,8 +224,18 @@ describe('the gloss', () => {
     return sentence.segments[sentence.targetIndex].e;
   };
 
-  it('strips a leading (bound form)', () => {
+  it('shows at most 3 senses, also when one CC-CEDICT sense holds several', () => {
+    // The first sense of 行 is "(bound form) to walk; to go; to travel".
     expect(glossOf('行', '我行。')).toBe('to walk; to go; to travel');
+  });
+
+  it('shows a sense once: 这 is not "this; these; this"', () => {
+    expect(sentenceFor('文', '我这文。').segments[1].e).toBe('(pronoun) this; these; the (followed by a noun)');
+  });
+
+  it('skips a classifier sense: 信 is letter, mail and to trust', () => {
+    const sentence = sentenceFor('文', '我信文。');
+    expect(sentence.segments[1]).toMatchObject({ s: '信', e: 'letter; mail; to trust' });
   });
 
   it('skips a surname sense', () => {
@@ -217,6 +244,39 @@ describe('the gloss', () => {
 
   it('takes the first sense of a plain entry', () => {
     expect(glossOf('图书馆', '我去图书馆。')).toBe('library');
+  });
+});
+
+describe('the gloss overrides', () => {
+  it('sets the pinyin and the gloss of a segment text', () => {
+    const glossOverrides = { 信: { pinyin: 'xin4', gloss: 'to believe' }, 居: { pinyin: 'ji1' } };
+    const [xin] = sentencesOf(build([generated('文', '我信文。')], { glossOverrides }), '文');
+    expect(xin.segments[1]).toMatchObject({ s: '信', p: 'xìn', e: 'to believe' });
+    const [ju] = sentencesOf(build([generated('文', '我居文。')], { glossOverrides }), '文');
+    expect(ju.segments[1]).toMatchObject({ s: '居', p: 'jī', e: '(archaic) sentence-final particle expressing a doubting attitude' });
+  });
+
+  it('names one of two entries with the same pinyin by its traditional form', () => {
+    // 后 has two hou4 entries, 后 and 後. 发 [fa4] has only 髮, so 發 names no entry.
+    const glossOverrides = { 发: { pinyin: 'fa4', trad: '髮', gloss: 'hair' } };
+    const [sentence] = sentencesOf(build([generated('文', '我发文。')], { glossOverrides }), '文');
+    expect(sentence.segments[1]).toMatchObject({ s: '发', t: '髮', p: 'fà', e: 'hair' });
+    expect(() => build([], { glossOverrides: { 发: { pinyin: 'fa4', trad: '發' } } })).toThrow(
+      /gloss override 发: no CC-CEDICT entry 發 发 \[fa4\]/,
+    );
+  });
+
+  it('fails the build on an override that names no entry', () => {
+    expect(() => build([], { glossOverrides: { 居: { pinyin: 'ju3' } } })).toThrow(
+      /gloss override 居: no CC-CEDICT entry 居 \[ju3\]/,
+    );
+    expect(() => build([], { glossOverrides: { 吗呢: { pinyin: 'ma5 ne5' } } })).toThrow(/gloss override 吗呢/);
+  });
+
+  it('fails the build on an override gloss with more than 3 senses', () => {
+    expect(() => build([], { glossOverrides: { 信: { pinyin: 'xin4', gloss: 'a; b; c; d' } } })).toThrow(
+      /gloss override 信: the gloss has more than 3 senses/,
+    );
   });
 });
 
