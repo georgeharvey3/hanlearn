@@ -23,27 +23,29 @@ interface OwnProps {
 
 type Props = ConnectedProps<typeof connector> & OwnProps;
 
-type Status = 'idle' | 'sending' | 'sent' | 'failed';
+type Status = 'idle' | 'sent' | 'failed';
 
 /**
  * Report a bad example sentence: a wrong translation, a wrong gloss, an
  * unnatural sentence. One tap saves the report and leaves the sentence out of
- * the learner's later sessions. Give it a `key` of the sentence id, so that
- * the next sentence starts unreported.
+ * the learner's later sessions. Give it a `key` of the word and the sentence
+ * id, so that the next question starts unreported: one sentence can serve two
+ * words.
  */
 const ReportSentenceButton: React.FC<Props> = ({ userId, report, isDemo }) => {
   const [status, setStatus] = useState<Status>('idle');
 
   if (!userId || !report || isDemo) return null;
 
+  // A Firestore write resolves only when the server has it, so the button does
+  // not wait: offline, the write waits in the queue and the learner moves on.
+  // Only a rejection (the rules, a lost queue) offers the report again.
   const onReport = (): void => {
-    setStatus('sending');
-    reportSentence(userId, report)
-      .then(() => setStatus('sent'))
-      .catch((error) => {
-        reportError(error, { feature: 'sentence-report', context: { stage: report.stage } });
-        setStatus('failed');
-      });
+    setStatus('sent');
+    reportSentence(userId, report).catch((error) => {
+      reportError(error, { feature: 'sentence-report', context: { stage: report.stage } });
+      setStatus('failed');
+    });
   };
 
   const label =
@@ -56,7 +58,7 @@ const ReportSentenceButton: React.FC<Props> = ({ userId, report, isDemo }) => {
   return (
     <ButtonBase
       onClick={onReport}
-      disabled={status === 'sending' || status === 'sent'}
+      disabled={status === 'sent'}
       sx={{
         fontFamily: fonts.body,
         alignSelf: 'center',

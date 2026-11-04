@@ -61,8 +61,11 @@ async function fetchFile(name: string): Promise<SentenceFile> {
   // A character with no file gets the app page of the SPA rewrite on Hosting,
   // and a 404 from the dev server. Neither one is an error: the word has no
   // sentences.
+  // A server error throws, so that the session does not keep an empty copy.
+  if (response.status === 404) return {};
+  if (!response.ok) throw new Error(`Sentence file ${name}: HTTP ${response.status}`);
   const type = response.headers.get('Content-Type') ?? '';
-  if (!response.ok || !type.includes('json')) return {};
+  if (!type.includes('json')) return {};
   return (await response.json()) as SentenceFile;
 }
 
@@ -121,20 +124,31 @@ function calculateHighlightIndices(sentence: string, word: string): number[][] {
  * The segments of a sentence with the text between them, so that the stage
  * shows the punctuation too. The build writes the Han segments only, in order.
  * The traditional text changes the characters one for one, so the simplified
- * text gives the position of each segment in both.
+ * text gives the position of each segment in both. A sentence that breaks
+ * these rules keeps its segments as they are, with no gaps.
  */
 function withGaps(sentence: FileSentence): { segments: SentenceSegment[]; targetIndex: number } {
-  const segments: SentenceSegment[] = [];
-  let targetIndex = sentence.targetIndex;
+  const unchanged = { segments: sentence.segments, targetIndex: sentence.targetIndex };
   const simp = Array.from(sentence.simp);
   const trad = Array.from(sentence.trad);
+  if (simp.length !== trad.length) return unchanged;
+
+  const segments: SentenceSegment[] = [];
+  let targetIndex = -1;
   let at = 0;
   const gap = (to: number): void => {
-    if (to <= at) return;
-    segments.push({ s: simp.slice(at, to).join(''), t: trad.slice(at, to).join(''), p: '', e: '' });
+    if (to > at) {
+      segments.push({
+        s: simp.slice(at, to).join(''),
+        t: trad.slice(at, to).join(''),
+        p: '',
+        e: '',
+      });
+    }
     at = to;
   };
-  sentence.segments.forEach((segment, i) => {
+  for (let i = 0; i < sentence.segments.length; i++) {
+    const segment = sentence.segments[i];
     const length = Array.from(segment.s).length;
     let start = at;
     while (
@@ -143,15 +157,14 @@ function withGaps(sentence: FileSentence): { segments: SentenceSegment[]; target
     ) {
       start += 1;
     }
-    // A segment that is not in the text (never in a built file) takes no gap.
-    if (start + length > simp.length) start = at;
+    if (start + length > simp.length) return unchanged;
     gap(start);
     if (i === sentence.targetIndex) targetIndex = segments.length;
     segments.push(segment);
     at = start + length;
-  });
+  }
   gap(simp.length);
-  return { segments, targetIndex };
+  return targetIndex === -1 ? unchanged : { segments, targetIndex };
 }
 
 export async function getSegmentedSentence(

@@ -581,7 +581,7 @@ const SentenceRead: React.FC<Props> = ({
           )}
         </Box>
         <ReportSentenceButton
-          key={sentence.id}
+          key={`${state.wordIndex}-${sentence.id}`}
           isDemo={isDemo}
           report={{
             sentenceId: sentence.id,

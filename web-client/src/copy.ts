@@ -153,7 +153,8 @@ export const copy = {
   },
   credits: {
     title: 'Credits',
-    licence: 'Licence',
+    // Before the link to the licence: "Licence: MIT"
+    licence: 'Licence: ',
     sentenceCredits: 'Sentence credits',
     sentenceLicence: 'Sentence licence',
   },

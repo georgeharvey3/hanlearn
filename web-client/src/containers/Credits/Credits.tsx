@@ -41,9 +41,8 @@ const Credits: React.FC = () => {
             <Box component="a" href={source.url} sx={{ ...linkSx, fontSize: 17 }}>
               {source.name}
             </Box>
-            <Box sx={{ mt: 0.5, fontSize: 15, color: colors.textSecondary }}>{source.use}</Box>
-            <Box sx={{ mt: 1, fontSize: 15 }}>
-              {text.licence}:{' '}
+            <Box sx={{ mt: 0.5, fontSize: 15 }}>
+              {text.licence}
               <Box component="a" href={source.licence.url} sx={linkSx}>
                 {source.licence.name}
               </Box>

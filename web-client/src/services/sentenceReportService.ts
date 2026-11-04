@@ -13,9 +13,10 @@ import {
  * with `node migration/export-sentence-reports.js` (#469).
  */
 export async function reportSentence(userId: string, report: SentenceReport): Promise<void> {
+  // First, so that the sentence stays out while the write waits for the network.
+  markSentenceReported(report.sentenceId);
   await setDoc(
     doc(db, 'users', userId, 'sentenceReports', report.sentenceId),
     sentenceReportDocument(report, serverTimestamp()),
   );
-  markSentenceReported(report.sentenceId);
 }

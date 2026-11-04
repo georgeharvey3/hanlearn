@@ -605,7 +605,7 @@ const SentenceWrite: React.FC<Props> = ({
           )}
         </Box>
         <ReportSentenceButton
-          key={state.sentenceId ?? ''}
+          key={`${state.wordIndex}-${state.sentenceId}`}
           isDemo={isDemo}
           report={
             state.sentenceId

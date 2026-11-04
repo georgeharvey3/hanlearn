@@ -150,6 +150,42 @@ describe('sentenceService', () => {
       expect(result).toEqual({ sentence: null, totalCount: 0 });
     });
 
+    it('throws on a server error, and keeps no empty copy of the file', async () => {
+      fetchMock.mockResolvedValueOnce(new Response('', { status: 503 }));
+      const { getSegmentedSentence } = await loadService();
+
+      await expect(getSegmentedSentence('学生', 'simp', 0)).rejects.toThrow('503');
+      expect((await getSegmentedSentence('学生', 'simp', 0)).sentence?.id).toBe('s1');
+    });
+
+    it('keeps the segments as they are when one is not in the text', async () => {
+      fetchMock.mockImplementation(async () =>
+        jsonResponse({
+          你: [
+            {
+              id: 'bad',
+              simp: '你，去！',
+              trad: '你，去！',
+              english: 'You, go!',
+              segments: [
+                { s: '你', t: '你', p: 'nǐ', e: 'you' },
+                { s: '来', t: '來', p: 'lái', e: 'to come' },
+                { s: '去', t: '去', p: 'qù', e: 'to go' },
+              ],
+              targetIndex: 2,
+            },
+          ],
+        }),
+      );
+      const { getSegmentedSentence } = await loadService();
+
+      const { segments, targetIndex } = (await getSegmentedSentence('你', 'simp', 0)).sentence!
+        .chinese;
+
+      expect(segments.map((segment) => segment.s)).toEqual(['你', '来', '去']);
+      expect(targetIndex).toBe(2);
+    });
+
     it('leaves out a sentence that the learner reported', async () => {
       const { getSegmentedSentence } = await loadService();
       const { markSentenceReported } = await import('../utils/reportedSentences');

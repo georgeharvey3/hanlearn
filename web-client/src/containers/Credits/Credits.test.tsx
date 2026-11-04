@@ -27,7 +27,7 @@ describe('Credits', () => {
       'href',
       'https://creativecommons.org/licenses/by-sa/4.0/',
     );
-    expect(screen.getByRole('link', { name: 'complete-hsk-vocabulary' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'HSK 3.0 lists' })).toHaveAttribute(
       'href',
       'https://github.com/drkameleon/complete-hsk-vocabulary',
     );

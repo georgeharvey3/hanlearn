@@ -637,6 +637,19 @@ describe('SentenceRead — report a sentence', () => {
     });
   });
 
+  it('shows the report as sent while the write waits for the network', async () => {
+    mockedReportSentence.mockReturnValue(new Promise(() => {}));
+    renderWithProviders(
+      <SentenceRead words={[testWord]} sentenceWriteEnabled={false} startSentenceWrite={vi.fn()} />,
+      { store: makeStore() },
+    );
+    await submit();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Report sentence' }));
+
+    expect(await screen.findByRole('button', { name: 'Reported' })).toBeDisabled();
+  });
+
   it('offers the report again when it fails', async () => {
     mockedReportSentence.mockRejectedValue(new Error('offline'));
     renderWithProviders(
