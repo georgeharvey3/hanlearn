@@ -1,20 +1,32 @@
 /**
- * Build the example sentence files from the committed generated sentences.
+ * Build the example sentence files from the committed generated sentences and
+ * the committed sentences of native Mandarin writers on Tatoeba.
  *
  * Pure: build-dictionary.js reads the files, calls buildExampleSentences once,
  * and writes the result. The same inputs always give the same output, so a
  * deploy never changes the sentences by itself. The rules are in #465 under
- * "Grading" and "Output and storage". Every sentence is generated and admitted
- * by the grader: see ADR 0020.
+ * "Grading" and "Output and storage", and in #482. One grader admits both
+ * origins: see ADR 0020 and its amendment.
  */
 
 const crypto = require('crypto');
+const { LICENCE: TATOEBA_LICENCE } = require('./tatoeba');
 
 /** The length cap of each HSK level, in Han characters and digits. HSK 7–9 has none. */
 const LENGTH_CAPS = { 1: 10, 2: 12, 3: 15, 4: 18, 5: 25, 6: 25 };
 
-/** Each HSK word keeps this many sentences at most, and is filled when it has them. */
-const SENTENCE_TARGET = 5;
+/**
+ * Each HSK word keeps this many sentences at most, and is filled when it has
+ * them. A tunable target: 3 fills most HSK 1–3 words from Tatoeba and the
+ * generated sentences (#482).
+ */
+const SENTENCE_TARGET = 3;
+
+/**
+ * A Tatoeba sentence with fewer Han characters than this is dropped. Most
+ * shorter ones are fragments with no context (#482).
+ */
+const MIN_TATOEBA_HAN = 6;
 
 /** The report counts the words with fewer sentences than this. */
 const REPORT_FEW = 3;
@@ -265,35 +277,47 @@ function levelOf(segment, index) {
 }
 
 /**
- * Check a generated record. Returns the reason it is malformed, or null.
+ * Check a record. Returns the reason it is malformed, or null. Only a
+ * generated record has a headword.
  */
 function malformed(record) {
   const isText = (value) => typeof value === 'string' && value.trim() !== '';
   if (!isText(record.simp)) return 'no simp text';
   if (!isText(record.english)) return 'no English';
-  if (!isText(record.headword)) return 'no headword';
+  if (record.source === 'generated' && !isText(record.headword)) return 'no headword';
   return null;
 }
 
 /**
- * The generated sentences, one for each normalized text. If two records have
- * the same text, the first one in the file stays.
+ * The sentences, one for each normalized text. If two records have the same
+ * text, the first one stays: a generated record before a Tatoeba record, so
+ * the grader still checks every generated sentence for its headword.
  */
-function uniqueSentences(generated, problems) {
+function uniqueSentences(records, problems) {
   const byId = new Map();
-  for (const record of generated) {
+  for (const record of records) {
     const reason = malformed(record);
     if (reason) {
-      problems.push(`generated ${record.sourceId}: malformed generated record (${reason})`);
+      problems.push(`${record.source} ${record.sourceId}: malformed ${record.source} record (${reason})`);
       continue;
     }
     const simp = normalize(record.simp);
     const id = sentenceId(simp);
     if (byId.has(id)) continue;
-    byId.set(id, { id, simp, english: record.english.trim(), record, word: record.headword });
+    byId.set(id, { id, simp, english: record.english.trim(), record, word: record.headword ?? null });
   }
   return [...byId.values()];
 }
+
+/** The number of Han characters of a text. Digits do not count. */
+const hanCount = (text) => [...text].filter((c) => HAN.test(c)).length;
+
+/**
+ * True when the build drops a prepared Tatoeba sentence. The review of #473
+ * found that short sentences and names made most of the bad Tatoeba sentences.
+ */
+const dropsTatoeba = (sentence) =>
+  hanCount(sentence.simp) < MIN_TATOEBA_HAN || sentence.segments.some((segment) => segment.kind === 'name');
 
 /** The traditional form of a sentence: each segment takes the form of its entry. */
 function traditionalOf(simp, segments) {
@@ -400,11 +424,12 @@ function pick(candidates) {
 }
 
 /**
- * The sentence of a word in the output shape of #465. `fill`, `source` and
- * `origin` stay for the readers of that shape (#386, #469), though every
- * sentence now has the same values.
+ * The sentence of a word in the output shape of #465. `fill` names the source
+ * of the sentence, for the readers of that shape (#386, #469).
  */
 function outputOf({ sentence, grade: graded }) {
+  const { record } = sentence;
+  const tatoeba = record.source === 'tatoeba';
   return {
     id: sentence.id,
     simp: sentence.simp,
@@ -413,10 +438,17 @@ function outputOf({ sentence, grade: graded }) {
     segments: sentence.output,
     targetIndex: graded.targetIndex,
     hskLevel: graded.hskLevel,
-    fill: 'generated',
-    source: { name: 'generated', id: sentence.id },
-    origin: { chinese: 'machine', english: 'machine' },
+    fill: record.source,
+    source: tatoeba ? { name: 'tatoeba', id: Number(record.sourceId) } : { name: 'generated', id: sentence.id },
+    origin: tatoeba ? { chinese: 'human', english: 'human' } : { chinese: 'machine', english: 'machine' },
   };
+}
+
+/** The attribution line of one shipped Tatoeba sentence. */
+function attributionOf({ id, record }) {
+  const by = (owner) => (owner ? ` by ${owner}` : '');
+  const english = record.englishId ? `; English: Tatoeba #${record.englishId}${by(record.englishOwner)}` : '';
+  return `${id} Tatoeba #${record.sourceId}${by(record.owner)}${english}, ${TATOEBA_LICENCE.name}`;
 }
 
 const LEVELS = [1, 2, 3, 4, 5, 6, 7];
@@ -437,7 +469,7 @@ function reportOf(rows, largest) {
   const lines = [
     '# Example sentence coverage',
     '',
-    `The build of \`npm run build:dict\` writes this report. Every sentence is generated (ADR 0020). A word is filled when it has ${SENTENCE_TARGET} sentences.`,
+    `The build of \`npm run build:dict\` writes this report. The sentences come from native writers on Tatoeba and from generation (ADR 0020). A word is filled when it has ${SENTENCE_TARGET} sentences.`,
     '',
     '## HSK words',
     '',
@@ -493,52 +525,68 @@ function reportOf(rows, largest) {
  *                 where `entry` is the entry that the premade-list resolver gives
  *                 it and `level` is 1 to 7 (7 for HSK 7–9)
  *   generated     the records of the generated file, each with its `headword`
+ *   tatoeba       the records of the Tatoeba file
  *   unfilled      the words that failed MAX_ROUNDS rounds
  *
- * Returns { files, count, report, gaps }:
+ * Each sentence goes to every HSK word that it holds and passes the grader
+ * for. A generated sentence must pass for its headword, or the build fails.
+ * A Tatoeba sentence with fewer than 6 Han characters or a name is dropped.
+ *
+ * Returns { files, count, attribution, report, gaps }:
  *   files         { [hex code point]: { [simplified word]: sentence[] } }
- *   count         the number of sentences in the files
+ *   count         the number of sentences in the files, one for each word
+ *   attribution   one line for each shipped Tatoeba sentence, in id order
  *   report        the coverage report, in Markdown
- *   gaps          each HSK word with fewer than 5 sentences that is not unfilled
+ *   gaps          each HSK word with fewer than 3 sentences that is not unfilled
  *
  * Throws on a malformed record, on a generated sentence that fails the
  * grader, and on a sentence file over 2 MB. Never throws on coverage.
  */
 function buildExampleSentences(inputs) {
-  const { files, count, report, gaps } = buildAll(inputs);
-  return { files, count, report, gaps };
+  const { files, count, attribution, report, gaps } = buildAll(inputs);
+  return { files, count, attribution, report, gaps };
 }
 
 /**
  * The build, with the parts of its state that acceptCandidates also reads:
  * the index, the ids of all sentences, and the chosen sentences of each word.
  */
-function buildAll({ dictionary, hsk, generated = [], unfilled = [] }) {
+function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = [] }) {
   const index = indexInputs(dictionary, hsk);
   const problems = [];
-  const sentences = uniqueSentences(generated, problems);
+  const sentences = uniqueSentences([...generated, ...tatoeba], problems);
   if (problems.length > 0) throw buildError(problems);
 
-  // Each sentence goes only to its own word, and must pass the grader for it.
   const candidatesOf = new Map();
   for (const sentence of sentences) {
     const { word } = sentence;
-    const hskWord = index.hskBySimp.get(word);
     const ready = prepare(sentence, index);
-    const graded = hskWord && !ready.reason ? grade(ready, word, hskWord.level) : null;
-    const reason = !hskWord
-      ? 'is for a word outside HSK'
-      : ready.reason
-        ? ready.reason
-        : !graded
-          ? `no segment is ${word}`
-          : graded.reason;
-    if (reason) {
-      problems.push(`generated "${sentence.simp}" for ${word}: ${reason}`);
+    if (word !== null) {
+      // A generated sentence must pass the grader for its own word.
+      const hskWord = index.hskBySimp.get(word);
+      const graded = hskWord && !ready.reason ? grade(ready, word, hskWord.level) : null;
+      const reason = !hskWord
+        ? 'is for a word outside HSK'
+        : ready.reason
+          ? ready.reason
+          : !graded
+            ? `no segment is ${word}`
+            : graded.reason;
+      if (reason) {
+        problems.push(`generated "${sentence.simp}" for ${word}: ${reason}`);
+        continue;
+      }
+    } else if (ready.reason || dropsTatoeba(ready)) {
       continue;
     }
-    if (!candidatesOf.has(word)) candidatesOf.set(word, []);
-    candidatesOf.get(word).push({ sentence: ready, grade: graded });
+    // The sentence goes to every HSK word that it holds and passes the grader for.
+    for (const text of new Set(ready.segments.map((segment) => segment.text))) {
+      const hskWord = index.hskBySimp.get(text);
+      const graded = hskWord ? grade(ready, text, hskWord.level) : null;
+      if (!graded || graded.reason) continue;
+      if (!candidatesOf.has(text)) candidatesOf.set(text, []);
+      candidatesOf.get(text).push({ sentence: ready, grade: graded });
+    }
   }
   if (problems.length > 0) throw buildError(problems);
 
@@ -547,6 +595,7 @@ function buildAll({ dictionary, hsk, generated = [], unfilled = [] }) {
   const rows = [];
   const gaps = [];
   const chosenByWord = new Map();
+  const shipped = new Map();
   let count = 0;
   for (const [word, { level }] of [...index.hskBySimp].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
     const chosen = pick(candidatesOf.get(word) ?? []);
@@ -556,6 +605,7 @@ function buildAll({ dictionary, hsk, generated = [], unfilled = [] }) {
       files[file] ??= {};
       files[file][word] = chosen.map(outputOf);
       count += chosen.length;
+      chosen.forEach(({ sentence }) => shipped.set(sentence.id, sentence));
     }
     const short = chosen.length < SENTENCE_TARGET;
     rows.push({ level, word, count: chosen.length, unfilled: short && unfilledWords.has(word) });
@@ -579,9 +629,15 @@ function buildAll({ dictionary, hsk, generated = [], unfilled = [] }) {
   }
   if (problems.length > 0) throw buildError(problems);
 
+  const attribution = [...shipped.values()]
+    .filter((sentence) => sentence.record.source === 'tatoeba')
+    .sort((a, b) => (a.id < b.id ? -1 : 1))
+    .map(attributionOf);
+
   return {
     files,
     count,
+    attribution,
     report: reportOf(rows, largest),
     gaps,
     index,

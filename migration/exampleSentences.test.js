@@ -104,8 +104,26 @@ const generated = (headword, simp, overrides = {}) => ({
   ...overrides,
 });
 
-const build = (records, { hsk = HSK, unfilled = [] } = {}) =>
-  buildExampleSentences({ dictionary, hsk, generated: records, unfilled });
+/** A record of the Tatoeba file, by a native Mandarin writer. */
+const tatoeba = (simp, overrides = {}) => {
+  const id = String(nextId++);
+  return {
+    source: 'tatoeba',
+    sourceId: id,
+    written: 'simp',
+    simp,
+    trad: null,
+    english: `English of ${simp}`,
+    owner: 'alice',
+    englishId: `9${id}`,
+    englishOwner: 'bob',
+    origin: { chinese: 'human', english: 'human' },
+    ...overrides,
+  };
+};
+
+const build = (records, { hsk = HSK, unfilled = [], human = [] } = {}) =>
+  buildExampleSentences({ dictionary, hsk, generated: records, tatoeba: human, unfilled });
 
 /** The sentences that a build gives a word. */
 const sentencesOf = (result, word) => {
@@ -216,11 +234,14 @@ describe('matching', () => {
     expect(rejectOf('吃', '吃。')).toBe('holds only the word');
   });
 
-  it('gives a sentence only to its own word', () => {
-    const result = build([generated('书', '我看书。')]);
+  it('gives a sentence to every HSK word that it holds and passes the grader for', () => {
+    // 研究 is HSK 4 and 经济 HSK 3: the sentence passes only for 研究.
+    const result = build([generated('书', '我看书。'), generated('研究', '我研究经济。')]);
     expect(sentencesOf(result, '书')).toHaveLength(1);
-    expect(sentencesOf(result, '我')).toEqual([]);
-    expect(sentencesOf(result, '看')).toEqual([]);
+    expect(sentencesOf(result, '我').map((s) => s.simp)).toEqual(['我看书。']);
+    expect(sentencesOf(result, '看')[0]).toMatchObject({ simp: '我看书。', targetIndex: 1 });
+    expect(sentencesOf(result, '研究')).toHaveLength(1);
+    expect(sentencesOf(result, '经济')).toEqual([]);
   });
 
   it('gives a word outside HSK no sentences', () => {
@@ -283,9 +304,9 @@ describe('the grader', () => {
 describe('the pick', () => {
   const forBook = ['我看书。', '你看书。', '他看书。', '她看书。', '我们看书。', '他们看书。'];
 
-  it('takes at most 5 sentences for a word', () => {
+  it('takes at most 3 sentences for a word', () => {
     const sentences = sentencesOf(build(forBook.map((t) => generated('书', t))), '书');
-    expect(sentences).toHaveLength(5);
+    expect(sentences).toHaveLength(3);
     expect(sentences.every((s) => s.fill === 'generated')).toBe(true);
   });
 
@@ -298,20 +319,17 @@ describe('the pick', () => {
     ]);
   });
 
-  it('skips a sentence that overlaps a picked one by more than half, then uses it to reach 5', () => {
+  it('skips a sentence that overlaps a picked one by more than half, then uses it to reach 3', () => {
     // 我看书 and 我看书了 share {我, 书} of {我, 书, 了}: 2/3 > 0.5.
-    const records = ['我看书。', '我看书了。', '老师看电脑。', '他看了。'].map((t) => generated('看', t));
+    const records = ['我看书。', '我看书了。', '他看了。'].map((t) => generated('看', t));
     const texts = sentencesOf(build(records), '看').map((s) => s.simp);
-    expect(texts).toHaveLength(4);
-    expect(texts.at(-1)).toBe('我看书了。');
+    expect(texts).toEqual(['我看书。', '他看了。', '我看书了。']);
   });
 
-  it('drops an overlapping sentence when the word has its 5 without it', () => {
-    const records = ['我看书。', '你看饭。', '他看了。', '她看大。', '我们看好。', '我看书了。'].map((t) =>
-      generated('看', t),
-    );
+  it('drops an overlapping sentence when the word has its 3 without it', () => {
+    const records = ['我看书。', '你看饭。', '他看了。', '我看书了。'].map((t) => generated('看', t));
     const texts = sentencesOf(build(records), '看').map((s) => s.simp);
-    expect(texts).toHaveLength(5);
+    expect(texts).toHaveLength(3);
     expect(texts).not.toContain('我看书了。');
   });
 });
@@ -342,24 +360,76 @@ describe('the output', () => {
   });
 });
 
+describe('Tatoeba sentences', () => {
+  const buildHuman = (records) => build([], { human: records });
+  const textsOf = (result, word) => sentencesOf(result, word).map((s) => s.simp);
+
+  it('gives a Tatoeba sentence to each HSK word that it holds and passes the grader for', () => {
+    const result = buildHuman([tatoeba('我们喜欢看书。'), tatoeba('他们研究中国经济。')]);
+    for (const word of ['我们', '喜欢', '看', '书']) {
+      expect(textsOf(result, word)).toEqual(['我们喜欢看书。']);
+    }
+    // 研究 is HSK 4 and 经济 HSK 3: the second sentence passes only for 研究.
+    expect(textsOf(result, '研究')).toEqual(['他们研究中国经济。']);
+    expect(textsOf(result, '他们')).toEqual([]);
+    expect(textsOf(result, '经济')).toEqual([]);
+  });
+
+  it('drops a Tatoeba sentence with fewer than 6 Han characters, digits not counted', () => {
+    const result = buildHuman([tatoeba('我们看书了。'), tatoeba('我看了123书。'), tatoeba('我们喜欢看书。')]);
+    expect(textsOf(result, '书')).toEqual(['我们喜欢看书。']);
+  });
+
+  it('drops a Tatoeba sentence with a name segment', () => {
+    const result = buildHuman([tatoeba('汤姆喜欢看书了。'), tatoeba('他们喜欢看书了。')]);
+    expect(textsOf(result, '喜欢')).toEqual(['他们喜欢看书了。']);
+  });
+
+  it('writes a Tatoeba sentence with its source and a human origin', () => {
+    const record = tatoeba('我们喜欢看书。');
+    const [sentence] = sentencesOf(buildHuman([record]), '书');
+    expect(sentence).toMatchObject({
+      fill: 'tatoeba',
+      source: { name: 'tatoeba', id: Number(record.sourceId) },
+      origin: { chinese: 'human', english: 'human' },
+    });
+  });
+
+  it('credits each shipped Tatoeba sentence, and no other sentence', () => {
+    const shipped = tatoeba('我们喜欢看书。');
+    const result = build([generated('书', '老师读书。')], { human: [shipped, tatoeba('我们看书了。')] });
+    expect(result.attribution).toEqual([
+      `${sentenceId('我们喜欢看书。')} Tatoeba #${shipped.sourceId} by alice; ` +
+        `English: Tatoeba #${shipped.englishId} by bob, CC BY 2.0 FR`,
+    ]);
+  });
+
+  it('fails on a malformed Tatoeba record', () => {
+    expect(() => buildHuman([tatoeba('我们喜欢看书。', { english: '' })])).toThrow(
+      /malformed tatoeba record \(no English\)/,
+    );
+  });
+});
+
 describe('the report and the gaps', () => {
-  const forBook = ['我看书。', '你看书。', '他看书。', '她看书。', '我们看书。'];
+  const forBook = ['我看书。', '你看书。', '他看书。'];
   const hsk1Words = new Set(HSK.filter((w) => w.level === 1).map((w) => w.simp)).size;
 
   it('counts the HSK words that are filled, short, or have none', () => {
-    const result = build([...forBook.map((t) => generated('书', t)), generated('看', '我看书了。')]);
+    const result = build(forBook.map((t) => generated('书', t)));
     const hsk1 = result.report.split('\n').find((line) => line.startsWith('| HSK 1 |'));
-    // 书 has its 5. 看 has 1. The other HSK 1 words have none.
-    expect(hsk1).toBe(`| HSK 1 | ${hsk1Words} | 1 | ${hsk1Words - 1} | ${hsk1Words - 2} | 0 |`);
+    // 书 and 看 have their 3. 我, 你 and 他 have 1. The other HSK 1 words have none.
+    expect(hsk1).toBe(`| HSK 1 | ${hsk1Words} | 2 | ${hsk1Words - 2} | ${hsk1Words - 5} | 0 |`);
   });
 
-  it('lists the HSK words that the generated sentences do not fill', () => {
-    const result = build([...forBook.map((t) => generated('书', t)), generated('看', '我看书了。')]);
+  it('lists the HSK words that the sentences do not fill', () => {
+    const result = build(forBook.map((t) => generated('书', t)));
     const hsk1 = result.report.split('\n').find((line) => line.startsWith('- HSK 1: '));
     const listed = hsk1.slice('- HSK 1: '.length).split(', ');
-    expect(listed).toHaveLength(hsk1Words - 1);
-    expect(listed).toContain('看');
+    expect(listed).toHaveLength(hsk1Words - 2);
+    expect(listed).toContain('我');
     expect(listed).not.toContain('书');
+    expect(listed).not.toContain('看');
     expect(result.report).toContain('- HSK 7–9: 文');
   });
 
@@ -373,11 +443,11 @@ describe('the report and the gaps', () => {
     expect(result.report).toContain('- HSK 4: 研究');
   });
 
-  it('lists each HSK word with fewer than 5 sentences, with its cap and need', () => {
+  it('lists each HSK word with fewer than 3 sentences, with its cap and need', () => {
     const result = build([generated('书', '我看书。')]);
-    expect(result.gaps).toContainEqual({ word: '书', hskLevel: 1, lengthCap: 10, needed: 4 });
-    expect(result.gaps).toContainEqual({ word: '研究', hskLevel: 4, lengthCap: 18, needed: 5 });
-    expect(result.gaps).toContainEqual({ word: '文', hskLevel: 7, lengthCap: null, needed: 5 });
+    expect(result.gaps).toContainEqual({ word: '书', hskLevel: 1, lengthCap: 10, needed: 2 });
+    expect(result.gaps).toContainEqual({ word: '研究', hskLevel: 4, lengthCap: 18, needed: 3 });
+    expect(result.gaps).toContainEqual({ word: '文', hskLevel: 7, lengthCap: null, needed: 3 });
   });
 
   it('does not fail on coverage', () => {
@@ -403,7 +473,7 @@ describe('build failures', () => {
   it('fails on a sentence file over 2 MB', () => {
     // The words that start with 我 share one file. A long English text takes
     // it over the limit.
-    const english = 'x'.repeat(300 * 1024);
+    const english = 'x'.repeat(400 * 1024);
     const records = [
       ...['我很好。', '我好。', '我是。', '我去。', '我说。'].map((t) => generated('我', t, { english })),
       ...['我们很好。', '我们好。', '我们是。', '我们去。', '我们说。'].map((t) =>
@@ -443,10 +513,10 @@ describe('accepting generated candidates', () => {
   });
 
   it('accepts no more sentences than a word needs', () => {
-    // 书 has 3 sentences, so it needs 2. 是 has its 5.
+    // 书 has 1 sentence, so it needs 2. 是 has its 3.
     const gen = [
-      ...['我看书。', '你读书。', '他喜欢书。'].map((t) => generated('书', t)),
-      ...['我是。', '你是我们。', '他是老师。', '她是朋友。', '学生是我。'].map((t) => generated('是', t)),
+      generated('书', '我看书。'),
+      ...['我是。', '你是我们。', '他是老师。'].map((t) => generated('是', t)),
     ];
     const result = accept(
       [
@@ -507,9 +577,9 @@ describe('accepting generated candidates', () => {
       ],
       { rounds: { 书: 1, 吃: 2 } },
     );
-    // 书 is still short. 吃 has its 5, so its count goes.
+    // 书 is still short. 吃 has its 3, so its count goes.
     expect(result.rounds).toEqual({ 书: 2 });
-    expect(result.short).toEqual([{ word: '书', needed: 5 }]);
+    expect(result.short).toEqual([{ word: '书', needed: 3 }]);
   });
 
   it('rejects a candidate for a word that failed 3 rounds', () => {

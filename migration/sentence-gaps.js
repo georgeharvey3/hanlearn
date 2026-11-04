@@ -1,5 +1,5 @@
 /**
- * Write the gaps of the example sentences: each HSK word with fewer than 5
+ * Write the gaps of the example sentences: each HSK word with fewer than 3
  * sentences, for a Claude Code generation session. See issue #468 and
  * sentences/GENERATE.md.
  *

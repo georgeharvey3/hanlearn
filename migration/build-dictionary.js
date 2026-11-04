@@ -94,15 +94,19 @@ const levelOfList = (index) => Math.min(index + 1, 7);
 /** The committed generated sentences of #468, or an empty file. */
 const GENERATED_PATH = path.join(__dirname, 'sentences', 'generated.json');
 
+/** The committed Tatoeba sentences of native Mandarin writers (#482). */
+const TATOEBA_PATH = path.join(__dirname, 'sentences', 'tatoeba.json');
+
 /**
- * The inputs of buildExampleSentences, from the committed generated sentences
- * and the resolved HSK lists. Also gives the generated file as it is on disk,
- * which the gaps and accept scripts read and write.
+ * The inputs of buildExampleSentences, from the committed generated and
+ * Tatoeba sentences and the resolved HSK lists. Also gives the generated file
+ * as it is on disk, which the gaps and accept scripts read and write.
  */
 function sentenceInputs(words, catalogue, ranks) {
   const generatedFile = fs.existsSync(GENERATED_PATH)
     ? JSON.parse(fs.readFileSync(GENERATED_PATH, 'utf8'))
     : { source: 'generated', records: [], rounds: {} };
+  const tatoebaFile = JSON.parse(fs.readFileSync(TATOEBA_PATH, 'utf8'));
 
   const hsk = catalogue.flatMap((list, i) =>
     list.entries.map((entry) => ({
@@ -117,22 +121,24 @@ function sentenceInputs(words, catalogue, ranks) {
       dictionary: words,
       hsk,
       generated: generatedFile.records,
+      tatoeba: tatoebaFile.records,
       unfilled: unfilledOf(generatedFile),
     },
     generatedFile,
+    tatoebaFile,
   };
 }
 
 /**
- * Write the example sentence files from the committed generated sentences,
- * with no network and no AI. A local run also writes the coverage report to
- * sentences/coverage.md. CI only prints it.
+ * Write the example sentence files from the committed generated and Tatoeba
+ * sentences, with no network and no AI. A local run also writes the coverage
+ * report to sentences/coverage.md. CI only prints it.
  *
- * Fails the build on a malformed generated record, on a generated sentence
- * that fails the grader, and on a sentence file over 2 MB.
+ * Fails the build on a malformed record, on a generated sentence that fails
+ * the grader, and on a sentence file over 2 MB.
  */
 function buildSentences(words, catalogue, ranks, outputDir) {
-  const { inputs } = sentenceInputs(words, catalogue, ranks);
+  const { inputs, tatoebaFile } = sentenceInputs(words, catalogue, ranks);
   const result = buildExampleSentences(inputs);
 
   fs.rmSync(outputDir, { recursive: true, force: true });
@@ -140,12 +146,16 @@ function buildSentences(words, catalogue, ranks, outputDir) {
   for (const [name, content] of Object.entries(result.files)) {
     fs.writeFileSync(path.join(outputDir, name + '.json'), JSON.stringify(content));
   }
-  fs.writeFileSync(path.join(outputDir, 'ATTRIBUTION.txt'), ATTRIBUTION);
-  fs.writeFileSync(path.join(outputDir, 'LICENSE.txt'), LICENSE);
+  fs.writeFileSync(
+    path.join(outputDir, 'ATTRIBUTION.txt'),
+    attributionText(tatoebaFile) + result.attribution.join('\n') + '\n',
+  );
+  fs.writeFileSync(path.join(outputDir, 'LICENSE.txt'), licenseText(tatoebaFile));
 
   console.log(
-    'Wrote ' + Object.keys(result.files).length + ' sentence files and ' +
-      result.count + ' sentences to: ' + outputDir,
+    'Wrote ' + Object.keys(result.files).length + ' sentence files, ' +
+      result.count + ' sentences (one for each word) and ' + result.attribution.length +
+      ' Tatoeba credits to: ' + outputDir,
   );
   console.log('');
   console.log(result.report);
@@ -156,23 +166,40 @@ function buildSentences(words, catalogue, ranks, outputDir) {
   }
 }
 
-/** The text of ATTRIBUTION.txt: the source of each part of a sentence file. */
-const ATTRIBUTION = [
-  'Claude Code generated the Chinese and the English of each example sentence',
-  'for HanLearn (see ADR 0020). No third-party licence applies to that text.',
+/**
+ * The head of ATTRIBUTION.txt: the source of each part of a sentence file.
+ * One line for each shipped Tatoeba sentence follows it.
+ */
+const attributionText = ({ downloaded, licence }) => [
+  'The example sentences come from two sources (see ADR 0020):',
+  '',
+  '- Tatoeba (https://tatoeba.org), downloaded ' + downloaded + ': ' + licence.name +
+    ' (' + licence.url + ').',
+  '  ' + licence.attribution,
+  '  Each line at the end of this file names one sentence: its id in these files,',
+  '  the Tatoeba sentence and its owner, and the English sentence and its owner.',
+  '- Claude Code generated the Chinese and the English of the other sentences',
+  '  for HanLearn. No third-party licence applies to that text.',
   '',
   'The segments, pinyin and glosses come from CC-CEDICT (https://cc-cedict.org),',
   'CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/).',
+  '',
+  'Tatoeba sentences:',
+  '',
 ].join('\n') + '\n';
 
 /** The text of LICENSE.txt: the licence of the files. */
-const LICENSE = [
+const licenseText = ({ licence }) => [
   'The example sentence files in this directory are licensed under CC BY-SA 4.0',
   '(https://creativecommons.org/licenses/by-sa/4.0/), because the segment pinyin',
   'and glosses come from CC-CEDICT (https://cc-cedict.org), which is share-alike.',
   'This licence covers these data files only, not the HanLearn app.',
   '',
-  'ATTRIBUTION.txt names the source of each part of the files.',
+  'The Tatoeba sentences are also under ' + licence.name,
+  '(' + licence.url + ').',
+  '',
+  'ATTRIBUTION.txt names the source of each part of the files, and the owners',
+  'of each Tatoeba sentence.',
 ].join('\n') + '\n';
 
 /**

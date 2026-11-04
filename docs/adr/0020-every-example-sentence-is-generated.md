@@ -1,6 +1,6 @@
 # 20. Every example sentence is generated
 
-- Status: accepted
+- Status: accepted, amended (#482)
 - Date: 2026-11-03
 - Issue: #465, #478
 - Amends: [0019-example-sentences-are-a-committed-build.md](0019-example-sentences-are-a-committed-build.md)
@@ -41,3 +41,17 @@ network and no AI at build time, and the id is a hash of the text.
   entries fail any sentence filter.
 - Keep Tatoeba only, with a filter, and generate the gaps. The set then
   has two quality standards.
+
+## Amendment (2026-11-04)
+
+- Issue: #482
+
+The build reads Tatoeba again, but only sentences from native Mandarin
+writers, with 6 or more Han characters and no names. These filters remove
+the faults that the review of #473 found. Each sentence counts for every HSK
+word that it holds. The target is 3 sentences for each word.
+
+Generation was the only source after #478. It was too expensive to fill
+every word, and HSK 1–3 lost almost all of its sentences.
+
+The set now has two origins, `human` and `machine`. One grader admits both.
