@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { withRouter } from 'react-router-dom';
 import { connect } from 'react-redux';
 
-import { Box, CircularProgress } from '@mui/material';
+import { Box } from '@mui/material';
 
 import StudyTop from './Study/StudyTop';
 import StudyScreen from './Study/StudyScreen';
@@ -21,7 +21,6 @@ import { AppDispatch } from '../../types/actions';
 import * as actions from '../../store/actions/index';
 import { Props } from './types';
 import { copy } from '../../copy';
-import { colors } from '../../theme';
 
 const mapStateToProps = (state: RootState) => ({
   userId: state.auth.userId,
@@ -93,21 +92,6 @@ const Test: React.FC<Props> = (props) => {
 
   return (
     <StudyScreen>
-      {state.testFinished && state.sentenceCheckStatus === 'pending' && (
-        <Box
-          sx={{
-            position: 'fixed',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            bgcolor: 'rgba(250, 248, 245, 0.78)',
-            zIndex: 1200,
-          }}
-        >
-          <CircularProgress aria-label={copy.study.loading} sx={{ color: colors.primaryDark }} />
-        </Box>
-      )}
       <StudyTop
         stage={copy.study.stageTest}
         done={answeredCount}

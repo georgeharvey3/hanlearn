@@ -1,5 +1,5 @@
 /**
- * The example sentences of the sentence stages and the hint.
+ * The example sentences of the Comprehend and Compose tabs, and of the hint.
  *
  * `npm run build:dict` writes them to `/sentences/` on Hosting, one file for
  * each first character of a word (#465, #469). A sentence costs one fetch of
@@ -42,13 +42,9 @@ export interface SegmentedSentenceResult {
   totalCount: number;
 }
 
-const SENTENCES_PER_WORD = 5;
-
-const ROTATION_KEY = 'sentenceRotation';
-
 /**
- * The files fetched in this session. A promise, so that the Read stage and the
- * availability check that start at the same moment share one fetch. A failed
+ * The files fetched in this session. A promise, so that two words of one file
+ * that load at the same moment share one fetch. A failed
  * fetch leaves the map, so the next call tries again.
  */
 const files = new Map<string, Promise<SentenceFile>>();
@@ -88,23 +84,16 @@ async function sentencesOf(word: string): Promise<FileSentence[]> {
 }
 
 /**
- * Returns where this session should start in a word's sentences, and moves the
- * stored start on by two so the next session begins past both the Read and the
- * Write sentence. Without it every session showed the same sentences.
+ * The ids of the sentences of each word, by its text, in file order. A word
+ * with no sentence has an empty list. The Comprehend and Compose tabs build
+ * their queue from it (#489).
  */
-export function takeSentenceStart(word: string): number {
-  try {
-    const rotation = JSON.parse(localStorage.getItem(ROTATION_KEY) ?? '{}') as Record<
-      string,
-      number
-    >;
-    const start = typeof rotation[word] === 'number' ? rotation[word] : 0;
-    rotation[word] = start + 2;
-    localStorage.setItem(ROTATION_KEY, JSON.stringify(rotation));
-    return start;
-  } catch {
-    return Math.floor(Math.random() * SENTENCES_PER_WORD);
-  }
+export async function sentenceIndexOf(words: string[]): Promise<Record<string, string[]>> {
+  const unique = Array.from(new Set(words));
+  const lists = await Promise.all(unique.map((word) => sentencesOf(word)));
+  return Object.fromEntries(
+    unique.map((word, i) => [word, lists[i].map((sentence) => sentence.id)]),
+  );
 }
 
 function calculateHighlightIndices(sentence: string, word: string): number[][] {
@@ -167,19 +156,25 @@ function withGaps(sentence: FileSentence): { segments: SentenceSegment[]; target
   return targetIndex === -1 ? unchanged : { segments, targetIndex };
 }
 
+/**
+ * One sentence of a word: the one with the id, or the first one when no id is
+ * given. No sentence when the word has none, or none with the id.
+ */
 export async function getSegmentedSentence(
   word: string,
   charSet: 'simp' | 'trad',
-  offset: number,
+  sentenceId?: string,
 ): Promise<SegmentedSentenceResult> {
   const examples = await sentencesOf(word);
+  const example =
+    sentenceId === undefined
+      ? examples[0]
+      : examples.find((candidate) => candidate.id === sentenceId);
 
-  if (examples.length === 0) {
-    return { sentence: null, totalCount: 0 };
+  if (!example) {
+    return { sentence: null, totalCount: examples.length };
   }
 
-  // Offsets wrap, so a rotating start never runs off the end of the list.
-  const example = examples[offset % examples.length];
   const { segments, targetIndex } = withGaps(example);
   const text = charSet === 'trad' ? example.trad : example.simp;
   const target = segments[targetIndex];
@@ -205,12 +200,4 @@ export async function getHintSentence(
   if (examples.length === 0) return null;
   const selected = examples[Math.floor(Math.random() * examples.length)];
   return { chinese: selected.simp, english: selected.english };
-}
-
-export async function checkSentenceAvailability(
-  word: string,
-  charSet: 'simp' | 'trad',
-): Promise<boolean> {
-  const result = await getSegmentedSentence(word, charSet, 0);
-  return result.sentence !== null;
 }

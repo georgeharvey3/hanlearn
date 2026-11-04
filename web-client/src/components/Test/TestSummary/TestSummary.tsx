@@ -10,6 +10,8 @@ import { StudyButton } from '../Study/parts';
 import ScoreCard from './ScoreCard';
 import WordTile from './WordTile';
 import { missedWords, summaryRows, tally } from './summary';
+import { TabStatuses } from '../../../services/sentenceTabsService';
+import { SENTENCE_TABS, SentenceTab } from '../../../utils/sentenceSettings';
 
 interface TestSummaryProps {
   scores: WordScore[];
@@ -19,6 +21,9 @@ interface TestSummaryProps {
   onHome: () => void;
   /** Starts a practice session of the words with a Nearly or Not known question. */
   onPracticeMissed: (words: Word[]) => void;
+  /** The status of the sentence tabs: a tab with nothing to practise gets no button. */
+  sentenceTabs?: TabStatuses | null;
+  onSentenceTab?: (tab: SentenceTab) => void;
 }
 
 /**
@@ -32,6 +37,8 @@ const TestSummary: React.FC<TestSummaryProps> = ({
   practiceMode,
   onHome,
   onPracticeMissed,
+  sentenceTabs,
+  onSentenceTab,
 }) => {
   const rows = useMemo(() => summaryRows(scores, words), [scores, words]);
   const counts = tally(rows);
@@ -132,6 +139,15 @@ const TestSummary: React.FC<TestSummaryProps> = ({
           gap: 1.25,
         }}
       >
+        {onSentenceTab && SENTENCE_TABS.some((tab) => sentenceTabs?.[tab].ready) && (
+          <Box sx={{ display: 'flex', gap: 1.25 }}>
+            {SENTENCE_TABS.filter((tab) => sentenceTabs?.[tab].ready).map((tab) => (
+              <StudyButton key={tab} onClick={() => onSentenceTab(tab)}>
+                {copy.sentenceTabs[tab]}
+              </StudyButton>
+            ))}
+          </Box>
+        )}
         {missed && (
           <StudyButton onClick={() => onPracticeMissed(missedWords(rows, words))}>
             {copy.summary.practiceMissed}

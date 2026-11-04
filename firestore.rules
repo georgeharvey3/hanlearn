@@ -221,6 +221,53 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // SentencePractice subcollection: the queue state of the Comprehend and
+      // Compose tabs, one document per word (#489). It lives outside
+      // userWords, so the scheduler's documents carry no sentence state.
+      function validTabPractice(p) {
+        return p is map
+          && p.keys().hasOnly(['lastPractised', 'lastResult', 'seen'])
+          && p.keys().hasAll(['lastPractised', 'lastResult', 'seen'])
+          && p.lastPractised is timestamp
+          && p.lastResult in ['right', 'wrong']
+          && p.seen is map
+          && p.seen.size() <= 500;
+      }
+
+      match /sentencePractice/{wordId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create, update: if request.auth != null && request.auth.uid == userId
+          && request.resource.data.keys().hasOnly(['comprehend', 'compose'])
+          && (!('comprehend' in request.resource.data) || validTabPractice(request.resource.data.comprehend))
+          && (!('compose' in request.resource.data) || validTabPractice(request.resource.data.compose));
+        allow delete: if false;
+      }
+
+      // SentenceLog subcollection: one write-once entry per sentence grade,
+      // to measure the tabs (#489). `answer` is the raw Compose answer.
+      match /sentenceLog/{logId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId
+          && request.resource.data.keys().hasOnly(['version', 'date', 'reviewedAt', 'wordId', 'sentenceId', 'tab', 'grade', 'mode', 'answer', 'answerMs', 'revealed', 'lookups'])
+          && request.resource.data.keys().hasAll(['version', 'date', 'reviewedAt', 'wordId', 'sentenceId', 'tab', 'grade', 'mode', 'answerMs', 'revealed', 'lookups'])
+          && request.resource.data.version == 1
+          && request.resource.data.date is string
+          && request.resource.data.reviewedAt is timestamp
+          && request.resource.data.wordId is number
+          && request.resource.data.sentenceId is string
+          && request.resource.data.tab in ['comprehend', 'compose']
+          && request.resource.data.grade in ['right', 'wrong']
+          && request.resource.data.mode in ['audio', 'text']
+          && (!('answer' in request.resource.data)
+            || (request.resource.data.tab == 'compose'
+              && request.resource.data.answer is string
+              && request.resource.data.answer.size() <= 500))
+          && request.resource.data.answerMs is number
+          && request.resource.data.revealed is bool
+          && request.resource.data.lookups is int;
+        allow update, delete: if false;
+      }
+
       // TestCompletions subcollection (streak tracking)
       match /testCompletions/{dateId} {
         allow read: if request.auth != null && request.auth.uid == userId;

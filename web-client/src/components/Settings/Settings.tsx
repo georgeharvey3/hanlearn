@@ -13,7 +13,6 @@ import { colors, fonts } from '../../theme';
 import { copy } from '../../copy';
 import {
   assumedNewWordCount,
-  assumedWriteWordCount,
   estimateTestTime,
   formatTestTime,
   spreadOverDirections,
@@ -42,7 +41,7 @@ import {
   setQuizType,
 } from '../../utils/audioSettings';
 import { ChipGroup, FoldGroup, Trail, SegmentedRow, StepperRow, SwitchRow } from './controls';
-import { autoRecordBlock, sentenceReadBlock, ttsBlock, newWordsBlock, quizOptions } from './rules';
+import { autoRecordBlock, ttsBlock, newWordsBlock, quizOptions } from './rules';
 
 type Priority = 'none' | 'MP' | 'PM' | 'MC' | 'PC' | 'CM';
 
@@ -55,9 +54,6 @@ const FLAGS = {
   useSoundEffects: true,
   useAutoRecord: true,
   newWords: true,
-  sentenceRead: true,
-  sentenceWrite: true,
-  sentenceStagesForAllWords: false,
   onlyPriority: false,
 };
 
@@ -205,17 +201,12 @@ const Settings: React.FC<PropsFromRedux> = ({
     useSound: ttsBlock(synthAvailable),
     useAutoRecord: autoRecordBlock(speechAvailable, values.meaningQuizType, values.pinyinQuizType),
     newWords: newWordsBlock(synthAvailable),
-    sentenceRead: sentenceReadBlock(speechAvailable),
-    sentenceStagesForAllWords:
-      speechAvailable && values.sentenceRead ? null : copy.settings.needsRead,
   };
 
   // What a switch shows: a blocked switch reads as off.
   const shown = {
     useSound: values.useSound && !block.useSound,
     newWords: values.newWords && !block.newWords,
-    sentenceRead: values.sentenceRead && !block.sentenceRead,
-    sentenceStagesForAllWords: values.sentenceStagesForAllWords && !block.sentenceStagesForAllWords,
   };
 
   // The page has no word list, so it estimates an average session: the
@@ -233,11 +224,7 @@ const Settings: React.FC<PropsFromRedux> = ({
             }),
           ),
           newWordCount: assumedNewWordCount(values.questionsPerSession),
-          writeWordCount: assumedWriteWordCount(values.questionsPerSession),
           newWordsEnabled: shown.newWords,
-          sentenceReadEnabled: shown.sentenceRead,
-          sentenceWriteEnabled: values.sentenceWrite,
-          sentenceStagesForAllWords: shown.sentenceStagesForAllWords,
         }),
       ),
     [
@@ -245,10 +232,7 @@ const Settings: React.FC<PropsFromRedux> = ({
       values.useHandwriting,
       values.priority,
       values.onlyPriority,
-      values.sentenceWrite,
       shown.newWords,
-      shown.sentenceRead,
-      shown.sentenceStagesForAllWords,
     ],
   );
 
@@ -265,16 +249,7 @@ const Settings: React.FC<PropsFromRedux> = ({
         : values.onlyPriority
           ? text.onlySummary(text[values.priority])
           : text[values.priority],
-    stages: (
-      <Trail
-        names={present(
-          shown.newWords && text.newWords,
-          text.test,
-          shown.sentenceRead && text.sentenceRead,
-          values.sentenceWrite && text.sentenceWrite,
-        )}
-      />
-    ),
+    stages: <Trail names={present(shown.newWords && text.newWords, text.test)} />,
     sentences: text.sentencesSummary(values.comprehendPerSet, values.composePerSet),
     sound: text.soundSummary(
       present(shown.useSound && text.useSound, values.useSoundEffects && text.useSoundEffects),
@@ -387,18 +362,7 @@ const Settings: React.FC<PropsFromRedux> = ({
         </>,
       )}
 
-      {group(
-        'stages',
-        <>
-          {flagRow('newWords', block.newWords)}
-          {flagRow('sentenceRead', block.sentenceRead)}
-          {/* Widens the Read stage only. Make sentences keeps its own gate,
-              because writing with a word the learner has only just met impedes
-              learning it. See docs/adr/0011-gate-the-write-stage-on-partial-mastery.md. */}
-          {flagRow('sentenceStagesForAllWords', block.sentenceStagesForAllWords)}
-          {flagRow('sentenceWrite')}
-        </>,
-      )}
+      {group('stages', <>{flagRow('newWords', block.newWords)}</>)}
 
       {group(
         'sentences',

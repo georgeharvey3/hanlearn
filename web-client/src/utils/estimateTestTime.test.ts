@@ -2,10 +2,9 @@ import { describe, it, expect } from 'vitest';
 
 import { Direction, QueuePair, Word } from '../types/models';
 import { SessionPlan } from '../components/Test/Logic/TestLogic';
-import { makeDirections, WRITE_STAGE_BANK } from './directions';
+import { makeDirections } from './directions';
 import {
   assumedNewWordCount,
-  assumedWriteWordCount,
   estimatePlannedTime,
   estimateTestTime,
   formatTestTime,
@@ -16,147 +15,49 @@ import {
 
 const ALL_DIRECTIONS: Direction[] = ['MC', 'MP', 'PM', 'PC', 'CM'];
 
-const stages: StageSettings = {
-  newWordsEnabled: true,
-  sentenceReadEnabled: true,
-  sentenceWriteEnabled: true,
-  sentenceStagesForAllWords: false,
-};
+const stages: StageSettings = { newWordsEnabled: true };
 
 const defaults: TestTimeEstimateParams = {
   ...stages,
   directions: ALL_DIRECTIONS,
   newWordCount: 1,
-  writeWordCount: 1,
 };
 
 describe('estimateTestTime', () => {
   it('adds up the seconds of the directions the session asks', () => {
-    const result = estimateTestTime({
-      ...defaults,
-      newWordsEnabled: false,
-      sentenceReadEnabled: false,
-      sentenceWriteEnabled: false,
-    });
+    const result = estimateTestTime({ ...defaults, newWordsEnabled: false });
     // MC 10 + MP 8 + PM 8 + PC 10 + CM 15
     expect(result).toBe(51);
   });
 
-  it('calculates time for a default session', () => {
+  it('calculates time for a default session, with no time for sentences', () => {
     const result = estimateTestTime(defaults);
     // Questions: 51
     // New words: 1 * 5 = 5
-    // Sentence read: 1 * 30, sentence write: 1 * 30
-    expect(result).toBe(116);
+    expect(result).toBe(56);
   });
 
   it('costs a handwriting question more than a listening one', () => {
-    const questions: StageSettings = {
-      newWordsEnabled: false,
-      sentenceReadEnabled: false,
-      sentenceWriteEnabled: false,
-      sentenceStagesForAllWords: false,
-    };
-    const handwriting = estimateTestTime({
-      ...questions,
-      directions: ['CM'],
-      newWordCount: 0,
-      writeWordCount: 0,
-    });
-    const listening = estimateTestTime({
-      ...questions,
-      directions: ['MP'],
-      newWordCount: 0,
-      writeWordCount: 0,
-    });
-    expect(handwriting).toBe(15);
-    expect(listening).toBe(8);
+    const questions = { newWordsEnabled: false, newWordCount: 0 };
+    expect(estimateTestTime({ ...questions, directions: ['CM'] })).toBe(15);
+    expect(estimateTestTime({ ...questions, directions: ['MP'] })).toBe(8);
   });
 
   it('scales with the number of questions', () => {
-    const options = {
-      ...defaults,
-      newWordCount: 0,
-      newWordsEnabled: false,
-      sentenceReadEnabled: false,
-      sentenceWriteEnabled: false,
-    };
+    const options = { ...defaults, newWordCount: 0, newWordsEnabled: false };
     const one = estimateTestTime({ ...options, directions: ['MC'] });
     const ten = estimateTestTime({ ...options, directions: Array(10).fill('MC') });
     expect(ten).toBe(one * 10);
   });
 
-  it('counts the Read stage for the new words and the Write stage for the ready ones', () => {
-    const result = estimateTestTime({
-      ...defaults,
-      directions: Array(10).fill('MC'),
-      newWordCount: 2,
-      writeWordCount: 3,
-      newWordsEnabled: false,
-    });
-    // Questions: 10 * 10 = 100
-    // Sentence read: 2 * 30 = 60, sentence write: 3 * 30 = 90
-    expect(result).toBe(250);
-  });
-
-  it('widens the Read stage only when the setting is on', () => {
-    const result = estimateTestTime({
-      ...defaults,
-      directions: Array(10).fill('MC'),
-      newWordCount: 2,
-      writeWordCount: 2,
-      newWordsEnabled: false,
-      sentenceStagesForAllWords: true,
-    });
-    // Questions: 100
-    // Sentence read: 10 * 30 = 300, sentence write: still 2 * 30 = 60
-    expect(result).toBe(460);
-  });
-
-  it('adds nothing for a stage that is off', () => {
-    const vocabOnly = estimateTestTime({
-      ...defaults,
-      newWordCount: 3,
-      writeWordCount: 3,
-      newWordsEnabled: false,
-      sentenceReadEnabled: false,
-      sentenceWriteEnabled: false,
-    });
-    const withNewWords = estimateTestTime({
-      ...defaults,
-      newWordCount: 3,
-      writeWordCount: 3,
-      newWordsEnabled: true,
-      sentenceReadEnabled: false,
-      sentenceWriteEnabled: false,
-    });
+  it('adds the new words only when the Learn step is on', () => {
+    const vocabOnly = estimateTestTime({ ...defaults, newWordCount: 3, newWordsEnabled: false });
+    const withNewWords = estimateTestTime({ ...defaults, newWordCount: 3, newWordsEnabled: true });
     expect(withNewWords - vocabOnly).toBe(3 * 5);
-
-    const withSentenceRead = estimateTestTime({
-      ...defaults,
-      newWordCount: 3,
-      writeWordCount: 3,
-      newWordsEnabled: false,
-      sentenceReadEnabled: true,
-      sentenceWriteEnabled: false,
-    });
-    expect(withSentenceRead - vocabOnly).toBe(3 * 30);
-
-    const withSentenceWrite = estimateTestTime({
-      ...defaults,
-      newWordCount: 3,
-      writeWordCount: 3,
-      newWordsEnabled: false,
-      sentenceReadEnabled: false,
-      sentenceWriteEnabled: true,
-    });
-    expect(withSentenceWrite - vocabOnly).toBe(3 * 30);
   });
 
   it('is zero for a session with no questions and no new words', () => {
-    expect(
-      estimateTestTime({ ...defaults, directions: [], newWordCount: 0, writeWordCount: 0 }),
-    ).toBe(0);
+    expect(estimateTestTime({ ...defaults, directions: [], newWordCount: 0 })).toBe(0);
   });
 });
 
@@ -195,16 +96,6 @@ describe('assumedNewWordCount', () => {
   });
 });
 
-describe('assumedWriteWordCount', () => {
-  it('assumes a fifth of the session has reached the Write stage gate', () => {
-    expect(assumedWriteWordCount(25)).toBe(5);
-  });
-
-  it('assumes at least one such word', () => {
-    expect(assumedWriteWordCount(5)).toBe(1);
-  });
-});
-
 describe('estimatePlannedTime', () => {
   const word = (id: number, level = 1): Word => ({
     id,
@@ -232,21 +123,7 @@ describe('estimatePlannedTime', () => {
     const result = estimatePlannedTime(plan, stages);
     // Questions: MC 10 + CM 15 + MP 8 = 33
     // New words: 1 * 5 = 5
-    // Sentence read: 1 * 30. No word has reached the Write stage gate.
-    expect(result).toBe(68);
-  });
-
-  it('counts the words that have reached the Write stage gate', () => {
-    const plan: SessionPlan = {
-      words: [word(1), word(2, WRITE_STAGE_BANK), word(3, WRITE_STAGE_BANK)],
-      queue: [pair(0, 'MC'), pair(1, 'CM'), pair(2, 'MP')],
-      newWords: [word(1)],
-    };
-
-    const result = estimatePlannedTime(plan, stages);
-    // Questions: 33, new words: 5, sentence read: 1 * 30
-    // Sentence write: 2 * 30 = 60
-    expect(result).toBe(128);
+    expect(result).toBe(38);
   });
 
   it('is zero for an empty plan', () => {

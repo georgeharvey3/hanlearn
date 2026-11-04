@@ -32,9 +32,6 @@ const session = (overrides: Partial<SavedSession> = {}): SavedSession => ({
   practiceMode: false,
   wordIds: [1, 2],
   newWordIds: [1],
-  sentenceReadWordIds: [],
-  sentenceWriteWordIds: [],
-  seenOffsets: {},
   scoreList: [],
   queue: [{ index: '1', aCategory: 'M', qCategory: 'C' }],
   gradeList: [{ wordId: 1, direction: 'MC', result: 'pass', toneErrors: 0 }],
@@ -135,8 +132,26 @@ describe('loadResumableSession', () => {
     expect(localStorage.getItem(SAVED_SESSION_KEY)).toBeNull();
   });
 
-  it('offers a sentence stage even though its queue is empty', () => {
-    saveSession(session({ stage: 'read', queue: [] }));
+  it('drops a record from before #489 that stopped at a sentence stage', () => {
+    localStorage.setItem(
+      SAVED_SESSION_KEY,
+      JSON.stringify({
+        ...session(),
+        stage: 'read',
+        sentenceReadWordIds: [1],
+        sentenceWriteWordIds: [],
+        seenOffsets: {},
+      }),
+    );
+    expect(loadResumableSession('user-1', 'default')).toBeNull();
+    expect(localStorage.getItem(SAVED_SESSION_KEY)).toBeNull();
+  });
+
+  it('still offers a record from before #489 at the vocab stage', () => {
+    localStorage.setItem(
+      SAVED_SESSION_KEY,
+      JSON.stringify({ ...session(), sentenceReadWordIds: [], seenOffsets: {} }),
+    );
     expect(loadResumableSession('user-1', 'default')).not.toBeNull();
   });
 });
@@ -186,8 +201,7 @@ describe('describeSavedSession', () => {
     ).toBe('2 questions left');
   });
 
-  it('names the other stages', () => {
+  it('names the new word stage', () => {
     expect(describeSavedSession(session({ stage: 'new' }))).toBe('Learning new words');
-    expect(describeSavedSession(session({ stage: 'write' }))).toBe('Sentences');
   });
 });

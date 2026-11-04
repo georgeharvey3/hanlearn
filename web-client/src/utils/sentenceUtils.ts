@@ -52,6 +52,8 @@ export interface ResolvedSentence {
     words: (string | SentenceWord)[];
     highlight: number[][];
     targetIndex: number;
+    /** The entry of the target segment, or null when it has none. */
+    target: SentenceWord | null;
   };
   english: {
     sentence: string;
@@ -68,17 +70,19 @@ export function resolveSentence(
   sentence: SegmentedSentence,
   charSet: 'simp' | 'trad',
 ): ResolvedSentence {
+  const entryOf = (segment: SentenceSegment): SentenceWord => ({
+    id: `${segment.s} ${segment.p}`,
+    simp: segment.s,
+    trad: segment.t,
+    pinyin: segment.p,
+    meaning: segment.e,
+  });
   const words = sentence.chinese.segments.map((segment, i): string | SentenceWord => {
     const text = charSet === 'trad' ? segment.t : segment.s;
     if (i === sentence.chinese.targetIndex || !segment.p) return text;
-    return {
-      id: `${segment.s} ${segment.p}`,
-      simp: segment.s,
-      trad: segment.t,
-      pinyin: segment.p,
-      meaning: segment.e,
-    };
+    return entryOf(segment);
   });
+  const targetSegment = sentence.chinese.segments[sentence.chinese.targetIndex];
 
   return {
     id: sentence.id,
@@ -87,6 +91,7 @@ export function resolveSentence(
       highlight: sentence.chinese.highlight,
       targetIndex: sentence.chinese.targetIndex,
       words,
+      target: targetSegment?.p ? entryOf(targetSegment) : null,
     },
     english: sentence.english,
   };
@@ -114,7 +119,7 @@ export async function dictionaryEntryOf(word: SentenceWord): Promise<Word | null
 
 /**
  * Match selected English text against the meaning fields of resolved Chinese sentence words.
- * Used in SentenceWrite to provide English→Chinese translation hints.
+ * Used in the Compose tab to give English→Chinese translation hints.
  */
 export function matchEnglishToSentenceWords(
   englishQuery: string,

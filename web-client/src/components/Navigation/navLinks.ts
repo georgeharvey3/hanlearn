@@ -3,6 +3,8 @@ export const routes = {
   home: '/',
   add: '/add-words',
   study: '/test-words',
+  comprehend: '/comprehend',
+  compose: '/compose',
   settings: '/settings',
 } as const;
 

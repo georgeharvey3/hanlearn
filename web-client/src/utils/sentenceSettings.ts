@@ -8,6 +8,8 @@
  */
 export type SentenceTab = 'comprehend' | 'compose';
 
+export const SENTENCE_TABS: readonly SentenceTab[] = ['comprehend', 'compose'];
+
 export const SET_SIZE_MIN = 1;
 export const SET_SIZE_MAX = 10;
 export const SET_SIZE_STEP = 1;
