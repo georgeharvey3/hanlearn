@@ -80,10 +80,21 @@ beforeEach(() => {
     return null;
   });
   vi.mocked(fetchAlternatives).mockResolvedValue([]);
+  // The demo always asks handwriting, and the plan's shuffle is seeded by the
+  // date, so on some days its first question writes a character.
+  (window as any).HanziWriter = {
+    create: vi.fn().mockReturnValue({
+      quiz: vi.fn(),
+      cancelQuiz: vi.fn(),
+      showOutline: vi.fn(),
+      hideOutline: vi.fn(),
+    }),
+  };
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  delete (window as any).HanziWriter;
 });
 
 /**
