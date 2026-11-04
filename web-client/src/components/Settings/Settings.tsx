@@ -27,6 +27,14 @@ import {
   writeQuestionsPerSession,
 } from '../../utils/sessionSettings';
 import {
+  SET_SIZE_MAX,
+  SET_SIZE_MIN,
+  SET_SIZE_STEP,
+  SentenceTab,
+  readSetSize,
+  writeSetSize,
+} from '../../utils/sentenceSettings';
+import {
   QuizCategory,
   QuizType,
   applyAudioSession,
@@ -38,7 +46,7 @@ import { autoRecordBlock, sentenceReadBlock, ttsBlock, newWordsBlock, quizOption
 
 type Priority = 'none' | 'MP' | 'PM' | 'MC' | 'PC' | 'CM';
 
-type Group = 'session' | 'answers' | 'focus' | 'stages' | 'sound' | 'account';
+type Group = 'session' | 'answers' | 'focus' | 'stages' | 'sentences' | 'sound' | 'account';
 
 // The settings that are a plain flag in localStorage, and their defaults.
 const FLAGS = {
@@ -58,6 +66,8 @@ type Flag = keyof typeof FLAGS;
 interface Values extends Record<Flag, boolean> {
   charSet: 'simp' | 'trad';
   questionsPerSession: number;
+  comprehendPerSet: number;
+  composePerSet: number;
   meaningQuizType: QuizType;
   pinyinQuizType: QuizType;
   priority: Priority;
@@ -80,6 +90,8 @@ const readValues = (): Values => {
     ...flags,
     charSet: localStorage.getItem('charSet') === 'simp' ? 'simp' : 'trad',
     questionsPerSession: readQuestionsPerSession(),
+    comprehendPerSet: readSetSize('comprehend'),
+    composePerSet: readSetSize('compose'),
     meaningQuizType: getQuizType('meaning'),
     pinyinQuizType: getQuizType('pinyin'),
     priority: readPriority(),
@@ -157,6 +169,14 @@ const Settings: React.FC<PropsFromRedux> = ({
     writeQuestionsPerSession(questionsPerSession);
     setValues((prev) => ({ ...prev, questionsPerSession }));
   }, []);
+
+  const setSetSize = useCallback(
+    (tab: SentenceTab) => (size: number) => {
+      writeSetSize(tab, size);
+      setValues((prev) => ({ ...prev, [`${tab}PerSet`]: readSetSize(tab) }));
+    },
+    [],
+  );
 
   const setCharSet = useCallback((charSet: Values['charSet']) => {
     localStorage.setItem('charSet', charSet);
@@ -248,6 +268,7 @@ const Settings: React.FC<PropsFromRedux> = ({
         )}
       />
     ),
+    sentences: text.sentencesSummary(values.comprehendPerSet, values.composePerSet),
     sound: text.soundSummary(
       present(shown.useSound && text.useSound, values.useSoundEffects && text.useSoundEffects),
     ),
@@ -369,6 +390,32 @@ const Settings: React.FC<PropsFromRedux> = ({
               learning it. See docs/adr/0011-gate-the-write-stage-on-partial-mastery.md. */}
           {flagRow('sentenceStagesForAllWords', block.sentenceStagesForAllWords)}
           {flagRow('sentenceWrite')}
+        </>,
+      )}
+
+      {group(
+        'sentences',
+        <>
+          <StepperRow
+            label={text.comprehendPerSet}
+            value={values.comprehendPerSet}
+            min={SET_SIZE_MIN}
+            max={SET_SIZE_MAX}
+            step={SET_SIZE_STEP}
+            fewerLabel={text.fewerTasks}
+            moreLabel={text.moreTasks}
+            onChange={setSetSize('comprehend')}
+          />
+          <StepperRow
+            label={text.composePerSet}
+            value={values.composePerSet}
+            min={SET_SIZE_MIN}
+            max={SET_SIZE_MAX}
+            step={SET_SIZE_STEP}
+            fewerLabel={text.fewerTasks}
+            moreLabel={text.moreTasks}
+            onChange={setSetSize('compose')}
+          />
         </>,
       )}
 

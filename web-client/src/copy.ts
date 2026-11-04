@@ -97,6 +97,7 @@ export const copy = {
     answers: 'Answers',
     focus: 'Skill focus',
     stages: 'Session stages',
+    sentences: 'Sentences',
     sound: 'Sound',
     account: 'Account',
     // Session
@@ -129,6 +130,12 @@ export const copy = {
     sentenceRead: 'Translate sentences',
     sentenceStagesForAllWords: 'Translate with all words',
     sentenceWrite: 'Make sentences',
+    // Sentences: the size of one set of each sentence tab
+    comprehendPerSet: 'Comprehend per set',
+    composePerSet: 'Compose per set',
+    // The buttons of a set size; the group is named by its row
+    fewerTasks: 'Fewer',
+    moreTasks: 'More',
     // Sound
     useSound: 'Text-to-speech',
     useSoundEffects: 'Sound effects',
@@ -148,6 +155,8 @@ export const copy = {
     onlySummary: (skill: string) => `${skill} only`,
     // Between two stages in the closed header, for a screen reader. An arrow shows it on screen.
     stageSeparator: ', ',
+    sentencesSummary: (comprehend: number, compose: number) =>
+      `Comprehend ${comprehend} · Compose ${compose}`,
     soundSummary: (sounds: string[]) => sounds.join(' · ') || 'Off',
     credits: 'Credits',
   },

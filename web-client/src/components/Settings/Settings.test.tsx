@@ -58,6 +58,7 @@ describe('Settings — accessibility', () => {
       'Answers',
       'Skill focus',
       'Session stages',
+      'Sentences',
       'Sound',
       'Account',
     ]) {
@@ -75,6 +76,7 @@ describe('Settings — groups', () => {
       'Answers',
       'Skill focus',
       'Session stages',
+      'Sentences',
       'Sound',
       'Account',
     ]) {
@@ -293,6 +295,35 @@ describe('Settings — Stages', () => {
     await open(user, 'Session stages');
     await user.click(screen.getByRole('switch', { name: 'Make sentences' }));
     expect(header('Study session').textContent).not.toBe(before);
+  });
+});
+
+describe('Settings — Sentences', () => {
+  it('shows the size of each set in the closed header, 5 by default', () => {
+    renderSettings();
+    expect(header('Sentences')).toHaveTextContent('Comprehend 5 · Compose 5');
+  });
+
+  it('stores the size of each set on its own, from 1 to 10', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('comprehendPerSet', '9');
+    localStorage.setItem('composePerSet', '2');
+    renderSettings();
+    await open(user, 'Sentences');
+
+    const comprehend = within(screen.getByRole('group', { name: 'Comprehend per set' }));
+    const compose = within(screen.getByRole('group', { name: 'Compose per set' }));
+
+    const more = comprehend.getByRole('button', { name: 'More' });
+    await user.click(more);
+    expect(localStorage.getItem('comprehendPerSet')).toBe('10');
+    expect(more).toBeDisabled();
+
+    const fewer = compose.getByRole('button', { name: 'Fewer' });
+    await user.click(fewer);
+    expect(localStorage.getItem('composePerSet')).toBe('1');
+    expect(fewer).toBeDisabled();
+    expect(localStorage.getItem('comprehendPerSet')).toBe('10');
   });
 });
 
