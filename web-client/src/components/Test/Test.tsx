@@ -67,6 +67,7 @@ const Test: React.FC<Props> = (props) => {
     onToggleShowPinyin,
     onToggleComponents,
     onContinue,
+    onCountAsKnown,
     onToggleDisambiguator,
     refreshSettings,
   } = useTestEngine(props);
@@ -151,6 +152,7 @@ const Test: React.FC<Props> = (props) => {
         onNearlyKnew={onNearlyKnew}
         onSubmitAnswer={onSubmitAnswer}
         onContinue={onContinue}
+        onCountAsKnown={onCountAsKnown}
       />
       <AudioSettingsDrawer
         open={settingsDrawerOpen}

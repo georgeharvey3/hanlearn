@@ -146,7 +146,8 @@ users/{userId}/
             after: { stability, difficulty, interval },
             position?, toneErrors, misses?, hint?, revealed?, answerMs?, answer?,
             alternatives?,       # The alternative answers sent, in order (#348)
-            disambiguator?       # Whether the cue that names the word showed; free (#396)
+            disambiguator?,      # Whether the cue that names the word showed; free (#396)
+            overridden?          # A stroke-check lapse counted as known: grade 'pass' (#475)
           }]
 
 words/{wordId}                   # Read-only shared dictionary (admin-managed)

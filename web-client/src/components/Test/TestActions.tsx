@@ -8,6 +8,7 @@ import { colors, fonts } from '../../theme';
 import { ButtonSpinner, StudyButton } from './Study/parts';
 import { answerQuizType } from './answerQuizType';
 import { fail } from './constants';
+import { canCountAsKnown } from './countAsKnown';
 
 interface TestActionsProps {
   state: TestState;
@@ -18,6 +19,7 @@ interface TestActionsProps {
   onNearlyKnew: () => void;
   onSubmitAnswer: () => void;
   onContinue: () => void;
+  onCountAsKnown: () => void;
 }
 
 const gradeTone: Record<DirectionResult, { ink: string; surface: string }> = {
@@ -89,6 +91,7 @@ const TestActions: React.FC<TestActionsProps> = ({
   onNearlyKnew,
   onSubmitAnswer,
   onContinue,
+  onCountAsKnown,
 }) => {
   const flashcard = state.answerCategory !== 'character' && answerQuizType(state) === 'flashcard';
   const spokenQuestion = state.questionCategory === 'pinyin' && state.useSound;
@@ -171,6 +174,18 @@ const TestActions: React.FC<TestActionsProps> = ({
   // A character that is not known plays its strokes first, with the two
   // buttons switched off, and then waits for Continue.
   if (graded && (state.awaitingContinue || state.answerCategory !== 'character')) {
+    // The stroke check can count a correct stroke as a miss, so a drawn
+    // character it capped at a lapse can count as known. See issue #475.
+    if (canCountAsKnown(state)) {
+      return (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+          <StudyButton onClick={onCountAsKnown} id="count-as-known">
+            {copy.test.countAsKnown}
+          </StudyButton>
+          {continueButton}
+        </Box>
+      );
+    }
     return continueButton || null;
   }
 

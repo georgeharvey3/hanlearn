@@ -36,6 +36,7 @@ import {
   takesAlternatives,
 } from '../../utils/alternativeAnswers';
 import { CurrentQuestion } from '../../utils/savedSession';
+import { canCountAsKnown } from './countAsKnown';
 
 /**
  * Misses on one stroke before the handwriting quiz shows the stroke outline.
@@ -70,6 +71,7 @@ const GRADE_DETAIL_KEYS = [
   'answer',
   'alternatives',
   'disambiguator',
+  'overridden',
 ] as const satisfies readonly (keyof GradeDetail)[];
 
 /** How the learner got to a grade, with each field the grade does not hold left out. */
@@ -402,13 +404,14 @@ export const useTestEngine = (props: Props) => {
    * written with setStateMerged, and `getState` reads a ref that React updates
    * after the render, so the last one is not in state yet when a caller
    * finishes in the same tick. A caller that already waited passes it again,
-   * and the identity check below drops the duplicate.
+   * and the position check below drops the duplicate. It compares positions,
+   * not objects, because "Count as known" replaces the grade in the list.
    */
   const onFinishTest = useCallback(
     (lastGrade?: DirectionGrade | null): void => {
       const current = getState();
       const gradeList =
-        lastGrade && !current.gradeList.includes(lastGrade)
+        lastGrade && !current.gradeList.some((grade) => grade.position === lastGrade.position)
           ? current.gradeList.concat(lastGrade)
           : current.gradeList;
       const answerInput = document.getElementById('answer-input');
@@ -1107,6 +1110,25 @@ export const useTestEngine = (props: Props) => {
     advance?.();
   }, [setStateMerged]);
 
+  /**
+   * Change the stroke-check lapse of the current drawn character to a pass.
+   * The grade keeps its misses and records the override, so the review log
+   * can tell it from a pass the learner drew. It is one-way. See issue #475.
+   */
+  const onCountAsKnown = useCallback((): void => {
+    setStateMerged((prevState) => {
+      const last = prevState.gradeList[prevState.gradeList.length - 1];
+      if (!canCountAsKnown(prevState) || last?.result !== 'lapse') return {};
+      return {
+        gradeList: prevState.gradeList
+          .slice(0, -1)
+          .concat({ ...last, result: 'pass', overridden: true }),
+        outcome: 'pass',
+        gradeCap: 'pass',
+      };
+    });
+  }, [setStateMerged]);
+
   const onToggleShowPinyin = useCallback((): void => {
     const current = getState();
     if (current.questionCategory === 'pinyin') {
@@ -1627,6 +1649,7 @@ export const useTestEngine = (props: Props) => {
     onToggleShowPinyin,
     onToggleComponents,
     onContinue,
+    onCountAsKnown,
     onToggleDisambiguator,
     refreshSettings,
   };

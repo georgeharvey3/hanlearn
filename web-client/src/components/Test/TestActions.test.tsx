@@ -49,6 +49,7 @@ const renderActions = (overrides: Partial<TestState> = {}) => {
     onNearlyKnew: vi.fn(),
     onSubmitAnswer: vi.fn(),
     onContinue: vi.fn(),
+    onCountAsKnown: vi.fn(),
   };
   render(<TestActions state={{ ...baseState, ...overrides } as TestState} {...handlers} />);
   return handlers;
@@ -168,5 +169,36 @@ describe('TestActions — a flashcard', () => {
     expect(screen.getByRole('button', { name: 'No' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Yes' })).toBeDisabled();
     expect(screen.queryByText('Did you know it?')).not.toBeInTheDocument();
+  });
+});
+
+// The stroke check can count a correct stroke as a miss. See issue #475.
+describe('TestActions count as known', () => {
+  const drawnLapse = {
+    answerCategory: 'character',
+    questionCategory: 'meaning',
+    outcome: 'lapse',
+    gradeCap: 'lapse',
+    hintShown: false,
+    awaitingContinue: true,
+  } as Partial<TestState>;
+
+  it('offers the button beside Continue after a stroke-check lapse', () => {
+    const handlers = renderActions(drawnLapse);
+
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Count as known' }));
+    expect(handlers.onCountAsKnown).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['a hint', { hintShown: true }],
+    ['a pass', { outcome: 'pass', gradeCap: 'pass' }],
+    ['a fail', { outcome: 'fail' }],
+    ['a typed lapse', { answerCategory: 'meaning', questionCategory: 'character' }],
+  ] as const)('offers no button after %s', (_, overrides) => {
+    renderActions({ ...drawnLapse, ...(overrides as Partial<TestState>) });
+
+    expect(screen.queryByRole('button', { name: 'Count as known' })).not.toBeInTheDocument();
   });
 });

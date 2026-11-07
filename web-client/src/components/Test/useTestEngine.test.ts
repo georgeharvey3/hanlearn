@@ -91,6 +91,7 @@ vi.mock('pinyin-pro', () => ({
 import { renderHook, act } from '@testing-library/react';
 import { pinyin } from 'pinyin-pro';
 import { useTestEngine } from './useTestEngine';
+import { canCountAsKnown } from './countAsKnown';
 import { Word } from '../../types/models';
 import { Props } from './types';
 
@@ -1384,19 +1385,22 @@ describe('useTestEngine — how the learner got to the grade', () => {
       vi.useRealTimers();
     });
 
-    function handwritingQuestion() {
-      const result = typedQuestion({
-        answerCategory: 'character',
-        questionCategory: 'meaning',
-        answer: '你',
-        chosenCharacter: '你',
-        useHandwriting: true,
-        writer: null,
-        currentPair: characterPair,
-        testSet: [makeWord({ simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' })],
-        queue: [characterPair, meaningPair],
-        qNum: 1,
-      });
+    function handwritingQuestion(queue = [characterPair, meaningPair], props: Partial<Props> = {}) {
+      const result = typedQuestion(
+        {
+          answerCategory: 'character',
+          questionCategory: 'meaning',
+          answer: '你',
+          chosenCharacter: '你',
+          useHandwriting: true,
+          writer: null,
+          currentPair: characterPair,
+          testSet: [makeWord({ simp: '你', trad: '你', pinyin: 'nǐ', meaning: 'you' })],
+          queue,
+          qNum: 1,
+        },
+        props,
+      );
       mockWriter.quiz.mockClear();
       act(() => {
         result.current.setStateMerged({ qNum: 2 } as any);
@@ -1444,6 +1448,110 @@ describe('useTestEngine — how the learner got to the grade', () => {
         result: 'lapse',
         hint: false,
         misses: 1,
+      });
+    });
+
+    /** Draw the character with five misses on one stroke, and grade it. */
+    function strokeCheckLapse(result: ReturnType<typeof handwritingQuestion>['result'], quiz: any) {
+      act(() => {
+        quiz.onMistake({ mistakesOnStroke: 5, strokeNum: 0, totalMistakes: 5 });
+        quiz.onComplete();
+      });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+    }
+
+    // The stroke check can count a correct stroke as a miss. See issue #475.
+    describe('count as known', () => {
+      it('changes a stroke-check lapse to a pass, once', () => {
+        const { result, quiz } = handwritingQuestion();
+        strokeCheckLapse(result, quiz);
+
+        expect(canCountAsKnown(result.current.state)).toBe(true);
+        act(() => {
+          result.current.onCountAsKnown();
+        });
+
+        expect(result.current.state.gradeList).toHaveLength(1);
+        expect(result.current.state.gradeList[0]).toMatchObject({
+          direction: 'CM',
+          result: 'pass',
+          misses: 1,
+          overridden: true,
+        });
+        expect(result.current.state.outcome).toBe('pass');
+        expect(result.current.state.gradeCap).toBe('pass');
+        expect(canCountAsKnown(result.current.state)).toBe(false);
+      });
+
+      it('is not offered after a hint, with or without five misses', () => {
+        const { result, quiz } = handwritingQuestion();
+        act(() => {
+          result.current.onHint();
+        });
+        strokeCheckLapse(result, quiz);
+
+        expect(result.current.state.outcome).toBe('lapse');
+        expect(canCountAsKnown(result.current.state)).toBe(false);
+        act(() => {
+          result.current.onCountAsKnown();
+        });
+        expect(result.current.state.gradeList[0]).toMatchObject({ result: 'lapse' });
+        expect(result.current.state.gradeList[0]).not.toHaveProperty('overridden');
+      });
+
+      it('is not offered for a pass', () => {
+        const { result, quiz } = handwritingQuestion();
+        act(() => {
+          quiz.onComplete();
+        });
+        act(() => {
+          vi.advanceTimersByTime(1000);
+        });
+
+        expect(result.current.state.outcome).toBe('pass');
+        expect(canCountAsKnown(result.current.state)).toBe(false);
+      });
+
+      it('is not offered for a fail', async () => {
+        const { result } = handwritingQuestion();
+        await act(async () => {
+          result.current.onIDontKnow();
+        });
+
+        expect(canCountAsKnown(result.current.state)).toBe(false);
+      });
+
+      it('is not offered for a typed lapse', () => {
+        const result = typedQuestion();
+        submit(result, 'wrong');
+        submit(result, 'hello');
+
+        expect(result.current.state.outcome).toBe('lapse');
+        expect(canCountAsKnown(result.current.state)).toBe(false);
+      });
+
+      it('sends the pass and the override with the results of the session', () => {
+        const onFinishTest = vi.fn();
+        const { result, quiz } = handwritingQuestion([characterPair], { onFinishTest });
+        strokeCheckLapse(result, quiz);
+
+        act(() => {
+          result.current.onCountAsKnown();
+        });
+        act(() => {
+          result.current.onContinue();
+        });
+
+        expect(onFinishTest).toHaveBeenCalledTimes(1);
+        const [[sent]] = onFinishTest.mock.calls;
+        expect(sent).toHaveLength(1);
+        expect(sent[0].directions).toEqual({ CM: 'pass' });
+        expect(sent[0].details.CM).toMatchObject({ misses: 1, overridden: true });
+        expect(result.current.state.scoreList).toEqual([
+          expect.objectContaining({ direction: 'CM', result: 'pass' }),
+        ]);
       });
     });
 

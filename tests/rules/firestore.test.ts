@@ -500,6 +500,18 @@ describe("reviewLog", () => {
     );
   });
 
+  // A stroke-check lapse that the learner counted as known (#475).
+  it("accepts a handwriting entry counted as known", async () => {
+    const { answer: _a, alternatives: _c, ...handwriting } = entry({
+      mode: "handwriting",
+      direction: "CM",
+      grade: "pass",
+      misses: 5,
+      overridden: true,
+    });
+    await assertSucceeds(setDoc(ref(db, path), session([handwriting])));
+  });
+
   // A cached bundle writes version 1 until the version check reloads it.
   it("accepts a version 1 document", async () => {
     await assertSucceeds(
