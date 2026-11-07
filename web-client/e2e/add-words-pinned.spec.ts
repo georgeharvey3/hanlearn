@@ -9,7 +9,7 @@ import {
   TEST_USER,
   TestWord,
 } from './fixtures/seed';
-import { AddWordsPage } from './pages/add-words.page';
+import { AddWordsPage, PINNED } from './pages/add-words.page';
 
 /**
  * The search field and the list chips of Add Words stay in view while a long
@@ -44,16 +44,20 @@ const THANKS: TestWord = {
 const scrollToBottom = (page: Page) =>
   page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
 
-/** The element painted at the centre of a locator's box. */
-const paintedInside = (page: Page, selector: string, testId: string) =>
+/** Whether the element painted at the centre of `target` sits inside `container`. */
+const paintedInside = (page: Page, target: string, container: string) =>
   page.evaluate(
-    ([sel, id]) => {
-      const box = document.querySelector(sel)!.getBoundingClientRect();
+    ([targetSelector, containerSelector]) => {
+      const box = document.querySelector(targetSelector)!.getBoundingClientRect();
       const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
-      return !!hit?.closest(id);
+      return !!hit?.closest(containerSelector);
     },
-    [selector, testId],
+    [target, container],
   );
+
+/** The bottom edge of the top bar, or 0 when the page shows none. */
+const topBarBottom = (page: Page) =>
+  page.evaluate(() => document.querySelector('header')?.getBoundingClientRect().bottom ?? 0);
 
 async function openLongList(page: Page) {
   await clearEmulatorData();
@@ -72,32 +76,30 @@ async function openLongList(page: Page) {
 }
 
 for (const { name, viewport, topBar } of [
-  { name: 'a phone', viewport: { width: 390, height: 844 }, topBar: 48 },
-  { name: 'a desktop with the sidebar', viewport: { width: 1280, height: 800 }, topBar: 0 },
+  { name: 'a phone', viewport: { width: 390, height: 844 }, topBar: true },
+  { name: 'a desktop with the sidebar', viewport: { width: 1280, height: 800 }, topBar: false },
 ]) {
   test.describe(`Pinned search and list chips on ${name}`, () => {
     test.use({ viewport });
 
     test('stay in view at the bottom of a long list', async ({ page }) => {
       const addWords = await openLongList(page);
-      const chips = page.getByRole('tablist', { name: 'Lists' });
       await scrollToBottom(page);
       await expect(page.getByText('字109', { exact: true })).toBeInViewport();
 
       await expect(addWords.searchInput).toBeInViewport();
-      await expect(chips).toBeInViewport();
+      await expect(addWords.listChips).toBeInViewport();
       // The group sits directly below the top bar, or at the viewport top.
-      const group = await page.locator('[data-pinned]').boundingBox();
-      expect(Math.round(group!.y)).toBe(topBar);
+      const group = await addWords.pinnedRows.boundingBox();
+      expect(Math.round(group!.y)).toBe(Math.round(await topBarBottom(page)));
+      expect(!!(await topBarBottom(page))).toBe(topBar);
 
       // The page tabs and the list heading scrolled away.
-      await expect(page.getByRole('tablist', { name: 'Add words' })).not.toBeInViewport();
+      await expect(addWords.pageTabs).not.toBeInViewport();
       await expect(page.getByRole('heading', { name: 'General · 111 words' })).not.toBeInViewport();
 
       // Nothing paints over the pinned rows, and they paint over no top bar.
-      expect(
-        await paintedInside(page, '[role="tablist"][aria-label="Lists"]', '[data-pinned]'),
-      ).toBe(true);
+      expect(await paintedInside(page, '[role="tablist"][aria-label="Lists"]', PINNED)).toBe(true);
       if (topBar) expect(await paintedInside(page, 'header', 'header')).toBe(true);
     });
 

@@ -411,10 +411,10 @@ const AddWords: React.FC<Props> = ({
           scrolls under them (#477). The page tabs and the list heading scroll
           away. The negative margins give the pinned group a band of paper
           above and below without moving it when it is not stuck. Its z-index
-          keeps it over the word rows and under the top bar (1100), the menus
-          and the dialogs. */}
+          keeps it over the word rows and under the top bar
+          (`theme.zIndex.appBar`), the menus and the dialogs. */}
       <Box
-        data-pinned
+        data-testid="pinned-rows"
         sx={{
           position: 'sticky',
           top: stickyTop,
