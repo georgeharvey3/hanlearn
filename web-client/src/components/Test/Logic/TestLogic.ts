@@ -278,6 +278,30 @@ export const planSession = (candidates: Word[], options: PlanSessionOptions): Se
   return { words, queue, newWords: words.filter(isNewWord) };
 };
 
+/** One missed question: the word, and the direction the learner missed it in. */
+export interface MissedPair {
+  word: Word;
+  direction: Direction;
+}
+
+/**
+ * Plan a practice session of the questions the learner just missed: each pair
+ * once, in its missed direction, in a fresh random order.
+ *
+ * The settings do not filter the directions. The learner was asked each one a
+ * moment ago, so a missed `CM` comes back in `CM` with handwriting off. The
+ * direction shares (ADR 0017) and the new-word cap (ADR 0015) do not apply,
+ * and the session has no new-word steps (#474).
+ */
+export const planMissedPractice = (missed: MissedPair[]): SessionPlan => {
+  const ordered = seededShuffle(missed, (Math.random() * 0x100000000) | 0);
+  return {
+    words: ordered.map((pair) => pair.word),
+    queue: ordered.map((pair, index) => pairFor(index, pair.direction)),
+    newWords: [],
+  };
+};
+
 /** The direction a queue pair asks, written answer-first. */
 export const directionOf = (pair: QueuePair): Direction =>
   `${pair.aCategory}${pair.qCategory}` as Direction;

@@ -7,7 +7,7 @@
  * - Demo mode bypass (no auth required, fixed demo words)
  * - initWords called on mount for authenticated users
  * - Practice mode starts when Practise is clicked
- * - "Practise missed words" on the summary practises those words only
+ * - "Practise missed words" on the summary practises those words only, in their missed directions
  */
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
@@ -447,7 +447,7 @@ describe('TestWords — summary', () => {
     expect(window.location.pathname).toBe('/comprehend');
   });
 
-  it('"Practise missed words" starts a practice test of those words only', async () => {
+  it('"Practise missed words" asks those words only, in their missed directions', async () => {
     const words = [dueWord(1, '你好', 2), dueWord(2, '学生', 2)];
     const store = createTestStore({
       ...authenticatedState(),
@@ -466,13 +466,24 @@ describe('TestWords — summary', () => {
       { char: '学生', direction: 'MC', result: 'fail' },
     ]);
 
-    act(() => (capturedSummaryProps.onPracticeMissed as (w: unknown[]) => void)([words[1]]));
+    // Handwriting is off now, but the learner missed 学生 in CM a moment ago.
+    localStorage.setItem('useHandwriting', 'false');
+    act(() =>
+      (capturedSummaryProps.onPracticeMissed as (m: unknown[]) => void)([
+        { word: words[1], direction: 'CM' },
+      ]),
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId('mock-test')).toHaveTextContent('Test: 学生');
     });
     expect(capturedTestProps.practiceMode).toBe(true);
+    expect(capturedTestProps.plan).toMatchObject({
+      queue: [{ index: '0', aCategory: 'C', qCategory: 'M' }],
+      newWords: [],
+    });
     expect(screen.queryByTestId('mock-new-words')).not.toBeInTheDocument();
+    localStorage.removeItem('useHandwriting');
   });
 });
 

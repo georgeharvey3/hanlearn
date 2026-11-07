@@ -365,17 +365,18 @@ const TestWords: React.FC<Props> = ({
   };
 
   /**
-   * Practise the words the session just missed. They were asked a moment ago,
-   * so the session goes straight to the test, with no new-word steps.
+   * Practise the questions the session just missed, each in the direction it
+   * was missed (#474). They were asked a moment ago, so the session goes
+   * straight to the test, with no new-word steps.
    */
-  const onPracticeMissed = (missed: Word[]): void => {
-    const plan = planFor(missed, true);
+  const onPracticeMissed = (missed: testLogic.MissedPair[]): void => {
+    const plan = testLogic.planMissedPractice(missed);
     setState((prev) => ({
       ...prev,
       stage: 'vocab',
       newWords: [],
       plan,
-      selectedWords: missed,
+      selectedWords: plan.words,
       practiceMode: true,
       wordScores: [],
       resume: null,

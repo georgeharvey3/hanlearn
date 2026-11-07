@@ -13,6 +13,7 @@ import userEvent from '@testing-library/user-event';
 import TestSummary from './TestSummary';
 import { renderWithProviders } from '../../../test/utils';
 import { Word, WordScore } from '../../../types/models';
+import { MissedPair } from '../Logic/TestLogic';
 
 const word = (id: number, simp: string, pinyin: string, meaning: string): Word => ({
   id,
@@ -152,7 +153,12 @@ describe('TestSummary — buttons', () => {
     const user = userEvent.setup();
     const { onPracticeMissed } = renderSummary();
     await user.click(screen.getByRole('button', { name: 'Practise missed words' }));
-    expect(onPracticeMissed.mock.calls[0][0].map((w: Word) => w.id)).toEqual([2, 3]);
+    expect(
+      onPracticeMissed.mock.calls[0][0].map((p: MissedPair) => [p.word.id, p.direction]),
+    ).toEqual([
+      [2, 'CM'],
+      [3, 'MP'],
+    ]);
   });
 
   it('has no "Practise missed words" when every question was known', () => {

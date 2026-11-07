@@ -8,6 +8,7 @@ import { wordsDueAhead } from '../../../utils/dashboard';
 import { parseDueDate } from '../../../utils/dueDate';
 import { parseMeanings } from '../../../utils/meaningUtils';
 import { toneMarks } from '../../../utils/pinyinMarks';
+import { MissedPair } from '../Logic/TestLogic';
 
 /** One answered question, with its word's pinyin and meaning for the tile's back. */
 export interface SummaryRow {
@@ -68,10 +69,24 @@ export function tally(rows: SummaryRow[]): Tally {
   };
 }
 
-/** The words with a Nearly or Not known question, once each: what "Practise missed words" asks. */
-export function missedWords(rows: SummaryRow[], words: Word[]): Word[] {
-  const ids = new Set(rows.filter((r) => r.result !== 'pass').map((r) => r.wordId));
-  return words.filter((w) => ids.has(w.id));
+/**
+ * What "Practise missed words" asks: each word with a Nearly or Not known
+ * question, once, in the direction of that question. The direction is the
+ * skill that failed, so practice asks it again (#474). A session asks a word
+ * in one direction only (#306); if a word was still missed twice, the first
+ * row wins, and the rows put Not known before Nearly.
+ */
+export function missedPairs(rows: SummaryRow[], words: Word[]): MissedPair[] {
+  const pairs: MissedPair[] = [];
+  const seen = new Set<number>();
+  for (const row of rows) {
+    if (row.result === 'pass' || row.wordId === undefined || seen.has(row.wordId)) continue;
+    const word = words.find((w) => w.id === row.wordId);
+    if (!word) continue;
+    seen.add(row.wordId);
+    pairs.push({ word, direction: row.direction });
+  }
+  return pairs;
 }
 
 /** How many words fall due, and how many days ahead: 0 is later today. */

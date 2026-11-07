@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   chooseTestSet,
   planSession,
+  planMissedPractice,
   assignQA,
   toneChecker,
   Counter,
@@ -857,5 +858,43 @@ describe('planSession', () => {
     };
 
     expect(plan([legacy]).queue).toHaveLength(1);
+  });
+});
+
+describe('planMissedPractice', () => {
+  const asked = (plan: ReturnType<typeof planMissedPractice>) =>
+    plan.queue.map((pair) => [
+      plan.words[Number(pair.index)].id,
+      `${pair.aCategory}${pair.qCategory}`,
+    ]);
+
+  it('asks each missed word once, in the direction it was missed', () => {
+    const missed = DIRECTIONS.map((direction, i) => ({
+      word: makeWord(i + 1, `字${i}`),
+      direction,
+    }));
+    const plan = planMissedPractice(missed);
+    expect(asked(plan).sort()).toEqual(DIRECTIONS.map((direction, i) => [i + 1, direction]).sort());
+  });
+
+  it('has no new-word steps, even for a word that was new', () => {
+    const fresh: Word = { ...makeWord(1, '新'), level: undefined, due_date: undefined };
+    const plan = planMissedPractice([{ word: fresh, direction: 'CM' }]);
+    expect(plan.newWords).toEqual([]);
+    expect(asked(plan)).toEqual([[1, 'CM']]);
+  });
+
+  it('shuffles the questions afresh on each run', () => {
+    const missed = DIRECTIONS.map((direction, i) => ({
+      word: makeWord(i + 1, `字${i}`),
+      direction,
+    }));
+    const random = vi.spyOn(Math, 'random');
+    random.mockReturnValue(0.1);
+    const first = asked(planMissedPractice(missed));
+    random.mockReturnValue(0.7);
+    const second = asked(planMissedPractice(missed));
+    random.mockRestore();
+    expect(first).not.toEqual(second);
   });
 });
