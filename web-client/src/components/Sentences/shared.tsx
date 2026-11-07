@@ -4,6 +4,7 @@ import { Box, CircularProgress } from '@mui/material';
 import { copy } from '../../copy';
 import { colors } from '../../theme';
 import { SentenceResult } from '../../utils/sentenceQueue';
+import { SentenceWord } from '../../utils/sentenceUtils';
 import { SentenceGrade } from '../../utils/sentencePracticeDocuments';
 import { StudyButton, hanziSx } from '../Test/Study/parts';
 import * as ttsService from '../../services/ttsService';
@@ -95,11 +96,40 @@ export const GradeButtons: React.FC<{ onGrade: (result: SentenceResult) => void 
   </Box>
 );
 
+/** A word of a sentence that opens its meaning: dotted underline, dark while its sheet is open. */
+export const SentenceWordButton: React.FC<{
+  entry: SentenceWord;
+  charSet: 'simp' | 'trad';
+  open: boolean;
+  onClick: () => void;
+}> = ({ entry, charSet, open, onClick }) => (
+  <Box
+    component="button"
+    type="button"
+    aria-label={copy.sentence.wordMeaning(entry[charSet])}
+    onClick={onClick}
+    sx={{
+      border: 'none',
+      background: open ? colors.text : 'transparent',
+      color: open ? colors.white : 'inherit',
+      borderRadius: '3px',
+      p: 0,
+      font: 'inherit',
+      letterSpacing: 'inherit',
+      cursor: 'pointer',
+      borderBottom: open ? 'none' : `1px dotted ${colors.borderStrong}`,
+    }}
+  >
+    {entry[charSet]}
+  </Box>
+);
+
 /** A word of a sentence, highlighted as the word under study. */
 export const Highlight: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <Box
-    component="span"
+    component="mark"
     sx={{
+      font: 'inherit',
       color: colors.primaryDark,
       bgcolor: colors.successSurface,
       borderRadius: '3px',

@@ -16,7 +16,8 @@ interface WordSheetProps {
   added: boolean;
   onClose: () => void;
   onSpeak: (text: string) => void;
-  onAdd: (word: SentenceWord) => void;
+  /** With no handler, the sheet has no add button: the New words step adds nothing. */
+  onAdd?: (word: SentenceWord) => void;
 }
 
 /** The definition of a word tapped in a sentence, in a sheet at the foot. */
@@ -74,14 +75,16 @@ const WordSheet: React.FC<WordSheetProps> = ({ word, charSet, added, onClose, on
         </Box>
         <Box sx={{ display: 'flex', gap: 1.25 }}>
           <StudyButton onClick={onClose}>{copy.sentence.close}</StudyButton>
-          <StudyButton
-            variant="primary"
-            disabled={added}
-            onClick={() => onAdd(word)}
-            sx={{ height: 48, fontSize: 16 }}
-          >
-            {added ? copy.sentence.added : copy.sentence.addToList}
-          </StudyButton>
+          {onAdd && (
+            <StudyButton
+              variant="primary"
+              disabled={added}
+              onClick={() => onAdd(word)}
+              sx={{ height: 48, fontSize: 16 }}
+            >
+              {added ? copy.sentence.added : copy.sentence.addToList}
+            </StudyButton>
+          )}
         </Box>
       </>
     )}

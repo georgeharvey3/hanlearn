@@ -15,6 +15,7 @@ vi.mock('../../../services/dictionaryService', () => ({
 vi.mock('../../../services/decompositionService', () => ({
   decomposeCharacter: vi.fn(),
 }));
+vi.mock('../../../services/sentenceService', () => ({ getSegmentedSentence: vi.fn() }));
 vi.mock('../../../services/errorReporting', () => ({ reportError: vi.fn() }));
 vi.mock('../../../services/ttsService', () => ({
   speak: vi.fn(),
@@ -23,7 +24,7 @@ vi.mock('../../../services/ttsService', () => ({
 }));
 
 import React from 'react';
-import { act, screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import NewWords from './NewWords';
@@ -31,6 +32,8 @@ import { renderWithProviders, authenticatedState, createTestStore } from '../../
 import { Word } from '../../../types/models';
 import { searchWord } from '../../../services/dictionaryService';
 import { decomposeCharacter } from '../../../services/decompositionService';
+import { getSegmentedSentence } from '../../../services/sentenceService';
+import * as ttsService from '../../../services/ttsService';
 import { clearCharacterGlossCache } from '../ComponentReview/glossCache';
 
 const makeWord = (id: number, simp: string, pinyin: string, meaning: string): Word => ({
@@ -44,6 +47,29 @@ const makeWord = (id: number, simp: string, pinyin: string, meaning: string): Wo
 });
 
 const diannao = makeWord(1, '电脑', 'dian4 nao3', 'computer/CL:臺|台[tai2]');
+// 我的电脑很新。 The build writes the Han segments; the service adds the gaps.
+const segment = (s: string, t: string, p = '', e = '') => ({ s, t, p, e });
+const diannaoSentence = {
+  sentence: {
+    id: 's1',
+    chinese: {
+      sentence: '我的电脑很新。',
+      simplified: '我的电脑很新。',
+      highlight: [[2, 4]],
+      segments: [
+        segment('我的', '我的', 'wǒ de', 'my'),
+        segment('电脑', '電腦', 'diàn nǎo', 'computer'),
+        segment('很', '很', 'hěn', 'very'),
+        segment('新', '新', 'xīn', 'new/fresh'),
+        segment('。', '。'),
+      ],
+      targetIndex: 1,
+    },
+    english: { sentence: 'My computer is new.', highlight: [] },
+  },
+  totalCount: 2,
+};
+
 const xiuxi = makeWord(2, '休息', 'xiu1 xi5', 'rest/to take a break');
 
 function makeStore(speechAvailable = true) {
@@ -103,6 +129,7 @@ beforeEach(() => {
       ? [makeWord(10, '电', 'dian4', 'electric/electricity')]
       : [makeWord(11, char, 'nao3', 'brain/mind/head')],
   );
+  vi.mocked(getSegmentedSentence).mockResolvedValue({ sentence: null, totalCount: 0 });
   vi.mocked(decomposeCharacter).mockResolvedValue([
     { char: '日', meaning: 'sun', pinyin: 'rì' },
     { char: '乚', meaning: 'hidden', pinyin: 'yǐn' },
@@ -180,6 +207,100 @@ describe('NewWords — Understand', () => {
 
     await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByText('日')).toBeInTheDocument();
+  });
+});
+
+describe('NewWords — Understand: the example sentence', () => {
+  // A role query walks the whole step on each retry, which outlasted the
+  // 1 s default on CI. The label query is cheap; the selector keeps it to the group.
+  const example = () =>
+    screen.findByLabelText('Example', { selector: '[role="group"]' }, { timeout: 5000 });
+
+  it('shows the first sentence of the word, the word highlighted, and its English', async () => {
+    localStorage.setItem('charSet', 'simp');
+    vi.mocked(getSegmentedSentence).mockResolvedValue(diannaoSentence);
+    render([diannao]);
+
+    const block = await example();
+    expect(getSegmentedSentence).toHaveBeenCalledWith('电脑', 'simp');
+    expect(within(block).getByText('电脑', { selector: 'mark' })).toBeInTheDocument();
+    expect(block).toHaveTextContent('我的电脑很新。');
+    expect(within(block).getByText('My computer is new.')).toBeInTheDocument();
+  });
+
+  it('shows the traditional text when the learner reads traditional', async () => {
+    localStorage.setItem('charSet', 'trad');
+    vi.mocked(getSegmentedSentence).mockResolvedValue({
+      ...diannaoSentence,
+      sentence: {
+        ...diannaoSentence.sentence,
+        chinese: { ...diannaoSentence.sentence.chinese, sentence: '我的電腦很新。' },
+      },
+    });
+    render([{ ...diannao, trad: '電腦' }]);
+
+    const block = await example();
+    expect(getSegmentedSentence).toHaveBeenCalledWith('电脑', 'trad');
+    expect(within(block).getByText('電腦', { selector: 'mark' })).toBeInTheDocument();
+    expect(block).toHaveTextContent('我的電腦很新。');
+  });
+
+  it('a tap on a word of the sentence speaks it and opens its meaning', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('charSet', 'simp');
+    localStorage.setItem('useSound', 'false');
+    vi.mocked(getSegmentedSentence).mockResolvedValue(diannaoSentence);
+    render([diannao]);
+    const block = await example();
+
+    // The word under study is the word card's; only the other words open.
+    expect(
+      within(block).queryByRole('button', { name: '电脑: show meaning' }),
+    ).not.toBeInTheDocument();
+    await user.click(within(block).getByRole('button', { name: '新: show meaning' }));
+
+    expect(ttsService.speak).toHaveBeenCalledWith('新', expect.anything());
+    const sheet = await screen.findByLabelText(
+      '新',
+      { selector: '[role="dialog"]' },
+      { timeout: 5000 },
+    );
+    expect(within(sheet).getByText('xīn')).toBeInTheDocument();
+    expect(within(sheet).getByText('new · fresh')).toBeInTheDocument();
+    expect(within(sheet).queryByRole('button', { name: 'Add to list' })).not.toBeInTheDocument();
+
+    await user.click(within(sheet).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeInTheDocument(), {
+      timeout: 5000,
+    });
+  });
+
+  it('the play button reads the sentence aloud', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('charSet', 'simp');
+    localStorage.setItem('useSound', 'false');
+    vi.mocked(getSegmentedSentence).mockResolvedValue(diannaoSentence);
+    render([diannao]);
+
+    await user.click(within(await example()).getByRole('button', { name: 'Play sentence' }));
+
+    expect(ttsService.speak).toHaveBeenCalledWith('我的电脑很新。', expect.anything());
+  });
+
+  it('shows no block and no message for a word with no sentence', async () => {
+    render([diannao]);
+    expect(getSegmentedSentence).toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByText('Example')).not.toBeInTheDocument());
+    expect(screen.queryByRole('status', { name: 'Loading example' })).not.toBeInTheDocument();
+    expect(screen.getByText('Characters')).toBeInTheDocument();
+  });
+
+  it('shows no block and no error when the fetch fails', async () => {
+    vi.mocked(getSegmentedSentence).mockRejectedValue(new Error('offline'));
+    render([diannao]);
+    await waitFor(() => expect(screen.queryByText('Example')).not.toBeInTheDocument());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
   });
 });
 
