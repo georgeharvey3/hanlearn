@@ -88,6 +88,7 @@ beforeEach(() => {
   // that it can be resumed. Without this, every test after the first would be
   // offered the one before it rather than starting clean. See issue #305.
   clearSavedSession();
+  localStorage.removeItem('useHandwriting');
 });
 
 /** A word that is due today */
@@ -483,7 +484,6 @@ describe('TestWords — summary', () => {
       newWords: [],
     });
     expect(screen.queryByTestId('mock-new-words')).not.toBeInTheDocument();
-    localStorage.removeItem('useHandwriting');
   });
 });
 

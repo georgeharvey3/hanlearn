@@ -181,6 +181,12 @@ export type QuestionCategory = 'C' | 'P' | 'M';
  * direction split into the answer it wants and the question it shows. The
  * direction that names the pair is `directionOf` in `TestLogic.ts`.
  */
+/** One missed question of a session: the word, and the direction it was missed in. */
+export interface MissedQuestion {
+  word: Word;
+  direction: Direction;
+}
+
 export interface QueuePair {
   index: string;
   aCategory: QuestionCategory;

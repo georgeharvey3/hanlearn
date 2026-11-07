@@ -862,6 +862,12 @@ describe('planSession', () => {
 });
 
 describe('planMissedPractice', () => {
+  // One missed question in each direction.
+  const missed = DIRECTIONS.map((direction, i) => ({
+    word: makeWord(i + 1, `字${i}`),
+    direction,
+  }));
+
   const asked = (plan: ReturnType<typeof planMissedPractice>) =>
     plan.queue.map((pair) => [
       plan.words[Number(pair.index)].id,
@@ -869,10 +875,6 @@ describe('planMissedPractice', () => {
     ]);
 
   it('asks each missed word once, in the direction it was missed', () => {
-    const missed = DIRECTIONS.map((direction, i) => ({
-      word: makeWord(i + 1, `字${i}`),
-      direction,
-    }));
     const plan = planMissedPractice(missed);
     expect(asked(plan).sort()).toEqual(DIRECTIONS.map((direction, i) => [i + 1, direction]).sort());
   });
@@ -885,10 +887,6 @@ describe('planMissedPractice', () => {
   });
 
   it('shuffles the questions afresh on each run', () => {
-    const missed = DIRECTIONS.map((direction, i) => ({
-      word: makeWord(i + 1, `字${i}`),
-      direction,
-    }));
     const random = vi.spyOn(Math, 'random');
     random.mockReturnValue(0.1);
     const first = asked(planMissedPractice(missed));

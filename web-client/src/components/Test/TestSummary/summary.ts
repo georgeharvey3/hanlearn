@@ -3,12 +3,11 @@
  * the next due count of the "nothing due" screen. Pure, so the screens only
  * draw what these return.
  */
-import { Direction, DirectionResult, Word, WordScore } from '../../../types/models';
+import { Direction, DirectionResult, MissedQuestion, Word, WordScore } from '../../../types/models';
 import { wordsDueAhead } from '../../../utils/dashboard';
 import { parseDueDate } from '../../../utils/dueDate';
 import { parseMeanings } from '../../../utils/meaningUtils';
 import { toneMarks } from '../../../utils/pinyinMarks';
-import { MissedPair } from '../Logic/TestLogic';
 
 /** One answered question, with its word's pinyin and meaning for the tile's back. */
 export interface SummaryRow {
@@ -76,17 +75,17 @@ export function tally(rows: SummaryRow[]): Tally {
  * in one direction only (#306); if a word was still missed twice, the first
  * row wins, and the rows put Not known before Nearly.
  */
-export function missedPairs(rows: SummaryRow[], words: Word[]): MissedPair[] {
-  const pairs: MissedPair[] = [];
+export function missedQuestions(rows: SummaryRow[], words: Word[]): MissedQuestion[] {
+  const missed: MissedQuestion[] = [];
   const seen = new Set<number>();
   for (const row of rows) {
     if (row.result === 'pass' || row.wordId === undefined || seen.has(row.wordId)) continue;
     const word = words.find((w) => w.id === row.wordId);
     if (!word) continue;
     seen.add(row.wordId);
-    pairs.push({ word, direction: row.direction });
+    missed.push({ word, direction: row.direction });
   }
-  return pairs;
+  return missed;
 }
 
 /** How many words fall due, and how many days ahead: 0 is later today. */

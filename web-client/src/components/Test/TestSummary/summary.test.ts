@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { Word, WordScore } from '../../../types/models';
-import { missedPairs, nextDue, summaryRows, tally } from './summary';
+import { missedQuestions, nextDue, summaryRows, tally } from './summary';
 
 const word = (id: number, simp: string, extra: Partial<Word> = {}): Word => ({
   id,
@@ -76,7 +76,7 @@ describe('tally', () => {
   });
 });
 
-describe('missedPairs', () => {
+describe('missedQuestions', () => {
   it('gives each missed word once, in the direction it was missed', () => {
     const words = [word(1, '一'), word(2, '二'), word(3, '三'), word(4, '四')];
     const scores: WordScore[] = [
@@ -85,8 +85,8 @@ describe('missedPairs', () => {
       { char: '三', direction: 'PM', result: 'lapse' },
       { char: '四', direction: 'MP', result: 'fail' },
     ];
-    const pairs = missedPairs(summaryRows(scores, words), words);
-    expect(pairs.map((p) => [p.word.id, p.direction])).toEqual([
+    const missed = missedQuestions(summaryRows(scores, words), words);
+    expect(missed.map((q) => [q.word.id, q.direction])).toEqual([
       [1, 'CM'],
       [4, 'MP'],
       [3, 'PM'],
@@ -99,13 +99,13 @@ describe('missedPairs', () => {
       { char: '一', direction: 'PC', result: 'lapse' },
       { char: '一', direction: 'MC', result: 'fail' },
     ];
-    const pairs = missedPairs(summaryRows(scores, words), words);
-    expect(pairs.map((p) => [p.word.id, p.direction])).toEqual([[1, 'MC']]);
+    const missed = missedQuestions(summaryRows(scores, words), words);
+    expect(missed.map((q) => [q.word.id, q.direction])).toEqual([[1, 'MC']]);
   });
 
   it('skips a missed question whose word is no longer in the list', () => {
     const scores: WordScore[] = [{ char: '五', direction: 'MC', result: 'fail' }];
-    expect(missedPairs(summaryRows(scores, []), [])).toEqual([]);
+    expect(missedQuestions(summaryRows(scores, []), [])).toEqual([]);
   });
 });
 

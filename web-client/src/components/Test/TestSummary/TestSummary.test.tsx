@@ -12,8 +12,7 @@ import userEvent from '@testing-library/user-event';
 
 import TestSummary from './TestSummary';
 import { renderWithProviders } from '../../../test/utils';
-import { Word, WordScore } from '../../../types/models';
-import { MissedPair } from '../Logic/TestLogic';
+import { MissedQuestion, Word, WordScore } from '../../../types/models';
 
 const word = (id: number, simp: string, pinyin: string, meaning: string): Word => ({
   id,
@@ -154,7 +153,7 @@ describe('TestSummary — buttons', () => {
     const { onPracticeMissed } = renderSummary();
     await user.click(screen.getByRole('button', { name: 'Practise missed words' }));
     expect(
-      onPracticeMissed.mock.calls[0][0].map((p: MissedPair) => [p.word.id, p.direction]),
+      onPracticeMissed.mock.calls[0][0].map((q: MissedQuestion) => [q.word.id, q.direction]),
     ).toEqual([
       [2, 'CM'],
       [3, 'MP'],
