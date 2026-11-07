@@ -1452,7 +1452,7 @@ describe('useTestEngine — how the learner got to the grade', () => {
     });
 
     /** Draw the character with five misses on one stroke, and grade it. */
-    function strokeCheckLapse(result: ReturnType<typeof handwritingQuestion>['result'], quiz: any) {
+    function strokeCheckLapse(quiz: ReturnType<typeof handwritingQuestion>['quiz']) {
       act(() => {
         quiz.onMistake({ mistakesOnStroke: 5, strokeNum: 0, totalMistakes: 5 });
         quiz.onComplete();
@@ -1466,7 +1466,7 @@ describe('useTestEngine — how the learner got to the grade', () => {
     describe('count as known', () => {
       it('changes a stroke-check lapse to a pass, once', () => {
         const { result, quiz } = handwritingQuestion();
-        strokeCheckLapse(result, quiz);
+        strokeCheckLapse(quiz);
 
         expect(canCountAsKnown(result.current.state)).toBe(true);
         act(() => {
@@ -1490,7 +1490,7 @@ describe('useTestEngine — how the learner got to the grade', () => {
         act(() => {
           result.current.onHint();
         });
-        strokeCheckLapse(result, quiz);
+        strokeCheckLapse(quiz);
 
         expect(result.current.state.outcome).toBe('lapse');
         expect(canCountAsKnown(result.current.state)).toBe(false);
@@ -1535,7 +1535,7 @@ describe('useTestEngine — how the learner got to the grade', () => {
       it('sends the pass and the override with the results of the session', () => {
         const onFinishTest = vi.fn();
         const { result, quiz } = handwritingQuestion([characterPair], { onFinishTest });
-        strokeCheckLapse(result, quiz);
+        strokeCheckLapse(quiz);
 
         act(() => {
           result.current.onCountAsKnown();

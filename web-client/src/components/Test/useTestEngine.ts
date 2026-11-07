@@ -404,14 +404,19 @@ export const useTestEngine = (props: Props) => {
    * written with setStateMerged, and `getState` reads a ref that React updates
    * after the render, so the last one is not in state yet when a caller
    * finishes in the same tick. A caller that already waited passes it again,
-   * and the position check below drops the duplicate. It compares positions,
-   * not objects, because "Count as known" replaces the grade in the list.
+   * and the check below drops the duplicate. It also compares positions,
+   * because "Count as known" replaces the grade object in the list.
    */
   const onFinishTest = useCallback(
     (lastGrade?: DirectionGrade | null): void => {
       const current = getState();
       const gradeList =
-        lastGrade && !current.gradeList.some((grade) => grade.position === lastGrade.position)
+        lastGrade &&
+        !current.gradeList.some(
+          (grade) =>
+            grade === lastGrade ||
+            (lastGrade.position !== undefined && grade.position === lastGrade.position),
+        )
           ? current.gradeList.concat(lastGrade)
           : current.gradeList;
       const answerInput = document.getElementById('answer-input');
