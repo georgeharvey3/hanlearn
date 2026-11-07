@@ -84,6 +84,7 @@ const FILES = [
   'containers/Dashboard/widgets/CalendarCard.tsx',
   'containers/Dashboard/widgets/ProgressCard.tsx',
   'containers/Dashboard/widgets/SkillsCard.tsx',
+  'containers/Dashboard/widgets/HskCoverageCard.tsx',
   'containers/Dashboard/widgets/ChengyuCard.tsx',
 ];
 

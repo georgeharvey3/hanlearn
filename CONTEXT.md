@@ -72,6 +72,10 @@ Each word of a premade list is one dictionary entry. A word of the source that
 has more than one entry takes the one a person chose for it, and the choice is
 recorded with the catalogue.
 
+## HSK coverage
+
+The **HSK coverage** of one HSK level is how the words of that level split across the learner's whole collection: the words not added, and the words at each level from 1 to 5. It has no threshold and no single percent. A word that the learner added by hand counts the same as one from a premade list. Each HSK word is in exactly one HSK level, so no word counts twice.
+
 ## Stability, difficulty and interval
 
 FSRS schedules the reviews. It holds two numbers for the memory of one

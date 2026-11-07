@@ -4,6 +4,8 @@ import { reportError } from './errorReporting';
 import { estimatePlannedTime, formatTestTime } from '../utils/estimateTestTime';
 import { planSession, readSessionSettings } from '../components/Test/Logic/TestLogic';
 import { traceAsync } from './performanceService';
+import { loadHskIndex } from './premadeListService';
+import { hskCoverage, type HskLevelCoverage } from '../utils/hskCoverage';
 import { BankCounts, directionBankDistribution } from '../utils/directions';
 import {
   FORECAST_DAYS,
@@ -117,3 +119,13 @@ export const getDashboardStats = async (userId: string, listId?: string): Promis
       history,
     };
   });
+
+/**
+ * The HSK coverage of the whole collection, whatever list is active, or null
+ * when the collection is empty. The Dashboard asks for it after its stats
+ * load, so it never delays the Today card.
+ */
+export const getHskCoverage = async (userId: string): Promise<HskLevelCoverage[] | null> => {
+  const [index, words] = await Promise.all([loadHskIndex(), getUserWords(userId)]);
+  return words.length > 0 ? hskCoverage(index, words) : null;
+};

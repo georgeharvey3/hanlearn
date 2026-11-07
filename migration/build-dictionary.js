@@ -9,7 +9,8 @@
  *
  * Output:
  *   ../web-client/public/dictionary.json
- *   ../web-client/public/premade-lists/ (the catalogue of premade lists)
+ *   ../web-client/public/premade-lists/ (the catalogue of premade lists, and
+ *     hsk-index.json, the HSK index of the Dashboard)
  *   ../web-client/public/sentences/ (the example sentences, see #465)
  *   sentences/coverage.md (the coverage report, on a local run only)
  */
@@ -18,6 +19,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { ranksOf, resolveCatalogue } = require('./premadeCatalogue');
+const { checkHskIndex, hskIndexOf } = require('./hskIndex');
 const { buildExampleSentences, unfilledOf } = require('./exampleSentences');
 
 /**
@@ -59,11 +61,30 @@ function buildCatalogue(words, outputDir) {
     fs.writeFileSync(path.join(outputDir, list.id + '.json'), JSON.stringify(list.entries));
   }
   fs.copyFileSync(path.join(hskDir, 'source', 'LICENSE'), path.join(outputDir, 'LICENSE.txt'));
+  writeHskIndex(catalogue, outputDir);
   console.log(
     'Wrote ' + catalogue.length + ' premade lists to: ' + outputDir +
       ' (' + index.map((list) => list.name + ': ' + list.size).join(', ') + ')',
   );
   return { catalogue, ranks };
+}
+
+/**
+ * Write the HSK index of the Dashboard's coverage card (#271), then check it
+ * against the list files as written. Fails the build when the two disagree.
+ */
+function writeHskIndex(catalogue, outputDir) {
+  const indexPath = path.join(outputDir, 'hsk-index.json');
+  fs.writeFileSync(indexPath, JSON.stringify(hskIndexOf(catalogue)));
+  const written = JSON.parse(fs.readFileSync(path.join(outputDir, 'index.json'), 'utf8')).lists.map(
+    (list) => ({
+      id: list.id,
+      name: list.name,
+      entries: JSON.parse(fs.readFileSync(path.join(outputDir, list.id + '.json'), 'utf8')),
+    }),
+  );
+  checkHskIndex(JSON.parse(fs.readFileSync(indexPath, 'utf8')), written);
+  console.log('Wrote the HSK index: ' + indexPath + ' (' + fs.statSync(indexPath).size + ' bytes)');
 }
 
 /**
