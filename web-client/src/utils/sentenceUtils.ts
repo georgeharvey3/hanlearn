@@ -36,6 +36,7 @@ export interface SegmentedSentence {
     /** The simplified text, whatever the character set of `sentence`. */
     simplified: string;
     highlight: number[][];
+    /** The segments in order, with the text between them as segments with no entry. */
     segments: SentenceSegment[];
     targetIndex: number;
   };
