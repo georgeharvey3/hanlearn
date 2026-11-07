@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { Box } from '@mui/material';
-import { pinyin as toPinyin } from 'pinyin-pro';
 
 import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
@@ -301,7 +300,7 @@ const ComprehendTask: React.FC<Props> = ({
             lang="zh-Latn"
             sx={{ m: 0, fontSize: 15, color: colors.textSecondary }}
           >
-            {toPinyin(sentence.chinese.sentence, { nonZh: 'consecutive' })}
+            {sentence.chinese.pinyin}
           </Box>
         )}
         {useSound && !revealed && (

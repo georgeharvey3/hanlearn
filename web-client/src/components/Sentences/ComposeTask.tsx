@@ -1,7 +1,6 @@
 import React, { KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { Box } from '@mui/material';
-import { pinyin as toPinyin } from 'pinyin-pro';
 
 import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
@@ -59,6 +58,8 @@ type Props = ConnectedProps<typeof connector> & OwnProps;
 interface Loaded {
   id: string;
   chinese: string;
+  /** The pinyin line, read from the simplified text (#492). */
+  pinyin: string;
   english: string;
   /** The words of the sentence with an entry, for the hints of the English words. */
   words: SentenceWord[];
@@ -118,6 +119,7 @@ const ComposeTask: React.FC<Props> = ({
       setSentence({
         id: found.id,
         chinese: found.chinese.sentence,
+        pinyin: resolved.chinese.pinyin,
         english: found.english.sentence,
         words: resolved.chinese.words.filter((w): w is SentenceWord => typeof w !== 'string'),
       });
@@ -280,7 +282,7 @@ const ComposeTask: React.FC<Props> = ({
               color: colors.textSecondary,
             }}
           >
-            {toPinyin(sentence.chinese, { nonZh: 'consecutive' })}
+            {sentence.pinyin}
           </Box>
         </Box>
         <ReportSentenceButton
