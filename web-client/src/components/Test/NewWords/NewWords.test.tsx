@@ -24,7 +24,7 @@ vi.mock('../../../services/ttsService', () => ({
 }));
 
 import React from 'react';
-import { act, screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import NewWords from './NewWords';
@@ -254,9 +254,8 @@ describe('NewWords — Understand: the example sentence', () => {
 
   it('shows no block and no message for a word with no sentence', async () => {
     render([diannao]);
-    await act(async () => {});
     expect(getSegmentedSentence).toHaveBeenCalled();
-    expect(screen.queryByText('Example')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Example')).not.toBeInTheDocument());
     expect(screen.queryByRole('status', { name: 'Loading example' })).not.toBeInTheDocument();
     expect(screen.getByText('Characters')).toBeInTheDocument();
   });
@@ -264,8 +263,7 @@ describe('NewWords — Understand: the example sentence', () => {
   it('shows no block and no error when the fetch fails', async () => {
     vi.mocked(getSegmentedSentence).mockRejectedValue(new Error('offline'));
     render([diannao]);
-    await act(async () => {});
-    expect(screen.queryByText('Example')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Example')).not.toBeInTheDocument());
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
   });

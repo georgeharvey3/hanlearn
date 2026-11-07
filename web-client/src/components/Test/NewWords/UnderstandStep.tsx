@@ -190,7 +190,7 @@ const ExampleSentence: React.FC<{
 
   if (load.status === 'none') return null;
 
-  const key = charSet === 'trad' ? 't' : 's';
+  const textField = charSet === 'trad' ? 't' : 's';
   return (
     <>
       <Overline sx={{ mt: 3, mb: 1 }}>{copy.newWords.example}</Overline>
@@ -232,9 +232,9 @@ const ExampleSentence: React.FC<{
               {load.sentence.chinese.segments.length > 0
                 ? load.sentence.chinese.segments.map((segment, i) =>
                     i === load.sentence.chinese.targetIndex ? (
-                      <Highlight key={i}>{segment[key]}</Highlight>
+                      <Highlight key={i}>{segment[textField]}</Highlight>
                     ) : (
-                      <React.Fragment key={i}>{segment[key]}</React.Fragment>
+                      <React.Fragment key={i}>{segment[textField]}</React.Fragment>
                     ),
                   )
                 : load.sentence.chinese.sentence}
