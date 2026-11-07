@@ -21,8 +21,8 @@ export interface HskCoverageCardProps {
 
 /**
  * How the words of each HSK level split across the collection: one stacked
- * bar a level, not added first, then levels 1 to 5. Each bar spans its own
- * level's words, so all bars are the same length. It shows counts only, never
+ * bar for each HSK level, not added first, then levels 1 to 5. Each bar spans
+ * the words of its own HSK level, so all bars are the same length. It shows counts only, never
  * a word: a word seen here just before the test asks it primes the answer.
  */
 const HskCoverageCard: React.FC<HskCoverageCardProps> = ({ coverage, onOpen }) => (

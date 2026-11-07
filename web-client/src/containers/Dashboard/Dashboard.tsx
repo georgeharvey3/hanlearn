@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { useHistory } from 'react-router-dom';
 import Box from '@mui/material/Box';
@@ -100,13 +100,15 @@ const Dashboard: React.FC<PropsFromRedux> = ({
   }, [loadStats]);
 
   // The HSK coverage counts the whole collection, so a list switch does not
-  // load it again. It starts once the stats are in, so it never delays the
-  // Today card, and a failed load only hides the card.
-  const [hsk, setHsk] = useState<HskLevelCoverage[] | null>(null);
-  const hskLoadedFor = useRef<string | null>(null);
+  // load it again. It starts once the first stats are in, so it never delays
+  // the Today card, and a failed load only hides the card.
+  const [statsSettled, setStatsSettled] = useState(false);
   useEffect(() => {
-    if (!userId || loading || hskLoadedFor.current === userId) return;
-    hskLoadedFor.current = userId;
+    if (!loading) setStatsSettled(true);
+  }, [loading]);
+  const [hsk, setHsk] = useState<HskLevelCoverage[] | null>(null);
+  useEffect(() => {
+    if (!userId || !statsSettled) return;
     let current = true;
     getHskCoverage(userId).then(
       (coverage) => current && setHsk(coverage),
@@ -118,7 +120,7 @@ const Dashboard: React.FC<PropsFromRedux> = ({
     return () => {
       current = false;
     };
-  }, [userId, loading]);
+  }, [userId, statsSettled]);
 
   useEffect(() => {
     if (userId) {

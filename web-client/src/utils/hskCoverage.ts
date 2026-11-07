@@ -20,13 +20,13 @@ export interface HskIndex {
 }
 
 export interface HskLevelCoverage {
-  /** The premade list of the level, for example `hsk-3`. */
+  /** The premade list of the HSK level, for example `hsk-3`. */
   listId: string;
   /** "HSK 3". Domain data, not copy. */
   name: string;
   total: number;
   notAdded: number;
-  /** The words of the level in the collection, by their level 1 to 5. */
+  /** The words of the HSK level in the collection, by their level 1 to 5. */
   levels: Record<number, number>;
 }
 

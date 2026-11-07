@@ -1,5 +1,5 @@
 import React from 'react';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
@@ -312,6 +312,26 @@ describe('Dashboard container', () => {
       expect(mockGetHskCoverage).toHaveBeenCalledWith('uid-hsk');
       const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
       expect(headings.indexOf('HSK coverage')).toBe(headings.indexOf('Progress') + 1);
+    });
+
+    it('keeps loading the card when the learner switches lists before it is in', async () => {
+      let resolve: (value: typeof coverage) => void = () => {};
+      mockGetDashboardStats.mockResolvedValue(sampleStats);
+      mockGetHskCoverage.mockImplementation(() => new Promise((r) => (resolve = r)));
+      const { store } = renderWithProviders(<Dashboard />, {
+        store: createTestStore(authenticatedState()),
+      });
+
+      await screen.findByRole('button', { name: 'Study' });
+      await waitFor(() => expect(mockGetHskCoverage).toHaveBeenCalled());
+      act(() => {
+        store.dispatch({ type: 'SET_ACTIVE_LIST', listId: 'hsk3' });
+      });
+      await screen.findByRole('button', { name: 'Study' });
+      await act(async () => resolve(coverage));
+
+      expect(await screen.findByRole('region', { name: 'HSK coverage' })).toBeInTheDocument();
+      expect(mockGetDashboardStats).toHaveBeenLastCalledWith('test-user-123', 'hsk3');
     });
 
     it('opens the premade list of a row', async () => {
