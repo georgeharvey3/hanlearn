@@ -29,6 +29,8 @@ export interface SegmentedSentenceResult {
     id: string;
     chinese: {
       sentence: string;
+      /** The simplified text, whatever the character set of `sentence`. */
+      simplified: string;
       highlight: number[][];
       /** The segments in order, with the text between them as segments with no entry. */
       segments: SentenceSegment[];
@@ -186,7 +188,7 @@ export async function getSegmentedSentence(
   return {
     sentence: {
       id: example.id,
-      chinese: { sentence: text, highlight, segments, targetIndex },
+      chinese: { sentence: text, simplified: example.simp, highlight, segments, targetIndex },
       english: { sentence: example.english, highlight: [] },
     },
     totalCount: examples.length,

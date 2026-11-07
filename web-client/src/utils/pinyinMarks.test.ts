@@ -1,6 +1,24 @@
 import { describe, it, expect } from 'vitest';
 
-import { checkTones, dropNeutralTone, toneMarks } from './pinyinMarks';
+import { checkTones, dropNeutralTone, sentencePinyin, toneMarks } from './pinyinMarks';
+
+describe('sentencePinyin', () => {
+  it('reads 苹果 as píng guǒ', () => {
+    expect(sentencePinyin('我的苹果没了。')).toBe('wǒ de píng guǒ méi le。');
+  });
+
+  it('gives 们 and 吗 the neutral tone', () => {
+    expect(sentencePinyin('他们会来吗？')).toBe('tā men huì lái ma？');
+  });
+
+  it('puts no space before a punctuation mark inside the sentence', () => {
+    expect(sentencePinyin('你好，我叫小李。')).toBe('nǐ hǎo， wǒ jiào xiǎo lǐ。');
+  });
+
+  it('puts no space before ASCII punctuation', () => {
+    expect(sentencePinyin('没了.')).toBe('méi le.');
+  });
+});
 
 describe('toneMarks', () => {
   it('writes the marks of numbered pinyin', () => {

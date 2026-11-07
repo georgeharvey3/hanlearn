@@ -36,6 +36,7 @@ const sentence: SegmentedSentence = {
   id: 's1',
   chinese: {
     sentence: '學生們，聽好了！',
+    simplified: '学生们，听好了！',
     highlight: [[0, 2]],
     segments: [
       { s: '学生', t: '學生', p: 'xué sheng', e: 'student; schoolchild' },
@@ -77,6 +78,27 @@ describe('resolveSentence', () => {
     expect(resolved.chinese.highlight).toEqual([[0, 2]]);
     expect(resolved.chinese.targetIndex).toBe(0);
     expect(resolved.english.sentence).toBe('Listen up, students!');
+  });
+
+  it('reads the pinyin line from the simplified text of a traditional sentence', () => {
+    const traditional: SegmentedSentence = {
+      ...sentence,
+      chinese: { ...sentence.chinese, sentence: '我的蘋果沒了。', simplified: '我的苹果没了。' },
+    };
+
+    const resolved = resolveSentence(traditional, 'trad');
+
+    expect(resolved.chinese.sentence).toBe('我的蘋果沒了。');
+    expect(resolved.chinese.pinyin).toBe('wǒ de píng guǒ méi le。');
+  });
+
+  it('gives 們 and 嗎 the neutral tone in a traditional sentence', () => {
+    const traditional: SegmentedSentence = {
+      ...sentence,
+      chinese: { ...sentence.chinese, sentence: '他們會來嗎？', simplified: '他们会来吗？' },
+    };
+
+    expect(resolveSentence(traditional, 'trad').chinese.pinyin).toBe('tā men huì lái ma？');
   });
 
   it('gives the same id to the same entry in two sentences', () => {

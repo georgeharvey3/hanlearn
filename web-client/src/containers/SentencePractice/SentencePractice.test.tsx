@@ -59,6 +59,7 @@ const sentenceOf = (target: string, id: string) => ({
     id,
     chinese: {
       sentence: `我${target}中文。`,
+      simplified: `我${target}中文。`,
       highlight: [[1, 1 + target.length]],
       segments: [
         { s: '我', t: '我', p: 'wǒ', e: 'I; me' },
@@ -69,6 +70,29 @@ const sentenceOf = (target: string, id: string) => ({
       targetIndex: 1,
     },
     english: { sentence: `I ${target} Chinese.`, highlight: [] },
+  },
+  totalCount: 1,
+});
+
+/** A traditional sentence: pinyin-pro misreads 蘋 as "pín" (#492). */
+const traditionalSentence = (id: string) => ({
+  sentence: {
+    id,
+    chinese: {
+      sentence: '我的蘋果沒了。',
+      simplified: '我的苹果没了。',
+      highlight: [[2, 4]],
+      segments: [
+        { s: '我', t: '我', p: 'wǒ', e: 'I; me' },
+        { s: '的', t: '的', p: 'de', e: 'of' },
+        { s: '苹果', t: '蘋果', p: 'píng guǒ', e: 'apple' },
+        { s: '没', t: '沒', p: 'méi', e: 'not have' },
+        { s: '了', t: '了', p: 'le', e: 'completed action marker' },
+        { s: '。', t: '。', p: '', e: '' },
+      ],
+      targetIndex: 2,
+    },
+    english: { sentence: 'My apple is gone.', highlight: [] },
   },
   totalCount: 1,
 });
@@ -135,6 +159,20 @@ describe('the Comprehend tab', () => {
     expect(screen.getByText('I 学习 Chinese.')).toBeInTheDocument();
     expect(screen.getByText(/wǒ xué xí/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '学习: show meaning' })).toBeInTheDocument();
+  });
+
+  it('reads the pinyin of a traditional sentence from its simplified text', async () => {
+    const user = userEvent.setup();
+    vi.mocked(getSegmentedSentence).mockImplementation(async (_simp, _charSet, id) =>
+      traditionalSentence(id ?? 'none'),
+    );
+    setQueue([STUDY]);
+    renderTab('comprehend', false);
+
+    await user.click(await screen.findByRole('button', { name: 'Show English' }));
+
+    expect(screen.getByText('wǒ de píng guǒ méi le。')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '沒: show meaning' })).toBeInTheDocument();
   });
 
   it('saves the grade with the mode, the reveal of the text and the lookups', async () => {
@@ -232,6 +270,22 @@ describe('the Compose tab', () => {
         answer: '我在学习',
       }),
     );
+  });
+
+  it('reads the pinyin of a traditional sentence from its simplified text', async () => {
+    const user = userEvent.setup();
+    vi.mocked(getSegmentedSentence).mockImplementation(async (_simp, _charSet, id) =>
+      traditionalSentence(id ?? 'none'),
+    );
+    setQueue([STUDY]);
+    renderTab('compose', false);
+
+    await user.type(await screen.findByLabelText('Your answer'), '我的蘋果');
+    await user.click(screen.getByRole('button', { name: 'Check' }));
+
+    const reference = screen.getByText('Original').nextElementSibling as HTMLElement;
+    expect(reference).toHaveTextContent('我的蘋果沒了。');
+    expect(within(reference).getByText('wǒ de píng guǒ méi le。')).toBeInTheDocument();
   });
 
   it('uses only words at bank 3 or more', async () => {

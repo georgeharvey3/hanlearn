@@ -1,4 +1,19 @@
-import { convert } from 'pinyin-pro';
+import { convert, pinyin } from 'pinyin-pro';
+
+/**
+ * The pinyin line of an example sentence, in tone marks (#492).
+ *
+ * Pass the simplified text: pinyin-pro misreads many traditional characters,
+ * common ones too (們 reads "mén", 嗎 "má"). It reads each character in its
+ * context, which the CC-CEDICT pinyin of each segment does not. It also puts
+ * a space before each punctuation mark, which this removes.
+ */
+export function sentencePinyin(simplified: string): string {
+  return pinyin(simplified, { nonZh: 'consecutive' }).replace(SPACE_BEFORE_PUNCTUATION, '');
+}
+
+/** The spaces before a closing or ending mark, full-width or ASCII. */
+const SPACE_BEFORE_PUNCTUATION = / +(?=[，。！？、；：…）」』”’,.!?;:)])/g;
 
 /**
  * Write numbered pinyin with tone marks: "tu2 shu1 guan3" reads "tú shū guǎn".

@@ -1,6 +1,6 @@
 import { searchWord } from '../services/dictionaryService';
 import { Word } from '../types/models';
-import { toneMarks } from './pinyinMarks';
+import { sentencePinyin, toneMarks } from './pinyinMarks';
 
 /**
  * One segment of a sentence file: the simplified and traditional text, the
@@ -33,6 +33,8 @@ export interface SegmentedSentence {
   id: string;
   chinese: {
     sentence: string;
+    /** The simplified text, whatever the character set of `sentence`. */
+    simplified: string;
     highlight: number[][];
     segments: SentenceSegment[];
     targetIndex: number;
@@ -48,6 +50,8 @@ export interface ResolvedSentence {
   id: string;
   chinese: {
     sentence: string;
+    /** The pinyin line, read from the simplified text (#492). */
+    pinyin: string;
     /** The target and each segment with no entry are plain strings. */
     words: (string | SentenceWord)[];
     highlight: number[][];
@@ -88,6 +92,7 @@ export function resolveSentence(
     id: sentence.id,
     chinese: {
       sentence: sentence.chinese.sentence,
+      pinyin: sentencePinyin(sentence.chinese.simplified),
       highlight: sentence.chinese.highlight,
       targetIndex: sentence.chinese.targetIndex,
       words,
