@@ -4,8 +4,10 @@ import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 
 import WordCard from './WordCard';
 import { Overline, PlayButton, hanziSx } from '../Study/parts';
-import { Highlight } from '../../Sentences/shared';
-import { SegmentedSentenceResult, getSegmentedSentence } from '../../../services/sentenceService';
+import WordSheet from '../Study/WordSheet';
+import { Highlight, SentenceWordButton } from '../../Sentences/shared';
+import { getSegmentedSentence } from '../../../services/sentenceService';
+import { ResolvedSentence, SentenceWord, resolveSentence } from '../../../utils/sentenceUtils';
 import { glossLine, useCharacterGlosses } from '../ComponentReview/useCharacterGlosses';
 import { CharacterGloss } from '../ComponentReview/characterGloss';
 import { useComponents } from '../ComponentReview/useComponents';
@@ -159,12 +161,17 @@ const CharRow: React.FC<CharRowProps> = ({ char, syllable, gloss, open, onToggle
 type ExampleLoad =
   | { status: 'loading' }
   | { status: 'none' }
-  | { status: 'loaded'; sentence: NonNullable<SegmentedSentenceResult['sentence']> };
+  | { status: 'loaded'; sentence: ResolvedSentence };
 
 /**
  * The first example sentence of the word, the same one each time (#459). A word
  * with no sentence, or a failed fetch, shows nothing: the sentence is a help,
  * not a step, so it never asks the learner to retry.
+ *
+ * Each other word of the sentence opens its meaning from the segment the file
+ * already holds, with no fetch. The word under study does not: the word card
+ * above gives its meaning. The sheet has no add button, so the introduction
+ * changes no list.
  */
 const ExampleSentence: React.FC<{
   word: Word;
@@ -173,12 +180,18 @@ const ExampleSentence: React.FC<{
   loading: boolean;
 }> = ({ word, charSet, speak, loading }) => {
   const [load, setLoad] = useState<ExampleLoad>({ status: 'loading' });
+  const [popup, setPopup] = useState<SentenceWord | null>(null);
 
   useEffect(() => {
     let live = true;
     getSegmentedSentence(word.simp, charSet)
       .then(({ sentence }) => {
-        if (live) setLoad(sentence ? { status: 'loaded', sentence } : { status: 'none' });
+        if (!live) return;
+        setLoad(
+          sentence
+            ? { status: 'loaded', sentence: resolveSentence(sentence, charSet) }
+            : { status: 'none' },
+        );
       })
       .catch(() => {
         if (live) setLoad({ status: 'none' });
@@ -190,7 +203,11 @@ const ExampleSentence: React.FC<{
 
   if (load.status === 'none') return null;
 
-  const textField = charSet === 'trad' ? 't' : 's';
+  const showWord = (entry: SentenceWord) => {
+    speak(entry[charSet]);
+    setPopup(entry);
+  };
+
   return (
     <>
       <Overline sx={{ mt: 3, mb: 1 }}>{copy.newWords.example}</Overline>
@@ -229,14 +246,24 @@ const ExampleSentence: React.FC<{
         >
           <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
             <Box lang="zh" sx={hanziSx(22, { lineHeight: 1.5 })}>
-              {load.sentence.chinese.segments.length > 0
-                ? load.sentence.chinese.segments.map((segment, i) =>
-                    i === load.sentence.chinese.targetIndex ? (
-                      <Highlight key={i}>{segment[textField]}</Highlight>
-                    ) : (
-                      <React.Fragment key={i}>{segment[textField]}</React.Fragment>
-                    ),
-                  )
+              {load.sentence.chinese.words.length > 0
+                ? load.sentence.chinese.words.map((entry, i) => {
+                    if (i === load.sentence.chinese.targetIndex) {
+                      return <Highlight key={i}>{entry as string}</Highlight>;
+                    }
+                    if (typeof entry === 'string') {
+                      return <React.Fragment key={i}>{entry}</React.Fragment>;
+                    }
+                    return (
+                      <SentenceWordButton
+                        key={i}
+                        entry={entry}
+                        charSet={charSet}
+                        open={popup === entry}
+                        onClick={() => showWord(entry)}
+                      />
+                    );
+                  })
                 : load.sentence.chinese.sentence}
             </Box>
             <Box sx={{ fontSize: 15, color: colors.textSecondary }}>
@@ -251,6 +278,13 @@ const ExampleSentence: React.FC<{
           />
         </Box>
       )}
+      <WordSheet
+        word={popup}
+        charSet={charSet}
+        added={false}
+        onClose={() => setPopup(null)}
+        onSpeak={speak}
+      />
     </>
   );
 };

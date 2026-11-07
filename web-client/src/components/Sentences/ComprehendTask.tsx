@@ -25,6 +25,7 @@ import { SentenceResult } from '../../utils/sentenceQueue';
 import {
   GradeButtons,
   Highlight,
+  SentenceWordButton,
   TaskLoadError,
   TaskLoading,
   TaskOutcome,
@@ -189,26 +190,13 @@ const ComprehendTask: React.FC<Props> = ({
   if (load === 'loading' || !sentence) return <TaskLoading />;
 
   const wordButton = (entry: SentenceWord, key: React.Key) => (
-    <Box
-      component="button"
+    <SentenceWordButton
       key={key}
-      type="button"
-      aria-label={copy.sentence.wordMeaning(entry[charSet])}
+      entry={entry}
+      charSet={charSet}
+      open={popup === entry}
       onClick={() => onShowWord(entry)}
-      sx={{
-        border: 'none',
-        background: popup === entry ? colors.text : 'transparent',
-        color: popup === entry ? colors.white : 'inherit',
-        borderRadius: '3px',
-        p: 0,
-        font: 'inherit',
-        letterSpacing: 'inherit',
-        cursor: 'pointer',
-        borderBottom: popup === entry ? 'none' : `1px dotted ${colors.borderStrong}`,
-      }}
-    >
-      {entry[charSet]}
-    </Box>
+    />
   );
 
   // Each word a button that opens its meaning. The target stays locked until

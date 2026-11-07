@@ -48,7 +48,7 @@ const makeWord = (id: number, simp: string, pinyin: string, meaning: string): Wo
 
 const diannao = makeWord(1, '电脑', 'dian4 nao3', 'computer/CL:臺|台[tai2]');
 // 我的电脑很新。 The build writes the Han segments; the service adds the gaps.
-const segment = (s: string, t: string) => ({ s, t, p: '', e: '' });
+const segment = (s: string, t: string, p = '', e = '') => ({ s, t, p, e });
 const diannaoSentence = {
   sentence: {
     id: 's1',
@@ -56,9 +56,10 @@ const diannaoSentence = {
       sentence: '我的电脑很新。',
       highlight: [[2, 4]],
       segments: [
-        segment('我的', '我的'),
-        segment('电脑', '電腦'),
-        segment('很新', '很新'),
+        segment('我的', '我的', 'wǒ de', 'my'),
+        segment('电脑', '電腦', 'diàn nǎo', 'computer'),
+        segment('很', '很', 'hěn', 'very'),
+        segment('新', '新', 'xīn', 'new/fresh'),
         segment('。', '。'),
       ],
       targetIndex: 1,
@@ -238,6 +239,30 @@ describe('NewWords — Understand: the example sentence', () => {
     expect(getSegmentedSentence).toHaveBeenCalledWith('电脑', 'trad');
     expect(within(block).getByText('電腦', { selector: 'mark' })).toBeInTheDocument();
     expect(block).toHaveTextContent('我的電腦很新。');
+  });
+
+  it('a tap on a word of the sentence speaks it and opens its meaning', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('charSet', 'simp');
+    localStorage.setItem('useSound', 'false');
+    vi.mocked(getSegmentedSentence).mockResolvedValue(diannaoSentence);
+    render([diannao]);
+    const block = await example();
+
+    // The word under study is the word card's; only the other words open.
+    expect(
+      within(block).queryByRole('button', { name: '电脑: show meaning' }),
+    ).not.toBeInTheDocument();
+    await user.click(within(block).getByRole('button', { name: '新: show meaning' }));
+
+    expect(ttsService.speak).toHaveBeenCalledWith('新', expect.anything());
+    const sheet = await screen.findByRole('dialog', { name: '新' });
+    expect(within(sheet).getByText('xīn')).toBeInTheDocument();
+    expect(within(sheet).getByText('new · fresh')).toBeInTheDocument();
+    expect(within(sheet).queryByRole('button', { name: 'Add to list' })).not.toBeInTheDocument();
+
+    await user.click(within(sheet).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   it('the play button reads the sentence aloud', async () => {
