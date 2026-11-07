@@ -1,5 +1,5 @@
 import React from 'react';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
@@ -9,6 +9,7 @@ import { renderWithProviders, authenticatedState, createTestStore } from '../../
 vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
 vi.mock('../../services/dashboardService', () => ({
   getDashboardStats: vi.fn(),
+  getHskCoverage: vi.fn(),
 }));
 vi.mock('../../services/wordService', () => ({
   getUserWordLists: vi.fn(),
@@ -20,9 +21,10 @@ vi.mock('./widgets/ChengyuCard', () => ({
   default: () => React.createElement('div', { 'data-testid': 'chengyu-mock' }),
 }));
 
-import { getDashboardStats } from '../../services/dashboardService';
+import { getDashboardStats, getHskCoverage } from '../../services/dashboardService';
 import { getUserWordLists, getListStats } from '../../services/wordService';
 const mockGetDashboardStats = getDashboardStats as ReturnType<typeof vi.fn>;
+const mockGetHskCoverage = getHskCoverage as ReturnType<typeof vi.fn>;
 const mockGetUserWordLists = getUserWordLists as ReturnType<typeof vi.fn>;
 const mockGetListStats = getListStats as ReturnType<typeof vi.fn>;
 
@@ -59,6 +61,7 @@ describe('Dashboard container', () => {
     vi.clearAllMocks();
     mockGetUserWordLists.mockResolvedValue(sampleLists);
     mockGetListStats.mockResolvedValue({ default: { due: 3, total: 20 } });
+    mockGetHskCoverage.mockResolvedValue(null);
   });
 
   it('shows a spinner while loading', () => {
@@ -284,5 +287,79 @@ describe('Dashboard container', () => {
 
     expect(await screen.findByRole('button', { name: 'Add words' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Study' })).not.toBeInTheDocument();
+  });
+
+  describe('HSK coverage card', () => {
+    const levels = { 1: 2, 2: 1, 3: 0, 4: 0, 5: 1 };
+    const coverage = ['1', '2', '3', '4', '5', '6', '7-9'].map((n) => ({
+      listId: `hsk-${n}`,
+      name: `HSK ${n.replace('-', '–')}`,
+      total: 100,
+      notAdded: 96,
+      levels,
+    }));
+
+    it('shows one row for each HSK level below the Progress card, for the whole collection', async () => {
+      mockGetDashboardStats.mockResolvedValue(sampleStats);
+      mockGetHskCoverage.mockResolvedValue(coverage);
+      renderWithProviders(<Dashboard />, {
+        store: createTestStore(authenticatedState('uid-hsk')),
+      });
+
+      const card = await screen.findByRole('region', { name: 'HSK coverage' });
+      expect(within(card).getAllByRole('button')).toHaveLength(7);
+      expect(within(card).getAllByText('4 of 100')).toHaveLength(7);
+      expect(mockGetHskCoverage).toHaveBeenCalledWith('uid-hsk');
+      const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+      expect(headings.indexOf('HSK coverage')).toBe(headings.indexOf('Progress') + 1);
+    });
+
+    it('opens the premade list of a row', async () => {
+      const user = userEvent.setup();
+      mockGetDashboardStats.mockResolvedValue(sampleStats);
+      mockGetHskCoverage.mockResolvedValue(coverage);
+      window.history.pushState({}, '', '/');
+      renderWithProviders(<Dashboard />, {
+        store: createTestStore(authenticatedState()),
+      });
+
+      await user.click(await screen.findByRole('button', { name: /^HSK 3,/ }));
+      expect(window.location.pathname).toBe('/add-words/premade/hsk-3');
+    });
+
+    it('is hidden when the collection is empty', async () => {
+      mockGetDashboardStats.mockResolvedValue(sampleStats);
+      mockGetHskCoverage.mockResolvedValue(null);
+      renderWithProviders(<Dashboard />, {
+        store: createTestStore(authenticatedState()),
+      });
+
+      await screen.findByRole('button', { name: 'Study' });
+      await waitFor(() => expect(mockGetHskCoverage).toHaveBeenCalled());
+      expect(screen.queryByRole('region', { name: 'HSK coverage' })).not.toBeInTheDocument();
+    });
+
+    it('is hidden when the HSK index does not load, and the rest still works', async () => {
+      mockGetDashboardStats.mockResolvedValue(sampleStats);
+      mockGetHskCoverage.mockRejectedValue(new Error('offline'));
+      renderWithProviders(<Dashboard />, {
+        store: createTestStore(authenticatedState()),
+      });
+
+      await waitFor(() => expect(mockGetHskCoverage).toHaveBeenCalled());
+      expect(screen.getByRole('button', { name: 'Study' })).toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'HSK coverage' })).not.toBeInTheDocument();
+    });
+
+    it('renders the Today card before the HSK index loads', async () => {
+      mockGetDashboardStats.mockResolvedValue(sampleStats);
+      mockGetHskCoverage.mockImplementation(() => new Promise(() => {}));
+      renderWithProviders(<Dashboard />, {
+        store: createTestStore(authenticatedState()),
+      });
+
+      expect(await screen.findByRole('button', { name: 'Study' })).toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'HSK coverage' })).not.toBeInTheDocument();
+    });
   });
 });

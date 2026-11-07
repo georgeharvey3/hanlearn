@@ -9,6 +9,7 @@
  */
 
 import { Word } from '../types/models';
+import { HskIndex } from '../utils/hskCoverage';
 import { retryTransient } from '../utils/retry';
 
 /** An entry of the catalogue. Its name is domain data, not copy. */
@@ -31,6 +32,7 @@ async function loadJson<T>(file: string): Promise<T> {
 
 // A failed load is not kept, so the next call asks again.
 let catalogue: Promise<PremadeList[]> | null = null;
+let hskIndex: Promise<HskIndex> | null = null;
 const entries = new Map<string, Promise<Word[]>>();
 
 /** The premade lists of the catalogue, in order. */
@@ -58,4 +60,18 @@ export function loadPremadeEntries(listId: string): Promise<Word[]> {
     entries.set(listId, loading);
   }
   return loading;
+}
+
+/**
+ * The HSK index of the Dashboard's coverage card: one row for each word of
+ * the catalogue, much smaller than the list files (#271).
+ */
+export function loadHskIndex(): Promise<HskIndex> {
+  if (!hskIndex) {
+    hskIndex = loadJson<HskIndex>('hsk-index.json').catch((error) => {
+      hskIndex = null;
+      throw error;
+    });
+  }
+  return hskIndex;
 }
