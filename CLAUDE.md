@@ -325,3 +325,17 @@ feature/xyz ──PR──▸ develop ──PR──▸ main ──▸ productio
 4. After a successful deploy, the release workflow automatically:
    - Creates a date-based git tag (e.g. `v1.2026.0316`)
    - Creates a GitHub Release with auto-generated changelog
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for `georgeharvey3/hanlearn`, through the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` is the glossary, and `docs/adr/` holds the ADRs. See `docs/agents/domain.md`.
