@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Box, ButtonBase, Collapse } from '@mui/material';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 
 import WordCard from './WordCard';
-import { Overline, hanziSx } from '../Study/parts';
+import { Overline, PlayButton, hanziSx } from '../Study/parts';
+import { Highlight } from '../../Sentences/shared';
+import { SegmentedSentenceResult, getSegmentedSentence } from '../../../services/sentenceService';
 import { glossLine, useCharacterGlosses } from '../ComponentReview/useCharacterGlosses';
 import { CharacterGloss } from '../ComponentReview/characterGloss';
 import { useComponents } from '../ComponentReview/useComponents';
@@ -154,6 +156,105 @@ const CharRow: React.FC<CharRowProps> = ({ char, syllable, gloss, open, onToggle
   );
 };
 
+type ExampleLoad =
+  | { status: 'loading' }
+  | { status: 'none' }
+  | { status: 'loaded'; sentence: NonNullable<SegmentedSentenceResult['sentence']> };
+
+/**
+ * The first example sentence of the word, the same one each time (#459). A word
+ * with no sentence, or a failed fetch, shows nothing: the sentence is a help,
+ * not a step, so it never asks the learner to retry.
+ */
+const ExampleSentence: React.FC<{
+  word: Word;
+  charSet: 'simp' | 'trad';
+  speak: (text: string) => void;
+  loading: boolean;
+}> = ({ word, charSet, speak, loading }) => {
+  const [load, setLoad] = useState<ExampleLoad>({ status: 'loading' });
+
+  useEffect(() => {
+    let live = true;
+    getSegmentedSentence(word.simp, charSet)
+      .then(({ sentence }) => {
+        if (live) setLoad(sentence ? { status: 'loaded', sentence } : { status: 'none' });
+      })
+      .catch(() => {
+        if (live) setLoad({ status: 'none' });
+      });
+    return () => {
+      live = false;
+    };
+  }, [word.simp, charSet]);
+
+  if (load.status === 'none') return null;
+
+  const key = charSet === 'trad' ? 't' : 's';
+  return (
+    <>
+      <Overline sx={{ mt: 3, mb: 1 }}>{copy.newWords.example}</Overline>
+      {load.status === 'loading' ? (
+        // The height of a one-line sentence, so the characters below barely move.
+        <Box
+          role="status"
+          aria-label={copy.newWords.exampleLoading}
+          sx={{
+            height: 86,
+            boxSizing: 'border-box',
+            p: 1.75,
+            border: `1px solid ${colors.divider}`,
+            borderRadius: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1.25,
+          }}
+        >
+          <Box sx={{ ...skeletonSx, width: '70%', height: 20 }} />
+          <Box sx={{ ...skeletonSx, width: '50%', height: 12 }} />
+        </Box>
+      ) : (
+        <Box
+          role="group"
+          aria-label={copy.newWords.example}
+          sx={{
+            p: 1.75,
+            bgcolor: colors.card,
+            border: `1px solid ${colors.divider}`,
+            borderRadius: 1,
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 1.5,
+          }}
+        >
+          <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+            <Box lang="zh" sx={hanziSx(22, { lineHeight: 1.5 })}>
+              {load.sentence.chinese.segments.length > 0
+                ? load.sentence.chinese.segments.map((segment, i) =>
+                    i === load.sentence.chinese.targetIndex ? (
+                      <Highlight key={i}>{segment[key]}</Highlight>
+                    ) : (
+                      <React.Fragment key={i}>{segment[key]}</React.Fragment>
+                    ),
+                  )
+                : load.sentence.chinese.sentence}
+            </Box>
+            <Box sx={{ fontSize: 15, color: colors.textSecondary }}>
+              {load.sentence.english.sentence}
+            </Box>
+          </Box>
+          <PlayButton
+            size={40}
+            loading={loading}
+            label={copy.newWords.playSentence}
+            onClick={() => speak(load.sentence.chinese.sentence)}
+          />
+        </Box>
+      )}
+    </>
+  );
+};
+
 interface UnderstandStepProps {
   word: Word;
   charSet: 'simp' | 'trad';
@@ -180,6 +281,7 @@ const UnderstandStep: React.FC<UnderstandStepProps> = ({ word, charSet, speak, l
         loading={loading}
         highlight={openRow}
       />
+      <ExampleSentence word={word} charSet={charSet} speak={speak} loading={loading} />
       <Overline sx={{ mt: 3, mb: 1 }}>{copy.newWords.characters}</Overline>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         {chars.map((char, i) => (

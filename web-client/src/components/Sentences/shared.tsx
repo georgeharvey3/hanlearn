@@ -98,8 +98,9 @@ export const GradeButtons: React.FC<{ onGrade: (result: SentenceResult) => void 
 /** A word of a sentence, highlighted as the word under study. */
 export const Highlight: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <Box
-    component="span"
+    component="mark"
     sx={{
+      font: 'inherit',
       color: colors.primaryDark,
       bgcolor: colors.successSurface,
       borderRadius: '3px',
