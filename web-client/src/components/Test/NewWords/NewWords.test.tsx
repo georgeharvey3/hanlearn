@@ -210,7 +210,10 @@ describe('NewWords — Understand', () => {
 });
 
 describe('NewWords — Understand: the example sentence', () => {
-  const example = () => screen.findByRole('group', { name: 'Example' });
+  // A role query walks the whole step on each retry, which outlasted the
+  // 1 s default on CI. The label query is cheap; the selector keeps it to the group.
+  const example = () =>
+    screen.findByLabelText('Example', { selector: '[role="group"]' }, { timeout: 5000 });
 
   it('shows the first sentence of the word, the word highlighted, and its English', async () => {
     localStorage.setItem('charSet', 'simp');
@@ -256,13 +259,20 @@ describe('NewWords — Understand: the example sentence', () => {
     await user.click(within(block).getByRole('button', { name: '新: show meaning' }));
 
     expect(ttsService.speak).toHaveBeenCalledWith('新', expect.anything());
-    const sheet = await screen.findByRole('dialog', { name: '新' });
+    const sheet = await screen.findByLabelText(
+      '新',
+      { selector: '[role="dialog"]' },
+      { timeout: 5000 },
+    );
     expect(within(sheet).getByText('xīn')).toBeInTheDocument();
     expect(within(sheet).getByText('new · fresh')).toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: 'Add to list' })).not.toBeInTheDocument();
 
     await user.click(within(sheet).getByRole('button', { name: 'Close' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(
+      () => expect(document.querySelector('[role="dialog"]')).not.toBeInTheDocument(),
+      { timeout: 5000 },
+    );
   });
 
   it('the play button reads the sentence aloud', async () => {
