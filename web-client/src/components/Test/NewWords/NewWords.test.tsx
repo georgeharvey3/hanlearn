@@ -54,6 +54,7 @@ const diannaoSentence = {
     id: 's1',
     chinese: {
       sentence: '我的电脑很新。',
+      simplified: '我的电脑很新。',
       highlight: [[2, 4]],
       segments: [
         segment('我的', '我的', 'wǒ de', 'my'),
@@ -269,10 +270,9 @@ describe('NewWords — Understand: the example sentence', () => {
     expect(within(sheet).queryByRole('button', { name: 'Add to list' })).not.toBeInTheDocument();
 
     await user.click(within(sheet).getByRole('button', { name: 'Close' }));
-    await waitFor(
-      () => expect(document.querySelector('[role="dialog"]')).not.toBeInTheDocument(),
-      { timeout: 5000 },
-    );
+    await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeInTheDocument(), {
+      timeout: 5000,
+    });
   });
 
   it('the play button reads the sentence aloud', async () => {
