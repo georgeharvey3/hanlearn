@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { Word, WordScore } from '../../../types/models';
-import { missedWords, nextDue, summaryRows, tally } from './summary';
+import { missedQuestions, nextDue, summaryRows, tally } from './summary';
 
 const word = (id: number, simp: string, extra: Partial<Word> = {}): Word => ({
   id,
@@ -76,16 +76,36 @@ describe('tally', () => {
   });
 });
 
-describe('missedWords', () => {
-  it('gives each word with a Nearly or Not known question once', () => {
-    const words = [word(1, '一'), word(2, '二'), word(3, '三')];
+describe('missedQuestions', () => {
+  it('gives each missed word once, in the direction it was missed', () => {
+    const words = [word(1, '一'), word(2, '二'), word(3, '三'), word(4, '四')];
     const scores: WordScore[] = [
-      { char: '一', direction: 'MC', result: 'fail' },
-      { char: '一', direction: 'CM', result: 'lapse' },
+      { char: '一', direction: 'CM', result: 'fail' },
       { char: '二', direction: 'MC', result: 'pass' },
-      { char: '三', direction: 'MC', result: 'lapse' },
+      { char: '三', direction: 'PM', result: 'lapse' },
+      { char: '四', direction: 'MP', result: 'fail' },
     ];
-    expect(missedWords(summaryRows(scores, words), words).map((w) => w.id)).toEqual([1, 3]);
+    const missed = missedQuestions(summaryRows(scores, words), words);
+    expect(missed.map((q) => [q.word.id, q.direction])).toEqual([
+      [1, 'CM'],
+      [4, 'MP'],
+      [3, 'PM'],
+    ]);
+  });
+
+  it('gives a word once even if it was missed in two directions', () => {
+    const words = [word(1, '一')];
+    const scores: WordScore[] = [
+      { char: '一', direction: 'PC', result: 'lapse' },
+      { char: '一', direction: 'MC', result: 'fail' },
+    ];
+    const missed = missedQuestions(summaryRows(scores, words), words);
+    expect(missed.map((q) => [q.word.id, q.direction])).toEqual([[1, 'MC']]);
+  });
+
+  it('skips a missed question whose word is no longer in the list', () => {
+    const scores: WordScore[] = [{ char: '五', direction: 'MC', result: 'fail' }];
+    expect(missedQuestions(summaryRows(scores, []), [])).toEqual([]);
   });
 });
 
