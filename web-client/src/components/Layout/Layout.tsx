@@ -10,6 +10,7 @@ import Sidebar, { SIDEBAR_WIDTH } from '../Navigation/Sidebar/Sidebar';
 import NotificationSnackbar from '../NotificationSnackbar/NotificationSnackbar';
 import SkipLink from './SkipLink';
 import { FocusModeProvider } from './focusMode';
+import { StickyTopProvider, stickyTopFor } from './stickyTop';
 import KeyboardShortcutsDialog from '../KeyboardShortcutsDialog/KeyboardShortcutsDialog';
 import { useKeyboardShortcutsDialog } from '../KeyboardShortcutsDialog/useKeyboardShortcutsDialog';
 import { RootState } from '../../types/store';
@@ -118,7 +119,7 @@ const Layout: React.FC<Props> = ({ children }) => {
         }}
       >
         <Box sx={{ maxWidth: showSidebar ? 1100 : 1440, mx: 'auto', height: '100%' }}>
-          {children}
+          <StickyTopProvider value={stickyTopFor(topBarHeight)}>{children}</StickyTopProvider>
         </Box>
       </Box>
       <NotificationSnackbar bottom={toastBottom} centre={toastCentre} />

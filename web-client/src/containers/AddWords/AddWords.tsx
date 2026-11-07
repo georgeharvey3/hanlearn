@@ -23,6 +23,7 @@ import {
   ListsOfWordDialog,
 } from '../../components/AddWords/ListDialogs';
 import PageTabs from '../../components/AddWords/PageTabs';
+import { useStickyTop } from '../../components/Layout/stickyTop';
 import { BankEmpty, BankLoadError, BankLoading } from '../../components/AddWords/BankStates';
 import { Overline } from '../../components/Test/Study/parts';
 import Spinner from '../../components/UI/Spinner/Spinner';
@@ -109,6 +110,7 @@ const AddWords: React.FC<Props> = ({
   const history = useHistory();
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up('sm'), { noSsr: true });
+  const stickyTop = useStickyTop();
   const [charSet] = useState<'simp' | 'trad'>(
     () => (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad',
   );
@@ -405,24 +407,45 @@ const AddWords: React.FC<Props> = ({
       }}
     >
       <PageTabs tab="mine" onTab={(t) => t === 'premade' && history.push(premadePath())} />
-      <SearchField
-        query={query}
-        busy={status === 'searching'}
-        onChange={setQuery}
-        onSubmit={() => runSearch(query)}
-        onClear={clearSearch}
-      />
-      {!searching && !firstLoad && (
-        <ListChips
-          chips={chips}
-          activeId={activeListId}
-          onSwitch={(id) => {
-            setOpenId(null);
-            onSwitchList(id);
-          }}
-          onNew={() => openDialog('new')}
+      {/* The search field and the list chips stay in view while a long list
+          scrolls under them (#477). The page tabs and the list heading scroll
+          away. The negative margins give the pinned group a band of paper
+          above and below without moving it when it is not stuck. Its z-index
+          keeps it over the word rows and under the top bar (1100), the menus
+          and the dialogs. */}
+      <Box
+        data-pinned
+        sx={{
+          position: 'sticky',
+          top: stickyTop,
+          zIndex: 1,
+          my: -1,
+          py: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1.5,
+          bgcolor: colors.paper,
+        }}
+      >
+        <SearchField
+          query={query}
+          busy={status === 'searching'}
+          onChange={setQuery}
+          onSubmit={() => runSearch(query)}
+          onClear={clearSearch}
         />
-      )}
+        {!searching && !firstLoad && (
+          <ListChips
+            chips={chips}
+            activeId={activeListId}
+            onSwitch={(id) => {
+              setOpenId(null);
+              onSwitchList(id);
+            }}
+            onNew={() => openDialog('new')}
+          />
+        )}
+      </Box>
       {body}
 
       <Menu

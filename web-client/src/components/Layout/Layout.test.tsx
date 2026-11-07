@@ -15,6 +15,7 @@ vi.mock('../../services/sentenceTabsService', () => ({ loadTabStatuses }));
 
 import Layout from './Layout';
 import { useFocusMode } from './focusMode';
+import { useStickyTop } from './stickyTop';
 import { renderWithProviders, authenticatedState, createTestStore } from '../../test/utils';
 import { ListStats } from '../../types/store';
 
@@ -63,6 +64,9 @@ beforeEach(() => {
     compose: { ready: false, fresh: false },
   });
 });
+
+/** A page that shows the offset at which its pinned rows stick. */
+const Pinned: React.FC = () => <div data-testid="sticky-top">{useStickyTop()}</div>;
 
 const renderShell = (children: React.ReactNode = <div>page</div>, auth = true) =>
   renderWithProviders(<Layout>{children}</Layout>, {
@@ -119,6 +123,13 @@ describe('Layout on a phone', () => {
     expect(screen.queryByRole('navigation', { name: 'Main' })).not.toBeInTheDocument();
   });
 
+  it('pins a page row directly below the top bar', () => {
+    renderShell(<Pinned />);
+    expect(screen.getByTestId('sticky-top')).toHaveTextContent(
+      'calc(48px + env(safe-area-inset-top))',
+    );
+  });
+
   it('shows Log in and Sign up to a visitor, and no tab bar', () => {
     renderShell(<div>page</div>, false);
     expect(screen.getByRole('button', { name: 'Log in' })).toBeInTheDocument();
@@ -171,6 +182,20 @@ describe('Layout on a desktop', () => {
 
     renderShell();
     expect(screen.getByRole('button', { name: 'Expand' })).toBeInTheDocument();
+  });
+
+  it('pins a page row at the top of the viewport when there is no top bar', () => {
+    renderShell(<Pinned />);
+    expect(screen.getByTestId('sticky-top')).toHaveTextContent(
+      'calc(0px + env(safe-area-inset-top))',
+    );
+  });
+
+  it('pins a page row below the top bar for a visitor', () => {
+    renderShell(<Pinned />, false);
+    expect(screen.getByTestId('sticky-top')).toHaveTextContent(
+      'calc(56px + env(safe-area-inset-top))',
+    );
   });
 
   it('keeps the sidebar for a session', () => {
