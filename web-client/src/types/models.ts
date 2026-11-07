@@ -140,6 +140,12 @@ export interface GradeDetail {
   answer?: string;
   alternatives?: string[];
   disambiguator?: boolean;
+  /**
+   * True when the learner changed a stroke-check lapse of a drawn character to
+   * a pass with "Count as known". The grade is then `pass`, and `misses` keeps
+   * the misses. Absent means not overridden. See issue #475.
+   */
+  overridden?: boolean;
 }
 
 /** The longest first wrong answer the review log keeps. */

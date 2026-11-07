@@ -180,6 +180,7 @@ export const copy = {
     didYouKnow: 'Did you know it?',
     gradeFail: 'No',
     gradeLapse: 'Nearly',
+    countAsKnown: 'Count as known',
     gradePass: 'Yes',
     iDontKnow: "I don't know",
     hint: 'Hint',
