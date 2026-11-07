@@ -306,7 +306,7 @@ describe('Dashboard container', () => {
         store: createTestStore(authenticatedState('uid-hsk')),
       });
 
-      const card = await screen.findByRole('region', { name: 'HSK coverage' });
+      const card = await screen.findByRole('region', { name: 'HSK coverage' }, { timeout: 5000 });
       expect(within(card).getAllByRole('button')).toHaveLength(7);
       expect(within(card).getAllByText('4 of 100')).toHaveLength(7);
       expect(mockGetHskCoverage).toHaveBeenCalledWith('uid-hsk');
@@ -330,7 +330,9 @@ describe('Dashboard container', () => {
       await screen.findByRole('button', { name: 'Study' });
       await act(async () => resolve(coverage));
 
-      expect(await screen.findByRole('region', { name: 'HSK coverage' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('region', { name: 'HSK coverage' }, { timeout: 5000 }),
+      ).toBeInTheDocument();
       expect(mockGetDashboardStats).toHaveBeenLastCalledWith('test-user-123', 'hsk3');
     });
 
@@ -343,7 +345,9 @@ describe('Dashboard container', () => {
         store: createTestStore(authenticatedState()),
       });
 
-      await user.click(await screen.findByRole('button', { name: /^HSK 3,/ }));
+      // A role query over the whole Dashboard is slow on CI; search the card only.
+      const card = await screen.findByRole('region', { name: 'HSK coverage' }, { timeout: 5000 });
+      await user.click(within(card).getByRole('button', { name: /^HSK 3,/ }));
       expect(window.location.pathname).toBe('/add-words/premade/hsk-3');
     });
 
