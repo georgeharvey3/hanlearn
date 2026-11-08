@@ -86,6 +86,7 @@ export const createInitialState = (props: Props): TestState => {
     showAnswer: false,
     componentReviewChars: [],
     showComponents: false,
+    missedCharIndexes: [],
     awaitingContinue: false,
     outcome: null,
     hint: null,

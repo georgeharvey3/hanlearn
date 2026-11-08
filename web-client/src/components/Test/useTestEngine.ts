@@ -37,6 +37,7 @@ import {
 } from '../../utils/alternativeAnswers';
 import { CurrentQuestion } from '../../utils/savedSession';
 import { canCountAsKnown } from './countAsKnown';
+import { componentsToReview, isDrawQuestion } from './componentReview';
 
 /**
  * Misses on one stroke before the handwriting quiz shows the stroke outline.
@@ -81,20 +82,6 @@ const gradeDetailOf = (grade: DirectionGrade): GradeDetail =>
   ) as GradeDetail;
 
 /**
- * The characters to offer a component breakdown for once a question is graded.
- *
- * Only a question that puts the character on screen has components worth
- * showing, so `MP` and `PM` — pinyin and meaning alone — get none. A `pass`
- * gets none either: the breakdown is the aid for a direction the learner has
- * just lost, which is what issue #335 asks for.
- */
-const componentsToReview = (state: TestState, result: DirectionResult): string[] => {
-  if (result === 'pass') return [];
-  if (state.answerCategory !== 'character' && state.questionCategory !== 'character') return [];
-  return Array.from(state.chosenCharacter ?? '');
-};
-
-/**
  * The state a question starts with that the question before it may have
  * changed: its hint, its reveal and its grade. Every step that moves to the
  * next question spreads it, so that no part of one reveal shows on the next
@@ -112,6 +99,7 @@ const FRESH_QUESTION = {
   hintShown: false,
   firstWrongAnswer: null,
   alternativesSent: [] as string[],
+  missedCharIndexes: [] as number[],
 } as const;
 
 /** The answer the current question asks for, as the matching reads it. */
@@ -219,7 +207,9 @@ export const useTestEngine = (props: Props) => {
       pendingAdvanceRef.current = advance;
       setStateMerged({
         componentReviewChars: chars,
-        showComponents: false,
+        // A draw question knows the characters the learner missed, so it
+        // shows their breakdown at once. See issue #493.
+        showComponents: chars.length > 0 && isDrawQuestion(stateRef.current),
         awaitingContinue: true,
       });
     },
@@ -740,7 +730,10 @@ export const useTestEngine = (props: Props) => {
             // Hanzi Writer shows the outline here by itself. The learner did
             // not ask for it, so it is no hint: `misses` records it.
             ...(strokeData.mistakesOnStroke >= missesBeforeHint
-              ? { gradeCap: 'lapse' as const }
+              ? {
+                  gradeCap: 'lapse' as const,
+                  missedCharIndexes: prevState.missedCharIndexes.concat(index),
+                }
               : {}),
           }));
         },
@@ -1084,7 +1077,11 @@ export const useTestEngine = (props: Props) => {
       } catch {
         return;
       }
-      setStateMerged({ gradeCap: 'lapse', hintShown: true });
+      setStateMerged((prevState) => ({
+        gradeCap: 'lapse',
+        hintShown: true,
+        missedCharIndexes: prevState.missedCharIndexes.concat(prevState.writingIndex),
+      }));
       setTimeout(() => {
         current.writer!.hideOutline();
       }, 1000);

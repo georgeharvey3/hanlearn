@@ -28,6 +28,7 @@ vi.mock('./constants', () => ({
     initialQueueLength: 0,
     gradeList: [],
     gradeCap: 'pass',
+    missedCharIndexes: [],
     toneErrorCount: 0,
     alternativesSent: [],
     alternatives: null,
@@ -160,6 +161,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  delete (window as any).HanziWriter;
 });
 
 describe('useTestEngine — component review after a miss', () => {
@@ -277,5 +279,120 @@ describe('useTestEngine — component review after a miss', () => {
       key('keyup');
     });
     expect(result.current.state.currentPair).toEqual(secondPair);
+  });
+});
+
+/**
+ * A draw question (`CM`) knows which characters the learner missed, so the
+ * review holds only those, expanded. See issue #493.
+ */
+describe('useTestEngine — component review after a missed draw question', () => {
+  const drawPair: QueuePair = { index: '0', aCategory: 'C', qCategory: 'M' };
+  const writer = {
+    quiz: vi.fn(),
+    setCharacter: vi.fn(),
+    animateCharacter: vi.fn().mockResolvedValue(undefined),
+    cancelQuiz: vi.fn(),
+    showOutline: vi.fn(),
+    hideOutline: vi.fn(),
+  };
+  type Quiz = { onMistake: (data: object) => void; onComplete: () => void };
+  const quizOf = (n: number): Quiz => writer.quiz.mock.calls[n][0];
+  const capped = { mistakesOnStroke: 5, strokeNum: 0, totalMistakes: 5 };
+  const belowCap = { mistakesOnStroke: 1, strokeNum: 0, totalMistakes: 1 };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    writer.quiz.mockClear();
+    (window as any).HanziWriter = { create: vi.fn().mockReturnValue(writer) };
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Seat a draw question of `word`, with the writer mounted on its first character. */
+  const drawQuestion = (word: string) => {
+    const props = makeProps();
+    const { result } = renderHook(() => useTestEngine(props));
+    act(() =>
+      seatOnQuestion(result.current.setStateMerged, {
+        queue: [drawPair, secondPair],
+        currentPair: drawPair,
+        answerCategory: 'character',
+        questionCategory: 'meaning',
+        answer: word,
+        chosenCharacter: word,
+        useHandwriting: true,
+        qNum: 1,
+      }),
+    );
+    // A new question number mounts the writer, as it does in a session.
+    writer.quiz.mockClear();
+    act(() => result.current.setStateMerged({ qNum: 2 }));
+    return result;
+  };
+
+  /** Finish the character the writer is on, and let the engine move to the next. */
+  const complete = (n: number) => {
+    act(() => quizOf(n).onComplete());
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+  };
+
+  it('shows the breakdown of a one-character word at once', () => {
+    const result = drawQuestion('好');
+    act(() => quizOf(0).onMistake(capped));
+    complete(0);
+
+    expect(result.current.state.componentReviewChars).toEqual(['好']);
+    expect(result.current.state.showComponents).toBe(true);
+  });
+
+  it('holds only the character the hint was used on', () => {
+    const result = drawQuestion('你好');
+    act(() => result.current.onHint());
+    complete(0);
+    complete(1);
+
+    expect(result.current.state.componentReviewChars).toEqual(['你']);
+    expect(result.current.state.showComponents).toBe(true);
+  });
+
+  it('holds only the character a stroke reached the cap on', () => {
+    const result = drawQuestion('你好');
+    complete(0);
+    act(() => quizOf(1).onMistake(capped));
+    complete(1);
+
+    expect(result.current.state.componentReviewChars).toEqual(['好']);
+  });
+
+  it('leaves out a character with a mistake below the cap', () => {
+    const result = drawQuestion('你好');
+    act(() => quizOf(0).onMistake(belowCap));
+    complete(0);
+    act(() => result.current.onHint());
+    complete(1);
+
+    expect(result.current.state.componentReviewChars).toEqual(['好']);
+  });
+
+  it('holds every character after "I don\'t know"', async () => {
+    const result = drawQuestion('你好');
+    complete(0);
+    await act(async () => result.current.onIDontKnow());
+
+    expect(result.current.state.componentReviewChars).toEqual(['你', '好']);
+    expect(result.current.state.showComponents).toBe(true);
+  });
+
+  it('starts the next question with no missed characters', () => {
+    const result = drawQuestion('好');
+    act(() => quizOf(0).onMistake(capped));
+    complete(0);
+    act(() => result.current.onContinue());
+
+    expect(result.current.state.missedCharIndexes).toEqual([]);
   });
 });

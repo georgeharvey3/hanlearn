@@ -35,16 +35,20 @@ components of that character before the session moves on.
 - The trigger is a `lapse` or a `fail` on `MC`, `PC` or `CM` — the directions
   that show or ask for the character. `MP` and `PM` have no character on
   screen, so they offer nothing.
-- The offer is **collapsed**. The breakdown is one tap away, and
-  `decomposeCharacter` is not called until the learner asks for it, so a rushed
-  session costs no extra calls.
+- On `MC` and `PC`, the offer is **collapsed**. The breakdown is one tap
+  away, and `decomposeCharacter` is not called until the learner asks for it,
+  so a rushed session costs no extra calls. On `CM`, the offer is **expanded**,
+  and the breakdown loads with no tap (#493).
 - The session **holds** on the reveal. A graded question moved on after one to
   two seconds, which is not long enough to open a panel and read it, so the
   timer is replaced by a Continue button on exactly these questions. Every
   other question keeps its timed advance.
-- A word of more than one character gets one breakdown per character.
+- On `MC` and `PC`, a word of more than one character gets one breakdown per
+  character. On `CM`, only the missed characters get a breakdown (#493). A
+  character is missed when the learner used the hint on it, or when one of its
+  strokes reached the outline cap. "I don't know" misses every character.
 
-`componentsToReview` in `useTestEngine.ts` decides what a question offers, and
+`componentsToReview` in `componentReview.ts` decides what a question offers, and
 `holdOrAdvance` holds the step that ends the question until Continue runs it.
 `ComponentReview` is the UI, and it reuses the Learn stage's
 `DecompositionTree` so that both places agree on what a component is.

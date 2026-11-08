@@ -29,6 +29,7 @@ vi.mock('./constants', () => ({
     initialQueueLength: 0,
     gradeList: [],
     gradeCap: 'pass',
+    missedCharIndexes: [],
     toneErrorCount: 0,
     alternativesSent: [],
     alternatives: null,
