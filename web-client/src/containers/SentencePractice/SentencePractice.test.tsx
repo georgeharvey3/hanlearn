@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('../../firebase/config', () => ({
@@ -391,6 +391,66 @@ describe('the Compose tab', () => {
     const reference = screen.getByText('Original').nextElementSibling as HTMLElement;
     expect(reference).toHaveTextContent('我的蘋果沒了。');
     expect(within(reference).getByText('wǒ de píng guǒ méi le。')).toBeInTheDocument();
+  });
+
+  describe('with a spoken answer', () => {
+    // The recognizer gives simplified text in each character set (#494).
+    let recognizer: Record<string, (event?: unknown) => void> = {};
+    const say = (transcript: string) =>
+      act(() => {
+        recognizer.result?.({ results: [[{ transcript }]] });
+        recognizer.end?.();
+      });
+
+    beforeEach(() => {
+      recognizer = {};
+      class FakeRecognition {
+        lang = '';
+        start = vi.fn(() => recognizer.audiostart?.());
+        abort = vi.fn();
+        addEventListener = (event: string, handler: (e?: unknown) => void) => {
+          recognizer[event] = handler;
+        };
+      }
+      (window as unknown as { webkitSpeechRecognition: unknown }).webkitSpeechRecognition =
+        FakeRecognition;
+    });
+
+    const speakAnswer = async (charSet: 'simp' | 'trad', transcript: string) => {
+      const user = userEvent.setup();
+      localStorage.setItem('charSet', charSet);
+      setQueue([{ ...STUDY, trad: '學習' }]);
+      renderTab('compose');
+      await user.click(await screen.findByRole('button', { name: 'Record speech' }));
+      say(transcript);
+      const check = screen.getByRole('button', { name: 'Check' });
+      await waitFor(() => expect(check).toBeEnabled());
+      await user.click(check);
+      const answer = screen.getByText('Your answer').nextElementSibling as HTMLElement;
+      await user.click(screen.getByRole('button', { name: 'Right' }));
+      return answer;
+    };
+
+    it('shows a traditional answer, with the target highlighted, for the traditional set', async () => {
+      const answer = await speakAnswer('trad', '我在学习');
+
+      expect(answer).toHaveTextContent('我在學習');
+      expect(within(answer).getByText('學習').tagName).toBe('SPAN');
+      expect(saveGrade).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ answer: '我在學習' }),
+      );
+    });
+
+    it('keeps the transcript unchanged for the simplified set', async () => {
+      const answer = await speakAnswer('simp', '我在学习');
+
+      expect(answer).toHaveTextContent('我在学习');
+      expect(saveGrade).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ answer: '我在学习' }),
+      );
+    });
   });
 
   it('uses only words at bank 3 or more', async () => {

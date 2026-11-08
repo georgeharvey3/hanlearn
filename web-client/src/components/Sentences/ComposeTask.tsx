@@ -26,6 +26,7 @@ import {
   resolveSentence,
 } from '../../utils/sentenceUtils';
 import { SentenceResult } from '../../utils/sentenceQueue';
+import { toCharSet } from '../../utils/charSet';
 import {
   GradeButtons,
   TaskLoadError,
@@ -153,8 +154,11 @@ const ComposeTask: React.FC<Props> = ({
     let result: string | undefined;
     next.addEventListener('result', (event: SpeechRecognitionEvent) => {
       result = event.results[0][0].transcript;
-      setEntered(result);
       setMessage('');
+      // A zh-CN recognizer always gives simplified text (#494).
+      toCharSet(result, charSet).then((answer) => {
+        if (mounted.current && recognition.current === next) setEntered(answer);
+      });
     });
     next.addEventListener('end', () => {
       setListening(false);
