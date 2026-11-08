@@ -4,7 +4,7 @@ import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 
 import WordCard from './WordCard';
 import { Overline, PlayButton, hanziSx } from '../Study/parts';
-import WordSheet from '../Study/WordSheet';
+import WordGlossPanel from '../Study/WordGlossPanel';
 import { Highlight, SentenceWordButton } from '../../Sentences/shared';
 import { getSegmentedSentence } from '../../../services/sentenceService';
 import { ResolvedSentence, SentenceWord, resolveSentence } from '../../../utils/sentenceUtils';
@@ -203,7 +203,12 @@ const ExampleSentence: React.FC<{
 
   if (load.status === 'none') return null;
 
+  // A tap on the open word closes it.
   const showWord = (entry: SentenceWord) => {
+    if (popup === entry) {
+      setPopup(null);
+      return;
+    }
     speak(entry[charSet]);
     setPopup(entry);
   };
@@ -240,51 +245,47 @@ const ExampleSentence: React.FC<{
             border: `1px solid ${colors.divider}`,
             borderRadius: 1,
             display: 'flex',
-            alignItems: 'flex-start',
-            gap: 1.5,
+            flexDirection: 'column',
+            gap: 1.25,
           }}
         >
-          <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-            <Box lang="zh" sx={hanziSx(22, { lineHeight: 1.5 })}>
-              {load.sentence.chinese.words.length > 0
-                ? load.sentence.chinese.words.map((entry, i) => {
-                    if (i === load.sentence.chinese.targetIndex) {
-                      return <Highlight key={i}>{entry as string}</Highlight>;
-                    }
-                    if (typeof entry === 'string') {
-                      return <React.Fragment key={i}>{entry}</React.Fragment>;
-                    }
-                    return (
-                      <SentenceWordButton
-                        key={i}
-                        entry={entry}
-                        charSet={charSet}
-                        open={popup === entry}
-                        onClick={() => showWord(entry)}
-                      />
-                    );
-                  })
-                : load.sentence.chinese.sentence}
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+            <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+              <Box lang="zh" sx={hanziSx(22, { lineHeight: 1.5 })}>
+                {load.sentence.chinese.words.length > 0
+                  ? load.sentence.chinese.words.map((entry, i) => {
+                      if (i === load.sentence.chinese.targetIndex) {
+                        return <Highlight key={i}>{entry as string}</Highlight>;
+                      }
+                      if (typeof entry === 'string') {
+                        return <React.Fragment key={i}>{entry}</React.Fragment>;
+                      }
+                      return (
+                        <SentenceWordButton
+                          key={i}
+                          entry={entry}
+                          charSet={charSet}
+                          open={popup === entry}
+                          onClick={() => showWord(entry)}
+                        />
+                      );
+                    })
+                  : load.sentence.chinese.sentence}
+              </Box>
+              <Box sx={{ fontSize: 15, color: colors.textSecondary }}>
+                {load.sentence.english.sentence}
+              </Box>
             </Box>
-            <Box sx={{ fontSize: 15, color: colors.textSecondary }}>
-              {load.sentence.english.sentence}
-            </Box>
+            <PlayButton
+              size={40}
+              loading={loading}
+              label={copy.newWords.playSentence}
+              onClick={() => speak(load.sentence.chinese.sentence)}
+            />
           </Box>
-          <PlayButton
-            size={40}
-            loading={loading}
-            label={copy.newWords.playSentence}
-            onClick={() => speak(load.sentence.chinese.sentence)}
-          />
+          <WordGlossPanel word={popup} charSet={charSet} added={false} onSpeak={speak} />
         </Box>
       )}
-      <WordSheet
-        word={popup}
-        charSet={charSet}
-        added={false}
-        onClose={() => setPopup(null)}
-        onSpeak={speak}
-      />
     </>
   );
 };

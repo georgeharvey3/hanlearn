@@ -68,7 +68,6 @@ export const copy = {
     hideText: 'Hide text',
     wordMeaning: (word: string) => `${word}: show meaning`,
     noDefinition: 'No definition found',
-    close: 'Close',
     addToList: 'Add to list',
     added: 'Added',
     addFailed: "Couldn't add the word.",

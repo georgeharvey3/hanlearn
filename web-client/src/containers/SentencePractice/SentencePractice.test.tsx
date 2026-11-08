@@ -3,7 +3,13 @@ import React from 'react';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('../../firebase/config', () => ({
+  auth: {},
+  db: {},
+  functions: {},
+  ai: {},
+  analytics: null,
+}));
 vi.mock('howler', () => ({ Howl: vi.fn(), Howler: { ctx: null } }));
 // The audio ends at once, as a short clip does.
 vi.mock('../../services/ttsService', () => ({
@@ -21,6 +27,11 @@ vi.mock('../../services/sentencePracticeService', () => ({
   loadPractice: vi.fn(),
 }));
 vi.mock('../../services/sentenceService', () => ({ getSegmentedSentence: vi.fn() }));
+vi.mock('../../services/dictionaryService', () => ({ searchWord: vi.fn() }));
+vi.mock('../../services/wordService', async () => {
+  const actual = await vi.importActual<Record<string, unknown>>('../../services/wordService');
+  return { ...actual, addWordToList: vi.fn() };
+});
 vi.mock('../../services/errorReporting', () => ({ reportError: vi.fn() }));
 
 import SentencePractice from './SentencePractice';
@@ -29,6 +40,8 @@ import { loadQueueData } from '../../services/sentenceTabsService';
 import { saveGrade } from '../../services/sentencePracticeService';
 import { getSegmentedSentence } from '../../services/sentenceService';
 import * as ttsService from '../../services/ttsService';
+import { searchWord } from '../../services/dictionaryService';
+import { addWordToList } from '../../services/wordService';
 import { makeDirections } from '../../utils/directions';
 import { Word } from '../../types/models';
 import { PracticeByWord } from '../../utils/sentenceQueue';
@@ -182,7 +195,8 @@ describe('the Comprehend tab', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Show text' }));
     await user.click(screen.getByRole('button', { name: '中文: show meaning' }));
-    await user.click(screen.getByRole('button', { name: 'Close' }));
+    // A tap that closes the panel is no lookup.
+    await user.click(screen.getByRole('button', { name: '中文: show meaning' }));
     await user.click(screen.getByRole('button', { name: 'Show English' }));
     await user.click(screen.getByRole('button', { name: 'Wrong' }));
 
@@ -197,6 +211,50 @@ describe('the Comprehend tab', () => {
         revealed: true,
         lookups: 1,
       }),
+    );
+  });
+
+  it('shows the meaning of a tapped word under the sentence, one word at a time', async () => {
+    const user = userEvent.setup();
+    setQueue([STUDY]);
+    renderTab('comprehend', false);
+
+    await user.click(await screen.findByRole('button', { name: '中文: show meaning' }));
+    expect(document.querySelector('[role="dialog"]')).not.toBeInTheDocument();
+    const panel = screen.getByRole('group', { name: '中文' });
+    expect(within(panel).getByText('Zhōng wén')).toBeInTheDocument();
+    expect(within(panel).getByText('Chinese')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '我: show meaning' }));
+    expect(screen.queryByRole('group', { name: '中文' })).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole('group', { name: '我' })).getByText('I · me'),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '我: show meaning' }));
+    expect(screen.queryByRole('group', { name: '我' })).not.toBeInTheDocument();
+  });
+
+  it('plays a word from its panel, and adds it to the list', async () => {
+    const user = userEvent.setup();
+    vi.mocked(searchWord).mockResolvedValue([
+      { id: 7, simp: '中文', trad: '中文', pinyin: 'zhong1 wen2', meaning: 'Chinese' } as Word,
+    ]);
+    vi.mocked(addWordToList).mockResolvedValue(null);
+    setQueue([STUDY]);
+    renderTab('comprehend', false);
+
+    await user.click(await screen.findByRole('button', { name: '中文: show meaning' }));
+    const panel = screen.getByRole('group', { name: '中文' });
+    await user.click(within(panel).getByRole('button', { name: 'Play pronunciation' }));
+    expect(ttsService.speak).toHaveBeenCalledWith('中文', expect.anything());
+
+    await user.click(within(panel).getByRole('button', { name: 'Add to list' }));
+    expect(await within(panel).findByRole('button', { name: 'Added' })).toBeDisabled();
+    expect(addWordToList).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ id: 7 }),
+      expect.anything(),
     );
   });
 

@@ -260,19 +260,14 @@ describe('NewWords — Understand: the example sentence', () => {
     await user.click(within(block).getByRole('button', { name: '新: show meaning' }));
 
     expect(ttsService.speak).toHaveBeenCalledWith('新', expect.anything());
-    const sheet = await screen.findByLabelText(
-      '新',
-      { selector: '[role="dialog"]' },
-      { timeout: 5000 },
-    );
-    expect(within(sheet).getByText('xīn')).toBeInTheDocument();
-    expect(within(sheet).getByText('new · fresh')).toBeInTheDocument();
-    expect(within(sheet).queryByRole('button', { name: 'Add to list' })).not.toBeInTheDocument();
+    expect(document.querySelector('[role="dialog"]')).not.toBeInTheDocument();
+    const panel = within(block).getByRole('group', { name: '新' });
+    expect(within(panel).getByText('xīn')).toBeInTheDocument();
+    expect(within(panel).getByText('new · fresh')).toBeInTheDocument();
+    expect(within(panel).queryByRole('button', { name: 'Add to list' })).not.toBeInTheDocument();
 
-    await user.click(within(sheet).getByRole('button', { name: 'Close' }));
-    await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeInTheDocument(), {
-      timeout: 5000,
-    });
+    await user.click(within(block).getByRole('button', { name: '新: show meaning' }));
+    expect(within(block).queryByRole('group', { name: '新' })).not.toBeInTheDocument();
   });
 
   it('the play button reads the sentence aloud', async () => {
