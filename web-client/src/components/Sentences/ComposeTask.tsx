@@ -13,6 +13,7 @@ import {
   StudyCard,
   hanziSx,
 } from '../Test/Study/parts';
+import { StudyBody } from '../Test/Study/StudyScreen';
 import { RootState } from '../../types/store';
 import { Word } from '../../types/models';
 import { getSegmentedSentence } from '../../services/sentenceService';
@@ -249,53 +250,54 @@ const ComposeTask: React.FC<Props> = ({
   if (revealed) {
     return (
       <>
-        <Box
-          sx={{
-            mt: 2.5,
-            px: 2.5,
-            py: 2,
-            bgcolor: colors.card,
-            border: `1px solid ${colors.divider}`,
-            borderRadius: 1,
-            fontSize: 18,
-            textAlign: 'center',
-            color: colors.textSecondary,
-          }}
-        >
-          {sentence.english}
-        </Box>
-        <Overline sx={{ mt: 2.75, mb: 0.75 }}>{copy.sentence.yourAnswer}</Overline>
-        <Box lang="zh" sx={answerBox}>
-          {withTarget(entered)}
-        </Box>
-        <Overline sx={{ mt: 2, mb: 0.75 }}>{copy.sentence.original}</Overline>
-        <Box lang="zh" sx={answerBox}>
-          {withTarget(sentence.chinese)}
+        <StudyBody>
           <Box
-            component="p"
-            lang="zh-Latn"
             sx={{
-              m: 0,
-              mt: 0.75,
-              fontFamily: fonts.body,
-              fontSize: 15,
+              mt: 2.5,
+              px: 2.5,
+              py: 2,
+              bgcolor: colors.card,
+              border: `1px solid ${colors.divider}`,
+              borderRadius: 1,
+              fontSize: 18,
+              textAlign: 'center',
               color: colors.textSecondary,
             }}
           >
-            {sentence.pinyin}
+            {sentence.english}
           </Box>
-        </Box>
-        <ReportSentenceButton
-          key={`${word.id}-${sentence.id}`}
-          report={{
-            sentenceId: sentence.id,
-            word: word.simp,
-            stage: 'write',
-            sentence: sentence.chinese,
-            english: sentence.english,
-          }}
-        />
-        <Box sx={{ flex: 1, minHeight: 24 }} />
+          <Overline sx={{ mt: 2.75, mb: 0.75 }}>{copy.sentence.yourAnswer}</Overline>
+          <Box lang="zh" sx={answerBox}>
+            {withTarget(entered)}
+          </Box>
+          <Overline sx={{ mt: 2, mb: 0.75 }}>{copy.sentence.original}</Overline>
+          <Box lang="zh" sx={answerBox}>
+            {withTarget(sentence.chinese)}
+            <Box
+              component="p"
+              lang="zh-Latn"
+              sx={{
+                m: 0,
+                mt: 0.75,
+                fontFamily: fonts.body,
+                fontSize: 15,
+                color: colors.textSecondary,
+              }}
+            >
+              {sentence.pinyin}
+            </Box>
+          </Box>
+          <ReportSentenceButton
+            key={`${word.id}-${sentence.id}`}
+            report={{
+              sentenceId: sentence.id,
+              word: word.simp,
+              stage: 'write',
+              sentence: sentence.chinese,
+              english: sentence.english,
+            }}
+          />
+        </StudyBody>
         <GradeButtons onGrade={grade} />
       </>
     );
@@ -311,144 +313,145 @@ const ComposeTask: React.FC<Props> = ({
 
   return (
     <>
-      <StudyCard height={240} sx={{ mt: 3, px: 2.75, pt: 3.5, pb: 2.75, gap: 2.25 }}>
-        <Box component="p" sx={{ m: 0, fontSize: 24, lineHeight: 1.6 }}>
-          {englishWords.map((english, index) => {
-            const on = selected.has(index);
-            return (
-              <React.Fragment key={index}>
-                {index > 0 && ' '}
-                <Box
-                  component="button"
-                  type="button"
-                  aria-label={copy.sentence.englishWord(english)}
-                  aria-pressed={on}
-                  onClick={() => onToggleWord(index)}
-                  sx={{
-                    border: 'none',
-                    p: on ? '0 6px' : '0 2px',
-                    font: 'inherit',
-                    cursor: 'pointer',
-                    borderRadius: '3px',
-                    bgcolor: on ? colors.primaryDark : 'transparent',
-                    color: on ? colors.white : 'inherit',
-                    borderBottom: on ? 'none' : `1px dotted ${colors.borderStrong}`,
-                  }}
-                >
-                  {english}
-                </Box>
-              </React.Fragment>
-            );
-          })}
-        </Box>
-        {selected.size > 0 && (
-          <Box
-            sx={{
-              alignSelf: 'stretch',
-              display: 'flex',
-              flexDirection: 'column',
-              borderTop: `1px solid ${colors.divider}`,
-              textAlign: 'left',
-            }}
-          >
-            {hints.length > 0 ? (
-              hints.map((hint, i) => (
-                <Box
-                  key={`${hint.id}-${i}`}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.75,
-                    py: 1.25,
-                    px: 0.25,
-                    borderBottom: i === hints.length - 1 ? 'none' : `1px solid ${colors.divider}`,
-                  }}
-                >
-                  <Box lang="zh" sx={hanziSx(30, { width: 64, flex: 'none' })}>
-                    {hint[charSet]}
+      <StudyBody>
+        <StudyCard height={240} sx={{ mt: 3, px: 2.75, pt: 3.5, pb: 2.75, gap: 2.25 }}>
+          <Box component="p" sx={{ m: 0, fontSize: 24, lineHeight: 1.6 }}>
+            {englishWords.map((english, index) => {
+              const on = selected.has(index);
+              return (
+                <React.Fragment key={index}>
+                  {index > 0 && ' '}
+                  <Box
+                    component="button"
+                    type="button"
+                    aria-label={copy.sentence.englishWord(english)}
+                    aria-pressed={on}
+                    onClick={() => onToggleWord(index)}
+                    sx={{
+                      border: 'none',
+                      p: on ? '0 6px' : '0 2px',
+                      font: 'inherit',
+                      cursor: 'pointer',
+                      borderRadius: '3px',
+                      bgcolor: on ? colors.primaryDark : 'transparent',
+                      color: on ? colors.white : 'inherit',
+                      borderBottom: on ? 'none' : `1px dotted ${colors.borderStrong}`,
+                    }}
+                  >
+                    {english}
                   </Box>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
-                    <Box lang="zh-Latn" sx={{ fontSize: 15 }}>
-                      {toneMarks(hint.pinyin)}
-                    </Box>
-                    <Box sx={{ fontSize: 14, color: colors.textSecondary }}>
-                      {parseMeanings(hint.meaning).join(' · ')}
-                    </Box>
-                  </Box>
-                </Box>
-              ))
-            ) : (
-              <Box sx={{ pt: 1.25, fontSize: 14, color: colors.textSecondary }}>
-                {copy.sentence.noTranslation}
-              </Box>
-            )}
+                </React.Fragment>
+              );
+            })}
           </Box>
+          {selected.size > 0 && (
+            <Box
+              sx={{
+                alignSelf: 'stretch',
+                display: 'flex',
+                flexDirection: 'column',
+                borderTop: `1px solid ${colors.divider}`,
+                textAlign: 'left',
+              }}
+            >
+              {hints.length > 0 ? (
+                hints.map((hint, i) => (
+                  <Box
+                    key={`${hint.id}-${i}`}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.75,
+                      py: 1.25,
+                      px: 0.25,
+                      borderBottom: i === hints.length - 1 ? 'none' : `1px solid ${colors.divider}`,
+                    }}
+                  >
+                    <Box lang="zh" sx={hanziSx(30, { width: 64, flex: 'none' })}>
+                      {hint[charSet]}
+                    </Box>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                      <Box lang="zh-Latn" sx={{ fontSize: 15 }}>
+                        {toneMarks(hint.pinyin)}
+                      </Box>
+                      <Box sx={{ fontSize: 14, color: colors.textSecondary }}>
+                        {parseMeanings(hint.meaning).join(' · ')}
+                      </Box>
+                    </Box>
+                  </Box>
+                ))
+              ) : (
+                <Box sx={{ pt: 1.25, fontSize: 14, color: colors.textSecondary }}>
+                  {copy.sentence.noTranslation}
+                </Box>
+              )}
+            </Box>
+          )}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+            <Overline component="span">{copy.sentence.mustUse}</Overline>
+            <Box
+              component="span"
+              lang="zh"
+              sx={{
+                px: 1.25,
+                py: 0.5,
+                border: `2px solid ${colors.primaryLight}`,
+                borderRadius: '3px',
+                color: colors.primaryLight,
+                ...hanziSx(26, { lineHeight: 1.1 }),
+              }}
+            >
+              {target}
+            </Box>
+          </Box>
+        </StudyCard>
+        {useSound && speechAvailable && (
+          <MicButton
+            listening={listening}
+            onClick={() => (listening ? recognition.current?.abort() : onListen())}
+            sx={{ mt: 2.75 }}
+          />
         )}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-          <Overline component="span">{copy.sentence.mustUse}</Overline>
-          <Box
-            component="span"
-            lang="zh"
-            sx={{
-              px: 1.25,
-              py: 0.5,
-              border: `2px solid ${colors.primaryLight}`,
-              borderRadius: '3px',
-              color: colors.primaryLight,
-              ...hanziSx(26, { lineHeight: 1.1 }),
-            }}
+        {message && (
+          <StatusLine
+            tone="neutral"
+            icon={message === copy.test.status.listening ? 'dot' : undefined}
           >
-            {target}
-          </Box>
-        </Box>
-      </StudyCard>
-      {useSound && speechAvailable && (
-        <MicButton
-          listening={listening}
-          onClick={() => (listening ? recognition.current?.abort() : onListen())}
-          sx={{ mt: 2.75 }}
+            {message}
+          </StatusLine>
+        )}
+        <Overline component="label" htmlFor="answerInput" sx={{ mt: 2.5 }}>
+          {copy.sentence.yourAnswer}
+        </Overline>
+        <Box
+          component="input"
+          id="answerInput"
+          lang="zh"
+          autoComplete="off"
+          value={entered}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+            setEntered(e.target.value);
+            setMessage('');
+          }}
+          onKeyDown={onKeyDown}
+          placeholder={copy.sentence.writePlaceholder}
+          sx={{
+            mt: 1,
+            height: 48,
+            boxSizing: 'border-box',
+            borderRadius: 1,
+            border: `1px solid ${colors.borderStrong}`,
+            bgcolor: colors.card,
+            px: 1.75,
+            fontFamily: fonts.hanzi,
+            fontSize: 22,
+            color: colors.text,
+            outline: 'none',
+            '&:focus': { border: `2px solid ${colors.primaryDark}`, px: '13px' },
+            '&::placeholder': { color: colors.placeholder },
+          }}
         />
-      )}
-      {message && (
-        <StatusLine
-          tone="neutral"
-          icon={message === copy.test.status.listening ? 'dot' : undefined}
-        >
-          {message}
-        </StatusLine>
-      )}
-      <Overline component="label" htmlFor="answerInput" sx={{ mt: 2.5 }}>
-        {copy.sentence.yourAnswer}
-      </Overline>
-      <Box
-        component="input"
-        id="answerInput"
-        lang="zh"
-        autoComplete="off"
-        value={entered}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-          setEntered(e.target.value);
-          setMessage('');
-        }}
-        onKeyDown={onKeyDown}
-        placeholder={copy.sentence.writePlaceholder}
-        sx={{
-          mt: 1,
-          height: 48,
-          boxSizing: 'border-box',
-          borderRadius: 1,
-          border: `1px solid ${colors.borderStrong}`,
-          bgcolor: colors.card,
-          px: 1.75,
-          fontFamily: fonts.hanzi,
-          fontSize: 22,
-          color: colors.text,
-          outline: 'none',
-          '&:focus': { border: `2px solid ${colors.primaryDark}`, px: '13px' },
-          '&::placeholder': { color: colors.placeholder },
-        }}
-      />
-      <Box sx={{ flex: 1, minHeight: 24 }} />
+      </StudyBody>
       <StudyButton variant="primary" disabled={entered.trim() === ''} onClick={onReveal}>
         {copy.test.check}
       </StudyButton>

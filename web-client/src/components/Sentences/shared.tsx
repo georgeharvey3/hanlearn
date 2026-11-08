@@ -7,6 +7,7 @@ import { SentenceResult } from '../../utils/sentenceQueue';
 import { SentenceWord } from '../../utils/sentenceUtils';
 import { SentenceGrade } from '../../utils/sentencePracticeDocuments';
 import { StudyButton, hanziSx } from '../Test/Study/parts';
+import { StudyBody } from '../Test/Study/StudyScreen';
 import * as ttsService from '../../services/ttsService';
 
 /** What a task reports when the learner grades it: the grade, less what the tab knows. */
@@ -52,31 +53,32 @@ export const TaskLoadError: React.FC<{
   onRetry: () => void;
 }> = ({ word, onSkip, onRetry }) => (
   <>
-    <Box
-      sx={{
-        mt: 2.5,
-        height: 300,
-        boxSizing: 'border-box',
-        p: 3,
-        bgcolor: colors.card,
-        border: `1px dashed ${colors.borderStrong}`,
-        borderRadius: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 1.75,
-        textAlign: 'center',
-      }}
-    >
-      <Box lang="zh" sx={hanziSx(48, { color: colors.disabledText })}>
-        {word}
+    <StudyBody>
+      <Box
+        sx={{
+          mt: 2.5,
+          height: 300,
+          boxSizing: 'border-box',
+          p: 3,
+          bgcolor: colors.card,
+          border: `1px dashed ${colors.borderStrong}`,
+          borderRadius: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 1.75,
+          textAlign: 'center',
+        }}
+      >
+        <Box lang="zh" sx={hanziSx(48, { color: colors.disabledText })}>
+          {word}
+        </Box>
+        <Box role="alert" sx={{ fontSize: 17, fontWeight: 600 }}>
+          {copy.sentence.loadFailed}
+        </Box>
       </Box>
-      <Box role="alert" sx={{ fontSize: 17, fontWeight: 600 }}>
-        {copy.sentence.loadFailed}
-      </Box>
-    </Box>
-    <Box sx={{ flex: 1 }} />
+    </StudyBody>
     <StudyButton onClick={onSkip}>{copy.sentence.skipWord}</StudyButton>
     <StudyButton variant="primary" onClick={onRetry} sx={{ mt: 1.25 }}>
       {copy.sentence.tryAgain}

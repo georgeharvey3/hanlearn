@@ -5,7 +5,7 @@ import { connect } from 'react-redux';
 import { Box } from '@mui/material';
 
 import StudyTop from './Study/StudyTop';
-import StudyScreen from './Study/StudyScreen';
+import StudyScreen, { StudyBody } from './Study/StudyScreen';
 import { Prompt, StatusLine, StatusTone } from './Study/parts';
 import QuestionDisplay from './QuestionDisplay';
 import AnswerInput from './AnswerInput';
@@ -100,49 +100,50 @@ const Test: React.FC<Props> = (props) => {
         onEnd={onEnd}
         onSettings={() => setSettingsDrawerOpen(true)}
       />
-      <Prompt sx={compact ? { mt: 2, mb: 1.25 } : undefined}>
-        {copy.test.promptBefore}
-        <em>{state.answerCategory}</em>
-        {state.questionCategory === 'pinyin' ? copy.test.promptOf : copy.test.promptFor}
-      </Prompt>
-      <QuestionDisplay
-        state={state}
-        onSpeak={onSpeak}
-        onPlayHintSentence={onPlayHintSentence}
-        onToggleShowPinyin={onToggleShowPinyin}
-        onToggleDisambiguator={onToggleDisambiguator}
-      />
-      {/* The handwriting box sits right under the card; its status goes below it. */}
-      {state.answerCategory === 'character' && !state.showComponents && (
-        <AnswerInput
+      <StudyBody>
+        <Prompt sx={compact ? { mt: 2, mb: 1.25 } : undefined}>
+          {copy.test.promptBefore}
+          <em>{state.answerCategory}</em>
+          {state.questionCategory === 'pinyin' ? copy.test.promptOf : copy.test.promptFor}
+        </Prompt>
+        <QuestionDisplay
           state={state}
-          speechAvailable={props.speechAvailable}
-          onKeyPress={onKeyPress}
-          onInputChanged={onInputChanged}
-          onFocusEntry={onFocusEntry}
-          onListen={onListen}
+          onSpeak={onSpeak}
+          onPlayHintSentence={onPlayHintSentence}
+          onToggleShowPinyin={onToggleShowPinyin}
+          onToggleDisambiguator={onToggleDisambiguator}
         />
-      )}
-      <StatusLine tone={tone} icon={icon}>
-        {state.result}
-      </StatusLine>
-      <ComponentReview
-        chars={state.componentReviewChars}
-        charSet={state.charSet}
-        open={state.showComponents}
-        onToggle={onToggleComponents}
-      />
-      {state.answerCategory !== 'character' && !compact && (
-        <AnswerInput
-          state={state}
-          speechAvailable={props.speechAvailable}
-          onKeyPress={onKeyPress}
-          onInputChanged={onInputChanged}
-          onFocusEntry={onFocusEntry}
-          onListen={onListen}
+        {/* The handwriting box sits right under the card; its status goes below it. */}
+        {state.answerCategory === 'character' && !state.showComponents && (
+          <AnswerInput
+            state={state}
+            speechAvailable={props.speechAvailable}
+            onKeyPress={onKeyPress}
+            onInputChanged={onInputChanged}
+            onFocusEntry={onFocusEntry}
+            onListen={onListen}
+          />
+        )}
+        <StatusLine tone={tone} icon={icon}>
+          {state.result}
+        </StatusLine>
+        <ComponentReview
+          chars={state.componentReviewChars}
+          charSet={state.charSet}
+          open={state.showComponents}
+          onToggle={onToggleComponents}
         />
-      )}
-      <Box sx={{ flex: 1, minHeight: 24 }} />
+        {state.answerCategory !== 'character' && !compact && (
+          <AnswerInput
+            state={state}
+            speechAvailable={props.speechAvailable}
+            onKeyPress={onKeyPress}
+            onInputChanged={onInputChanged}
+            onFocusEntry={onFocusEntry}
+            onListen={onListen}
+          />
+        )}
+      </StudyBody>
       <TestActions
         state={state}
         onIDontKnow={onIDontKnow}
