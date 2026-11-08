@@ -99,9 +99,8 @@ export interface TestState {
   /** Whether the component breakdown of those characters is expanded. */
   showComponents: boolean;
   /**
-   * The indexes of the characters of the current draw question (`CM`) that the
-   * learner missed: a hint, or a stroke that reached the outline cap. The
-   * component review reads it, and nothing else does. See issue #493.
+   * The indexes of the missed characters of the current handwriting question.
+   * Only the component review reads it: see `componentsToReview`.
    */
   missedCharIndexes: number[];
   /**

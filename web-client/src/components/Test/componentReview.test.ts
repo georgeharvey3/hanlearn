@@ -14,7 +14,7 @@ const cm = (overrides: Partial<ReviewShape> = {}): ReviewShape => ({
 });
 
 describe('componentsToReview', () => {
-  it('holds the one character of a missed draw question', () => {
+  it('holds the one character of a missed handwriting question', () => {
     expect(
       componentsToReview(cm({ chosenCharacter: '好', missedCharIndexes: [0] }), 'lapse'),
     ).toEqual(['好']);

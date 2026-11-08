@@ -37,7 +37,7 @@ import {
 } from '../../utils/alternativeAnswers';
 import { CurrentQuestion } from '../../utils/savedSession';
 import { canCountAsKnown } from './countAsKnown';
-import { componentsToReview, isDrawQuestion } from './componentReview';
+import { ComponentOffer, componentOffer } from './componentReview';
 
 /**
  * Misses on one stroke before the handwriting quiz shows the stroke outline.
@@ -185,6 +185,11 @@ export const useTestEngine = (props: Props) => {
   // must run exactly the step the grade decided, not one rebuilt from state.
   const pendingAdvanceRef = useRef<(() => void) | null>(null);
 
+  // The index of the character the writer has on screen. `writingIndex` moves
+  // on as a character is drawn, a second before the writer loads the next one,
+  // so a hint in that second is on the drawn character. See issue #493.
+  const writerCharRef = useRef(0);
+
   /**
    * Run the step that ends a question, or hold it for the component review.
    *
@@ -195,7 +200,7 @@ export const useTestEngine = (props: Props) => {
    * Continue. See issue #335.
    */
   const holdOrAdvance = useCallback(
-    (chars: string[], advance: () => void, delay: number, hold = false): void => {
+    ({ chars, open }: ComponentOffer, advance: () => void, delay: number, hold = false): void => {
       if (chars.length === 0 && !hold) {
         if (delay > 0) {
           setTimeout(advance, delay);
@@ -207,9 +212,7 @@ export const useTestEngine = (props: Props) => {
       pendingAdvanceRef.current = advance;
       setStateMerged({
         componentReviewChars: chars,
-        // A draw question knows the characters the learner missed, so it
-        // shows their breakdown at once. See issue #493.
-        showComponents: chars.length > 0 && isDrawQuestion(stateRef.current),
+        showComponents: open,
         awaitingContinue: true,
       });
     },
@@ -516,7 +519,7 @@ export const useTestEngine = (props: Props) => {
       // moves on, so the reveal waits for Continue rather than a timer. So does
       // every answer but a flashcard grade: the learner pressed that button,
       // and has read the reveal already.
-      const review = componentsToReview(current, result);
+      const review = componentOffer(current, result);
       const hold = !current.showAnswer;
 
       if (remainingQueue.length !== 0) {
@@ -766,6 +769,7 @@ export const useTestEngine = (props: Props) => {
     index: number,
   ): void => {
     writer.setCharacter(char[index]);
+    writerCharRef.current = index;
     quizWriter(writer, char, index);
   };
 
@@ -792,6 +796,7 @@ export const useTestEngine = (props: Props) => {
         onLoadCharDataError: onCharDataError,
       });
 
+      writerCharRef.current = 0;
       setStateMerged({ writer, writingIndex: 0 });
       quizWriter(writer, char, index);
     },
@@ -829,7 +834,7 @@ export const useTestEngine = (props: Props) => {
 
           // The reveal is a fail of a character the learner was writing, so the
           // components are offered before the next question.
-          const review = componentsToReview(latest, 'fail');
+          const review = componentOffer(latest, 'fail');
 
           if (remainingQueue.length === 0) {
             holdOrAdvance(
@@ -929,7 +934,7 @@ export const useTestEngine = (props: Props) => {
     // The question was revealed, so it is a fail: a character question offers
     // its components. Any reveal but a flashcard grade waits for Continue, so
     // that the learner reads the answer; a flashcard grade has the timer below.
-    const review = componentsToReview(current, 'fail');
+    const review = componentOffer(current, 'fail');
     const hold = !current.showAnswer;
 
     if (remainingQueue.length === 0) {
@@ -1080,7 +1085,7 @@ export const useTestEngine = (props: Props) => {
       setStateMerged((prevState) => ({
         gradeCap: 'lapse',
         hintShown: true,
-        missedCharIndexes: prevState.missedCharIndexes.concat(prevState.writingIndex),
+        missedCharIndexes: prevState.missedCharIndexes.concat(writerCharRef.current),
       }));
       setTimeout(() => {
         current.writer!.hideOutline();
@@ -1127,6 +1132,9 @@ export const useTestEngine = (props: Props) => {
           .concat({ ...last, result: 'pass', overridden: true }),
         outcome: 'pass',
         gradeCap: 'pass',
+        // A pass offers no components, so the review closes.
+        componentReviewChars: [],
+        showComponents: false,
       };
     });
   }, [setStateMerged]);
@@ -1581,6 +1589,7 @@ export const useTestEngine = (props: Props) => {
               missCount: state.missCount,
               toneErrorCount: state.toneErrorCount,
               firstWrongAnswer: state.firstWrongAnswer,
+              missedCharIndexes: state.missedCharIndexes,
             },
           }
         : undefined,
@@ -1594,6 +1603,7 @@ export const useTestEngine = (props: Props) => {
       state.alternativesSent,
       state.missCount,
       state.toneErrorCount,
+      state.missedCharIndexes,
       state.firstWrongAnswer,
     ],
   );

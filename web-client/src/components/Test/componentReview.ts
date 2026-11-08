@@ -7,7 +7,7 @@ export type ReviewShape = Pick<
 >;
 
 /** Whether the question asks the learner to draw the characters: the `CM` direction. */
-export const isDrawQuestion = (state: Pick<TestState, 'answerCategory'>): boolean =>
+export const isHandwritingQuestion = (state: Pick<TestState, 'answerCategory'>): boolean =>
   state.answerCategory === 'character';
 
 /**
@@ -18,9 +18,9 @@ export const isDrawQuestion = (state: Pick<TestState, 'answerCategory'>): boolea
  * gets none either: the breakdown is the aid for a direction the learner has
  * just lost, which is what issue #335 asks for.
  *
- * A draw question knows which characters the learner missed: the ones with a
+ * A handwriting question knows which characters the learner missed: the ones with a
  * hint, or with a stroke that reached the outline cap. Only those are offered.
- * "I don't know" is the only `fail` a draw question gets, and it offers every
+ * "I don't know" is the only `fail` a handwriting question gets, and it offers every
  * character. `MC` and `PC` show the character, so the app cannot tell which one
  * the miss was on, and they offer them all. See issue #493.
  */
@@ -28,9 +28,25 @@ export const componentsToReview = (state: ReviewShape, result: DirectionResult):
   if (result === 'pass') return [];
   if (state.answerCategory !== 'character' && state.questionCategory !== 'character') return [];
   const chars = Array.from(state.chosenCharacter ?? '');
-  if (!isDrawQuestion(state) || result === 'fail') return chars;
+  if (!isHandwritingQuestion(state) || result === 'fail') return chars;
   const missed = chars.filter((_, index) => state.missedCharIndexes.includes(index));
-  // Every capped draw question records a character, so this fallback is only
+  // Every capped handwriting question records a character, so this fallback is only
   // a guard against an empty review that would hold the session for nothing.
   return missed.length > 0 ? missed : chars;
+};
+
+/** What the review offers: its characters, and whether the breakdown starts open. */
+export interface ComponentOffer {
+  chars: string[];
+  open: boolean;
+}
+
+/**
+ * The component review of a graded question. A handwriting question knows the
+ * characters the learner missed, so it opens their breakdown at once. See
+ * issue #493.
+ */
+export const componentOffer = (state: ReviewShape, result: DirectionResult): ComponentOffer => {
+  const chars = componentsToReview(state, result);
+  return { chars, open: chars.length > 0 && isHandwritingQuestion(state) };
 };

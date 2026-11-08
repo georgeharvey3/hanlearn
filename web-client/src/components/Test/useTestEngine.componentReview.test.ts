@@ -283,11 +283,11 @@ describe('useTestEngine — component review after a miss', () => {
 });
 
 /**
- * A draw question (`CM`) knows which characters the learner missed, so the
+ * A handwriting question (`CM`) knows which characters the learner missed, so the
  * review holds only those, expanded. See issue #493.
  */
-describe('useTestEngine — component review after a missed draw question', () => {
-  const drawPair: QueuePair = { index: '0', aCategory: 'C', qCategory: 'M' };
+describe('useTestEngine — component review after a missed handwriting question', () => {
+  const handwritingPair: QueuePair = { index: '0', aCategory: 'C', qCategory: 'M' };
   const writer = {
     quiz: vi.fn(),
     setCharacter: vi.fn(),
@@ -310,14 +310,14 @@ describe('useTestEngine — component review after a missed draw question', () =
     vi.useRealTimers();
   });
 
-  /** Seat a draw question of `word`, with the writer mounted on its first character. */
-  const drawQuestion = (word: string) => {
+  /** Seat a handwriting question of `word`, with the writer mounted on its first character. */
+  const handwritingQuestion = (word: string) => {
     const props = makeProps();
     const { result } = renderHook(() => useTestEngine(props));
     act(() =>
       seatOnQuestion(result.current.setStateMerged, {
-        queue: [drawPair, secondPair],
-        currentPair: drawPair,
+        queue: [handwritingPair, secondPair],
+        currentPair: handwritingPair,
         answerCategory: 'character',
         questionCategory: 'meaning',
         answer: word,
@@ -341,7 +341,7 @@ describe('useTestEngine — component review after a missed draw question', () =
   };
 
   it('shows the breakdown of a one-character word at once', () => {
-    const result = drawQuestion('好');
+    const result = handwritingQuestion('好');
     act(() => quizOf(0).onMistake(capped));
     complete(0);
 
@@ -350,7 +350,7 @@ describe('useTestEngine — component review after a missed draw question', () =
   });
 
   it('holds only the character the hint was used on', () => {
-    const result = drawQuestion('你好');
+    const result = handwritingQuestion('你好');
     act(() => result.current.onHint());
     complete(0);
     complete(1);
@@ -360,7 +360,7 @@ describe('useTestEngine — component review after a missed draw question', () =
   });
 
   it('holds only the character a stroke reached the cap on', () => {
-    const result = drawQuestion('你好');
+    const result = handwritingQuestion('你好');
     complete(0);
     act(() => quizOf(1).onMistake(capped));
     complete(1);
@@ -369,7 +369,7 @@ describe('useTestEngine — component review after a missed draw question', () =
   });
 
   it('leaves out a character with a mistake below the cap', () => {
-    const result = drawQuestion('你好');
+    const result = handwritingQuestion('你好');
     act(() => quizOf(0).onMistake(belowCap));
     complete(0);
     act(() => result.current.onHint());
@@ -379,7 +379,7 @@ describe('useTestEngine — component review after a missed draw question', () =
   });
 
   it('holds every character after "I don\'t know"', async () => {
-    const result = drawQuestion('你好');
+    const result = handwritingQuestion('你好');
     complete(0);
     await act(async () => result.current.onIDontKnow());
 
@@ -387,8 +387,30 @@ describe('useTestEngine — component review after a missed draw question', () =
     expect(result.current.state.showComponents).toBe(true);
   });
 
+  it('records a hint pressed before the next character loads on the drawn one', () => {
+    const result = handwritingQuestion('你好');
+    act(() => quizOf(0).onComplete());
+    act(() => result.current.onHint());
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    complete(1);
+
+    expect(result.current.state.componentReviewChars).toEqual(['你']);
+  });
+
+  it('closes the review when the learner counts the question as known', () => {
+    const result = handwritingQuestion('好');
+    act(() => quizOf(0).onMistake(capped));
+    complete(0);
+    act(() => result.current.onCountAsKnown());
+
+    expect(result.current.state.componentReviewChars).toEqual([]);
+    expect(result.current.state.showComponents).toBe(false);
+  });
+
   it('starts the next question with no missed characters', () => {
-    const result = drawQuestion('好');
+    const result = handwritingQuestion('好');
     act(() => quizOf(0).onMistake(capped));
     complete(0);
     act(() => result.current.onContinue());
