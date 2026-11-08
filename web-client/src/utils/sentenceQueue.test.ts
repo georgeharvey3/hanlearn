@@ -280,6 +280,97 @@ describe('whether a tab has a word never practised there', () => {
   });
 });
 
+describe('the sentence pick across the two tabs', () => {
+  const index = { 学: ['A', 'B'] };
+
+  const pick = (practice: PracticeByWord, study: Word, tab: 'comprehend' | 'compose') =>
+    buildSet({ words: [study], practice, index, tab, size: 1, now: NOW })[0]?.sentenceId;
+
+  it('takes B in Compose when Comprehend showed A today', () => {
+    const study = word('学', 3);
+    const practice: PracticeByWord = {
+      [study.id]: { comprehend: { lastPractised: at(0), lastResult: 'right', seen: { A: at(0) } } },
+    };
+    expect(pick(practice, study, 'compose')).toBe('B');
+  });
+
+  it('takes B in Comprehend when Compose showed A today', () => {
+    const study = word('学', 3);
+    const practice: PracticeByWord = {
+      [study.id]: { compose: { lastPractised: at(0), lastResult: 'right', seen: { A: at(0) } } },
+    };
+    expect(pick(practice, study, 'comprehend')).toBe('B');
+  });
+
+  it('takes the sentence whose last view in either tab is oldest', () => {
+    const study = word('学', 3);
+    const practice: PracticeByWord = {
+      [study.id]: {
+        compose: { lastPractised: at(-7), lastResult: 'right', seen: { A: at(-7) } },
+        comprehend: { lastPractised: at(-1), lastResult: 'right', seen: { B: at(-1) } },
+      },
+    };
+    expect(pick(practice, study, 'compose')).toBe('A');
+  });
+});
+
+describe('a word that the other tab showed today', () => {
+  const index = { 学: ['only'] };
+  const TOMORROW = new Date(2026, 10, 5, 10, 0);
+
+  const seenToday = (study: Word, tab: 'comprehend' | 'compose'): PracticeByWord => ({
+    [study.id]: { [tab]: { lastPractised: at(0), lastResult: 'right', seen: { only: at(0) } } },
+  });
+
+  it('waits until tomorrow when the other tab showed all of its sentences today', () => {
+    const study = word('学', 3);
+    const practice = seenToday(study, 'comprehend');
+    const set = (now: Date) =>
+      buildSet({ words: [study], practice, index, tab: 'compose', size: 5, now });
+
+    expect(set(NOW)).toEqual([]);
+    expect(set(TOMORROW)).toEqual([{ word: study, sentenceId: 'only' }]);
+  });
+
+  it('makes the tab neither ready nor fresh when it is the only word', () => {
+    const study = word('学', 3);
+    const input = {
+      words: [study],
+      practice: seenToday(study, 'comprehend'),
+      index,
+      tab: 'compose' as const,
+      now: NOW,
+    };
+
+    expect(buildSet({ ...input, size: 1 })).toEqual([]);
+    expect(hasNeverPractised(input)).toBe(false);
+  });
+
+  it('does not wait when the same tab showed all of its sentences today', () => {
+    const study = word('学', 3);
+    const [task] = buildSet({
+      words: [study],
+      practice: seenToday(study, 'compose'),
+      index,
+      tab: 'compose',
+      size: 1,
+      now: NOW,
+    });
+    expect(task?.sentenceId).toBe('only');
+  });
+
+  it('counts only the sentences of the index', () => {
+    const study = word('学', 3);
+    const practice: PracticeByWord = {
+      [study.id]: {
+        comprehend: { lastPractised: at(0), lastResult: 'right', seen: { gone: at(0) } },
+      },
+    };
+    const [task] = buildSet({ words: [study], practice, index, tab: 'compose', size: 1, now: NOW });
+    expect(task?.sentenceId).toBe('only');
+  });
+});
+
 describe('recording a grade', () => {
   it('sets the result and the date, and adds the sentence to the seen ones', () => {
     const before: PracticeByWord = {
