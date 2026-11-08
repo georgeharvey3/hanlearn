@@ -99,6 +99,8 @@ const ComposeTask: React.FC<Props> = ({
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState('');
   const recognition = useRef<SpeechRecognition | null>(null);
+  /** The spoken answer that waits for its conversion, if any. */
+  const pendingSpeech = useRef<object | null>(null);
 
   const mounted = useRef(true);
   const skip = useRef(onSkip);
@@ -155,9 +157,13 @@ const ComposeTask: React.FC<Props> = ({
     next.addEventListener('result', (event: SpeechRecognitionEvent) => {
       result = event.results[0][0].transcript;
       setMessage('');
-      // A zh-CN recognizer always gives simplified text (#494).
+      // A zh-CN recognizer always gives simplified text (#494). The first
+      // conversion loads the converter, so a later result, a typed edit or
+      // the reveal makes this one stale.
+      const heard = {};
+      pendingSpeech.current = heard;
       toCharSet(result, charSet).then((answer) => {
-        if (mounted.current && recognition.current === next) setEntered(answer);
+        if (mounted.current && pendingSpeech.current === heard) setEntered(answer);
       });
     });
     next.addEventListener('end', () => {
@@ -187,6 +193,7 @@ const ComposeTask: React.FC<Props> = ({
   const onReveal = () => {
     if (entered.trim() === '' || !sentence) return;
     recognition.current?.abort();
+    pendingSpeech.current = null;
     revealedAt.current = Date.now();
     setRevealed(true);
     setMessage('');
@@ -431,6 +438,7 @@ const ComposeTask: React.FC<Props> = ({
         autoComplete="off"
         value={entered}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+          pendingSpeech.current = null;
           setEntered(e.target.value);
           setMessage('');
         }}

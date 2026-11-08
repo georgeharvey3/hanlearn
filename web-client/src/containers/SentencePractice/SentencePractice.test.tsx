@@ -34,6 +34,11 @@ vi.mock('../../services/wordService', async () => {
 });
 vi.mock('../../services/analyticsService', () => ({ trackFeatureUsage: vi.fn() }));
 vi.mock('../../services/errorReporting', () => ({ reportError: vi.fn() }));
+// The real conversion, which a test can hold back to type during it.
+vi.mock('../../utils/charSet', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../utils/charSet')>();
+  return { ...actual, toCharSet: vi.fn(actual.toCharSet) };
+});
 
 import SentencePractice from './SentencePractice';
 import { FocusModeProvider } from '../../components/Layout/focusMode';
@@ -41,6 +46,7 @@ import { renderWithProviders, authenticatedState, createTestStore } from '../../
 import { loadQueueData } from '../../services/sentenceTabsService';
 import { saveGrade } from '../../services/sentencePracticeService';
 import { getSegmentedSentence } from '../../services/sentenceService';
+import { toCharSet } from '../../utils/charSet';
 import * as ttsService from '../../services/ttsService';
 import { searchWord } from '../../services/dictionaryService';
 import { addWordToList } from '../../services/wordService';
@@ -440,6 +446,24 @@ describe('the Compose tab', () => {
         'user-1',
         expect.objectContaining({ answer: '我在學習' }),
       );
+    });
+
+    it('keeps a typed answer when a conversion ends after it', async () => {
+      const user = userEvent.setup();
+      let convert: (text: string) => void = () => {};
+      vi.mocked(toCharSet).mockImplementationOnce(
+        () => new Promise((resolve) => (convert = resolve)),
+      );
+      setQueue([{ ...STUDY, trad: '學習' }]);
+      renderTab('compose');
+      await user.click(await screen.findByRole('button', { name: 'Record speech' }));
+      say('我在学习');
+
+      const input = screen.getByLabelText('Your answer');
+      await user.type(input, '我學中文');
+      await act(async () => convert('我在學習'));
+
+      expect(input).toHaveValue('我學中文');
     });
 
     it('keeps the transcript unchanged for the simplified set', async () => {

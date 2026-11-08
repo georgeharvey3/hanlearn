@@ -3,6 +3,7 @@ import { Box, CircularProgress } from '@mui/material';
 
 import { copy } from '../../copy';
 import { colors } from '../../theme';
+import { CharSet } from '../../utils/charSet';
 import { SentenceResult } from '../../utils/sentenceQueue';
 import { SentenceWord } from '../../utils/sentenceUtils';
 import { SentenceGrade } from '../../utils/sentencePracticeDocuments';
@@ -15,7 +16,7 @@ export type TaskOutcome = Omit<SentenceGrade, 'wordId' | 'sentenceId' | 'tab' | 
 export const SLOW_SPEED = 0.7;
 
 /** The character set and the sound setting of the learner. */
-export const readCharSet = (): 'simp' | 'trad' =>
+export const readCharSet = (): CharSet =>
   localStorage.getItem('charSet') === 'simp' ? 'simp' : 'trad';
 
 export const readUseSound = (synthAvailable: boolean): boolean =>
