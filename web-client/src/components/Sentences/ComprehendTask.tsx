@@ -88,7 +88,7 @@ const ComprehendTask: React.FC<Props> = ({
   const [textShown, setTextShown] = useState(!useSound);
   const [revealed, setRevealed] = useState(false);
   const [synthLoading, setSynthLoading] = useState(false);
-  const [popup, setPopup] = useState<SentenceWord | null>(null);
+  const [openWord, setOpenWord] = useState<SentenceWord | null>(null);
 
   // A ref, so that a new callback from the parent does not load the sentence again.
   const mounted = useRef(true);
@@ -160,13 +160,13 @@ const ComprehendTask: React.FC<Props> = ({
   // A tap on the open word closes it. Only a tap that opens a word before the
   // reveal counts as a lookup.
   const onShowWord = (entry: SentenceWord) => {
-    if (popup === entry) {
-      setPopup(null);
+    if (openWord === entry) {
+      setOpenWord(null);
       return;
     }
     if (!revealed) lookups.current += 1;
     if (useSound) play(entry[charSet]);
-    setPopup(entry);
+    setOpenWord(entry);
   };
 
   const onAddWord = (entry: SentenceWord) => {
@@ -199,7 +199,7 @@ const ComprehendTask: React.FC<Props> = ({
       key={key}
       entry={entry}
       charSet={charSet}
-      open={popup === entry}
+      open={openWord === entry}
       onClick={() => onShowWord(entry)}
     />
   );
@@ -289,10 +289,11 @@ const ComprehendTask: React.FC<Props> = ({
         )}
         {textShown && (
           <WordGlossPanel
-            word={popup}
+            word={openWord}
             charSet={charSet}
             added={Boolean(
-              popup && addedWords.some((w) => w.simp === popup.simp && w.trad === popup.trad),
+              openWord &&
+              addedWords.some((w) => w.simp === openWord.simp && w.trad === openWord.trad),
             )}
             onSpeak={(text) => play(text)}
             onAdd={onAddWord}

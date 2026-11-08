@@ -266,8 +266,16 @@ describe('NewWords — Understand: the example sentence', () => {
     expect(within(panel).getByText('new · fresh')).toBeInTheDocument();
     expect(within(panel).queryByRole('button', { name: 'Add to list' })).not.toBeInTheDocument();
 
-    await user.click(within(block).getByRole('button', { name: '新: show meaning' }));
+    vi.mocked(ttsService.speak).mockClear();
+    await user.click(within(panel).getByRole('button', { name: 'Play pronunciation' }));
+    expect(ttsService.speak).toHaveBeenCalledWith('新', expect.anything());
+
+    await user.click(within(block).getByRole('button', { name: '我的: show meaning' }));
     expect(within(block).queryByRole('group', { name: '新' })).not.toBeInTheDocument();
+    expect(within(block).getByRole('group', { name: '我的' })).toBeInTheDocument();
+
+    await user.click(within(block).getByRole('button', { name: '我的: show meaning' }));
+    expect(within(block).queryByRole('group', { name: '我的' })).not.toBeInTheDocument();
   });
 
   it('the play button reads the sentence aloud', async () => {

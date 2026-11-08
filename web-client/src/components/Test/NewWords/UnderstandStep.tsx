@@ -180,7 +180,7 @@ const ExampleSentence: React.FC<{
   loading: boolean;
 }> = ({ word, charSet, speak, loading }) => {
   const [load, setLoad] = useState<ExampleLoad>({ status: 'loading' });
-  const [popup, setPopup] = useState<SentenceWord | null>(null);
+  const [openWord, setOpenWord] = useState<SentenceWord | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -205,12 +205,12 @@ const ExampleSentence: React.FC<{
 
   // A tap on the open word closes it.
   const showWord = (entry: SentenceWord) => {
-    if (popup === entry) {
-      setPopup(null);
+    if (openWord === entry) {
+      setOpenWord(null);
       return;
     }
     speak(entry[charSet]);
-    setPopup(entry);
+    setOpenWord(entry);
   };
 
   return (
@@ -265,7 +265,7 @@ const ExampleSentence: React.FC<{
                           key={i}
                           entry={entry}
                           charSet={charSet}
-                          open={popup === entry}
+                          open={openWord === entry}
                           onClick={() => showWord(entry)}
                         />
                       );
@@ -283,7 +283,7 @@ const ExampleSentence: React.FC<{
               onClick={() => speak(load.sentence.chinese.sentence)}
             />
           </Box>
-          <WordGlossPanel word={popup} charSet={charSet} added={false} onSpeak={speak} />
+          <WordGlossPanel word={openWord} charSet={charSet} added={false} onSpeak={speak} />
         </Box>
       )}
     </>

@@ -32,6 +32,7 @@ vi.mock('../../services/wordService', async () => {
   const actual = await vi.importActual<Record<string, unknown>>('../../services/wordService');
   return { ...actual, addWordToList: vi.fn() };
 });
+vi.mock('../../services/analyticsService', () => ({ trackFeatureUsage: vi.fn() }));
 vi.mock('../../services/errorReporting', () => ({ reportError: vi.fn() }));
 
 import SentencePractice from './SentencePractice';

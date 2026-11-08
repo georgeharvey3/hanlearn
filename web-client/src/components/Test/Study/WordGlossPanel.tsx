@@ -22,8 +22,8 @@ interface WordGlossPanelProps {
 }
 
 const iconButtonSx = {
-  width: 40,
-  height: 40,
+  width: 44,
+  height: 44,
   flex: 'none',
   border: `1px solid ${colors.borderStrong}`,
   color: colors.text,
