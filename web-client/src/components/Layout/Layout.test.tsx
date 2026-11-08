@@ -86,32 +86,34 @@ describe('Layout on a phone', () => {
       'href',
       '/test-words',
     );
-    expect(within(nav).getByRole('link', { name: 'Settings' })).toHaveAttribute(
-      'href',
-      '/settings',
-    );
+    expect(within(nav).getByRole('button', { name: 'Sentences' })).toBeInTheDocument();
+    expect(within(nav).queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
     expect(within(nav).queryByRole('link', { name: 'Stats' })).not.toBeInTheDocument();
   });
 
-  it('lists the sentence tabs in More, with a dot on a tab that holds a new word', async () => {
+  it('lists the sentence tabs under Sentences, with a dot on a tab that holds a new word', async () => {
     loadTabStatuses.mockResolvedValue(freshComprehend);
     renderShell();
-    fireEvent.click(await screen.findByRole('button', { name: 'More, new words' }));
-    const sheet = screen.getByRole('dialog', { name: 'More' });
-    expect(within(sheet).getByRole('link', { name: 'Comprehend, new words' })).toHaveAttribute(
+    fireEvent.click(await screen.findByRole('button', { name: 'Sentences, new words' }));
+    const menu = screen.getByRole('menu');
+    expect(within(menu).getByRole('menuitem', { name: 'Comprehend, new words' })).toHaveAttribute(
       'href',
       '/comprehend',
     );
-    expect(within(sheet).getByRole('link', { name: 'Compose' })).toHaveAttribute(
+    expect(within(menu).getByRole('menuitem', { name: 'Compose' })).toHaveAttribute(
       'href',
       '/compose',
     );
   });
 
-  it('opens Shortcuts and Log out from More', () => {
+  it('opens Settings, Shortcuts and Log out from More', () => {
     renderShell();
     fireEvent.click(screen.getByRole('button', { name: 'More' }));
     const sheet = screen.getByRole('dialog', { name: 'More' });
+    expect(within(sheet).getByRole('link', { name: 'Settings' })).toHaveAttribute(
+      'href',
+      '/settings',
+    );
     expect(within(sheet).getByRole('button', { name: 'Log out' })).toBeInTheDocument();
     fireEvent.click(within(sheet).getByRole('button', { name: 'Shortcuts' }));
     expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
