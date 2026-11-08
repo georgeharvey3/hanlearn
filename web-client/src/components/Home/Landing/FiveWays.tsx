@@ -3,6 +3,8 @@
 import React from 'react';
 import Box from '@mui/material/Box';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
+import MicNoneOutlinedIcon from '@mui/icons-material/MicNoneOutlined';
+import VolumeUpRoundedIcon from '@mui/icons-material/VolumeUpRounded';
 
 import { copy } from '../../../copy';
 import { colors, fonts } from '../../../theme';
@@ -24,12 +26,32 @@ const directions: { q: Face; a: Face }[] = [
 const steps = directions.map((d, i) => ({ ...d, label: copy.landing.fiveWays.steps[i] }));
 const faceLabel = copy.landing.fiveWays.faces;
 
+type Side = 'question' | 'answer';
+
+/**
+ * How the learner uses the sound: they hear it when Sound is the question and
+ * say it when Sound is the answer. The same icons as the study screen; here
+ * they only show the mode, so they are not buttons and play nothing.
+ */
+const SoundIcon: React.FC<{ face: Face; side: Side; size: string }> = ({ face, side, size }) => {
+  if (face !== 'pinyin') return null;
+  const Icon = side === 'question' ? VolumeUpRoundedIcon : MicNoneOutlinedIcon;
+  return <Icon aria-hidden sx={{ fontSize: size, ml: '0.3em', flexShrink: 0 }} />;
+};
+
+const DirectionFace: React.FC<{ face: Face; side: Side }> = ({ face, side }) => (
+  <>
+    {faceLabel[face]}
+    <SoundIcon face={face} side={side} size="1.2em" />
+  </>
+);
+
 /** A direction, "Characters → Meaning", with an icon for the arrow. */
 const Direction: React.FC<{ q: Face; a: Face }> = ({ q, a }) => (
   <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center' }}>
-    {faceLabel[q]}
+    <DirectionFace face={q} side="question" />
     <ArrowForwardRounded aria-hidden sx={{ fontSize: '1.15em', mx: '0.4em', opacity: 0.7 }} />
-    {faceLabel[a]}
+    <DirectionFace face={a} side="answer" />
   </Box>
 );
 
@@ -37,7 +59,7 @@ const START = 0.1;
 const END = 0.92;
 const STEP = (END - START) / steps.length;
 
-const FaceText: React.FC<{ face: Face; big?: boolean }> = ({ face, big }) => {
+const FaceText: React.FC<{ face: Face; side?: Side; big?: boolean }> = ({ face, side, big }) => {
   if (face === 'char')
     return (
       <Box
@@ -56,9 +78,12 @@ const FaceText: React.FC<{ face: Face; big?: boolean }> = ({ face, big }) => {
         sx={{
           fontSize: big ? { xs: 40, sm: 52 } : { xs: 30, sm: 36 },
           color: colors.primaryDark,
+          display: 'flex',
+          alignItems: 'center',
         }}
       >
         {WORD.pinyin}
+        {side && <SoundIcon face={face} side={side} size="0.75em" />}
       </Box>
     );
   return (
@@ -84,6 +109,7 @@ const FiveWays: React.FC = () => {
 
   const card = (
     <Box
+      data-testid="five-ways-card"
       sx={{
         position: 'relative',
         width: { xs: 'min(100%, 340px)', sm: 420 },
@@ -132,7 +158,7 @@ const FiveWays: React.FC = () => {
           >
             <Direction q={step.q} a={step.a} />
           </Box>
-          <FaceText face={step.q} />
+          <FaceText face={step.q} side="question" />
           <Box sx={{ width: '70%', height: '1px', bgcolor: colors.divider }} />
           <Box
             sx={{
@@ -157,7 +183,7 @@ const FiveWays: React.FC = () => {
               </Box>
             ) : (
               <Box sx={{ opacity: answerIn, transform: `translateY(${(1 - answerIn) * 10}px)` }}>
-                <FaceText face={step.a} />
+                <FaceText face={step.a} side="answer" />
               </Box>
             )}
           </Box>
