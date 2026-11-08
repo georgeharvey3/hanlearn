@@ -24,6 +24,7 @@ vi.mock('../../services/sentenceService', () => ({ getSegmentedSentence: vi.fn()
 vi.mock('../../services/errorReporting', () => ({ reportError: vi.fn() }));
 
 import SentencePractice from './SentencePractice';
+import { FocusModeProvider } from '../../components/Layout/focusMode';
 import { renderWithProviders, authenticatedState, createTestStore } from '../../test/utils';
 import { loadQueueData } from '../../services/sentenceTabsService';
 import { saveGrade } from '../../services/sentencePracticeService';
@@ -105,13 +106,22 @@ function setQueue(words: Word[], practice: PracticeByWord = {}) {
   });
 }
 
-function renderTab(tab: 'comprehend' | 'compose', sound = true) {
+function renderTab(
+  tab: 'comprehend' | 'compose',
+  sound = true,
+  setFocused: (focused: boolean) => void = () => {},
+) {
   const state = authenticatedState('user-1');
   const store = createTestStore({
     ...state,
     settings: { speechAvailable: sound, synthAvailable: sound },
   });
-  return renderWithProviders(<SentencePractice tab={tab} />, { store });
+  return renderWithProviders(
+    <FocusModeProvider value={setFocused}>
+      <SentencePractice tab={tab} />
+    </FocusModeProvider>,
+    { store },
+  );
 }
 
 beforeEach(() => {
@@ -218,11 +228,28 @@ describe('the Comprehend tab', () => {
     expect(screen.getByText('I 看书 Chinese.')).toBeInTheDocument();
   });
 
+  it('keeps focus mode on for the finish screen', async () => {
+    const user = userEvent.setup();
+    const setFocused = vi.fn();
+    localStorage.setItem('comprehendPerSet', '1');
+    setQueue([STUDY, READ]);
+    renderTab('comprehend', false, setFocused);
+
+    await user.click(await screen.findByRole('button', { name: 'Show English' }));
+    await user.click(screen.getByRole('button', { name: 'Right' }));
+
+    expect(await screen.findByRole('button', { name: 'Back to Dashboard' })).toBeInTheDocument();
+    expect(setFocused).toHaveBeenLastCalledWith(true);
+  });
+
   it('says there is nothing to practise, with a link to Study', async () => {
+    const setFocused = vi.fn();
     setQueue([word(1, '学习', 1)]);
-    renderTab('comprehend');
+    renderTab('comprehend', true, setFocused);
 
     expect(await screen.findByText('Nothing to practise')).toBeInTheDocument();
+    // The empty state keeps the navigation of the app.
+    expect(setFocused).toHaveBeenLastCalledWith(false);
     expect(screen.getByRole('link', { name: 'Go to Study' })).toHaveAttribute(
       'href',
       '/test-words',
