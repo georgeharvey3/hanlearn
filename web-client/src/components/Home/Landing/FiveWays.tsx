@@ -33,8 +33,7 @@ type Side = 'question' | 'answer';
  * say it when Sound is the answer. The same icons as the study screen; here
  * they only show the mode, so they are not buttons and play nothing.
  */
-const SoundIcon: React.FC<{ face: Face; side: Side; size: string }> = ({ face, side, size }) => {
-  if (face !== 'pinyin') return null;
+const SoundIcon: React.FC<{ side: Side; size: string }> = ({ side, size }) => {
   const Icon = side === 'question' ? VolumeUpRoundedIcon : MicNoneOutlinedIcon;
   return <Icon aria-hidden sx={{ fontSize: size, ml: '0.3em', flexShrink: 0 }} />;
 };
@@ -42,7 +41,7 @@ const SoundIcon: React.FC<{ face: Face; side: Side; size: string }> = ({ face, s
 const DirectionFace: React.FC<{ face: Face; side: Side }> = ({ face, side }) => (
   <>
     {faceLabel[face]}
-    <SoundIcon face={face} side={side} size="1.2em" />
+    {face === 'pinyin' && <SoundIcon side={side} size="1.2em" />}
   </>
 );
 
@@ -83,7 +82,7 @@ const FaceText: React.FC<{ face: Face; side?: Side; big?: boolean }> = ({ face, 
         }}
       >
         {WORD.pinyin}
-        {side && <SoundIcon face={face} side={side} size="0.75em" />}
+        {side && <SoundIcon side={side} size="0.75em" />}
       </Box>
     );
   return (
