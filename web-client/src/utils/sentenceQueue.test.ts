@@ -332,6 +332,28 @@ describe('a word that the other tab showed today', () => {
     expect(set(TOMORROW)).toEqual([{ word: study, sentenceId: 'only' }]);
   });
 
+  it('reads the local calendar day, so a view just before midnight does not count', () => {
+    const study = word('学', 3);
+    const practice: PracticeByWord = {
+      [study.id]: {
+        comprehend: {
+          lastPractised: new Date(2026, 10, 3, 23, 59).toISOString(),
+          lastResult: 'right',
+          seen: { only: new Date(2026, 10, 3, 23, 59).toISOString() },
+        },
+      },
+    };
+    const set = buildSet({
+      words: [study],
+      practice,
+      index,
+      tab: 'compose',
+      size: 1,
+      now: new Date(2026, 10, 4, 0, 1),
+    });
+    expect(set).toEqual([{ word: study, sentenceId: 'only' }]);
+  });
+
   it('makes the tab neither ready nor fresh when it is the only word', () => {
     const study = word('学', 3);
     const input = {

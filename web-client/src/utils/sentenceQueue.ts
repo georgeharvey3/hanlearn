@@ -48,9 +48,13 @@ const GATES: Record<SentenceTab, (word: Word) => boolean> = {
   compose: readyForCompose,
 };
 
+/** Local midnight at the start of the day `days` days after `now`. */
+const startOfLocalDay = (now: Date, days = 0): Date =>
+  new Date(now.getFullYear(), now.getMonth(), now.getDate() + days);
+
 /** Whether no direction of the word is due before the clearance ends. */
 function clearOfReviews(word: Word, now: Date): boolean {
-  const clear = new Date(now.getFullYear(), now.getMonth(), now.getDate() + REVIEW_CLEARANCE_DAYS);
+  const clear = startOfLocalDay(now, REVIEW_CLEARANCE_DAYS);
   const dueDates = word.directions
     ? DIRECTIONS.map((direction) => word.directions![direction].dueDate)
     : [word.due_date];
@@ -98,7 +102,7 @@ function shownInOtherTabToday(
   now: Date,
 ): boolean {
   const seen = practiceOf(practice, word, OTHER_TAB[tab])?.seen ?? {};
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const today = startOfLocalDay(now);
   return sentenceIds.every((id) => seen[id] !== undefined && new Date(seen[id]) >= today);
 }
 
