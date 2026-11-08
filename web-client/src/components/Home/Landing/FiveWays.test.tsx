@@ -5,6 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { copy } from '../../../copy';
 import FiveWays from './FiveWays';
 
+// motion imports the Toolbar, which reaches the Firebase config.
+vi.mock('../../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+
 // The scroll position decides the step on the card; the test sets it.
 const scroll = vi.hoisted(() => ({ progress: 0 }));
 vi.mock('./motion', async (importOriginal) => ({
