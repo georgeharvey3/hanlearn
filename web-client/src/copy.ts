@@ -180,6 +180,7 @@ export const copy = {
     didYouKnow: 'Did you know it?',
     gradeFail: 'No',
     gradeLapse: 'Nearly',
+    countAsKnown: 'Count as known',
     gradePass: 'Yes',
     iDontKnow: "I don't know",
     hint: 'Hint',
@@ -230,6 +231,9 @@ export const copy = {
     stepUnderstand: 'Understand',
     stepSpeak: 'Speak',
     stepWrite: 'Write',
+    example: 'Example',
+    exampleLoading: 'Loading example',
+    playSentence: 'Play sentence',
     characters: 'Characters',
     parts: 'Parts',
     partsLoading: 'Loading parts',
@@ -431,6 +435,7 @@ export const copy = {
       progress: 'Progress',
       chengyu: 'Chengyu',
       skills: 'Five skills',
+      hsk: 'HSK coverage',
     },
     calendar: {
       previous: 'Previous month',
@@ -482,6 +487,14 @@ export const copy = {
       chart: (shares: { name: string; percent: number | null }[]) =>
         `Familiar or better: ${shares.map((s) => `${s.name} ${s.percent ?? '—'}%`).join(', ')}`,
       corner: (name: string, label: string) => `${name}, ${label}`,
+    },
+    hsk: {
+      count: (added: number, total: number) => `${added} of ${total}`,
+      notAdded: 'Not added',
+      // "HSK 3, 120 of 1000 added: New 40, Learning 30, …, not added 880"
+      row: (name: string, added: number, total: number, parts: string) =>
+        `${name}, ${added} of ${total} added: ${parts}`,
+      part: (label: string, n: number) => `${label} ${n}`,
     },
   },
   // The page a visitor sees before an account exists.

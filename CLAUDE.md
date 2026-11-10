@@ -73,7 +73,7 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 - [web-client/src/services/dictionaryService.ts](web-client/src/services/dictionaryService.ts) - Dictionary search and lookups, through Cloud Functions callables
 - [web-client/src/services/premadeListService.ts](web-client/src/services/premadeListService.ts) - Loads the catalogue of premade lists and the entries of one list from `/premade-lists/`; `wordService.addPremadeList` writes the import
 - [web-client/src/services/streakService.ts](web-client/src/services/streakService.ts) - Read/write `testCompletions` subcollection; calculates streak from completion dates
-- [web-client/src/services/dashboardService.ts](web-client/src/services/dashboardService.ts) - Aggregates the Dashboard's data: the session sizes, per-direction bank counts, the words due ahead and the `reviewStats` history. The counting rules are pure, in [web-client/src/utils/dashboard.ts](web-client/src/utils/dashboard.ts)
+- [web-client/src/services/dashboardService.ts](web-client/src/services/dashboardService.ts) - Aggregates the Dashboard's data: the session sizes, per-direction bank counts, the words due ahead and the `reviewStats` history. The counting rules are pure, in [web-client/src/utils/dashboard.ts](web-client/src/utils/dashboard.ts). It also gives the HSK coverage of the whole collection, from the HSK index of the premade lists; the rules are pure, in [web-client/src/utils/hskCoverage.ts](web-client/src/utils/hskCoverage.ts) (#271)
 - [web-client/src/services/retentionService.ts](web-client/src/services/retentionService.ts) - Read/write the `reviewStats` daily rollup; the session's write joins the `finishTest` batch, and the level snapshot follows it
 - [web-client/src/services/reviewLogService.ts](web-client/src/services/reviewLogService.ts) - Builds the `reviewLog` entry of each graded question. `finishTest` writes the document after its batch, and a failed write does not lose the session. `node migration/export-review-log.js --uid <userId>` exports the log of one learner to a CSV file for the FSRS optimizer
 - [web-client/src/services/sentenceService.ts](web-client/src/services/sentenceService.ts) - Reads the example sentences from the files in `/sentences/` on Hosting, and keeps each file in memory for the session. It makes no AI call, no Firestore read and no dictionary call (#469)
@@ -146,7 +146,8 @@ users/{userId}/
             after: { stability, difficulty, interval },
             position?, toneErrors, misses?, hint?, revealed?, answerMs?, answer?,
             alternatives?,       # The alternative answers sent, in order (#348)
-            disambiguator?       # Whether the cue that names the word showed; free (#396)
+            disambiguator?,      # Whether the cue that names the word showed; free (#396)
+            overridden?          # A stroke-check lapse counted as known: grade 'pass' (#475)
           }]
 
 words/{wordId}                   # Read-only shared dictionary (admin-managed)
@@ -176,7 +177,7 @@ Security rules in [firestore.rules](firestore.rules): users can only access thei
 
 The CC-CEDICT dictionary (~124K entries) is built via `npm run build:dict`, which parses the source file and writes `functions/data/dictionary.json`. The Cloud Functions in [functions/src/dictionary.ts](functions/src/dictionary.ts) load it and answer the client's searches, so the client never downloads it. The build also writes a copy to `web-client/public/dictionary.json`.
 
-The same build writes the catalogue of **premade lists** (HSK 3.0) to `web-client/public/premade-lists/`. A pure resolver, [migration/premadeCatalogue.js](migration/premadeCatalogue.js), gives each source word one dictionary entry, and [migration/hsk/overrides.json](migration/hsk/overrides.json) settles the ambiguous words. If a word does not resolve, the build fails. See [migration/hsk/README.md](migration/hsk/README.md). The build also writes the HSK frequency rank `q` onto each HSK entry of `dictionary.json`, and `dictionarySearch` ranks by it, because CC-CEDICT has no frequency field.
+The same build writes the catalogue of **premade lists** (HSK 3.0) to `web-client/public/premade-lists/`. A pure resolver, [migration/premadeCatalogue.js](migration/premadeCatalogue.js), gives each source word one dictionary entry, and [migration/hsk/overrides.json](migration/hsk/overrides.json) settles the ambiguous words. If a word does not resolve, the build fails. The build also writes `hsk-index.json`, one row for each catalogue word, for the HSK coverage card of the Dashboard. If the index does not agree with the list files, the build fails ([migration/hskIndex.js](migration/hskIndex.js)). See [migration/hsk/README.md](migration/hsk/README.md). The build also writes the HSK frequency rank `q` onto each HSK entry of `dictionary.json`, and `dictionarySearch` ranks by it, because CC-CEDICT has no frequency field.
 
 The example sentences of #465 have two committed sources. `migration/sentences/tatoeba.json` holds the Tatoeba sentences of native Mandarin writers (`npm --prefix migration run fetch:tatoeba` downloads it again). `migration/sentences/generated.json` holds the sentences that Claude Code sessions wrote. One grader admits both. Each sentence goes to every HSK word that it holds and passes the grader for. A word outside HSK gets none (#482).
 
@@ -325,3 +326,17 @@ feature/xyz ──PR──▸ develop ──PR──▸ main ──▸ productio
 4. After a successful deploy, the release workflow automatically:
    - Creates a date-based git tag (e.g. `v1.2026.0316`)
    - Creates a GitHub Release with auto-generated changelog
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for `georgeharvey3/hanlearn`, through the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` is the glossary, and `docs/adr/` holds the ADRs. See `docs/agents/domain.md`.

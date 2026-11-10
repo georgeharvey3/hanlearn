@@ -37,6 +37,7 @@ const REVIEW_LOG_COLUMNS = [
   'misses',
   'hint',
   'disambiguator',
+  'overridden',
   'revealed',
   'answer_ms',
   'answer',
@@ -85,6 +86,8 @@ function reviewLogRows(docs) {
         misses: cell(entry.misses),
         hint: cell(entry.hint),
         disambiguator: cell(entry.disambiguator),
+        // A stroke-check lapse that the learner counted as known (#475).
+        overridden: cell(entry.overridden),
         revealed: cell(entry.revealed),
         answer_ms: cell(entry.answerMs),
         answer: cell(entry.answer),

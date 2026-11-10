@@ -1,14 +1,23 @@
 import { Page, Locator, expect } from '@playwright/test';
 
+/** The sticky group that holds the search field and the list chips (#477). */
+export const PINNED = '[data-testid="pinned-rows"]';
+
 export class AddWordsPage {
   readonly page: Page;
   readonly searchInput: Locator;
+  readonly listChips: Locator;
+  readonly pageTabs: Locator;
+  readonly pinnedRows: Locator;
   /** Whatever the dictionary gave: the entries, the own-word form, or an error. */
   readonly searchOutcome: Locator;
 
   constructor(page: Page) {
     this.page = page;
     this.searchInput = page.getByRole('textbox', { name: 'Search a Chinese word' });
+    this.listChips = page.getByRole('tablist', { name: 'Lists' });
+    this.pageTabs = page.getByRole('tablist', { name: 'Add words' });
+    this.pinnedRows = page.locator(PINNED);
     this.searchOutcome = page
       .getByText(/^\d+ results?$/)
       .or(page.getByText(/^No entry for/))

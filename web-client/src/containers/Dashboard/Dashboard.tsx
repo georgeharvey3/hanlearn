@@ -4,7 +4,8 @@ import { useHistory } from 'react-router-dom';
 import Box from '@mui/material/Box';
 
 import { RootState } from '../../types/store';
-import { DashboardStats, getDashboardStats } from '../../services/dashboardService';
+import { DashboardStats, getDashboardStats, getHskCoverage } from '../../services/dashboardService';
+import { type HskLevelCoverage } from '../../utils/hskCoverage';
 import * as wordActions from '../../store/actions/index';
 import ErrorBoundary from '../../components/ErrorBoundary/ErrorBoundary';
 import { reportError } from '../../services/errorReporting';
@@ -20,6 +21,7 @@ import CalendarCard from './widgets/CalendarCard';
 import ProgressCard from './widgets/ProgressCard';
 import ChengyuCard from './widgets/ChengyuCard';
 import SkillsCard from './widgets/SkillsCard';
+import HskCoverageCard from './widgets/HskCoverageCard';
 import { Section } from './widgets/parts';
 
 const text = copy.dashboard;
@@ -55,7 +57,7 @@ type PropsFromRedux = ConnectedProps<typeof connector>;
 /**
  * The first screen after sign-in. Its first job is to start a session in as
  * few taps as possible; under that sit the chengyu, the five skills, the
- * calendar and the progress chart. No word of the learner's appears here: a
+ * progress chart, the HSK coverage and the calendar. No word of the learner's appears here: a
  * word seen just before the test asks it primes the answer.
  */
 const Dashboard: React.FC<PropsFromRedux> = ({
@@ -96,6 +98,29 @@ const Dashboard: React.FC<PropsFromRedux> = ({
   useEffect(() => {
     loadStats();
   }, [loadStats]);
+
+  // The HSK coverage counts the whole collection, so a list switch does not
+  // load it again. It starts once the first stats are in, so it never delays
+  // the Today card, and a failed load only hides the card.
+  const [statsSettled, setStatsSettled] = useState(false);
+  useEffect(() => {
+    if (!loading) setStatsSettled(true);
+  }, [loading]);
+  const [hsk, setHsk] = useState<HskLevelCoverage[] | null>(null);
+  useEffect(() => {
+    if (!userId || !statsSettled) return;
+    let current = true;
+    getHskCoverage(userId).then(
+      (coverage) => current && setHsk(coverage),
+      (err) => {
+        reportError(err, { feature: 'dashboard-hsk' });
+        if (current) setHsk(null);
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [userId, statsSettled]);
 
   useEffect(() => {
     if (userId) {
@@ -160,7 +185,7 @@ const Dashboard: React.FC<PropsFromRedux> = ({
         </Slot>
         {!error && (
           <>
-            <Slot order={4}>
+            <Slot order={5}>
               <Section title={text.sections.calendar}>
                 <CalendarCard loading={loading} history={historyDays} forecast={forecast} />
               </Section>
@@ -170,6 +195,16 @@ const Dashboard: React.FC<PropsFromRedux> = ({
                 <ProgressCard loading={loading} empty={empty} history={historyDays} />
               </Section>
             </Slot>
+            {hsk && (
+              <Slot order={4}>
+                <Section title={text.sections.hsk}>
+                  <HskCoverageCard
+                    coverage={hsk}
+                    onOpen={(listId) => history.push(`/add-words/premade/${listId}`)}
+                  />
+                </Section>
+              </Slot>
+            )}
           </>
         )}
       </Column>

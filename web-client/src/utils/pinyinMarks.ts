@@ -1,4 +1,29 @@
-import { convert } from 'pinyin-pro';
+import { convert, pinyin } from 'pinyin-pro';
+
+/**
+ * A full-width mark is as wide as a character, so it takes no space at either
+ * side. The Chinese ellipsis (……) is one of them.
+ */
+const SPACE_AROUND_FULL_WIDTH = / *([\u2026\u3000-\u303f\uff00-\uffef]) */g;
+const SPACE_BEFORE_CLOSING = / +(?=[”’,.!?;:)])/g;
+const SPACE_AFTER_OPENING = /([“‘(]) +/g;
+
+/**
+ * The pinyin line of an example sentence, in tone marks (#492).
+ *
+ * Pass the simplified text: pinyin-pro misreads many traditional characters,
+ * common ones too (們 reads "mén", 嗎 "má"). It reads each character in its
+ * context, which the CC-CEDICT pinyin of each segment does not. It also puts
+ * a space at each side of a punctuation mark, which this removes.
+ */
+export function sentencePinyin(simplified: string): string {
+  return pinyin(simplified, { nonZh: 'consecutive' })
+    .replace(/ {2,}/g, ' ')
+    .replace(SPACE_AROUND_FULL_WIDTH, '$1')
+    .replace(SPACE_BEFORE_CLOSING, '')
+    .replace(SPACE_AFTER_OPENING, '$1')
+    .trim();
+}
 
 /**
  * Write numbered pinyin with tone marks: "tu2 shu1 guan3" reads "tú shū guǎn".

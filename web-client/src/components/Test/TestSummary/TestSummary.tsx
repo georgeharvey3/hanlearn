@@ -3,13 +3,13 @@ import { Box } from '@mui/material';
 
 import { copy } from '../../../copy';
 import { colors } from '../../../theme';
-import { DirectionResult, Word, WordScore } from '../../../types/models';
+import { DirectionResult, MissedQuestion, Word, WordScore } from '../../../types/models';
 import StudyScreen from '../Study/StudyScreen';
 import StudyTop from '../Study/StudyTop';
 import { StudyButton } from '../Study/parts';
 import ScoreCard from './ScoreCard';
 import WordTile from './WordTile';
-import { missedWords, summaryRows, tally } from './summary';
+import { missedQuestions, summaryRows, tally } from './summary';
 import { TabStatuses } from '../../../services/sentenceTabsService';
 import { SENTENCE_TABS, SentenceTab } from '../../../utils/sentenceSettings';
 
@@ -19,8 +19,8 @@ interface TestSummaryProps {
   words: Word[];
   practiceMode: boolean;
   onHome: () => void;
-  /** Starts a practice session of the words with a Nearly or Not known question. */
-  onPracticeMissed: (words: Word[]) => void;
+  /** Starts a practice session of the Nearly and Not known questions, in their directions. */
+  onPracticeMissed: (missed: MissedQuestion[]) => void;
   /** The status of the sentence tabs: a tab with nothing to practise gets no button. */
   sentenceTabs?: TabStatuses | null;
   onSentenceTab?: (tab: SentenceTab) => void;
@@ -149,7 +149,7 @@ const TestSummary: React.FC<TestSummaryProps> = ({
           </Box>
         )}
         {missed && (
-          <StudyButton onClick={() => onPracticeMissed(missedWords(rows, words))}>
+          <StudyButton onClick={() => onPracticeMissed(missedQuestions(rows, words))}>
             {copy.summary.practiceMissed}
           </StudyButton>
         )}

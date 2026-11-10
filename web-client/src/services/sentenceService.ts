@@ -7,7 +7,7 @@
  * call, because each segment carries its own pinyin and gloss.
  */
 
-import { SentenceSegment } from '../utils/sentenceUtils';
+import { SegmentedSentence, SentenceSegment } from '../utils/sentenceUtils';
 import { reportedSentenceIds } from '../utils/reportedSentences';
 
 /** One sentence of a word, as the build writes it. */
@@ -24,21 +24,7 @@ interface FileSentence {
 type SentenceFile = Record<string, FileSentence[]>;
 
 export interface SegmentedSentenceResult {
-  sentence: {
-    /** The id of the sentence in the files. */
-    id: string;
-    chinese: {
-      sentence: string;
-      highlight: number[][];
-      /** The segments in order, with the text between them as segments with no entry. */
-      segments: SentenceSegment[];
-      targetIndex: number;
-    };
-    english: {
-      sentence: string;
-      highlight: number[][];
-    };
-  } | null;
+  sentence: SegmentedSentence | null;
   totalCount: number;
 }
 
@@ -186,7 +172,7 @@ export async function getSegmentedSentence(
   return {
     sentence: {
       id: example.id,
-      chinese: { sentence: text, highlight, segments, targetIndex },
+      chinese: { sentence: text, simplified: example.simp, highlight, segments, targetIndex },
       english: { sentence: example.english, highlight: [] },
     },
     totalCount: examples.length,

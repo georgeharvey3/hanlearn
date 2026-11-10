@@ -513,3 +513,32 @@ describe('AddWords — empty, loading and error', () => {
     expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
   });
 });
+
+describe('AddWords — the pinned rows', () => {
+  /** The nearest ancestor that sticks when the page scrolls. */
+  const stickyGroup = (el: HTMLElement): HTMLElement | null => {
+    let node: HTMLElement | null = el;
+    while (node && getComputedStyle(node).position !== 'sticky') node = node.parentElement;
+    return node;
+  };
+
+  it('pins the search field and the list chips in one group, and not the page tabs', async () => {
+    renderBank([farWord]);
+    const chips = await screen.findByRole('tablist', { name: 'Lists' });
+    const group = stickyGroup(chips);
+    expect(group).not.toBeNull();
+    expect(group).toContainElement(screen.getByRole('textbox', { name: 'Search a Chinese word' }));
+    expect(group).not.toContainElement(screen.getByRole('tablist', { name: 'Add words' }));
+    expect(group).not.toContainElement(screen.getByRole('heading', { name: 'General · 1 word' }));
+  });
+
+  it('keeps the search field pinned while a search hides the list chips', async () => {
+    renderBank([farWord]);
+    await screen.findByRole('tablist', { name: 'Lists' });
+    await userEvent.type(screen.getByRole('textbox', { name: 'Search a Chinese word' }), '附');
+    expect(screen.queryByRole('tablist', { name: 'Lists' })).not.toBeInTheDocument();
+    expect(
+      stickyGroup(screen.getByRole('textbox', { name: 'Search a Chinese word' })),
+    ).not.toBeNull();
+  });
+});

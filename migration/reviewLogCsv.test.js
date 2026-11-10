@@ -88,6 +88,7 @@ describe('reviewLogRows', () => {
       misses: 2,
       hint: false,
       disambiguator: '',
+      overridden: '',
       revealed: false,
       answer_ms: 8421,
       answer: 'ni3hao4',
@@ -125,6 +126,15 @@ describe('reviewLogRows', () => {
 
     expect(first).toMatchObject({ log_version: 1, hint: true, disambiguator: '' });
     expect(second).toMatchObject({ log_version: 2, hint: true, disambiguator: true });
+  });
+
+  // The optimizer can leave out a lapse the learner counted as known (#475).
+  it('records a stroke-check lapse counted as known', () => {
+    const [row] = reviewLogRows([
+      session([entry({ grade: 'pass', mode: 'handwriting', direction: 'CM', overridden: true })]),
+    ]);
+
+    expect(row).toMatchObject({ grade: 'pass', review_rating: 3, misses: 2, overridden: true });
   });
 
   it('leaves the mode and the design fields empty for an entry saved before the release', () => {

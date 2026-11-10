@@ -1,4 +1,11 @@
-import { DIRECTIONS, Direction, Word, QueuePair, QuestionCategory } from '../../../types/models';
+import {
+  DIRECTIONS,
+  Direction,
+  MissedQuestion,
+  Word,
+  QueuePair,
+  QuestionCategory,
+} from '../../../types/models';
 import { parseMeanings } from '../../../utils/meaningUtils';
 import { isNewWord } from '../../../utils/directions';
 import { readQuestionsPerSession } from '../../../utils/sessionSettings';
@@ -26,6 +33,9 @@ function seededShuffle<T>(array: T[], seed: number): T[] {
   }
   return result;
 }
+
+/** A fresh seed for each call, which turns the seeded shuffle into a plain one. */
+const randomSeed = (): number => (Math.random() * 0x100000000) | 0;
 
 function dueDateDay(dateStr: string): number {
   const d = parseDueDate(dateStr)!;
@@ -217,8 +227,7 @@ export const planSession = (candidates: Word[], options: PlanSessionOptions): Se
   // would repeat all day. It shuffles every pair afresh on each run.
   let ranked: Pair[];
   if (practiceMode) {
-    // A random seed turns the seeded shuffle into a plain one.
-    ranked = seededShuffle(pairs, (Math.random() * 0x100000000) | 0);
+    ranked = seededShuffle(pairs, randomSeed());
   } else {
     const seed = seedFromDate(today);
     const byDay = new Map<number, Pair[]>();
@@ -272,10 +281,28 @@ export const planSession = (candidates: Word[], options: PlanSessionOptions): Se
 
   // ─── Assemble, in the order of the ranking ───────────────────────────────
   const ordered = ranked.filter((pair) => taken.has(pair));
-  const words: Word[] = ordered.map((pair) => pair.word);
+  const words: Word[] = ordered.map((question) => question.word);
   const queue: QueuePair[] = ordered.map((pair, index) => pairFor(index, pair.direction));
 
   return { words, queue, newWords: words.filter(isNewWord) };
+};
+
+/**
+ * Plan a practice session of the questions the learner just missed: each one
+ * once, in its missed direction, in a fresh random order.
+ *
+ * The settings do not filter the directions. The learner was asked each one a
+ * moment ago, so a missed `CM` comes back in `CM` with handwriting off. The
+ * direction shares (ADR 0017) and the new-word cap (ADR 0015) do not apply,
+ * and the session has no new-word steps (#474).
+ */
+export const planMissedPractice = (missed: MissedQuestion[]): SessionPlan => {
+  const ordered = seededShuffle(missed, randomSeed());
+  return {
+    words: ordered.map((question) => question.word),
+    queue: ordered.map((question, index) => pairFor(index, question.direction)),
+    newWords: [],
+  };
 };
 
 /** The direction a queue pair asks, written answer-first. */

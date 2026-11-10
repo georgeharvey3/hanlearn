@@ -146,6 +146,40 @@ describe('useTestEngine — resuming a session', () => {
   });
 });
 
+// A stroke-check lapse that the learner counted as known stays a pass after a
+// reload. See issue #475.
+describe('useTestEngine — resuming after an override', () => {
+  it('sends the override of a grade from before the reload', () => {
+    const onFinishTest = vi.fn();
+    const resume: VocabProgress = {
+      queue: [pair('2')],
+      gradeList: [
+        {
+          wordId: 1,
+          direction: 'CM',
+          result: 'pass',
+          toneErrors: 0,
+          mode: 'handwriting',
+          position: 0,
+          misses: 5,
+          overridden: true,
+        },
+      ],
+      initialQueueLength: 2,
+    };
+    const { result } = renderEngine(makeProps({ resume, onFinishTest }));
+
+    act(() => {
+      result.current.onCorrectAnswer('pass');
+    });
+
+    const submitted = onFinishTest.mock.calls[0][0] as WordDirectionResults[];
+    const first = submitted.find((entry) => entry.word_id === 1);
+    expect(first?.directions.CM).toBe('pass');
+    expect(first?.details?.CM).toMatchObject({ misses: 5, overridden: true });
+  });
+});
+
 describe('useTestEngine — reporting progress', () => {
   it('reports the whole queue before the first answer', () => {
     const onProgress = vi.fn();
