@@ -6,6 +6,7 @@ import { Box } from '@mui/material';
 
 import StudyTop from './Study/StudyTop';
 import StudyScreen from './Study/StudyScreen';
+import { useLockedScroll } from './Study/useLockedScroll';
 import { Prompt, StatusLine, StatusTone } from './Study/parts';
 import QuestionDisplay from './QuestionDisplay';
 import AnswerInput from './AnswerInput';
@@ -82,6 +83,8 @@ const Test: React.FC<Props> = (props) => {
     [refreshSettings],
   );
 
+  useLockedScroll();
+
   const { history } = props;
   const onEnd = useCallback(() => history.push('/'), [history]);
 
@@ -92,7 +95,7 @@ const Test: React.FC<Props> = (props) => {
   const compact = state.componentReviewChars.length > 0;
 
   return (
-    <StudyScreen>
+    <StudyScreen fixed>
       <StudyTop
         stage={copy.study.stageTest}
         done={answeredCount}
@@ -100,60 +103,78 @@ const Test: React.FC<Props> = (props) => {
         onEnd={onEnd}
         onSettings={() => setSettingsDrawerOpen(true)}
       />
-      <Prompt sx={compact ? { mt: 2, mb: 1.25 } : undefined}>
-        {copy.test.promptBefore}
-        <em>{state.answerCategory}</em>
-        {state.questionCategory === 'pinyin' ? copy.test.promptOf : copy.test.promptFor}
-      </Prompt>
-      <QuestionDisplay
-        state={state}
-        onSpeak={onSpeak}
-        onPlayHintSentence={onPlayHintSentence}
-        onToggleShowPinyin={onToggleShowPinyin}
-        onToggleDisambiguator={onToggleDisambiguator}
-      />
-      {/* The handwriting box sits right under the card; its status goes below it. */}
-      {state.answerCategory === 'character' && !state.showComponents && (
-        <AnswerInput
+      {/* Everything between the bar and the buttons shares the room left. The
+          buttons stay on screen; this part scrolls only if a reveal cannot fit. */}
+      <Box
+        data-testid="test-body"
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflowY: 'auto',
+          overscrollBehavior: 'contain',
+          mx: -2,
+          px: 2,
+          pb: 1,
+        }}
+      >
+        <Prompt sx={compact ? { mt: 2, mb: 1.25 } : undefined}>
+          {copy.test.promptBefore}
+          <em>{state.answerCategory}</em>
+          {state.questionCategory === 'pinyin' ? copy.test.promptOf : copy.test.promptFor}
+        </Prompt>
+        <QuestionDisplay
           state={state}
-          speechAvailable={props.speechAvailable}
-          onKeyPress={onKeyPress}
-          onInputChanged={onInputChanged}
-          onFocusEntry={onFocusEntry}
-          onListen={onListen}
+          onSpeak={onSpeak}
+          onPlayHintSentence={onPlayHintSentence}
+          onToggleShowPinyin={onToggleShowPinyin}
+          onToggleDisambiguator={onToggleDisambiguator}
         />
-      )}
-      <StatusLine tone={tone} icon={icon}>
-        {state.result}
-      </StatusLine>
-      <ComponentReview
-        chars={state.componentReviewChars}
-        charSet={state.charSet}
-        open={state.showComponents}
-        onToggle={onToggleComponents}
-      />
-      {state.answerCategory !== 'character' && !compact && (
-        <AnswerInput
+        {/* The handwriting box sits right under the card; its status goes below it. */}
+        {state.answerCategory === 'character' && !state.showComponents && (
+          <AnswerInput
+            state={state}
+            speechAvailable={props.speechAvailable}
+            onKeyPress={onKeyPress}
+            onInputChanged={onInputChanged}
+            onFocusEntry={onFocusEntry}
+            onListen={onListen}
+          />
+        )}
+        <StatusLine tone={tone} icon={icon}>
+          {state.result}
+        </StatusLine>
+        <ComponentReview
+          chars={state.componentReviewChars}
+          charSet={state.charSet}
+          open={state.showComponents}
+          onToggle={onToggleComponents}
+        />
+        {state.answerCategory !== 'character' && !compact && (
+          <AnswerInput
+            state={state}
+            speechAvailable={props.speechAvailable}
+            onKeyPress={onKeyPress}
+            onInputChanged={onInputChanged}
+            onFocusEntry={onFocusEntry}
+            onListen={onListen}
+          />
+        )}
+      </Box>
+      <Box sx={{ flexShrink: 0, pt: 1.5 }}>
+        <TestActions
           state={state}
-          speechAvailable={props.speechAvailable}
-          onKeyPress={onKeyPress}
-          onInputChanged={onInputChanged}
-          onFocusEntry={onFocusEntry}
-          onListen={onListen}
+          onIDontKnow={onIDontKnow}
+          onHint={onHint}
+          onShowAnswer={onShowAnswer}
+          onCorrectAnswer={onCorrectAnswer}
+          onNearlyKnew={onNearlyKnew}
+          onSubmitAnswer={onSubmitAnswer}
+          onContinue={onContinue}
+          onCountAsKnown={onCountAsKnown}
         />
-      )}
-      <Box sx={{ flex: 1, minHeight: 24 }} />
-      <TestActions
-        state={state}
-        onIDontKnow={onIDontKnow}
-        onHint={onHint}
-        onShowAnswer={onShowAnswer}
-        onCorrectAnswer={onCorrectAnswer}
-        onNearlyKnew={onNearlyKnew}
-        onSubmitAnswer={onSubmitAnswer}
-        onContinue={onContinue}
-        onCountAsKnown={onCountAsKnown}
-      />
+      </Box>
       <AudioSettingsDrawer
         open={settingsDrawerOpen}
         onClose={handleSettingsClose}
