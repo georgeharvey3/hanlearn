@@ -405,7 +405,12 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
       height={height}
       lapse={lapse}
       corner={corner}
-      sx={{ gap: compact ? 0.75 : revealed ? 1.5 : 2.25 }}
+      sx={{
+        gap: compact ? 0.75 : revealed ? 1.5 : 2.25,
+        // Clear the corner button (8px inset + 44px wide) on both sides, so the
+        // text stays centred and never runs under the button.
+        ...(corner && { px: '52px' }),
+      }}
     >
       {content}
     </StudyCard>
