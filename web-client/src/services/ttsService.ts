@@ -54,6 +54,25 @@ interface SpeakOptions {
   fallbackLang?: string;
 }
 
+/**
+ * How long the native voice has to start before the call counts as failed.
+ *
+ * iOS Safari speaks only in reply to a tap, and outside one it neither speaks
+ * nor fires an error. The fallback runs after a failed Cloud call, so it is
+ * often outside a tap, and the caller's spinner then waited forever with its
+ * play button disabled (JAVASCRIPT-REACT-6).
+ */
+export const NATIVE_START_TIMEOUT_MS = 3000;
+
+let nativeStartTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearNativeStartTimer(): void {
+  if (nativeStartTimer !== null) {
+    clearTimeout(nativeStartTimer);
+    nativeStartTimer = null;
+  }
+}
+
 function speakWithNativeFallback(text: string, options: SpeakOptions): TtsHandle {
   const synth = window.speechSynthesis;
   const utterance = new SpeechSynthesisUtterance(text);
@@ -64,20 +83,41 @@ function speakWithNativeFallback(text: string, options: SpeakOptions): TtsHandle
   if (options.fallbackVoice) {
     utterance.voice = options.fallbackVoice;
   }
-  utterance.onstart = () => options.onStart?.();
+  let settled = false;
+  const fail = () => {
+    if (settled) return;
+    settled = true;
+    clearNativeStartTimer();
+    options.onError?.('Error playing pinyin');
+  };
+  utterance.onstart = () => {
+    settled = true;
+    clearNativeStartTimer();
+    options.onStart?.();
+  };
   utterance.onend = () => options.onEnd?.();
   utterance.onerror = (e) => {
-    if (e.error === 'synthesis-failed') {
-      options.onError?.('Error playing pinyin');
-    }
+    // 'interrupted' and 'canceled' come from our own synth.cancel(), when the
+    // next question or the next play stops this one: not a failure.
+    if (e.error === 'interrupted' || e.error === 'canceled') return;
+    fail();
   };
 
   return {
     play: () => {
       synth.cancel();
+      clearNativeStartTimer();
       synth.speak(utterance);
+      nativeStartTimer = setTimeout(() => {
+        nativeStartTimer = null;
+        if (settled) return;
+        synth.cancel();
+        fail();
+      }, NATIVE_START_TIMEOUT_MS);
     },
     stop: () => {
+      settled = true;
+      clearNativeStartTimer();
       synth.cancel();
     },
   };
@@ -133,7 +173,13 @@ export function speak(text: string, options: SpeakOptions = {}): TtsHandle {
   let stopped = false;
   let activeHandle: TtsHandle | null = null;
 
+  // One retry: the Cloud call fails now and then with `internal`, and a second
+  // try usually succeeds, while the native fallback may not speak at all.
   textToSpeechFn({ text, speed: options.speed })
+    .catch((error) => {
+      if (stopped) throw error;
+      return textToSpeechFn({ text, speed: options.speed });
+    })
     .then((result) => {
       if (stopped) return;
 
@@ -168,6 +214,7 @@ export function speak(text: string, options: SpeakOptions = {}): TtsHandle {
     play: () => activeHandle?.play(),
     stop: () => {
       stopped = true;
+      clearNativeStartTimer();
       activeHandle?.stop();
       if (currentHowl) {
         currentHowl.stop();
@@ -193,6 +240,7 @@ export function prefetch(text: string): void {
 }
 
 export function stopAll(): void {
+  clearNativeStartTimer();
   if (currentHowl) {
     currentHowl.stop();
     currentHowl = null;
