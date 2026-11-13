@@ -99,6 +99,11 @@ export interface TestState {
   /** Whether the component breakdown of those characters is expanded. */
   showComponents: boolean;
   /**
+   * The indexes of the missed characters of the current handwriting question.
+   * Only the component review reads it: see `componentsToReview`.
+   */
+  missedCharIndexes: number[];
+  /**
    * Whether a graded question is waiting for Continue. A typed, spoken or
    * drawn answer holds the session on its reveal, and so does a question with
    * components to review. A flashcard grade moves on by itself otherwise.

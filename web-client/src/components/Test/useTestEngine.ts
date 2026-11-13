@@ -37,6 +37,7 @@ import {
 } from '../../utils/alternativeAnswers';
 import { CurrentQuestion } from '../../utils/savedSession';
 import { canCountAsKnown } from './countAsKnown';
+import { ComponentOffer, componentOffer } from './componentReview';
 
 /**
  * Misses on one stroke before the handwriting quiz shows the stroke outline.
@@ -81,20 +82,6 @@ const gradeDetailOf = (grade: DirectionGrade): GradeDetail =>
   ) as GradeDetail;
 
 /**
- * The characters to offer a component breakdown for once a question is graded.
- *
- * Only a question that puts the character on screen has components worth
- * showing, so `MP` and `PM` — pinyin and meaning alone — get none. A `pass`
- * gets none either: the breakdown is the aid for a direction the learner has
- * just lost, which is what issue #335 asks for.
- */
-const componentsToReview = (state: TestState, result: DirectionResult): string[] => {
-  if (result === 'pass') return [];
-  if (state.answerCategory !== 'character' && state.questionCategory !== 'character') return [];
-  return Array.from(state.chosenCharacter ?? '');
-};
-
-/**
  * The state a question starts with that the question before it may have
  * changed: its hint, its reveal and its grade. Every step that moves to the
  * next question spreads it, so that no part of one reveal shows on the next
@@ -112,6 +99,7 @@ const FRESH_QUESTION = {
   hintShown: false,
   firstWrongAnswer: null,
   alternativesSent: [] as string[],
+  missedCharIndexes: [] as number[],
 } as const;
 
 /** The answer the current question asks for, as the matching reads it. */
@@ -197,6 +185,11 @@ export const useTestEngine = (props: Props) => {
   // must run exactly the step the grade decided, not one rebuilt from state.
   const pendingAdvanceRef = useRef<(() => void) | null>(null);
 
+  // The index of the character the writer has on screen. `writingIndex` moves
+  // on as a character is drawn, a second before the writer loads the next one,
+  // so a hint in that second is on the drawn character. See issue #493.
+  const writerCharRef = useRef(0);
+
   /**
    * Run the step that ends a question, or hold it for the component review.
    *
@@ -207,7 +200,7 @@ export const useTestEngine = (props: Props) => {
    * Continue. See issue #335.
    */
   const holdOrAdvance = useCallback(
-    (chars: string[], advance: () => void, delay: number, hold = false): void => {
+    ({ chars, open }: ComponentOffer, advance: () => void, delay: number, hold = false): void => {
       if (chars.length === 0 && !hold) {
         if (delay > 0) {
           setTimeout(advance, delay);
@@ -219,7 +212,7 @@ export const useTestEngine = (props: Props) => {
       pendingAdvanceRef.current = advance;
       setStateMerged({
         componentReviewChars: chars,
-        showComponents: false,
+        showComponents: open,
         awaitingContinue: true,
       });
     },
@@ -524,7 +517,7 @@ export const useTestEngine = (props: Props) => {
       // moves on, so the reveal waits for Continue rather than a timer. So does
       // every answer but a flashcard grade: the learner pressed that button,
       // and has read the reveal already.
-      const review = componentsToReview(current, result);
+      const review = componentOffer(current, result);
       const hold = !current.showAnswer;
 
       if (remainingQueue.length !== 0) {
@@ -738,7 +731,10 @@ export const useTestEngine = (props: Props) => {
             // Hanzi Writer shows the outline here by itself. The learner did
             // not ask for it, so it is no hint: `misses` records it.
             ...(strokeData.mistakesOnStroke >= missesBeforeHint
-              ? { gradeCap: 'lapse' as const }
+              ? {
+                  gradeCap: 'lapse' as const,
+                  missedCharIndexes: prevState.missedCharIndexes.concat(index),
+                }
               : {}),
           }));
         },
@@ -771,6 +767,7 @@ export const useTestEngine = (props: Props) => {
     index: number,
   ): void => {
     writer.setCharacter(char[index]);
+    writerCharRef.current = index;
     quizWriter(writer, char, index);
   };
 
@@ -797,6 +794,7 @@ export const useTestEngine = (props: Props) => {
         onLoadCharDataError: onCharDataError,
       });
 
+      writerCharRef.current = 0;
       setStateMerged({ writer, writingIndex: 0 });
       quizWriter(writer, char, index);
     },
@@ -834,7 +832,7 @@ export const useTestEngine = (props: Props) => {
 
           // The reveal is a fail of a character the learner was writing, so the
           // components are offered before the next question.
-          const review = componentsToReview(latest, 'fail');
+          const review = componentOffer(latest, 'fail');
 
           if (remainingQueue.length === 0) {
             holdOrAdvance(
@@ -934,7 +932,7 @@ export const useTestEngine = (props: Props) => {
     // The question was revealed, so it is a fail: a character question offers
     // its components. Any reveal but a flashcard grade waits for Continue, so
     // that the learner reads the answer; a flashcard grade has the timer below.
-    const review = componentsToReview(current, 'fail');
+    const review = componentOffer(current, 'fail');
     const hold = !current.showAnswer;
 
     if (remainingQueue.length === 0) {
@@ -1082,7 +1080,11 @@ export const useTestEngine = (props: Props) => {
       } catch {
         return;
       }
-      setStateMerged({ gradeCap: 'lapse', hintShown: true });
+      setStateMerged((prevState) => ({
+        gradeCap: 'lapse',
+        hintShown: true,
+        missedCharIndexes: prevState.missedCharIndexes.concat(writerCharRef.current),
+      }));
       setTimeout(() => {
         current.writer!.hideOutline();
       }, 1000);
@@ -1128,6 +1130,9 @@ export const useTestEngine = (props: Props) => {
           .concat({ ...last, result: 'pass', overridden: true }),
         outcome: 'pass',
         gradeCap: 'pass',
+        // A pass offers no components, so the review closes.
+        componentReviewChars: [],
+        showComponents: false,
       };
     });
   }, [setStateMerged]);
@@ -1582,6 +1587,7 @@ export const useTestEngine = (props: Props) => {
               missCount: state.missCount,
               toneErrorCount: state.toneErrorCount,
               firstWrongAnswer: state.firstWrongAnswer,
+              missedCharIndexes: state.missedCharIndexes,
             },
           }
         : undefined,
@@ -1595,6 +1601,7 @@ export const useTestEngine = (props: Props) => {
       state.alternativesSent,
       state.missCount,
       state.toneErrorCount,
+      state.missedCharIndexes,
       state.firstWrongAnswer,
     ],
   );

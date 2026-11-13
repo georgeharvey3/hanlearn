@@ -95,6 +95,23 @@ describe('saveSession / readSavedSession — the current question', () => {
     expect(readSavedSession()).toEqual(saved);
   });
 
+  it('reads back the missed characters of a handwriting question', () => {
+    const saved = session({
+      current: {
+        ...current,
+        aids: { ...current.aids, alternativesSent: [], missedCharIndexes: [1] },
+      },
+    });
+    saveSession(saved);
+    expect(readSavedSession()).toEqual(saved);
+  });
+
+  it('returns null for missed characters that are not indexes', () => {
+    const malformed = { ...current, aids: { ...current.aids, missedCharIndexes: ['1'] } };
+    localStorage.setItem(SAVED_SESSION_KEY, JSON.stringify(session({ current: malformed as any })));
+    expect(readSavedSession()).toBeNull();
+  });
+
   it('returns null for a current question with a malformed field', () => {
     const malformed = { ...current, aids: { ...current.aids, gradeCap: 'fail' } };
     localStorage.setItem(SAVED_SESSION_KEY, JSON.stringify(session({ current: malformed as any })));

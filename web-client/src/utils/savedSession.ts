@@ -50,6 +50,8 @@ export interface CurrentQuestion {
     missCount: number;
     toneErrorCount: number;
     firstWrongAnswer: string | null;
+    /** Absent in a save from before issue #493. */
+    missedCharIndexes?: number[];
   };
 }
 
@@ -68,7 +70,10 @@ const isCurrentQuestion = (value: unknown): value is CurrentQuestion => {
     Array.isArray(aids.alternativesSent) &&
     typeof aids.missCount === 'number' &&
     typeof aids.toneErrorCount === 'number' &&
-    (aids.firstWrongAnswer === null || typeof aids.firstWrongAnswer === 'string')
+    (aids.firstWrongAnswer === null || typeof aids.firstWrongAnswer === 'string') &&
+    (aids.missedCharIndexes === undefined ||
+      (Array.isArray(aids.missedCharIndexes) &&
+        aids.missedCharIndexes.every((index) => typeof index === 'number')))
   );
 };
 
