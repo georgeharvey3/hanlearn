@@ -247,15 +247,30 @@ const ComprehendTask: React.FC<Props> = ({
 
   return (
     <>
-      <Box sx={{ mt: 3, textAlign: 'center', fontSize: 15, color: colors.textSecondary }}>
-        {copy.sentence.readPrompt}
-        <Box
-          component="span"
-          lang="zh"
-          sx={{ fontFamily: fonts.hanzi, fontSize: 20, color: colors.primaryLight }}
-        >
-          {word[charSet]}
-        </Box>
+      {/* The line names the target word, so it stays empty until the reveal (#504).
+          The fixed height keeps the top of the card in place when it fills. */}
+      <Box
+        sx={{
+          mt: 3,
+          height: 30,
+          lineHeight: '30px',
+          textAlign: 'center',
+          fontSize: 15,
+          color: colors.textSecondary,
+        }}
+      >
+        {revealed && (
+          <>
+            {copy.sentence.readPrompt}
+            <Box
+              component="span"
+              lang="zh"
+              sx={{ fontFamily: fonts.hanzi, fontSize: 20, color: colors.primaryLight }}
+            >
+              {word[charSet]}
+            </Box>
+          </>
+        )}
       </Box>
       <StudyCard
         height={revealed ? undefined : 260}

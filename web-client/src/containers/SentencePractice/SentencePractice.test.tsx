@@ -175,6 +175,25 @@ describe('the Comprehend tab', () => {
     expect(screen.getByRole('button', { name: '学习: show meaning' })).toBeInTheDocument();
   });
 
+  it.each([
+    ['sound on', true],
+    ['sound off', false],
+  ])('names the word above the card only after the reveal, with %s', async (_mode, sound) => {
+    const user = userEvent.setup();
+    setQueue([STUDY]);
+    renderTab('comprehend', sound);
+
+    await screen.findByRole('button', { name: 'Show English' });
+    expect(screen.queryByText(/Sentence with/)).not.toBeInTheDocument();
+    // With sound off the sentence shows the word; nothing outside it may.
+    const outsideSentence = screen.queryAllByText('学习').filter((el) => !el.closest('p'));
+    expect(outsideSentence).toHaveLength(0);
+
+    await user.click(screen.getByRole('button', { name: 'Show English' }));
+
+    expect(screen.getByText(/Sentence with/)).toHaveTextContent('Sentence with 学习');
+  });
+
   it('reads the pinyin of a traditional sentence from its simplified text', async () => {
     const user = userEvent.setup();
     vi.mocked(getSegmentedSentence).mockImplementation(async (_simp, _charSet, id) =>
