@@ -274,7 +274,12 @@ size: "Comprehend set size" and "Compose set size".
 A word is **eligible** for a tab when it has an example sentence, passes the
 gate of the tab, and has no direction due within 2 days, today included. A
 sentence primes the answer of a card review. A `fail` from today is due
-tomorrow, so the 2-day rule also keeps today's misses out.
+tomorrow, so the 2-day rule also keeps today's misses out. A word is also not
+eligible when the other tab showed all of its sentences today. It is eligible
+again on the next day.
+
+Each tab picks the sentence that either tab showed longest ago. A sentence that
+neither tab showed comes first.
 
 | Tab        | Gate                                             |
 | ---------- | ------------------------------------------------ |
