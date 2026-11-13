@@ -6,10 +6,8 @@ import Drawer from '@mui/material/Drawer';
 
 import { Link } from 'react-router-dom';
 
-import { ShortcutsIcon, LogoutIcon } from '../icons';
-import TabDot from '../TabDot';
-import { sentenceLinks } from '../sentenceLinks';
-import { TabStatuses } from '../../../services/sentenceTabsService';
+import { SettingsIcon, ShortcutsIcon, LogoutIcon } from '../icons';
+import { routes } from '../navLinks';
 import * as actions from '../../../store/actions/index';
 import { AppDispatch } from '../../../types/actions';
 import { colors, fonts, scrim } from '../../../theme';
@@ -19,10 +17,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onOpenShortcuts: () => void;
-  sentenceTabs?: TabStatuses | null;
 }
-
-const SENTENCE_LINKS = sentenceLinks();
 
 const rowSx = {
   width: '100%',
@@ -36,8 +31,8 @@ const rowSx = {
   textDecoration: 'none',
 };
 
-/** The sheet that the phone's More tab opens: the sentence tabs, Shortcuts and Log out. */
-const MoreSheet: React.FC<Props> = ({ open, onClose, onOpenShortcuts, sentenceTabs }) => {
+/** The sheet that the phone's More tab opens: Settings, Shortcuts and Log out. */
+const MoreSheet: React.FC<Props> = ({ open, onClose, onOpenShortcuts }) => {
   const dispatch = useDispatch<AppDispatch>();
 
   return (
@@ -69,23 +64,10 @@ const MoreSheet: React.FC<Props> = ({ open, onClose, onOpenShortcuts, sentenceTa
           mb: 1,
         }}
       />
-      {SENTENCE_LINKS.map((link) => {
-        const fresh = sentenceTabs?.[link.tab].fresh ?? false;
-        return (
-          <ButtonBase
-            key={link.to}
-            component={Link}
-            to={link.to}
-            onClick={onClose}
-            aria-label={fresh ? copy.sentenceTabs.withNew(link.label) : undefined}
-            sx={rowSx}
-          >
-            {link.icon}
-            {link.label}
-            {fresh && <TabDot />}
-          </ButtonBase>
-        );
-      })}
+      <ButtonBase component={Link} to={routes.settings} onClick={onClose} sx={rowSx}>
+        <SettingsIcon />
+        {copy.shell.settings}
+      </ButtonBase>
       <Box sx={{ height: '1px', mx: 3, my: 0.5, bgcolor: colors.divider }} />
       <ButtonBase
         onClick={() => {

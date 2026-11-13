@@ -14,6 +14,7 @@ export const copy = {
     study: 'Study',
     studyDue: (due: number) => `Study, ${due} due`,
     settings: 'Settings',
+    sentences: 'Sentences',
     more: 'More',
     shortcuts: 'Shortcuts',
     logout: 'Log out',
