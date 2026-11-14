@@ -4,7 +4,7 @@ import { Box } from '@mui/material';
 
 import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
-import WordSheet from '../Test/Study/WordSheet';
+import WordGlossPanel from '../Test/Study/WordGlossPanel';
 import ReportSentenceButton from '../Test/Study/ReportSentenceButton';
 import { PillToggle, PlayButton, StudyButton, StudyCard } from '../Test/Study/parts';
 import * as wordActions from '../../store/actions/index';
@@ -88,7 +88,7 @@ const ComprehendTask: React.FC<Props> = ({
   const [textShown, setTextShown] = useState(!useSound);
   const [revealed, setRevealed] = useState(false);
   const [synthLoading, setSynthLoading] = useState(false);
-  const [popup, setPopup] = useState<SentenceWord | null>(null);
+  const [openWord, setOpenWord] = useState<SentenceWord | null>(null);
 
   // A ref, so that a new callback from the parent does not load the sentence again.
   const mounted = useRef(true);
@@ -157,10 +157,16 @@ const ComprehendTask: React.FC<Props> = ({
     setTextShown(true);
   };
 
+  // A tap on the open word closes it. Only a tap that opens a word before the
+  // reveal counts as a lookup.
   const onShowWord = (entry: SentenceWord) => {
+    if (openWord === entry) {
+      setOpenWord(null);
+      return;
+    }
     if (!revealed) lookups.current += 1;
     if (useSound) play(entry[charSet]);
-    setPopup(entry);
+    setOpenWord(entry);
   };
 
   const onAddWord = (entry: SentenceWord) => {
@@ -193,7 +199,7 @@ const ComprehendTask: React.FC<Props> = ({
       key={key}
       entry={entry}
       charSet={charSet}
-      open={popup === entry}
+      open={openWord === entry}
       onClick={() => onShowWord(entry)}
     />
   );
@@ -239,30 +245,32 @@ const ComprehendTask: React.FC<Props> = ({
     </Box>
   );
 
-  const sheet = (
-    <WordSheet
-      word={popup}
-      charSet={charSet}
-      added={Boolean(
-        popup && addedWords.some((w) => w.simp === popup.simp && w.trad === popup.trad),
-      )}
-      onClose={() => setPopup(null)}
-      onSpeak={(text) => play(text)}
-      onAdd={onAddWord}
-    />
-  );
-
   return (
     <>
-      <Box sx={{ mt: 3, textAlign: 'center', fontSize: 15, color: colors.textSecondary }}>
-        {copy.sentence.readPrompt}
-        <Box
-          component="span"
-          lang="zh"
-          sx={{ fontFamily: fonts.hanzi, fontSize: 20, color: colors.primaryLight }}
-        >
-          {word[charSet]}
-        </Box>
+      {/* The line names the target word, so it stays empty until the reveal (#504).
+          The fixed height keeps the top of the card in place when it fills. */}
+      <Box
+        sx={{
+          mt: 3,
+          height: 30,
+          lineHeight: '30px',
+          textAlign: 'center',
+          fontSize: 15,
+          color: colors.textSecondary,
+        }}
+      >
+        {revealed && (
+          <>
+            {copy.sentence.readPrompt}
+            <Box
+              component="span"
+              lang="zh"
+              sx={{ fontFamily: fonts.hanzi, fontSize: 20, color: colors.primaryLight }}
+            >
+              {word[charSet]}
+            </Box>
+          </>
+        )}
       </Box>
       <StudyCard
         height={revealed ? undefined : 260}
@@ -293,6 +301,18 @@ const ComprehendTask: React.FC<Props> = ({
           >
             {renderSentence()}
           </Box>
+        )}
+        {textShown && (
+          <WordGlossPanel
+            word={openWord}
+            charSet={charSet}
+            added={Boolean(
+              openWord &&
+              addedWords.some((w) => w.simp === openWord.simp && w.trad === openWord.trad),
+            )}
+            onSpeak={(text) => play(text)}
+            onAdd={onAddWord}
+          />
         )}
         {revealed && (
           <Box
@@ -343,7 +363,6 @@ const ComprehendTask: React.FC<Props> = ({
           {copy.sentenceTabs.showEnglish}
         </StudyButton>
       )}
-      {sheet}
     </>
   );
 };

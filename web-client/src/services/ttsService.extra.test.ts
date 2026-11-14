@@ -32,7 +32,7 @@ vi.mock('howler', () => ({ Howl: MockHowl }));
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => mockCallable) }));
 vi.mock('../firebase/config', () => ({ functions: {} }));
 
-import { speak, stopAll, prefetch } from './ttsService';
+import { speak, stopAll, prefetch, NATIVE_START_TIMEOUT_MS } from './ttsService';
 
 type HowlEventOpts = {
   onplay?: () => void;
@@ -157,6 +157,22 @@ describe('ttsService (extra coverage)', () => {
     });
   });
 
+  describe('speak — retry', () => {
+    it('retries the cloud function once before falling back to native', async () => {
+      const onError = vi.fn();
+      mockCallable
+        .mockRejectedValueOnce(new Error('internal'))
+        .mockResolvedValueOnce({ data: { audioContent: btoa('retry-audio') } });
+
+      speak('重试', { onError });
+
+      await vi.waitFor(() => expect(MockHowl).toHaveBeenCalled());
+      expect(mockCallable).toHaveBeenCalledTimes(2);
+      expect(window.speechSynthesis.speak).not.toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
+    });
+  });
+
   describe('speakWithNativeFallback — callbacks and error handling', () => {
     async function speakAndWaitForNative(text: string, options: Record<string, unknown> = {}) {
       mockCallable.mockRejectedValue(new Error('cloud failed'));
@@ -177,11 +193,59 @@ describe('ttsService (extra coverage)', () => {
       expect(onError).toHaveBeenCalledWith('Error playing pinyin');
     });
 
-    it('does not call onError for non-synthesis-failed utterance errors', async () => {
+    it('calls onError for any other utterance error, such as not-allowed', async () => {
       const onError = vi.fn();
       const utterance = await speakAndWaitForNative('其他错误', { onError });
-      utterance.onerror?.({ error: 'audio-busy' });
+      utterance.onerror?.({ error: 'not-allowed' });
+      expect(onError).toHaveBeenCalledWith('Error playing pinyin');
+    });
+
+    it('does not call onError when the utterance is interrupted or canceled by us', async () => {
+      const onError = vi.fn();
+      const utterance = await speakAndWaitForNative('打断', { onError });
+      utterance.onerror?.({ error: 'interrupted' });
+      utterance.onerror?.({ error: 'canceled' });
       expect(onError).not.toHaveBeenCalled();
+    });
+
+    // iOS Safari neither speaks nor errors outside a tap (JAVASCRIPT-REACT-6).
+    it('calls onError when the native voice never starts', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const onError = vi.fn();
+        await speakAndWaitForNative('不开始', { onError });
+        vi.advanceTimersByTime(NATIVE_START_TIMEOUT_MS + 100);
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(onError).toHaveBeenCalledWith('Error playing pinyin');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not call onError once the native voice has started', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const onError = vi.fn();
+        const utterance = await speakAndWaitForNative('已开始', { onError });
+        utterance.onstart?.();
+        vi.advanceTimersByTime(NATIVE_START_TIMEOUT_MS + 100);
+        expect(onError).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not call onError after stopAll, so the next question is not flagged', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const onError = vi.fn();
+        await speakAndWaitForNative('停止', { onError });
+        stopAll();
+        vi.advanceTimersByTime(NATIVE_START_TIMEOUT_MS + 100);
+        expect(onError).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('sets voice on utterance when fallbackVoice is provided', async () => {
