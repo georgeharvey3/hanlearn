@@ -209,6 +209,9 @@ export const copy = {
     noPartName: 'no name of its own',
     meaningClue: 'meaning clue',
     soundClue: 'sound clue',
+    smallestPart: 'The smallest part here',
+    backTo: (part: string) => `‹ Back to ${part}`,
+    startAgain: 'Start again',
     retry: 'Retry',
     // The line under the card. Each says what happened, in a word or two.
     status: {
