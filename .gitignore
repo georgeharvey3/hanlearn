@@ -42,6 +42,7 @@ migration/*.json
 !migration/package.json
 migration/review-log-*.csv
 migration/sentence-reports.csv
+migration/part-reports.csv
 
 
 # Playwright

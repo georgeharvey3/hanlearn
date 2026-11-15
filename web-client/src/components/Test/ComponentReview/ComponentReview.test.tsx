@@ -11,13 +11,21 @@ vi.mock('../../../services/dictionaryService', () => ({
   searchWord: vi.fn(),
 }));
 
+vi.mock('../../../services/partReportService', () => ({
+  reportPart: vi.fn(),
+}));
+
+vi.mock('../../../services/errorReporting', () => ({
+  reportError: vi.fn(),
+}));
+
 vi.mock('../../../utils/charDataLoader', () => ({
   loadCharData: vi.fn(),
   onCharDataError: vi.fn(),
 }));
 
 import React from 'react';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import ComponentReview from './ComponentReview';
@@ -25,11 +33,14 @@ import { clearCharacterGlossCache } from './glossCache';
 import { Breakdown, breakdownOf } from '../../../services/breakdownService';
 import { searchWord } from '../../../services/dictionaryService';
 import { loadCharData } from '../../../utils/charDataLoader';
+import { reportPart } from '../../../services/partReportService';
+import { authenticatedState, createTestStore, renderWithProviders } from '../../../test/utils';
 import { Word } from '../../../types/models';
 
 const mockedSearchWord = vi.mocked(searchWord);
 const mockedBreakdownOf = vi.mocked(breakdownOf);
 const mockedLoadCharData = vi.mocked(loadCharData);
+const mockedReportPart = vi.mocked(reportPart);
 
 const dictionaryEntry = (char: string, pinyin: string, meaning: string): Word => ({
   id: char.codePointAt(0) ?? 0,
@@ -102,7 +113,7 @@ const chipNames = (breakdown: HTMLElement) =>
 
 describe('ComponentReview', () => {
   it('renders nothing when the question offered no characters', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <ComponentReview chars={[]} charSet="trad" open={false} onToggle={vi.fn()} />,
     );
 
@@ -110,7 +121,7 @@ describe('ComponentReview', () => {
   });
 
   it('shows the pinyin and meaning of every character without being asked', async () => {
-    render(<ComponentReview chars={['你', '好']} charSet="trad" open={false} onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['你', '好']} charSet="trad" open={false} onToggle={vi.fn()} />);
 
     expect(await screen.findByText('nǐ')).toBeInTheDocument();
     expect(await screen.findByText('you')).toBeInTheDocument();
@@ -121,7 +132,7 @@ describe('ComponentReview', () => {
   });
 
   it('says so when a character is not in the dictionary', async () => {
-    render(<ComponentReview chars={['〇']} charSet="trad" open={false} onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['〇']} charSet="trad" open={false} onToggle={vi.fn()} />);
 
     expect(await screen.findByText('Not in the dictionary')).toBeInTheDocument();
   });
@@ -129,13 +140,13 @@ describe('ComponentReview', () => {
   it('says so when the lookup fails', async () => {
     mockedSearchWord.mockRejectedValue(new Error('offline'));
 
-    render(<ComponentReview chars={['好']} charSet="trad" open={false} onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['好']} charSet="trad" open={false} onToggle={vi.fn()} />);
 
     expect(await screen.findByText('Definition unavailable')).toBeInTheDocument();
   });
 
   it('offers the breakdown without fetching it until it is asked for', async () => {
-    render(<ComponentReview chars={['好']} charSet="trad" open={false} onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['好']} charSet="trad" open={false} onToggle={vi.fn()} />);
 
     expect(screen.getByRole('button', { name: 'Show components' })).toHaveAttribute(
       'aria-expanded',
@@ -147,14 +158,14 @@ describe('ComponentReview', () => {
 
   it('reports the toggle', async () => {
     const onToggle = vi.fn();
-    render(<ComponentReview chars={['好']} charSet="trad" open={false} onToggle={onToggle} />);
+    renderWithProviders(<ComponentReview chars={['好']} charSet="trad" open={false} onToggle={onToggle} />);
 
     await userEvent.click(screen.getByRole('button', { name: 'Show components' }));
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
   it('draws each character of the review split into its parts, one chip each', async () => {
-    render(<ComponentReview chars={['礙', '疑']} charSet="trad" open onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['礙', '疑']} charSet="trad" open onToggle={vi.fn()} />);
 
     const ai = await screen.findByTestId('breakdown-礙');
     expect(within(ai).getByRole('button', { name: '石' })).toBeInTheDocument();
@@ -164,7 +175,7 @@ describe('ComponentReview', () => {
   });
 
   it('shows the label, pinyin and clue of a tapped chip', async () => {
-    render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
 
     await userEvent.click(await screen.findByRole('button', { name: '石' }));
 
@@ -175,7 +186,7 @@ describe('ComponentReview', () => {
   });
 
   it('replaces the line of the first part when a second part is tapped', async () => {
-    render(<ComponentReview chars={['疑']} charSet="trad" open onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['疑']} charSet="trad" open onToggle={vi.fn()} />);
 
     await userEvent.click(await screen.findByRole('button', { name: '匕' }));
     await userEvent.click(screen.getByRole('button', { name: '矢' }));
@@ -190,7 +201,7 @@ describe('ComponentReview', () => {
   });
 
   it('shows the line of a part that splits, with its sound clue', async () => {
-    render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
 
     await userEvent.click(await screen.findByRole('button', { name: '疑' }));
 
@@ -201,7 +212,7 @@ describe('ComponentReview', () => {
   });
 
   it('shows the line of a part tapped on the character itself', async () => {
-    render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
 
     const ai = await screen.findByTestId('breakdown-礙');
     const hits = await within(ai).findAllByTestId('stroke-hit');
@@ -211,7 +222,7 @@ describe('ComponentReview', () => {
   });
 
   it('makes the tap area of a stroke wider than the stroke', async () => {
-    render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
 
     const hits = await screen.findAllByTestId('stroke-hit');
     expect(hits).toHaveLength(19);
@@ -221,7 +232,7 @@ describe('ComponentReview', () => {
   });
 
   it('says that a part with no label has no name of its own', async () => {
-    render(<ComponentReview chars={['疑']} charSet="trad" open onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['疑']} charSet="trad" open onToggle={vi.fn()} />);
 
     await userEvent.click(await screen.findByRole('button', { name: 'no name of its own' }));
 
@@ -229,7 +240,7 @@ describe('ComponentReview', () => {
   });
 
   it('says so when a character does not split', async () => {
-    render(<ComponentReview chars={['一']} charSet="trad" open onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['一']} charSet="trad" open onToggle={vi.fn()} />);
 
     expect(await screen.findByText('No components')).toBeInTheDocument();
   });
@@ -238,7 +249,7 @@ describe('ComponentReview', () => {
     mockedLoadCharData.mockImplementationOnce((_char, _onLoad, onError) =>
       onError(new Error('offline')),
     );
-    render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
 
     await userEvent.click(await screen.findByRole('button', { name: 'Retry' }));
 
@@ -247,7 +258,7 @@ describe('ComponentReview', () => {
 
   it('offers a retry when the breakdown does not load', async () => {
     mockedBreakdownOf.mockRejectedValueOnce(new Error('offline'));
-    render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
 
     await userEvent.click(await screen.findByRole('button', { name: 'Retry' }));
 
@@ -255,7 +266,7 @@ describe('ComponentReview', () => {
   });
 
   it('splits a tapped part into its own parts and fades the rest', async () => {
-    render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
     const ai = await screen.findByTestId('breakdown-礙');
 
     await userEvent.click(within(ai).getByRole('button', { name: '疑' }));
@@ -267,7 +278,7 @@ describe('ComponentReview', () => {
   });
 
   it('jumps to a faded part tapped on the character', async () => {
-    render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
     const ai = await screen.findByTestId('breakdown-礙');
     await userEvent.click(within(ai).getByRole('button', { name: '疑' }));
 
@@ -280,7 +291,7 @@ describe('ComponentReview', () => {
   });
 
   it('goes back one step, and starts again from the whole character', async () => {
-    render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
     const ai = await screen.findByTestId('breakdown-礙');
     await userEvent.click(within(ai).getByRole('button', { name: '疑' }));
     await userEvent.click(within(ai).getByRole('button', { name: '矢' }));
@@ -297,7 +308,7 @@ describe('ComponentReview', () => {
   });
 
   it('says so when a tapped part does not split any more', async () => {
-    render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+    renderWithProviders(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
     const ai = await screen.findByTestId('breakdown-礙');
     await userEvent.click(within(ai).getByRole('button', { name: '疑' }));
 
@@ -306,5 +317,88 @@ describe('ComponentReview', () => {
     const line = screen.getByTestId('part-line');
     expect(line).toHaveTextContent('arrow');
     expect(line).toHaveTextContent('The smallest part here');
+  });
+
+  describe('the report of a wrong part meaning', () => {
+    const signedIn = () => ({ store: createTestStore(authenticatedState('user-1')) });
+
+    it('saves the character, the part and the label shown in one tap', async () => {
+      mockedReportPart.mockResolvedValue();
+      renderWithProviders(
+        <ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />,
+        signedIn(),
+      );
+      const ai = await screen.findByTestId('breakdown-礙');
+      await userEvent.click(within(ai).getByRole('button', { name: '疑' }));
+      await userEvent.click(within(ai).getByRole('button', { name: '矢' }));
+
+      await userEvent.click(screen.getByRole('button', { name: 'Report meaning' }));
+
+      expect(mockedReportPart).toHaveBeenCalledWith('user-1', {
+        char: '礙',
+        parent: '疑',
+        part: '矢',
+        strokes: [7, 8, 9, 10, 11],
+        label: 'arrow',
+      });
+      const line = screen.getByTestId('part-line');
+      expect(within(line).getByRole('button', { name: 'Reported' })).toBeDisabled();
+    });
+
+    it('reports a piece with no name of its own as no part and no label', async () => {
+      mockedReportPart.mockResolvedValue();
+      renderWithProviders(
+        <ComponentReview chars={['疑']} charSet="trad" open onToggle={vi.fn()} />,
+        signedIn(),
+      );
+      await userEvent.click(await screen.findByRole('button', { name: 'no name of its own' }));
+
+      await userEvent.click(screen.getByRole('button', { name: 'Report meaning' }));
+
+      expect(mockedReportPart).toHaveBeenCalledWith('user-1', {
+        char: '疑',
+        parent: '疑',
+        part: null,
+        strokes: [7, 8],
+        label: null,
+      });
+    });
+
+    it('offers the report again for the next part tapped', async () => {
+      mockedReportPart.mockResolvedValue();
+      renderWithProviders(
+        <ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />,
+        signedIn(),
+      );
+      const ai = await screen.findByTestId('breakdown-礙');
+      await userEvent.click(within(ai).getByRole('button', { name: '石' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Report meaning' }));
+
+      await userEvent.click(within(ai).getByRole('button', { name: '疑' }));
+
+      expect(screen.getByRole('button', { name: 'Report meaning' })).toBeEnabled();
+    });
+
+    it('offers the report again when the save fails', async () => {
+      mockedReportPart.mockRejectedValue(new Error('permission-denied'));
+      renderWithProviders(
+        <ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />,
+        signedIn(),
+      );
+      const ai = await screen.findByTestId('breakdown-礙');
+      await userEvent.click(within(ai).getByRole('button', { name: '石' }));
+
+      await userEvent.click(screen.getByRole('button', { name: 'Report meaning' }));
+
+      expect(await screen.findByRole('button', { name: 'Report failed' })).toBeEnabled();
+    });
+
+    it('offers no report with no account to save it to', async () => {
+      renderWithProviders(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+      const ai = await screen.findByTestId('breakdown-礙');
+      await userEvent.click(within(ai).getByRole('button', { name: '石' }));
+
+      expect(screen.queryByRole('button', { name: 'Report meaning' })).not.toBeInTheDocument();
+    });
   });
 });

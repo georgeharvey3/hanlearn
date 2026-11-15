@@ -78,6 +78,7 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 - [web-client/src/services/reviewLogService.ts](web-client/src/services/reviewLogService.ts) - Builds the `reviewLog` entry of each graded question. `finishTest` writes the document after its batch, and a failed write does not lose the session. `node migration/export-review-log.js --uid <userId>` exports the log of one learner to a CSV file for the FSRS optimizer
 - [web-client/src/services/sentenceService.ts](web-client/src/services/sentenceService.ts) - Reads the example sentences from the files in `/sentences/` on Hosting, and keeps each file in memory for the session. It makes no AI call, no Firestore read and no dictionary call (#469)
 - [web-client/src/services/sentenceReportService.ts](web-client/src/services/sentenceReportService.ts) - Saves the report of a bad example sentence to `sentenceReports`. The sentence service then leaves that sentence out on the same device. `node migration/export-sentence-reports.js` exports the reports of all learners to a CSV file
+- [web-client/src/services/partReportService.ts](web-client/src/services/partReportService.ts) - Saves the report of a wrong part meaning in the component breakdown to `partReports`. `node migration/export-part-reports.js` exports the reports of all learners to a CSV file, one row for each report (#533)
 - [web-client/src/services/sentencePracticeService.ts](web-client/src/services/sentencePracticeService.ts) - Saves each grade of the Comprehend and Compose tabs: first the queue state in `sentencePractice`, then a write-once entry in `sentenceLog`. A failed log write does not reject the grade (#489)
 - [web-client/src/services/sentenceTabsService.ts](web-client/src/services/sentenceTabsService.ts) - Loads the words, the `sentencePractice` documents and the sentence ids that the two tabs need, and gives the status of each tab for the dot and the finish screen. The queue rules are pure, in [web-client/src/utils/sentenceQueue.ts](web-client/src/utils/sentenceQueue.ts)
 - [web-client/src/services/chengyuSentenceService.ts](web-client/src/services/chengyuSentenceService.ts) - Generates example sentences for chengyu display
@@ -85,7 +86,7 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 - [web-client/src/services/decompositionService.ts](web-client/src/services/decompositionService.ts) - Calls cloud function to decompose characters into radicals/components
 - [web-client/src/services/ttsService.ts](web-client/src/services/ttsService.ts) - Text-to-speech via Howler.js; called directly from components (not via Redux)
 
-Note: `ttsService`, `sentenceService`, `sentenceReportService`, `sentencePracticeService`, `sentenceTabsService`, `breakdownService`, `decompositionService`, `dictionaryService`, and `premadeListService` are called directly from components (not via Redux thunks) — this is intentional for operations that are UI-local and do not need shared global state. `TestWords` also calls `wordService.getUserWords` directly: the store holds only the active list, and the session needs the whole collection for its alternative answers (#348).
+Note: `ttsService`, `sentenceService`, `sentenceReportService`, `partReportService`, `sentencePracticeService`, `sentenceTabsService`, `breakdownService`, `decompositionService`, `dictionaryService`, and `premadeListService` are called directly from components (not via Redux thunks) — this is intentional for operations that are UI-local and do not need shared global state. `TestWords` also calls `wordService.getUserWords` directly: the store holds only the active list, and the session needs the whole collection for its alternative answers (#348).
 
 #### Component Pattern
 
@@ -138,6 +139,9 @@ users/{userId}/
   │       mode: 'audio' | 'text', answer? (Compose only), answerMs, revealed, lookups
   ├── sentenceReports/{sentenceId} # One report of a bad example sentence (#469)
   │   └── sentenceId, word, stage: 'read' | 'write', sentence, english, reportedAt
+  ├── partReports/{reportId}     # One report of a wrong part meaning (#533). The id is
+  │   │                          # the hex code point of the character, then the strokes
+  │   └── char, parent, part: string | null, strokes: number[], label: string | null, reportedAt
   └── reviewLog/{autoId}         # One document per saved session, write-once (#397)
       ├── version: 2, date: string, reviewedAt: Timestamp  # 1 before #396: `hint` was free
       ├── scheduler: string      # The weights in use: 'fsrs-6-default'

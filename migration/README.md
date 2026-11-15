@@ -123,6 +123,17 @@ The build writes these files to `web-client/public/breakdowns/`. They are build 
 
 Each file is `{ c, p }`: the character and its parts, or `p: null` when it does not split. Each part is `{ c, s, l, y?, r?, p? }`. `c` is the character (null for an unnamed piece), `s` the stroke indices in the top character, and `l` the label. `y` is the pinyin, `r` is `meaning` or `sound`, and `p` holds the parts of the part.
 
+## Reported Part Meanings
+
+A learner can report a wrong part meaning from the line of a tapped part in the breakdown (#533). Each report goes to `users/{userId}/partReports/{reportId}`. The report holds the character, the parent, the part, the stroke indices of the part and the label that the line showed. The parent is the character directly above the part. The part and the label are null for a piece with no name of its own.
+
+1. Run `node export-part-reports.js`. It writes `part-reports.csv`, with one row for each report. The rows of one part are together.
+2. For a wrong label, set the label of the part in `labels` in `components/labels.json`. Many labels come from Make Me a Hanzi and are not in the file yet. A part with a label in the file does not split.
+3. For a piece with no name of its own, add the piece to `pieces` in `components/labels.json`, under the parent. The `strokes` column finds the piece in `char`.
+4. Run `npm run build:dict`.
+
+The script needs `service-account.json`, the same as `export-review-log.js`. Git ignores the CSV file. The rows are pure, in `partReportCsv.js`.
+
 ## Reported Sentences
 
 A learner can report a bad sentence from the sentence stages (#469). Each report goes to `users/{userId}/sentenceReports/{sentenceId}`.

@@ -5,6 +5,7 @@ import { copy } from '../../../copy';
 import { BreakdownPart } from '../../../services/breakdownService';
 import { colors, fonts, partInk } from '../../../theme';
 import { useBreakdown } from './useBreakdown';
+import ReportPartButton from './ReportPartButton';
 
 /** The size of the character drawn in place, in pixels. */
 const CHAR_SIZE = 168;
@@ -26,7 +27,15 @@ const Strokes: React.FC<{ size: number; children: React.ReactNode }> = ({ size, 
   </svg>
 );
 
-const PartLine: React.FC<{ part: BreakdownPart }> = ({ part }) => (
+/**
+ * The line of the tapped part. `char` is the top character, whose strokes
+ * `part.s` counts in, and `parent` the character directly above the part.
+ */
+const PartLine: React.FC<{ char: string; parent: string; part: BreakdownPart }> = ({
+  char,
+  parent,
+  part,
+}) => (
   <Box
     data-testid="part-line"
     aria-live="polite"
@@ -54,6 +63,7 @@ const PartLine: React.FC<{ part: BreakdownPart }> = ({ part }) => (
       </Box>
     )}
     {!part.p && <Box sx={{ color: colors.textSecondary }}>{copy.test.smallestPart}</Box>}
+    <ReportPartButton report={{ char, parent, part: part.c, strokes: part.s, label: part.l }} />
   </Box>
 );
 
@@ -207,7 +217,10 @@ const CharacterBreakdown: React.FC<{ char: string }> = ({ char }) => {
           </ButtonBase>
         ))}
       </Box>
-      {path.length > 0 && <PartLine part={focus} />}
+      {/* The key starts the report of each part unsent. */}
+      {parent && (
+        <PartLine key={path.join('.')} char={char} parent={parent.c ?? char} part={focus} />
+      )}
       {parent && (
         <Box sx={{ display: 'flex', gap: 2 }}>
           <ButtonBase onClick={() => setPath(path.slice(0, -1))} sx={link}>
