@@ -53,18 +53,49 @@ const PartLine: React.FC<{ part: BreakdownPart }> = ({ part }) => (
         {part.r === 'meaning' ? copy.test.meaningClue : copy.test.soundClue}
       </Box>
     )}
+    {!part.p && <Box sx={{ color: colors.textSecondary }}>{copy.test.smallestPart}</Box>}
   </Box>
 );
+
+/**
+ * Where the learner is in the breakdown: the indices of the parts tapped on
+ * the way down from the top character. An empty path is the whole character.
+ */
+type Path = number[];
+
+/** The part at the end of `path`, or the top character for an empty path. */
+const nodeAt = (top: BreakdownPart, path: Path): BreakdownPart =>
+  path.reduce((node, index) => node.p![index], top);
+
+/**
+ * The path a tap on `stroke` leads to. The tap goes to the part that holds the
+ * stroke at the first step where it leaves `path`: on a faded part, that is a
+ * jump to it. A tap inside the focus goes one step down. Null for a stroke in
+ * no part, and for a tap on the focus when it does not split.
+ */
+const pathOfStroke = (top: BreakdownPart, path: Path, stroke: number): Path | null => {
+  for (let depth = 0; depth <= path.length; depth++) {
+    const node = nodeAt(top, path.slice(0, depth));
+    const index = node.p?.findIndex((part) => part.s.includes(stroke)) ?? -1;
+    if (index === -1) return null;
+    if (depth === path.length || index !== path[depth]) return [...path.slice(0, depth), index];
+  }
+  return null;
+};
 
 /**
  * One missed character, drawn large and in place, split into its parts in up
  * to 4 inks (#529). A tap on a part, on the character or on its chip, shows
  * one line under it: the label, the pinyin, and the clue. Only the line of
  * the last part tapped shows.
+ *
+ * A tapped part that splits shows its own parts in the inks, and the rest of
+ * the character fades (#530). A tap on a faded part jumps to it. A part that
+ * does not split stays in its ink among the faded rest of the character.
  */
 const CharacterBreakdown: React.FC<{ char: string }> = ({ char }) => {
   const [load, retry] = useBreakdown(char);
-  const [selected, setSelected] = useState<number | null>(null);
+  const [path, setPath] = useState<Path>([]);
   const note = { fontSize: 13, color: colors.textSecondary };
 
   if (load.status === 'loading') {
@@ -84,16 +115,37 @@ const CharacterBreakdown: React.FC<{ char: string }> = ({ char }) => {
     );
   }
 
-  const parts = load.breakdown.p;
-  if (!parts || parts.length === 0) return <Box sx={note}>{copy.test.noComponents}</Box>;
+  if (!load.breakdown.p || load.breakdown.p.length === 0) {
+    return <Box sx={note}>{copy.test.noComponents}</Box>;
+  }
 
   const { strokes } = load;
+  const top: BreakdownPart = { c: char, s: strokes.map((_, i) => i), l: null, p: load.breakdown.p };
+  const focus = nodeAt(top, path);
+  // The level whose parts the chips show: the focus when it splits, or else
+  // the part above it, so the chips of its siblings stay.
+  const levelPath = focus.p ? path : path.slice(0, -1);
+  const level = nodeAt(top, levelPath);
+  const parts = level.p!;
+  // The index of the focus among the chips, when the focus does not split.
+  const leaf = focus.p ? null : path[path.length - 1];
+  const lit = (index: number) => leaf === null || leaf === index;
+
   const partOfStroke = new Map<number, number>();
   parts.forEach((part, index) => part.s.forEach((stroke) => partOfStroke.set(stroke, index)));
-  const inkOfStroke = (stroke: number) => {
+  /** The ink of a stroke, or null when it fades. */
+  const inkOfStroke = (stroke: number): string | null => {
     const part = partOfStroke.get(stroke);
-    return part === undefined ? colors.text : inkOf(part);
+    if (part !== undefined && lit(part)) return inkOf(part);
+    return path.length > 0 ? null : colors.text;
   };
+  const tapStroke = (stroke: number) => {
+    const next = pathOfStroke(top, path, stroke);
+    if (next) setPath(next);
+  };
+
+  const link = { fontFamily: fonts.body, fontSize: 13, fontWeight: 600, color: colors.primaryDark };
+  const parent = path.length > 0 ? nodeAt(top, path.slice(0, -1)) : null;
 
   return (
     <Box
@@ -102,15 +154,19 @@ const CharacterBreakdown: React.FC<{ char: string }> = ({ char }) => {
     >
       <Strokes size={CHAR_SIZE}>
         {strokes.map((d, stroke) => (
-          <path key={stroke} d={d} fill={inkOfStroke(stroke)} />
+          <path
+            key={stroke}
+            data-testid={inkOfStroke(stroke) === null ? 'stroke-faded' : undefined}
+            d={d}
+            fill={inkOfStroke(stroke) ?? colors.divider}
+          />
         ))}
         {/* Two tap layers. The wide halos lie under the exact outlines, so a
             tap on a stroke itself always selects its own part, and a halo
             only takes a tap in the gap between strokes. */}
         {(['halo', 'core'] as const).map((layer) =>
           strokes.map((d, stroke) => {
-            const part = partOfStroke.get(stroke);
-            if (part === undefined) return null;
+            if (!pathOfStroke(top, path, stroke) && !partOfStroke.has(stroke)) return null;
             return (
               <path
                 key={`${layer}-${stroke}`}
@@ -122,7 +178,7 @@ const CharacterBreakdown: React.FC<{ char: string }> = ({ char }) => {
                 strokeLinejoin="round"
                 pointerEvents="all"
                 style={{ cursor: 'pointer' }}
-                onClick={() => setSelected(part)}
+                onClick={() => tapStroke(stroke)}
               />
             );
           }),
@@ -131,15 +187,15 @@ const CharacterBreakdown: React.FC<{ char: string }> = ({ char }) => {
       <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1 }}>
         {parts.map((part, index) => (
           <ButtonBase
-            key={index}
+            key={`${levelPath.join('.')}-${index}`}
             aria-label={part.c ?? copy.test.noPartName}
-            aria-pressed={selected === index}
-            onClick={() => setSelected(index)}
+            aria-pressed={leaf === index}
+            onClick={() => setPath([...levelPath, index])}
             sx={{
               width: 44,
               height: 44,
               borderRadius: 1,
-              border: `2px solid ${selected === index ? inkOf(index) : colors.divider}`,
+              border: `2px solid ${leaf === index ? inkOf(index) : colors.divider}`,
               bgcolor: colors.card,
             }}
           >
@@ -151,7 +207,19 @@ const CharacterBreakdown: React.FC<{ char: string }> = ({ char }) => {
           </ButtonBase>
         ))}
       </Box>
-      {selected !== null && parts[selected] && <PartLine part={parts[selected]} />}
+      {path.length > 0 && <PartLine part={focus} />}
+      {parent && (
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <ButtonBase onClick={() => setPath(path.slice(0, -1))} sx={link}>
+            {copy.test.backTo(parent.c ?? copy.test.noPartName)}
+          </ButtonBase>
+          {path.length > 1 && (
+            <ButtonBase onClick={() => setPath([])} sx={link}>
+              {copy.test.startAgain}
+            </ButtonBase>
+          )}
+        </Box>
+      )}
     </Box>
   );
 };

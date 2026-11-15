@@ -39,15 +39,15 @@ const dictionaryEntry = (char: string, pinyin: string, meaning: string): Word =>
   meaning,
 });
 
-// The breakdown file of 疑, as the build writes it (#528), with the parts of
-// its parts cut: this ticket shows one level only.
+// The breakdown files of 疑 and 礙, as the build writes them (#528). The
+// strokes of a part of a part count in the strokes of the top character.
 const YI: Breakdown = {
   c: '疑',
   p: [
     { c: '匕', s: [0, 1], l: 'spoon', y: 'bǐ' },
     { c: '矢', s: [2, 3, 4, 5, 6], l: 'arrow', y: 'shǐ' },
     { c: null, s: [7, 8], l: null },
-    { c: '疋', s: [9, 10, 11, 12, 13], l: 'roll', y: 'pǐ' },
+    { c: '疋', s: [9, 10, 11, 12, 13], l: 'foot', y: 'pǐ' },
   ],
 };
 
@@ -61,6 +61,12 @@ const AI: Breakdown = {
       l: 'to doubt',
       y: 'yí',
       r: 'sound',
+      p: [
+        { c: '匕', s: [5, 6], l: 'spoon', y: 'bǐ' },
+        { c: '矢', s: [7, 8, 9, 10, 11], l: 'arrow', y: 'shǐ' },
+        { c: null, s: [12, 13], l: null },
+        { c: '疋', s: [14, 15, 16, 17, 18], l: 'foot', y: 'pǐ' },
+      ],
     },
   ],
 };
@@ -88,6 +94,11 @@ beforeEach(() => {
     onLoad(strokesOf(char === '礙' ? 19 : 14)),
   );
 });
+
+const chipNames = (breakdown: HTMLElement) =>
+  within(breakdown)
+    .getAllByRole('button')
+    .map((button) => button.getAttribute('aria-label') ?? button.textContent);
 
 describe('ComponentReview', () => {
   it('renders nothing when the question offered no characters', () => {
@@ -164,19 +175,29 @@ describe('ComponentReview', () => {
   });
 
   it('replaces the line of the first part when a second part is tapped', async () => {
-    render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+    render(<ComponentReview chars={['疑']} charSet="trad" open onToggle={vi.fn()} />);
 
-    await userEvent.click(await screen.findByRole('button', { name: '石' }));
-    await userEvent.click(screen.getByRole('button', { name: '疑' }));
+    await userEvent.click(await screen.findByRole('button', { name: '匕' }));
+    await userEvent.click(screen.getByRole('button', { name: '矢' }));
 
     const lines = screen.getAllByTestId('part-line');
     expect(lines).toHaveLength(1);
-    expect(lines[0]).toHaveTextContent('to doubt');
-    expect(lines[0]).toHaveTextContent('yí');
-    expect(lines[0]).toHaveTextContent('sound clue');
-    expect(lines[0]).not.toHaveTextContent('stone');
-    expect(screen.getByRole('button', { name: '疑' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: '石' })).toHaveAttribute('aria-pressed', 'false');
+    expect(lines[0]).toHaveTextContent('arrow');
+    expect(lines[0]).toHaveTextContent('shǐ');
+    expect(lines[0]).not.toHaveTextContent('spoon');
+    expect(screen.getByRole('button', { name: '矢' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '匕' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('shows the line of a part that splits, with its sound clue', async () => {
+    render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+
+    await userEvent.click(await screen.findByRole('button', { name: '疑' }));
+
+    const line = screen.getByTestId('part-line');
+    expect(line).toHaveTextContent('yí');
+    expect(line).toHaveTextContent('sound clue');
+    expect(line).not.toHaveTextContent('The smallest part here');
   });
 
   it('shows the line of a part tapped on the character itself', async () => {
@@ -231,5 +252,59 @@ describe('ComponentReview', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Retry' }));
 
     expect(await screen.findByRole('button', { name: '石' })).toBeInTheDocument();
+  });
+
+  it('splits a tapped part into its own parts and fades the rest', async () => {
+    render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+    const ai = await screen.findByTestId('breakdown-礙');
+
+    await userEvent.click(within(ai).getByRole('button', { name: '疑' }));
+
+    expect(chipNames(ai)).toEqual(['匕', '矢', 'no name of its own', '疋', '‹ Back to 礙']);
+    expect(screen.getByTestId('part-line')).toHaveTextContent('to doubt');
+    const faded = within(ai).getAllByTestId('stroke-faded');
+    expect(faded).toHaveLength(5);
+  });
+
+  it('jumps to a faded part tapped on the character', async () => {
+    render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+    const ai = await screen.findByTestId('breakdown-礙');
+    await userEvent.click(within(ai).getByRole('button', { name: '疑' }));
+
+    // Stroke 2 is in 石, which faded when 疑 split.
+    await userEvent.click(within(ai).getAllByTestId('stroke-hit')[2]);
+
+    expect(screen.getByTestId('part-line')).toHaveTextContent('stone');
+    expect(within(ai).getByRole('button', { name: '石' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(ai).getAllByTestId('stroke-faded')).toHaveLength(14);
+  });
+
+  it('goes back one step, and starts again from the whole character', async () => {
+    render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+    const ai = await screen.findByTestId('breakdown-礙');
+    await userEvent.click(within(ai).getByRole('button', { name: '疑' }));
+    await userEvent.click(within(ai).getByRole('button', { name: '矢' }));
+
+    await userEvent.click(within(ai).getByRole('button', { name: '‹ Back to 疑' }));
+    expect(screen.getByTestId('part-line')).toHaveTextContent('to doubt');
+    expect(chipNames(ai)).toContain('‹ Back to 礙');
+
+    await userEvent.click(within(ai).getByRole('button', { name: '矢' }));
+    await userEvent.click(within(ai).getByRole('button', { name: 'Start again' }));
+    expect(chipNames(ai)).toEqual(['石', '疑']);
+    expect(screen.queryByTestId('part-line')).not.toBeInTheDocument();
+    expect(within(ai).queryAllByTestId('stroke-faded')).toHaveLength(0);
+  });
+
+  it('says so when a tapped part does not split any more', async () => {
+    render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+    const ai = await screen.findByTestId('breakdown-礙');
+    await userEvent.click(within(ai).getByRole('button', { name: '疑' }));
+
+    await userEvent.click(within(ai).getByRole('button', { name: '矢' }));
+
+    const line = screen.getByTestId('part-line');
+    expect(line).toHaveTextContent('arrow');
+    expect(line).toHaveTextContent('The smallest part here');
   });
 });
