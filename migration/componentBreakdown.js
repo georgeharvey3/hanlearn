@@ -2,8 +2,9 @@
  * The component breakdown of a character (#527, #528): the tree of its parts,
  * the strokes of each part, the meaning clue and the sound clue, and a label
  * for each part. The source is Make Me a Hanzi (`dictionary.txt`), the data
- * behind Hanzi Writer. These rules are pure: build-dictionary.js reads the
- * files and writes one breakdown file for each HSK character.
+ * behind Hanzi Writer. buildBreakdowns is pure: it reads and writes no file.
+ * build-dictionary.js reads the sources and writes one breakdown file for
+ * each HSK character.
  *
  * The tree follows three rules:
  *
@@ -86,32 +87,6 @@ const firstSense = (definition) => {
 };
 
 /**
- * The first sense of the first CC-CEDICT entry of each character, skipping
- * surnames and cross-references. A character with only a "variant of" sense
- * takes the sense of the character it is a variant of (㐫 takes 凶's).
- */
-function cedictSensesOf(words) {
-  const senses = new Map();
-  const variants = new Map();
-  for (const word of words) {
-    for (const form of [word.simp, word.trad]) {
-      if ([...form].length !== 1 || senses.has(form)) continue;
-      const all = word.meaning.split('/').map((s) => s.replace(/\([^)]*\)/g, '').trim());
-      const sense = all.find(
-        (s) => s !== '' && !/^(old )?variant of|^surname|^see |^used in /.test(s),
-      );
-      if (sense) senses.set(form, sense.split(/[;,]/)[0].trim());
-      const variant = all.map((s) => s.match(/^(?:old )?variant of (.)/u)).find(Boolean);
-      if (!sense && variant && !variants.has(form)) variants.set(form, variant[1]);
-    }
-  }
-  for (const [form, target] of variants) {
-    if (!senses.has(form) && senses.has(target)) senses.set(form, senses.get(target));
-  }
-  return senses;
-}
-
-/**
  * The context of the build of all breakdowns.
  *
  * - `entries`: the Make Me a Hanzi map of parseMakeMeAHanzi
@@ -120,10 +95,8 @@ function cedictSensesOf(words) {
  * - `labels`: the labels file: `labels` (part to label; also the stop list),
  *   `groups` (a group's decomposition to the character it is) and `pieces`
  *   (a character to the names of its unnamed pieces, by path, "1.2")
- * - `cedict`: a map from a character to its first CC-CEDICT sense, the
- *   fallback label of a character with no Make Me a Hanzi definition
  */
-function breakdownContext({ entries, strokeCounts, labels = {}, cedict = new Map() }) {
+function breakdownContext({ entries, strokeCounts, labels = {} }) {
   const groupNames = groupNamesOf(entries);
   for (const [ids, char] of Object.entries(labels.groups ?? {})) groupNames.set(ids, char);
   return {
@@ -132,7 +105,6 @@ function breakdownContext({ entries, strokeCounts, labels = {}, cedict = new Map
     labels: labels.labels ?? {},
     pieces: labels.pieces ?? {},
     groupNames,
-    cedict,
     mismatches: [],
   };
 }
@@ -141,7 +113,7 @@ function breakdownContext({ entries, strokeCounts, labels = {}, cedict = new Map
 function labelOf(context, char) {
   if (char === null) return null;
   if (context.labels[char]) return context.labels[char];
-  return firstSense(context.entries.get(char)?.definition) ?? context.cedict.get(char) ?? null;
+  return firstSense(context.entries.get(char)?.definition);
 }
 
 /**
@@ -178,7 +150,7 @@ function annotate(tree, matches, pieceNames = {}) {
  * unnamed piece), its pinyin, its role in its parent's etymology ('meaning'
  * or 'sound') and its own parts.
  *
- * Throws when Make Me a Hanzi and the Hanzi Writer stroke data disagree on
+ * Throws when the Hanzi Writer stroke data has no character, or disagrees on
  * the stroke count of the character, because every index of the file would
  * then point at the wrong stroke. A part whose strokes disagree with its own
  * stroke count does not split, and goes to `context.mismatches`: the data
@@ -189,7 +161,8 @@ function breakdownOf(context, char) {
   const entry = context.entries.get(char);
   if (!entry) return { c: char, p: null };
   const count = context.strokeCounts[char];
-  if (count !== undefined && entry.matches.length !== count) {
+  if (count === undefined) throw new Error(`${char}: no Hanzi Writer stroke data`);
+  if (entry.matches.length !== count) {
     throw new Error(
       `${char}: Make Me a Hanzi gives ${entry.matches.length} strokes, Hanzi Writer ${count}`,
     );
@@ -288,8 +261,8 @@ const breakdownFileName = (char) => char.codePointAt(0).toString(16);
  * strokes disagree with their own stroke count, and the part characters that
  * no source gives a label (⺈ has no definition): the labels file needs them.
  */
-function buildBreakdowns({ chars, entries, strokeCounts, labels, cedict }) {
-  const context = breakdownContext({ entries, strokeCounts, labels, cedict });
+function buildBreakdowns({ chars, entries, strokeCounts, labels }) {
+  const context = breakdownContext({ entries, strokeCounts, labels });
   const files = {};
   const missing = [];
   const unlabelled = new Set();
@@ -316,7 +289,6 @@ module.exports = {
   breakdownFileName,
   buildBreakdowns,
   breakdownOf,
-  cedictSensesOf,
   firstSense,
   groupNamesOf,
   parseIds,

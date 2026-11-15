@@ -22,7 +22,7 @@ const path = require('path');
 const { ranksOf, resolveCatalogue } = require('./premadeCatalogue');
 const { checkHskIndex, hskIndexOf } = require('./hskIndex');
 const { buildExampleSentences, unfilledOf } = require('./exampleSentences');
-const { buildBreakdowns, cedictSensesOf, parseMakeMeAHanzi } = require('./componentBreakdown');
+const { buildBreakdowns, parseMakeMeAHanzi } = require('./componentBreakdown');
 
 /**
  * The HSK 3.0 bands of the catalogue, from drkameleon/complete-hsk-vocabulary
@@ -245,7 +245,7 @@ const COMPONENTS_DIR = path.join(__dirname, 'components');
  * Fails the build when Make Me a Hanzi and the Hanzi Writer stroke data
  * disagree on the stroke count of an HSK character.
  */
-function buildComponentBreakdowns(words, catalogue, outputDir) {
+function buildComponentBreakdowns(catalogue, outputDir) {
   const sourceDir = path.join(COMPONENTS_DIR, 'source');
   const chars = catalogue.flatMap((list) =>
     list.entries.flatMap((entry) => [...entry.simp, ...entry.trad]),
@@ -256,7 +256,6 @@ function buildComponentBreakdowns(words, catalogue, outputDir) {
     strokeCounts: JSON.parse(fs.readFileSync(path.join(sourceDir, 'stroke-counts.json'), 'utf8'))
       .counts,
     labels: JSON.parse(fs.readFileSync(path.join(COMPONENTS_DIR, 'labels.json'), 'utf8')),
-    cedict: cedictSensesOf(words),
   });
 
   fs.rmSync(outputDir, { recursive: true, force: true });
@@ -272,15 +271,16 @@ function buildComponentBreakdowns(words, catalogue, outputDir) {
     breakdownAttributionText(fs.readFileSync(path.join(sourceDir, 'COPYING'), 'utf8')),
   );
   fs.copyFileSync(path.join(sourceDir, 'LGPL'), path.join(outputDir, 'LICENSE.txt'));
+  fs.copyFileSync(path.join(sourceDir, 'GPL'), path.join(outputDir, 'GPL.txt'));
 
   const count = Object.keys(result.files).length;
   console.log(
-    'Wrote ' + count + ' component breakdowns (' + Math.round(bytes / count) +
+    'Wrote ' + count + ' component breakdowns (' + Math.round(bytes / Math.max(count, 1)) +
       ' bytes each on average) to: ' + outputDir,
   );
-  console.log(
-    'No Make Me a Hanzi data, so no breakdown: ' + result.missing.join(' '),
-  );
+  if (result.missing.length) {
+    console.log('No Make Me a Hanzi data, so no breakdown: ' + result.missing.join(' '));
+  }
   console.log(
     'Parts that do not split, because their strokes disagree with the stroke data: ' +
       result.mismatches.length,
@@ -299,11 +299,11 @@ const breakdownAttributionText = (copying) => [
   'HanLearn modified the data: each file holds the tree of the parts of one',
   'character, the strokes of each part, its meaning or sound clue, and a label.',
   'The labels come from migration/components/labels.json of HanLearn, then from',
-  'the Make Me a Hanzi definitions, then from CC-CEDICT (https://cc-cedict.org,',
-  'CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0/).',
+  'the Make Me a Hanzi definitions.',
   '',
   'You can redistribute and/or modify these files under the terms of the GNU',
-  'Lesser General Public License, version 3 or later (LICENSE.txt).',
+  'Lesser General Public License, version 3 or later (LICENSE.txt), which adds',
+  'to the GNU General Public License, version 3 (GPL.txt).',
   '',
   'The Make Me a Hanzi notice:',
   '',
@@ -404,7 +404,7 @@ function buildDictionary() {
   buildSentences(words, catalogue, ranks, path.join(outputDir, 'sentences'));
 
   console.log('Writing the component breakdowns...');
-  buildComponentBreakdowns(words, catalogue, path.join(outputDir, 'breakdowns'));
+  buildComponentBreakdowns(catalogue, path.join(outputDir, 'breakdowns'));
 
   // Write as compact JSON (no pretty printing to save space). An HSK word
   // carries the frequency rank `q` of the source, which the dictionary search

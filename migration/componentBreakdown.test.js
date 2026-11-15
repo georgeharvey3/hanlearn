@@ -6,7 +6,6 @@ import {
   breakdownFileName,
   breakdownOf,
   buildBreakdowns,
-  cedictSensesOf,
   firstSense,
   parseIds,
   parseMakeMeAHanzi,
@@ -95,6 +94,12 @@ describe('breakdownOf', () => {
     expect(() => breakdownOf(context, '射')).toThrow('射: Make Me a Hanzi gives 10 strokes, Hanzi Writer 9');
   });
 
+  it('fails when the stroke data has no character', () => {
+    const { 射: _, ...counts } = strokeCounts;
+    const context = breakdownContext({ entries, strokeCounts: counts });
+    expect(() => breakdownOf(context, '射')).toThrow('射: no Hanzi Writer stroke data');
+  });
+
   it('does not split a part whose strokes disagree with its stroke count', () => {
     const context = breakdownContext({ entries, strokeCounts, labels: {} });
     const axe = breakdownOf(context, '斤');
@@ -109,7 +114,7 @@ describe('breakdownOf', () => {
       ['甲', { character: '甲', decomposition: '⿰口口', matches: [[0], [0], [0], null, [1], [1], [1]] }],
       ['口', { character: '口', definition: 'mouth', matches: [null, null, null] }],
     ]);
-    const { p } = breakdownOf(breakdownContext({ entries: data, strokeCounts: {} }), '甲');
+    const { p } = breakdownOf(breakdownContext({ entries: data, strokeCounts: { 甲: 7 } }), '甲');
     expect(p).toEqual([
       { c: '口', s: [0, 1, 2], l: 'mouth' },
       { c: null, s: [3], l: null },
@@ -172,16 +177,5 @@ describe('labels', () => {
     expect(firstSense('culprit; murder; bad, sad')).toBe('culprit');
     expect(firstSense('to doubt, to question')).toBe('to doubt');
     expect(firstSense(undefined)).toBeNull();
-  });
-
-  it('takes the CC-CEDICT sense of the character that a variant points to', () => {
-    const senses = cedictSensesOf([
-      { simp: '凶', trad: '兇', meaning: 'terrible/fierce' },
-      { simp: '㐫', trad: '㐫', meaning: 'old variant of 凶[xiong1]' },
-      { simp: '王', trad: '王', meaning: 'surname Wang' },
-      { simp: '王', trad: '王', meaning: 'king/monarch' },
-    ]);
-    expect(senses.get('㐫')).toBe('terrible');
-    expect(senses.get('王')).toBe('king');
   });
 });

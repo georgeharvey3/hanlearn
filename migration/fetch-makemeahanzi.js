@@ -2,7 +2,8 @@
  * Download the sources of the component breakdown (#528) into
  * components/source/:
  *
- * - dictionary.txt, COPYING and LGPL from Make Me a Hanzi, at one pinned commit
+ * - dictionary.txt, COPYING and LGPL from Make Me a Hanzi, at one pinned commit,
+ *   and the GPL 3.0 text that the LGPL adds to
  * - stroke-counts.json: the stroke count of each character in the Hanzi
  *   Writer stroke data, the version that the app loads from the CDN
  *
@@ -43,6 +44,12 @@ async function main() {
     console.log(`Downloading ${url}`);
     fs.writeFileSync(path.join(SOURCE_DIR, file), await download(url));
   }
+  // The LGPL adds to the GPL, and the files must ship with both texts.
+  console.log('Downloading the GPL 3.0 text');
+  fs.writeFileSync(
+    path.join(SOURCE_DIR, 'GPL'),
+    await download('https://www.gnu.org/licenses/gpl-3.0.txt'),
+  );
 
   const url = `https://registry.npmjs.org/hanzi-writer-data/-/hanzi-writer-data-${HANZI_WRITER_DATA}.tgz`;
   console.log(`Downloading ${url}`);
