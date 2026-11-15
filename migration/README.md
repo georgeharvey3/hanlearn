@@ -91,6 +91,7 @@ The committed sources are in `components/`:
 - `components/source/dictionary.txt`, `COPYING` and `LGPL`: Make Me a Hanzi at one pinned commit. `dictionary.txt` is LGPL 3.0 or later.
 - `components/source/GPL`: the GPL 3.0 text, which the LGPL adds to.
 - `components/source/stroke-counts.json`: the stroke count of each character in `hanzi-writer-data@2.0.1`, the stroke data that the app loads.
+- `components/source/stroke-ends.json`: the first and last point of the median line of each stroke in the same data. The shape check reads it.
 - `components/labels.json`: the labels file. `labels` gives the label of a part, and a part with a label does not split. `groups` names a group that is a real character (`⿱亠凶` is 㐫). `pieces` names an unnamed piece of one character by its path in the decomposition (the `1.2` of 赢 is 凡). An empty file is legal.
 
 `npm --prefix migration run fetch:makemeahanzi` downloads the sources again. The build uses no network. The rules are pure, in `componentBreakdown.js`.
@@ -100,6 +101,8 @@ The tree follows three rules (#527):
 - A group with no name of its own is not a step. Its pieces join the split directly, so 疑 is 匕 + 矢 + an unnamed piece + 疋.
 - Splitting stops at a part with a label in the labels file, so 口 does not split into 冂 + 一.
 - An unnamed piece never stops a split. It is a part with no character and no label.
+
+A part splits only when its strokes in the parent agree with the part alone. The stroke count must be the same. The shape must also be the same: each stroke must start and end near the same place, after the build scales both to the same size. The data can name a part by a character in another form. The left side of 難 is 𦰩, but the data calls it 堇, and the split of 堇 shows 土 for the 大 of 𦰩. A part that fails either check stays whole, and the build prints the count of these parts.
 
 A part with no entry in the labels file takes the first sense of its Make Me a Hanzi definition. The build prints each part character with no label from either source.
 

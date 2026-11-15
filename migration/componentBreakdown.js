@@ -92,16 +92,20 @@ const firstSense = (definition) => {
  * - `entries`: the Make Me a Hanzi map of parseMakeMeAHanzi
  * - `strokeCounts`: the number of strokes of each character in the Hanzi
  *   Writer stroke data
+ * - `strokeEnds`: the first and last point of the median line of each stroke
+ *   in the same data, `[x0, y0, x1, y1]`. Optional: with none, a part's shape
+ *   is not checked
  * - `labels`: the labels file: `labels` (part to label; also the stop list),
  *   `groups` (a group's decomposition to the character it is) and `pieces`
  *   (a character to the names of its unnamed pieces, by path, "1.2")
  */
-function breakdownContext({ entries, strokeCounts, labels = {} }) {
+function breakdownContext({ entries, strokeCounts, strokeEnds = {}, labels = {} }) {
   const groupNames = groupNamesOf(entries);
   for (const [ids, char] of Object.entries(labels.groups ?? {})) groupNames.set(ids, char);
   return {
     entries,
     strokeCounts,
+    strokeEnds,
     labels: labels.labels ?? {},
     pieces: labels.pieces ?? {},
     groupNames,
@@ -216,7 +220,11 @@ function partsOf(context, node, top, trail) {
       return node.children.flatMap((child) => partsOf(context, child, top, trail));
     }
     const part = makePart(context, name, s);
-    if (strokesAgree(context, name, s.length, trail) && !context.labels[name]) {
+    if (
+      strokesAgree(context, name, s.length, trail) &&
+      !context.labels[name] &&
+      shapesAgree(context, name, s, trail)
+    ) {
       const inner = ordered(
         node.children.flatMap((child) => partsOf(context, child, top, [...trail, name])),
       );
@@ -226,7 +234,12 @@ function partsOf(context, node, top, trail) {
   }
   if (node.char === null) return [{ c: null, s, l: null }];
   const part = makePart(context, node.char, s);
-  if (!trail.includes(node.char) && strokesAgree(context, node.char, s.length, trail)) {
+  if (
+    !trail.includes(node.char) &&
+    strokesAgree(context, node.char, s.length, trail) &&
+    !context.labels[node.char] &&
+    shapesAgree(context, node.char, s, trail)
+  ) {
     const split = splitOf(context, node.char, s, [...trail, node.char]);
     if (split) part.p = split;
   }
@@ -252,6 +265,56 @@ function strokesAgree(context, char, given, trail) {
   return false;
 }
 
+/**
+ * How far, at most, the end of a stroke of a part in its parent may lie from
+ * the same end of the part alone, in units of the spread of the part's stroke
+ * ends. Measured on all of Make Me a Hanzi: the 堇 of 僅 and 勤 scores 0.17 or
+ * less, and the variant 𦰩 that the data calls 堇 in 難 and 漢 scores 0.42 or
+ * more. At 0.35, 1.9% of the parts that split stop, and nearly all of them are
+ * a real change of form (算 in 篡, 既 in 廄). The rest are a part stretched
+ * by its parent: a step less, never a wrong part.
+ */
+const SHAPE_TOLERANCE = 0.35;
+
+/**
+ * The stroke ends of a set of strokes, centred on their mean and scaled by
+ * their spread on each axis. A part drawn narrow or short in its parent then
+ * has the same ends as the part alone.
+ */
+function normalisedEnds(ends) {
+  const points = ends.flatMap(([x0, y0, x1, y1]) => [[x0, y0], [x1, y1]]);
+  const mean = (k) => points.reduce((sum, p) => sum + p[k], 0) / points.length;
+  const spread = (k, mu) =>
+    Math.max(Math.sqrt(points.reduce((sum, p) => sum + (p[k] - mu) ** 2, 0) / points.length), 1);
+  const [mx, my] = [mean(0), mean(1)];
+  const [sx, sy] = [spread(0, mx), spread(1, my)];
+  return ends.map(([x0, y0, x1, y1]) => [
+    [(x0 - mx) / sx / 4, (y0 - my) / sy / 4],
+    [(x1 - mx) / sx / 4, (y1 - my) / sy / 4],
+  ]);
+}
+
+/**
+ * Whether the strokes `strokes` of the top character have the shape of the
+ * part `char` alone. The data can name a part by a character whose form is
+ * not the one drawn: the left side of 難 is 𦰩, which the data calls 堇, and
+ * the split of 堇 would show 土 for the 大 of 𦰩. The stroke count is the same,
+ * so only the shape shows it. Records a disagreement in `context.mismatches`.
+ */
+function shapesAgree(context, char, strokes, trail) {
+  const own = context.strokeEnds[char];
+  const top = context.strokeEnds[trail[0]];
+  if (!own || !top || own.length !== strokes.length) return true;
+  const inside = normalisedEnds(strokes.map((i) => top[i]));
+  const alone = normalisedEnds(own);
+  const far = inside.some((ends, i) =>
+    ends.some((p, k) => Math.hypot(p[0] - alone[i][k][0], p[1] - alone[i][k][1]) > SHAPE_TOLERANCE),
+  );
+  if (!far) return true;
+  context.mismatches.push(`${[...trail, char].join(' > ')}: the strokes have another shape`);
+  return false;
+}
+
 /** The name of the breakdown file of a character: its code point in hex, "7919" for 礙. */
 const breakdownFileName = (char) => char.codePointAt(0).toString(16);
 
@@ -263,8 +326,8 @@ const breakdownFileName = (char) => char.codePointAt(0).toString(16);
  * Also gives the labels of parts that are in no tree (`unused`): a typo, or a
  * part that only shows inside a part that a label stops.
  */
-function buildBreakdowns({ chars, entries, strokeCounts, labels }) {
-  const context = breakdownContext({ entries, strokeCounts, labels });
+function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, labels }) {
+  const context = breakdownContext({ entries, strokeCounts, strokeEnds, labels });
   const files = {};
   const missing = [];
   const unlabelled = new Set();

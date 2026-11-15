@@ -6,6 +6,8 @@
  *   and the GPL 3.0 text that the LGPL adds to
  * - stroke-counts.json: the stroke count of each character in the Hanzi
  *   Writer stroke data, the version that the app loads from the CDN
+ * - stroke-ends.json: the first and last point of the median line of each
+ *   stroke in the same data, for the shape check of the build
  *
  * build-dictionary.js reads only these committed files, with no network.
  *
@@ -60,10 +62,13 @@ async function main() {
     execFileSync('tar', ['-xzf', tarball, '-C', dir]);
     const packageDir = path.join(dir, 'package');
     const counts = {};
+    const ends = {};
     for (const file of fs.readdirSync(packageDir).sort()) {
       if (!file.endsWith('.json') || file === 'package.json') continue;
       const data = JSON.parse(fs.readFileSync(path.join(packageDir, file), 'utf8'));
-      counts[file.slice(0, -'.json'.length)] = data.strokes.length;
+      const char = file.slice(0, -'.json'.length);
+      counts[char] = data.strokes.length;
+      ends[char] = data.medians.map((median) => [...median[0], ...median[median.length - 1]]);
     }
     const out = path.join(SOURCE_DIR, 'stroke-counts.json');
     fs.writeFileSync(
@@ -75,6 +80,12 @@ async function main() {
       }) + '\n',
     );
     console.log(`Wrote ${Object.keys(counts).length} stroke counts to: ${out}`);
+    const endsOut = path.join(SOURCE_DIR, 'stroke-ends.json');
+    fs.writeFileSync(
+      endsOut,
+      JSON.stringify({ source: `hanzi-writer-data@${HANZI_WRITER_DATA}`, ends }) + '\n',
+    );
+    console.log(`Wrote the stroke ends of ${Object.keys(ends).length} characters to: ${endsOut}`);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

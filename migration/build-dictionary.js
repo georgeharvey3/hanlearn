@@ -256,6 +256,7 @@ function buildComponentBreakdowns(catalogue, outputDir) {
     entries: parseMakeMeAHanzi(fs.readFileSync(path.join(sourceDir, 'dictionary.txt'), 'utf8')),
     strokeCounts: JSON.parse(fs.readFileSync(path.join(sourceDir, 'stroke-counts.json'), 'utf8'))
       .counts,
+    strokeEnds: JSON.parse(fs.readFileSync(path.join(sourceDir, 'stroke-ends.json'), 'utf8')).ends,
     labels: JSON.parse(fs.readFileSync(path.join(COMPONENTS_DIR, 'labels.json'), 'utf8')),
   });
   if (result.unused.length) {
@@ -289,7 +290,7 @@ function buildComponentBreakdowns(catalogue, outputDir) {
     console.log('No Make Me a Hanzi data, so no breakdown: ' + result.missing.join(' '));
   }
   console.log(
-    'Parts that do not split, because their strokes disagree with the stroke data: ' +
+    'Parts that do not split, because their strokes disagree with the stroke data in count or shape: ' +
       result.mismatches.length,
   );
   console.log('Parts with no label in any source: ' + result.unlabelled.join(' '));
