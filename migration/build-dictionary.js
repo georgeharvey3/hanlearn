@@ -12,6 +12,7 @@
  *   ../web-client/public/premade-lists/ (the catalogue of premade lists, and
  *     hsk-index.json, the HSK index of the Dashboard)
  *   ../web-client/public/sentences/ (the example sentences, see #465)
+ *   ../web-client/public/breakdowns/ (the component breakdowns, see #528)
  *   sentences/coverage.md (the coverage report, on a local run only)
  */
 
@@ -21,6 +22,7 @@ const path = require('path');
 const { ranksOf, resolveCatalogue } = require('./premadeCatalogue');
 const { checkHskIndex, hskIndexOf } = require('./hskIndex');
 const { buildExampleSentences, unfilledOf } = require('./exampleSentences');
+const { buildBreakdowns, parseMakeMeAHanzi } = require('./componentBreakdown');
 
 /**
  * The HSK 3.0 bands of the catalogue, from drkameleon/complete-hsk-vocabulary
@@ -231,6 +233,83 @@ const licenseText = ({ licence }) => [
   'of each Tatoeba sentence.',
 ].join('\n') + '\n';
 
+/** The committed sources of the component breakdown (#528). */
+const COMPONENTS_DIR = path.join(__dirname, 'components');
+
+/**
+ * Write one component breakdown file for each character of the HSK words,
+ * from the committed Make Me a Hanzi data and labels file, with no network.
+ * Prints the parts that do not split because their strokes disagree with the
+ * Hanzi Writer stroke data.
+ *
+ * Fails the build when Make Me a Hanzi and the Hanzi Writer stroke data
+ * disagree on the stroke count of an HSK character.
+ */
+function buildComponentBreakdowns(catalogue, outputDir) {
+  const sourceDir = path.join(COMPONENTS_DIR, 'source');
+  const chars = catalogue.flatMap((list) =>
+    list.entries.flatMap((entry) => [...entry.simp, ...entry.trad]),
+  );
+  const result = buildBreakdowns({
+    chars,
+    entries: parseMakeMeAHanzi(fs.readFileSync(path.join(sourceDir, 'dictionary.txt'), 'utf8')),
+    strokeCounts: JSON.parse(fs.readFileSync(path.join(sourceDir, 'stroke-counts.json'), 'utf8'))
+      .counts,
+    labels: JSON.parse(fs.readFileSync(path.join(COMPONENTS_DIR, 'labels.json'), 'utf8')),
+  });
+
+  fs.rmSync(outputDir, { recursive: true, force: true });
+  fs.mkdirSync(outputDir, { recursive: true });
+  let bytes = 0;
+  for (const [name, content] of Object.entries(result.files)) {
+    const json = JSON.stringify(content);
+    bytes += Buffer.byteLength(json);
+    fs.writeFileSync(path.join(outputDir, name + '.json'), json);
+  }
+  fs.writeFileSync(
+    path.join(outputDir, 'ATTRIBUTION.txt'),
+    breakdownAttributionText(fs.readFileSync(path.join(sourceDir, 'COPYING'), 'utf8')),
+  );
+  fs.copyFileSync(path.join(sourceDir, 'LGPL'), path.join(outputDir, 'LICENSE.txt'));
+  fs.copyFileSync(path.join(sourceDir, 'GPL'), path.join(outputDir, 'GPL.txt'));
+
+  const count = Object.keys(result.files).length;
+  console.log(
+    'Wrote ' + count + ' component breakdowns (' + Math.round(bytes / Math.max(count, 1)) +
+      ' bytes each on average) to: ' + outputDir,
+  );
+  if (result.missing.length) {
+    console.log('No Make Me a Hanzi data, so no breakdown: ' + result.missing.join(' '));
+  }
+  console.log(
+    'Parts that do not split, because their strokes disagree with the stroke data: ' +
+      result.mismatches.length,
+  );
+  console.log('Parts with no label in any source: ' + result.unlabelled.join(' '));
+}
+
+/**
+ * The text of ATTRIBUTION.txt of the breakdown files. Make Me a Hanzi asks
+ * for its COPYING notice, and the Unihan notice in LICENSE.txt asks for a
+ * notice that the data is modified.
+ */
+const breakdownAttributionText = (copying) => [
+  'The component breakdown files in this directory are derived from',
+  'dictionary.txt of Make Me a Hanzi (https://github.com/skishore/makemeahanzi).',
+  'HanLearn modified the data: each file holds the tree of the parts of one',
+  'character, the strokes of each part, its meaning or sound clue, and a label.',
+  'The labels come from migration/components/labels.json of HanLearn, then from',
+  'the Make Me a Hanzi definitions.',
+  '',
+  'You can redistribute and/or modify these files under the terms of the GNU',
+  'Lesser General Public License, version 3 or later (LICENSE.txt), which adds',
+  'to the GNU General Public License, version 3 (GPL.txt).',
+  '',
+  'The Make Me a Hanzi notice:',
+  '',
+  copying.trim(),
+].join('\n') + '\n';
+
 /**
  * The SHA-256 of the one cedict_ts.u8 the app ships (2026-01-02).
  *
@@ -323,6 +402,9 @@ function buildDictionary() {
 
   console.log('Writing the example sentences...');
   buildSentences(words, catalogue, ranks, path.join(outputDir, 'sentences'));
+
+  console.log('Writing the component breakdowns...');
+  buildComponentBreakdowns(catalogue, path.join(outputDir, 'breakdowns'));
 
   // Write as compact JSON (no pretty printing to save space). An HSK word
   // carries the frequency rank `q` of the source, which the dictionary search
