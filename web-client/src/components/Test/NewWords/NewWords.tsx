@@ -8,7 +8,7 @@ import { STEPS, StepKey } from './steps';
 import UnderstandStep from './UnderstandStep';
 import SpeakStep from './SpeakStep';
 import WriteStep from './WriteStep';
-import StudyScreen from '../Study/StudyScreen';
+import StudyScreen, { StudyBody } from '../Study/StudyScreen';
 import StudyTop from '../Study/StudyTop';
 import { StudyButton } from '../Study/parts';
 import AudioSettingsDrawer from '../AudioSettingsDrawer/AudioSettingsDrawer';
@@ -131,32 +131,37 @@ const NewWords: React.FC<NewWordsProps> = ({ words, startTest }) => {
         onSettings={() => setSettingsOpen(true)}
       />
       <StepRail at={step} done={done} onPick={setStep} />
-
-      {current === 'understand' && (
-        <UnderstandStep key={index} word={word} charSet={charSet} speak={speak} loading={loading} />
-      )}
-      {current === 'speak' && (
-        <SpeakStep
-          key={index}
-          word={word}
-          charSet={charSet}
-          speechAvailable={speechAvailable}
-          speak={speak}
-          loading={loading}
-          onSpoken={onSpoken}
-        />
-      )}
-      {current === 'write' && (
-        <WriteStep
-          key={index}
-          word={word}
-          charSet={charSet}
-          traced={done.write}
-          onTraced={onTraced}
-        />
-      )}
-
-      <Box sx={{ flex: 1, minHeight: 24 }} />
+      <StudyBody>
+        {current === 'understand' && (
+          <UnderstandStep
+            key={index}
+            word={word}
+            charSet={charSet}
+            speak={speak}
+            loading={loading}
+          />
+        )}
+        {current === 'speak' && (
+          <SpeakStep
+            key={index}
+            word={word}
+            charSet={charSet}
+            speechAvailable={speechAvailable}
+            speak={speak}
+            loading={loading}
+            onSpoken={onSpoken}
+          />
+        )}
+        {current === 'write' && (
+          <WriteStep
+            key={index}
+            word={word}
+            charSet={charSet}
+            traced={done.write}
+            onTraced={onTraced}
+          />
+        )}
+      </StudyBody>
       <ButtonBase
         onClick={() => startTest?.()}
         sx={{
