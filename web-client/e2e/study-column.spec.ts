@@ -39,7 +39,7 @@ test.describe('Study column', () => {
   const openTest = async (page: Page) => {
     const testPage = new TestWordsPage(page);
     await testPage.navigateTo();
-    await expect(testPage.idkButton).toBeVisible({ timeout: 15000 });
+    await expect(testPage.showAnswerButton).toBeVisible({ timeout: 15000 });
     return testPage;
   };
 
@@ -75,7 +75,7 @@ test.describe('Study column', () => {
     expect(await body.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
     expect(await pageScrolls(page)).toBe(false);
     await expect(page.getByRole('button', { name: 'End session' })).toBeInViewport();
-    await expect(testPage.idkButton).toBeInViewport();
+    await expect(testPage.showAnswerButton).toBeInViewport();
   });
 
   test('fills the window on a phone, and the page scrolls as before', async ({ page }) => {

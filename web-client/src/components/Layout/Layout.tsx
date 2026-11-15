@@ -38,6 +38,9 @@ interface Props {
   children?: ReactNode;
 }
 
+/** The main area's padding on a wide screen, on every side. */
+export const DESKTOP_GUTTER = 32;
+
 /**
  * The frame round every page. A phone gets a slim top bar and a bottom tab
  * bar; a desktop gets a sidebar that collapses to a rail. A visitor gets only
@@ -77,7 +80,7 @@ const Layout: React.FC<Props> = ({ children }) => {
       : SIDEBAR_WIDTH.expanded
     : 0;
   const topBarHeight = showTopBar ? (phone ? TOP_BAR_HEIGHT.phone : TOP_BAR_HEIGHT.desktop) : 0;
-  const gutter = phone ? 16 : 32;
+  const gutter = phone ? 16 : DESKTOP_GUTTER;
 
   // A toast sits at the bottom centre of the page: above the tab bar on a
   // phone, above the grade buttons in a session, and right of the sidebar on

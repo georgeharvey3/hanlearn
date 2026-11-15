@@ -2,15 +2,17 @@ import React from 'react';
 import { Box } from '@mui/material';
 
 import { colors, fonts } from '../../../theme';
+import { DESKTOP_GUTTER } from '../../Layout/Layout';
 
 /** The tallest a study screen is on a wide screen: the height of a phone. */
-export const STUDY_MAX_HEIGHT = 844;
+const STUDY_MAX_HEIGHT = 844;
 
 /**
- * The main area's padding on a wide screen. A signed-in learner there has the
- * sidebar and no top bar, so the main area pads 32px above and 32px below.
+ * The height the layout takes round the main area on a wide screen. A
+ * signed-in learner there has the sidebar and no top bar, so only the main
+ * area's padding above and below remains.
  */
-const WIDE_CHROME = 64;
+const WIDE_CHROME = 2 * DESKTOP_GUTTER;
 
 /**
  * The column a study screen fills: a phone's width, with the session bar at
@@ -60,23 +62,24 @@ const StudyScreen: React.FC<{ fixed?: boolean; children: React.ReactNode }> = ({
  * takes the free height, so the actions sit at the foot. On a wide screen it
  * scrolls when its content is taller than the room; on a phone it grows and
  * the page scrolls. Its bottom padding keeps the content off the actions.
+ *
+ * The content sits in an inner column of its own height. In the scrolling box
+ * itself, a fixed-height child (a button, an input, a card) would shrink to
+ * its text before the box scrolled.
  */
 export const StudyBody: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <Box
     data-testid="study-body"
     sx={{
       flex: '1 1 auto',
-      display: 'flex',
-      flexDirection: 'column',
       minHeight: { sm: 0 },
       overflowY: { sm: 'auto' },
       // The scroll bar sits at the column's edge, not on the content.
       mx: -2,
       px: 2,
-      pb: 3,
     }}
   >
-    {children}
+    <Box sx={{ display: 'flex', flexDirection: 'column', pb: 3 }}>{children}</Box>
   </Box>
 );
 
