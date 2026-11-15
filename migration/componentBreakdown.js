@@ -177,12 +177,13 @@ function breakdownOf(context, char) {
 
 /**
  * The parts of a character whose strokes in the top character are `strokes`,
- * or null when it does not split. A character with a label is a building
- * block and does not split, even as the top character. `trail` holds the
- * characters above it, so an entry that holds itself does not loop.
+ * or null when it does not split. A part with a label is a building block,
+ * and `partsOf` does not split it. The top character always splits: most
+ * HSK characters (是, 道) are also a labelled part of another character.
+ * `trail` holds the characters above it, so an entry that holds itself does
+ * not loop.
  */
 function splitOf(context, char, strokes, trail) {
-  if (context.labels[char]) return null;
   const entry = context.entries.get(char);
   if (!entry || !entry.decomposition || strokes.length < 2) return null;
   const tree = parseIds(entry.decomposition);
@@ -324,18 +325,22 @@ const breakdownFileName = (char) => char.codePointAt(0).toString(16);
  * strokes disagree with their own stroke count, and the part characters that
  * no source gives a label (⺈ has no definition): the labels file needs them.
  * Also gives the labels of parts that are in no tree (`unused`): a typo, or a
- * part that only shows inside a part that a label stops.
+ * part that only shows inside a part that a label stops. `fallback` gives the
+ * parts that the labels file does not label: they show the dictionary's first
+ * sense, or no label.
  */
 function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, labels }) {
   const context = breakdownContext({ entries, strokeCounts, strokeEnds, labels });
   const files = {};
   const missing = [];
   const unlabelled = new Set();
+  const fallback = new Set();
   const seen = new Set();
   const collect = (parts) => {
     for (const part of parts ?? []) {
       if (part.c !== null) seen.add(part.c);
       if (part.c !== null && part.l === null) unlabelled.add(part.c);
+      if (part.c !== null && !context.labels[part.c]) fallback.add(part.c);
       collect(part.p);
     }
   };
@@ -354,6 +359,7 @@ function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, labels }) {
     missing,
     mismatches: context.mismatches,
     unlabelled: [...unlabelled].sort(),
+    fallback: [...fallback].sort(),
     unused,
   };
 }

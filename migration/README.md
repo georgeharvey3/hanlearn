@@ -92,21 +92,21 @@ The committed sources are in `components/`:
 - `components/source/GPL`: the GPL 3.0 text, which the LGPL adds to.
 - `components/source/stroke-counts.json`: the stroke count of each character in `hanzi-writer-data@2.0.1`, the stroke data that the app loads.
 - `components/source/stroke-ends.json`: the first and last point of the median line of each stroke in the same data. The shape check reads it.
-- `components/labels.json`: the labels file. `labels` gives the label of a part, and a part with a label does not split. `groups` names a group that is a real character (`⿱亠凶` is 㐫). `pieces` names an unnamed piece of one character by its path in the decomposition (the `1.2` of 赢 is 凡). An empty file is legal.
+- `components/labels.json`: the labels file. `labels` gives the label of a part. A part with a label does not split, but the top character always splits. `groups` names a group that is a real character (`⿱亠凶` is 㐫). `pieces` names an unnamed piece of one character by its path in the decomposition (the `1.2` of 赢 is 凡). An empty file is legal.
 
 `npm --prefix migration run fetch:makemeahanzi` downloads the sources again. The build uses no network. The rules are pure, in `componentBreakdown.js`.
 
 The tree follows three rules (#527):
 
 - A group with no name of its own is not a step. Its pieces join the split directly, so 疑 is 匕 + 矢 + an unnamed piece + 疋.
-- Splitting stops at a part with a label in the labels file, so 口 does not split into 冂 + 一.
+- Splitting stops at a part with a label in the labels file, so the 口 of 礙 does not split into 冂 + 一. The top character always splits, because most HSK characters (是, 道) are also a labelled part of another character. So the breakdown of 口 itself shows 冂 + 一.
 - An unnamed piece never stops a split. It is a part with no character and no label.
 
 A part splits only when its strokes in the parent agree with the part alone. The stroke count must be the same. The shape must also be the same: each stroke must start and end near the same place, after the build scales both to the same size. The data can name a part by a character in another form. The left side of 難 is 𦰩, but the data calls it 堇, and the split of 堇 shows 土 for the 大 of 𦰩. A part that fails either check stays whole, and the build prints the count of these parts.
 
-A part with no entry in the labels file takes the first sense of its Make Me a Hanzi definition. The build prints each part character with no label from either source.
+A part with no entry in the labels file takes the first sense of its Make Me a Hanzi definition. The build prints each part character with no label from either source. It also prints the number of parts that still use this fallback label.
 
-The labels file holds the learner label of the most frequent parts in HSK 1–7 (#531). A side form takes its learner name (亻 is "person", not "man"). A character takes the sense that a learner needs inside other characters (凶 is "fierce", not "culprit").
+The labels file holds the learner label of the most frequent parts in HSK 1–7 (#531), and of every part in the HSK 1–3 trees, simplified and traditional (#532). The one exception is 㐫: a label stops its split, and 脑 must show 凶. A side form takes its learner name (亻 is "person", not "man"). A character takes the sense that a learner needs inside other characters (凶 is "fierce", not "culprit").
 
 The build stops when the labels file gives a label to a part that is in no breakdown. This occurs with a typo. It also occurs when a part only shows inside a part with a label, because that part does not split. For example, 丄 only shows inside 工.
 
@@ -128,7 +128,7 @@ Each file is `{ c, p }`: the character and its parts, or `p: null` when it does 
 A learner can report a wrong part meaning from the line of a tapped part in the breakdown (#533). Each report goes to `users/{userId}/partReports/{reportId}`. The report holds the character, the parent, the part, the stroke indices of the part and the label that the line showed. The parent is the character directly above the part. The part and the label are null for a piece with no name of its own.
 
 1. Run `node export-part-reports.js`. It writes `part-reports.csv`, with one row for each report. The rows of one part are together.
-2. For a wrong label, set the label of the part in `labels` in `components/labels.json`. Many labels come from Make Me a Hanzi and are not in the file yet. A part with a label in the file does not split.
+2. For a wrong label, set the label of the part in `labels` in `components/labels.json`. Many labels come from Make Me a Hanzi and are not in the file yet. A part with a label in the file does not split, but the top character always splits.
 3. For a piece with no name of its own, add the piece to `pieces` in `components/labels.json`, under the parent. The `strokes` column finds the piece in `char`.
 4. Run `npm run build:dict`.
 
