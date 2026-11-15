@@ -221,6 +221,32 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // PartReports subcollection: the learner's reports of a wrong part
+      // meaning in the component breakdown (#533). The id is the hex code
+      // point of the character and the strokes of the part, so a second
+      // report of the same part replaces the first. A person reads them with
+      // `node migration/export-part-reports.js` and fixes the labels file.
+      match /partReports/{reportId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create, update: if request.auth != null && request.auth.uid == userId
+          && reportId.matches('[0-9a-f]+-[0-9]+([.][0-9]+)*')
+          && request.resource.data.keys().hasOnly(['char', 'part', 'strokes', 'label', 'reportedAt'])
+          && request.resource.data.keys().hasAll(['char', 'part', 'strokes', 'label', 'reportedAt'])
+          && request.resource.data.char is string
+          && request.resource.data.char.size() > 0
+          && request.resource.data.char.size() <= 4
+          && (request.resource.data.part == null
+            || (request.resource.data.part is string && request.resource.data.part.size() <= 4))
+          && request.resource.data.strokes is list
+          && request.resource.data.strokes.size() > 0
+          && request.resource.data.strokes.size() <= 64
+          && request.resource.data.strokes[0] is int
+          && (request.resource.data.label == null
+            || (request.resource.data.label is string && request.resource.data.label.size() <= 200))
+          && request.resource.data.reportedAt is timestamp;
+        allow delete: if false;
+      }
+
       // SentencePractice subcollection: the queue state of the Comprehend and
       // Compose tabs, one document per word (#489). It lives outside
       // userWords, so the scheduler's documents carry no sentence state.

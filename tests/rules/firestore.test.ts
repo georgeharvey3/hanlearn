@@ -22,6 +22,11 @@ import { loadRules, asUser } from "./helpers";
 import { QUESTIONS_PER_SESSION_MAX } from "../../web-client/src/utils/sessionSettings";
 import { sentenceReportDocument } from "../../web-client/src/utils/reportedSentences";
 import {
+  PartReport,
+  partReportDocument,
+  partReportId,
+} from "../../web-client/src/utils/partReports";
+import {
   SentenceGrade,
   sentenceLogDocument,
   sentencePracticeUpdate,
@@ -672,6 +677,66 @@ describe("sentenceReports", () => {
     await assertFails(setDoc(ref(otherDb, path), report()));
     await assertSucceeds(setDoc(ref(db, path), report()));
     await assertFails(getDoc(ref(otherDb, path)));
+  });
+});
+
+describe("partReports", () => {
+  // The 矢 of 疑 inside 礙, as the line of the tapped part reports it.
+  const arrow: PartReport = {
+    char: "礙",
+    part: "矢",
+    strokes: [7, 8, 9, 10, 11],
+    label: "arrow",
+  };
+  const path = (r: PartReport) => `users/user-1/partReports/${partReportId(r)}`;
+  const report = (r: PartReport, extra: Record<string, unknown> = {}) => ({
+    ...partReportDocument(r, Timestamp.now()),
+    ...extra,
+  });
+
+  it("accepts the report the line of a part writes", async () => {
+    await assertSucceeds(setDoc(ref(db, path(arrow)), report(arrow)));
+  });
+
+  it("accepts the report of a piece with no name of its own", async () => {
+    const piece: PartReport = { char: "疑", part: null, strokes: [7, 8], label: null };
+    await assertSucceeds(setDoc(ref(db, path(piece)), report(piece)));
+  });
+
+  it("accepts a part outside the Basic Multilingual Plane", async () => {
+    const side: PartReport = { char: "難", part: "𦰩", strokes: [0, 1, 2], label: "clay" };
+    await assertSucceeds(setDoc(ref(db, path(side)), report(side)));
+  });
+
+  it("accepts a second report of the same part", async () => {
+    await assertSucceeds(setDoc(ref(db, path(arrow)), report(arrow)));
+    await assertSucceeds(setDoc(ref(db, path(arrow)), report(arrow)));
+  });
+
+  it("rejects an extra field, a missing field or a wrong type", async () => {
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { note: "bad" })));
+    const { label: _label, ...noLabel } = report(arrow);
+    await assertFails(setDoc(ref(db, path(arrow)), noLabel));
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { strokes: "7,8" })));
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { strokes: [] })));
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { label: 3 })));
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { char: "" })));
+  });
+
+  it("rejects an id that is not a character and its strokes", async () => {
+    await assertFails(setDoc(ref(db, "users/user-1/partReports/arrow"), report(arrow)));
+  });
+
+  it("rejects a label too long for the labels file", async () => {
+    await assertFails(
+      setDoc(ref(db, path(arrow)), report(arrow, { label: "x".repeat(201) })),
+    );
+  });
+
+  it("keeps one user out of another user's reports", async () => {
+    await assertFails(setDoc(ref(otherDb, path(arrow)), report(arrow)));
+    await assertSucceeds(setDoc(ref(db, path(arrow)), report(arrow)));
+    await assertFails(getDoc(ref(otherDb, path(arrow))));
   });
 });
 

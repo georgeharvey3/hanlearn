@@ -212,6 +212,9 @@ export const copy = {
     smallestPart: 'The smallest part here',
     backTo: (part: string) => `‹ Back to ${part}`,
     startAgain: 'Start again',
+    reportPart: 'Report meaning',
+    partReported: 'Reported',
+    partReportFailed: 'Report failed',
     retry: 'Retry',
     // The line under the card. Each says what happened, in a word or two.
     status: {
