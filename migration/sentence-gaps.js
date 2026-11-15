@@ -16,13 +16,13 @@
 
 const fs = require('fs');
 const path = require('path');
-const { readCedict, resolveHsk, sentenceInputs } = require('./build-dictionary');
+const { readCleanCedict, resolveHsk, sentenceInputs } = require('./build-dictionary');
 const { buildExampleSentences, glossOf, toneMarks } = require('./exampleSentences');
 
 const SCRATCH = path.join(__dirname, 'sentences', 'scratch');
 
 function main() {
-  const words = readCedict();
+  const { words } = readCleanCedict();
   const { catalogue, ranks } = resolveHsk(words);
   const { inputs } = sentenceInputs(words, catalogue, ranks);
   const result = buildExampleSentences(inputs);

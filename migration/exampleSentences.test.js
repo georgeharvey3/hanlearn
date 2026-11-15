@@ -2,10 +2,12 @@ import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { acceptCandidates, buildExampleSentences, sentenceId } from './exampleSentences';
+import { cleanDictionary } from './cleanMeaning';
 
 /**
  * The real CC-CEDICT entries of the given simplified words, numbered by their
- * position in the file as build-dictionary.js numbers them.
+ * position in the file as build-dictionary.js numbers them, with the clean
+ * meaning that the build gives them (#488).
  */
 const cedictLines = fs
   .readFileSync(path.join(__dirname, 'cedict_ts.u8'), 'utf8')
@@ -20,9 +22,9 @@ const WORDS = [
   ...'我你他她是生在家看书的发行吃饭了很好大学三十去一下读请文课冷天今说汉语中国人们这那里张王长头',
   '学生', '在家', '看书', '喜欢', '汤姆', '第一', '北京', '头发', '今天', '经济', '研究', '课文',
   '下课', '一下', '中国', '汉语', '假发', '图书馆', '朋友', '我们', '他们', '老师', '电脑', '咖啡',
-  '居', '居住', '居民', '邻居', '信',
+  '居', '居住', '居民', '邻居', '信', '水', '水里', '游泳',
 ];
-const dictionary = allEntries.filter((entry) => WORDS.includes(entry.simp));
+const dictionary = cleanDictionary(allEntries.filter((entry) => WORDS.includes(entry.simp))).words;
 
 /** The entry of a word with a given pinyin, as the premade-list resolver gives it. */
 const entry = (simp, pinyin) => {
@@ -89,6 +91,9 @@ const HSK = [
   hskWord('居民', 4, 4000),
   hskWord('邻居', 3, 5000),
   hskWord('生', 2, 700),
+  hskWord('水', 1, 330),
+  hskWord('里', 1, 90, 'li3'),
+  hskWord('游泳', 2, 6000),
   // 好 is in two lists: the lower level counts.
   hskWord('好', 3, 15),
 ];
@@ -137,11 +142,12 @@ const sentencesOf = (result, word) => {
 };
 const segmentsOf = (sentence) => sentence.segments.map((s) => s.s);
 /** The one sentence that a build of one generated record gives its word. */
-const sentenceFor = (word, simp, options) => sentencesOf(build([generated(word, simp)], options), word)[0];
+const sentenceFor = (word, simp, options = {}) =>
+  sentencesOf(build([generated(word, simp, options.english ? { english: options.english } : {})], options), word)[0];
 
 /** The reason that acceptCandidates rejects a candidate, or null when it accepts it. */
-const rejectOf = (word, simp) => {
-  const result = acceptCandidates({ dictionary, hsk: HSK }, [{ word, simp, english: 'x' }]);
+const rejectOf = (word, simp, english = 'x') => {
+  const result = acceptCandidates({ dictionary, hsk: HSK }, [{ word, simp, english }]);
   return result.rejects[0]?.reason ?? null;
 };
 
@@ -159,6 +165,21 @@ describe('splitting', () => {
     // 下 / 课文 (ranks 70 and 30576) against 下课 / 文 (9694 and 1391).
     expect(segmentsOf(sentenceFor('课文', '请你读一下课文。'))).toEqual(['请', '你', '读', '一', '下', '课文']);
     expect(rejectOf('下课', '请你读一下课文。')).toMatch(/^no segment is 下课/);
+  });
+
+  it('splits a name that the English does not hold into common words: 水里 is 水 / 里', () => {
+    // CC-CEDICT has only a name entry for 水里, the township Shuili (#488).
+    const [sentence] = sentencesOf(
+      build([generated('游泳', '我们在水里游泳。', { english: 'We swim in the water.' })]),
+      '游泳',
+    );
+    expect(segmentsOf(sentence)).toEqual(['我们', '在', '水', '里', '游泳']);
+  });
+
+  it('keeps a name that the English holds as one segment: 北京', () => {
+    const [sentence] = sentencesOf(build([generated('去', '我去北京。', { english: 'I go to Beijing.' })]), '去');
+    expect(segmentsOf(sentence)).toEqual(['我', '去', '北京']);
+    expect(sentence.segments[2].e).toMatch(/^Beijing/);
   });
 
   it('leaves punctuation out of the segments and keeps it in the text', () => {
@@ -198,7 +219,7 @@ describe('the entry of a segment', () => {
   });
 
   it('uses a name entry only when no other entry exists', () => {
-    expect(sentenceFor('喜欢', '汤姆喜欢我。').segments[0]).toMatchObject({ s: '汤姆', p: 'Tāng mǔ' });
+    expect(sentenceFor('喜欢', '汤姆喜欢我。', { english: 'Tom likes me.' }).segments[0]).toMatchObject({ s: '汤姆', p: 'Tāng mǔ' });
   });
 
   it('gives a character with no entry an empty pinyin and gloss', () => {
@@ -273,6 +294,15 @@ describe('the gloss overrides', () => {
     expect(() => build([], { glossOverrides: { 吗呢: { pinyin: 'ma5 ne5' } } })).toThrow(/gloss override 吗呢/);
   });
 
+  it('fails the build on an override gloss that holds Chinese', () => {
+    expect(() => build([], { glossOverrides: { 信: { pinyin: 'xin4', gloss: 'letter (CL:封[feng1])' } } })).toThrow(
+      /gloss override 信: the gloss holds Chinese/,
+    );
+    expect(() => build([], { glossOverrides: { 信: { pinyin: 'xin4', gloss: 'letter, as in 信封' } } })).toThrow(
+      /gloss override 信: the gloss holds Chinese/,
+    );
+  });
+
   it('fails the build on an override gloss with more than 3 senses', () => {
     expect(() => build([], { glossOverrides: { 信: { pinyin: 'xin4', gloss: 'a; b; c; d' } } })).toThrow(
       /gloss override 信: the gloss has more than 3 senses/,
@@ -335,8 +365,8 @@ describe('the grader', () => {
 
   it('does not count names or numbers', () => {
     // 个 is not in the fixture, so it counts at level 7.
-    expect(rejectOf('吃', '汤姆吃了三十个。')).toBe('segments above HSK 1: 个 (7)');
-    expect(sentenceFor('吃', '汤姆吃了三十。').hskLevel).toBe(1);
+    expect(rejectOf('吃', '汤姆吃了三十个。', 'Tom ate thirty.')).toBe('segments above HSK 1: 个 (7)');
+    expect(sentenceFor('吃', '汤姆吃了三十。', { english: 'Tom ate thirty.' }).hskLevel).toBe(1);
     expect(sentenceFor('他', '他是第一。').hskLevel).toBe(1);
   });
 
