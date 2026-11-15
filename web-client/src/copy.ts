@@ -206,6 +206,9 @@ export const copy = {
     componentsLoading: (char: string) => `Loading the components of ${char}`,
     componentsFailed: "Couldn't load components",
     noComponents: 'No components',
+    noPartName: 'no name of its own',
+    meaningClue: 'meaning clue',
+    soundClue: 'sound clue',
     retry: 'Retry',
     // The line under the card. Each says what happened, in a word or two.
     status: {
