@@ -63,7 +63,19 @@ const ResultRow: React.FC<{
         <Block width={140} height={10} />
       </Box>
     ) : (
-      <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+      // overflowWrap breaks a meaning such as 'with/coordinated/collaborate',
+      // which has no spaces to wrap at, instead of spilling over the hanzi
+      // and the Add button.
+      <Box
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '2px',
+          overflowWrap: 'anywhere',
+        }}
+      >
         <Box lang="zh-Latn" sx={{ fontSize: 15 }}>
           {entry.pinyin}
         </Box>

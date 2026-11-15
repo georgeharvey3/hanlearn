@@ -48,9 +48,13 @@ const GATES: Record<SentenceTab, (word: Word) => boolean> = {
   compose: readyForCompose,
 };
 
+/** Local midnight at the start of the day `days` days after `now`. */
+const startOfLocalDay = (now: Date, days = 0): Date =>
+  new Date(now.getFullYear(), now.getMonth(), now.getDate() + days);
+
 /** Whether no direction of the word is due before the clearance ends. */
 function clearOfReviews(word: Word, now: Date): boolean {
-  const clear = new Date(now.getFullYear(), now.getMonth(), now.getDate() + REVIEW_CLEARANCE_DAYS);
+  const clear = startOfLocalDay(now, REVIEW_CLEARANCE_DAYS);
   const dueDates = word.directions
     ? DIRECTIONS.map((direction) => word.directions![direction].dueDate)
     : [word.due_date];
@@ -76,11 +80,48 @@ interface QueueInput {
   now: Date;
 }
 
-const eligibleWords = ({ words, index, tab, now }: QueueInput): Word[] =>
-  gatedWords(words, tab, now).filter((word) => (index[word.simp]?.length ?? 0) > 0);
-
 const practiceOf = (practice: PracticeByWord, word: Word, tab: SentenceTab) =>
   practice[String(word.id)]?.[tab];
+
+const OTHER_TAB: Record<SentenceTab, SentenceTab> = {
+  comprehend: 'compose',
+  compose: 'comprehend',
+};
+
+/**
+ * Whether the other tab showed every sentence of the word today, the local
+ * calendar day. The word then waits until tomorrow: the learner would recall
+ * the sentence, not the words (#496). Only the other tab counts, and only the
+ * sentences of the index.
+ */
+function shownInOtherTabToday(
+  practice: PracticeByWord,
+  word: Word,
+  sentenceIds: string[],
+  tab: SentenceTab,
+  now: Date,
+): boolean {
+  const seen = practiceOf(practice, word, OTHER_TAB[tab])?.seen ?? {};
+  const today = startOfLocalDay(now);
+  return sentenceIds.every((id) => seen[id] !== undefined && new Date(seen[id]) >= today);
+}
+
+const eligibleWords = ({ words, practice, index, tab, now }: QueueInput): Word[] =>
+  gatedWords(words, tab, now).filter((word) => {
+    const sentenceIds = index[word.simp] ?? [];
+    return sentenceIds.length > 0 && !shownInOtherTabToday(practice, word, sentenceIds, tab, now);
+  });
+
+/**
+ * The later of the two dates at which the tabs last showed the sentence, or ''
+ * if neither tab showed it. A sentence that one tab showed primes the other tab
+ * as much as its own (#496).
+ */
+function lastViewInEitherTab(practice: PracticeByWord, word: Word, sentenceId: string): string {
+  const comprehend = practiceOf(practice, word, 'comprehend')?.seen[sentenceId] ?? '';
+  const compose = practiceOf(practice, word, 'compose')?.seen[sentenceId] ?? '';
+  return comprehend > compose ? comprehend : compose;
+}
 
 /**
  * The tasks of one set, in order.
@@ -92,8 +133,8 @@ const practiceOf = (practice: PracticeByWord, word: Word, tab: SentenceTab) =>
  *    learns now, before the ones they already know well.
  * 3. A right last grade, the oldest practice first, so good words rotate.
  *
- * Inside a word, the sentence seen longest ago comes first, and a sentence
- * never seen counts as the oldest.
+ * Inside a word, the sentence seen longest ago in either tab comes first, and
+ * a sentence never seen counts as the oldest.
  */
 export function buildSet(input: QueueInput & { size: number }): SentenceTask[] {
   const { practice, index, tab, size } = input;
@@ -122,13 +163,11 @@ export function buildSet(input: QueueInput & { size: number }): SentenceTask[] {
     });
 
   return ordered.slice(0, Math.max(0, size)).map(({ word }) => {
-    const seen = practiceOf(practice, word, tab)?.seen ?? {};
     const sentenceIds = index[word.simp];
+    const lastView = (sentenceId: string) => lastViewInEitherTab(practice, word, sentenceId);
     // A never-seen sentence sorts as '', before every date. The sort is stable,
     // so a tie keeps the order of the file.
-    const [sentenceId] = [...sentenceIds].sort((a, b) =>
-      (seen[a] ?? '').localeCompare(seen[b] ?? ''),
-    );
+    const [sentenceId] = [...sentenceIds].sort((a, b) => lastView(a).localeCompare(lastView(b)));
     return { word, sentenceId };
   });
 }

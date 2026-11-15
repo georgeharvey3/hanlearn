@@ -81,7 +81,9 @@ const SentencePractice: React.FC<Props> = ({ tab }) => {
   }, [load]);
 
   const empty = phase === 'tasks' && set.length === 0;
-  useFocusMode(phase === 'tasks' && !empty);
+  // The finish screen keeps focus mode, as the Study finish screen does, so its
+  // buttons fit on one phone screen (#501). The empty state keeps the navigation.
+  useFocusMode((phase === 'tasks' && !empty) || phase === 'done');
 
   const advance = useCallback(() => {
     const next = position + 1;

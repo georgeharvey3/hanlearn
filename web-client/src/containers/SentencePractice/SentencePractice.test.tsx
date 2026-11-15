@@ -3,7 +3,13 @@ import React from 'react';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('../../firebase/config', () => ({
+  auth: {},
+  db: {},
+  functions: {},
+  ai: {},
+  analytics: null,
+}));
 vi.mock('howler', () => ({ Howl: vi.fn(), Howler: { ctx: null } }));
 // The audio ends at once, as a short clip does.
 vi.mock('../../services/ttsService', () => ({
@@ -21,14 +27,23 @@ vi.mock('../../services/sentencePracticeService', () => ({
   loadPractice: vi.fn(),
 }));
 vi.mock('../../services/sentenceService', () => ({ getSegmentedSentence: vi.fn() }));
+vi.mock('../../services/dictionaryService', () => ({ searchWord: vi.fn() }));
+vi.mock('../../services/wordService', async () => {
+  const actual = await vi.importActual<Record<string, unknown>>('../../services/wordService');
+  return { ...actual, addWordToList: vi.fn() };
+});
+vi.mock('../../services/analyticsService', () => ({ trackFeatureUsage: vi.fn() }));
 vi.mock('../../services/errorReporting', () => ({ reportError: vi.fn() }));
 
 import SentencePractice from './SentencePractice';
+import { FocusModeProvider } from '../../components/Layout/focusMode';
 import { renderWithProviders, authenticatedState, createTestStore } from '../../test/utils';
 import { loadQueueData } from '../../services/sentenceTabsService';
 import { saveGrade } from '../../services/sentencePracticeService';
 import { getSegmentedSentence } from '../../services/sentenceService';
 import * as ttsService from '../../services/ttsService';
+import { searchWord } from '../../services/dictionaryService';
+import { addWordToList } from '../../services/wordService';
 import { makeDirections } from '../../utils/directions';
 import { Word } from '../../types/models';
 import { PracticeByWord } from '../../utils/sentenceQueue';
@@ -105,13 +120,22 @@ function setQueue(words: Word[], practice: PracticeByWord = {}) {
   });
 }
 
-function renderTab(tab: 'comprehend' | 'compose', sound = true) {
+function renderTab(
+  tab: 'comprehend' | 'compose',
+  sound = true,
+  setFocused: (focused: boolean) => void = () => {},
+) {
   const state = authenticatedState('user-1');
   const store = createTestStore({
     ...state,
     settings: { speechAvailable: sound, synthAvailable: sound },
   });
-  return renderWithProviders(<SentencePractice tab={tab} />, { store });
+  return renderWithProviders(
+    <FocusModeProvider value={setFocused}>
+      <SentencePractice tab={tab} />
+    </FocusModeProvider>,
+    { store },
+  );
 }
 
 beforeEach(() => {
@@ -161,6 +185,25 @@ describe('the Comprehend tab', () => {
     expect(screen.getByRole('button', { name: '学习: show meaning' })).toBeInTheDocument();
   });
 
+  it.each([
+    ['sound on', true],
+    ['sound off', false],
+  ])('names the word above the card only after the reveal, with %s', async (_mode, sound) => {
+    const user = userEvent.setup();
+    setQueue([STUDY]);
+    renderTab('comprehend', sound);
+
+    await screen.findByRole('button', { name: 'Show English' });
+    expect(screen.queryByText(/Sentence with/)).not.toBeInTheDocument();
+    // With sound off the sentence shows the word; nothing outside it may.
+    const outsideSentence = screen.queryAllByText('学习').filter((el) => !el.closest('p'));
+    expect(outsideSentence).toHaveLength(0);
+
+    await user.click(screen.getByRole('button', { name: 'Show English' }));
+
+    expect(screen.getByText(/Sentence with/)).toHaveTextContent('Sentence with 学习');
+  });
+
   it('reads the pinyin of a traditional sentence from its simplified text', async () => {
     const user = userEvent.setup();
     vi.mocked(getSegmentedSentence).mockImplementation(async (_simp, _charSet, id) =>
@@ -182,7 +225,8 @@ describe('the Comprehend tab', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Show text' }));
     await user.click(screen.getByRole('button', { name: '中文: show meaning' }));
-    await user.click(screen.getByRole('button', { name: 'Close' }));
+    // A tap that closes the panel is no lookup.
+    await user.click(screen.getByRole('button', { name: '中文: show meaning' }));
     await user.click(screen.getByRole('button', { name: 'Show English' }));
     await user.click(screen.getByRole('button', { name: 'Wrong' }));
 
@@ -197,6 +241,50 @@ describe('the Comprehend tab', () => {
         revealed: true,
         lookups: 1,
       }),
+    );
+  });
+
+  it('shows the meaning of a tapped word under the sentence, one word at a time', async () => {
+    const user = userEvent.setup();
+    setQueue([STUDY]);
+    renderTab('comprehend', false);
+
+    await user.click(await screen.findByRole('button', { name: '中文: show meaning' }));
+    expect(document.querySelector('[role="dialog"]')).not.toBeInTheDocument();
+    const panel = screen.getByRole('group', { name: '中文' });
+    expect(within(panel).getByText('Zhōng wén')).toBeInTheDocument();
+    expect(within(panel).getByText('Chinese')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '我: show meaning' }));
+    expect(screen.queryByRole('group', { name: '中文' })).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole('group', { name: '我' })).getByText('I · me'),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '我: show meaning' }));
+    expect(screen.queryByRole('group', { name: '我' })).not.toBeInTheDocument();
+  });
+
+  it('plays a word from its panel, and adds it to the list', async () => {
+    const user = userEvent.setup();
+    vi.mocked(searchWord).mockResolvedValue([
+      { id: 7, simp: '中文', trad: '中文', pinyin: 'zhong1 wen2', meaning: 'Chinese' } as Word,
+    ]);
+    vi.mocked(addWordToList).mockResolvedValue(null);
+    setQueue([STUDY]);
+    renderTab('comprehend', false);
+
+    await user.click(await screen.findByRole('button', { name: '中文: show meaning' }));
+    const panel = screen.getByRole('group', { name: '中文' });
+    await user.click(within(panel).getByRole('button', { name: 'Play pronunciation' }));
+    expect(ttsService.speak).toHaveBeenCalledWith('中文', expect.anything());
+
+    await user.click(within(panel).getByRole('button', { name: 'Add to list' }));
+    expect(await within(panel).findByRole('button', { name: 'Added' })).toBeDisabled();
+    expect(addWordToList).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ id: 7 }),
+      expect.anything(),
     );
   });
 
@@ -218,11 +306,28 @@ describe('the Comprehend tab', () => {
     expect(screen.getByText('I 看书 Chinese.')).toBeInTheDocument();
   });
 
+  it('keeps focus mode on for the finish screen', async () => {
+    const user = userEvent.setup();
+    const setFocused = vi.fn();
+    localStorage.setItem('comprehendPerSet', '1');
+    setQueue([STUDY, READ]);
+    renderTab('comprehend', false, setFocused);
+
+    await user.click(await screen.findByRole('button', { name: 'Show English' }));
+    await user.click(screen.getByRole('button', { name: 'Right' }));
+
+    expect(await screen.findByRole('button', { name: 'Back to Dashboard' })).toBeInTheDocument();
+    expect(setFocused).toHaveBeenLastCalledWith(true);
+  });
+
   it('says there is nothing to practise, with a link to Study', async () => {
+    const setFocused = vi.fn();
     setQueue([word(1, '学习', 1)]);
-    renderTab('comprehend');
+    renderTab('comprehend', true, setFocused);
 
     expect(await screen.findByText('Nothing to practise')).toBeInTheDocument();
+    // The empty state keeps the navigation of the app.
+    expect(setFocused).toHaveBeenLastCalledWith(false);
     expect(screen.getByRole('link', { name: 'Go to Study' })).toHaveAttribute(
       'href',
       '/test-words',

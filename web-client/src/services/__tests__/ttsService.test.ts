@@ -48,7 +48,8 @@ describe('ttsService Google TTS failure', () => {
 
   it('reports the failure that switches the session to the native fallback', async () => {
     const error = new Error('functions/internal');
-    mockCallable.mockRejectedValueOnce(error);
+    // Both the first try and the retry fail.
+    mockCallable.mockRejectedValueOnce(error).mockRejectedValueOnce(error);
 
     speak('你好');
     await flush();
@@ -60,7 +61,9 @@ describe('ttsService Google TTS failure', () => {
   });
 
   it('still falls back to the native speech synthesis', async () => {
-    mockCallable.mockRejectedValueOnce(new Error('functions/internal'));
+    mockCallable
+      .mockRejectedValueOnce(new Error('functions/internal'))
+      .mockRejectedValueOnce(new Error('functions/internal'));
     const speakSpy = vi.spyOn(window.speechSynthesis, 'speak');
 
     speak('你好世界');

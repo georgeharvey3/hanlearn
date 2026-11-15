@@ -26,8 +26,8 @@ const WIDE_CHROME = 2 * DESKTOP_GUTTER;
  * middle of the screen goes in a `StudyBody`, which scrolls on its own, so the
  * session bar and the actions stay in view.
  *
- * A `fixed` screen is exactly the window's height on a phone too: the summary
- * scrolls its own list between the bar and the buttons at every size.
+ * A `fixed` screen is exactly the window's height on a phone too. The Test
+ * and the summary use it, and each scrolls its own middle at every size.
  */
 const StudyScreen: React.FC<{ fixed?: boolean; children: React.ReactNode }> = ({
   fixed,

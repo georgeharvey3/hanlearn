@@ -221,8 +221,8 @@ export const PlayButton: React.FC<{
 export type CardSize = 'large' | 'medium' | 'small';
 
 interface StudyCardProps {
-  /** The fixed height of the card, in pixels, or undefined to fit the content. */
-  height?: number;
+  /** The least height of the card, in pixels or a CSS length, or undefined to fit the content. */
+  height?: number | string;
   /** The lapse marker: the question can no longer count as known. */
   lapse?: boolean;
   /** A control pinned to a top corner, such as the pronunciation button. */

@@ -242,13 +242,11 @@ export const useTestEngine = (props: Props) => {
 
   // --- Input handling ---
 
+  // The test screen is locked to the window (useLockedScroll), so focusing the
+  // field no longer scrolls the page to the prompt.
   const onFocusEntry = useCallback((e: React.FocusEvent<HTMLInputElement>): void => {
     e.preventDefault();
     e.stopPropagation();
-    const el = document.getElementById('q-phrase-box');
-    if (el) {
-      window.scrollTo(0, el.offsetTop - 5);
-    }
   }, []);
 
   const onInputChanged = useCallback(

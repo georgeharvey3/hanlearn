@@ -319,10 +319,10 @@ describe('useTestEngine — spacebar ignored when test is finished', () => {
 });
 
 // ---------------------------------------------------------------------------
-// onFocusEntry scrolls to q-phrase-box
+// onFocusEntry leaves the page where it is: the test screen is locked
 // ---------------------------------------------------------------------------
-describe('useTestEngine — onFocusEntry scrolls to q-phrase-box', () => {
-  it('calls window.scrollTo when q-phrase-box element exists', () => {
+describe('useTestEngine — onFocusEntry does not scroll the page', () => {
+  it('does not call window.scrollTo', () => {
     const el = document.createElement('div');
     el.id = 'q-phrase-box';
     Object.defineProperty(el, 'offsetTop', { value: 200 });
@@ -341,7 +341,8 @@ describe('useTestEngine — onFocusEntry scrolls to q-phrase-box', () => {
       result.current.onFocusEntry(fakeEvent);
     });
 
-    expect(scrollToSpy).toHaveBeenCalledWith(0, 195);
+    expect(scrollToSpy).not.toHaveBeenCalled();
+    scrollToSpy.mockRestore();
     document.body.removeChild(el);
   });
 });

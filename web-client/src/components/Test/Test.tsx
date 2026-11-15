@@ -5,7 +5,8 @@ import { connect } from 'react-redux';
 import { Box } from '@mui/material';
 
 import StudyTop from './Study/StudyTop';
-import StudyScreen, { StudyBody } from './Study/StudyScreen';
+import StudyScreen from './Study/StudyScreen';
+import { useLockedScroll } from './Study/useLockedScroll';
 import { Prompt, StatusLine, StatusTone } from './Study/parts';
 import QuestionDisplay from './QuestionDisplay';
 import AnswerInput from './AnswerInput';
@@ -82,6 +83,8 @@ const Test: React.FC<Props> = (props) => {
     [refreshSettings],
   );
 
+  useLockedScroll();
+
   const { history } = props;
   const onEnd = useCallback(() => history.push('/'), [history]);
 
@@ -92,7 +95,7 @@ const Test: React.FC<Props> = (props) => {
   const compact = state.componentReviewChars.length > 0;
 
   return (
-    <StudyScreen>
+    <StudyScreen fixed>
       <StudyTop
         stage={copy.study.stageTest}
         done={answeredCount}
@@ -100,7 +103,22 @@ const Test: React.FC<Props> = (props) => {
         onEnd={onEnd}
         onSettings={() => setSettingsDrawerOpen(true)}
       />
-      <StudyBody>
+      {/* Everything between the bar and the buttons shares the room left. The
+          buttons stay on screen; this part scrolls only if a reveal cannot fit. */}
+      <Box
+        data-testid="test-body"
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflowY: 'auto',
+          overscrollBehavior: 'contain',
+          mx: -2,
+          px: 2,
+          pb: 1,
+        }}
+      >
         <Prompt sx={compact ? { mt: 2, mb: 1.25 } : undefined}>
           {copy.test.promptBefore}
           <em>{state.answerCategory}</em>
@@ -143,18 +161,20 @@ const Test: React.FC<Props> = (props) => {
             onListen={onListen}
           />
         )}
-      </StudyBody>
-      <TestActions
-        state={state}
-        onIDontKnow={onIDontKnow}
-        onHint={onHint}
-        onShowAnswer={onShowAnswer}
-        onCorrectAnswer={onCorrectAnswer}
-        onNearlyKnew={onNearlyKnew}
-        onSubmitAnswer={onSubmitAnswer}
-        onContinue={onContinue}
-        onCountAsKnown={onCountAsKnown}
-      />
+      </Box>
+      <Box sx={{ flexShrink: 0, pt: 1.5 }}>
+        <TestActions
+          state={state}
+          onIDontKnow={onIDontKnow}
+          onHint={onHint}
+          onShowAnswer={onShowAnswer}
+          onCorrectAnswer={onCorrectAnswer}
+          onNearlyKnew={onNearlyKnew}
+          onSubmitAnswer={onSubmitAnswer}
+          onContinue={onContinue}
+          onCountAsKnown={onCountAsKnown}
+        />
+      </Box>
       <AudioSettingsDrawer
         open={settingsDrawerOpen}
         onClose={handleSettingsClose}

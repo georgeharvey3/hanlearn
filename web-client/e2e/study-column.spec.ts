@@ -67,25 +67,19 @@ test.describe('Study column', () => {
     expect(await pageScrolls(page)).toBe(false);
   });
 
-  test('scrolls only its middle when the content is taller than the window', async ({ page }) => {
+  test('keeps the session bar and the actions in view in a short window', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 420 });
     const testPage = await openTest(page);
 
-    const body = page.getByTestId('study-body');
-    expect(await body.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
     expect(await pageScrolls(page)).toBe(false);
     await expect(page.getByRole('button', { name: 'End session' })).toBeInViewport();
     await expect(testPage.showAnswerButton).toBeInViewport();
   });
 
-  test('fills the window on a phone, and the page scrolls as before', async ({ page }) => {
+  test('fills the window on a phone', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openTest(page);
 
-    expect(await columnHeight(page)).toBeGreaterThanOrEqual(844);
-    const overflow = await page
-      .getByTestId('study-body')
-      .evaluate((el) => getComputedStyle(el).overflowY);
-    expect(overflow).toBe('visible');
+    expect(await columnHeight(page)).toBe(844);
   });
 });

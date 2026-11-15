@@ -176,7 +176,16 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
   const failed = state.outcome === 'fail';
   const compact = state.componentReviewChars.length > 0;
   const size: CardSize = compact ? 'small' : revealed && failed ? 'medium' : 'large';
-  const height = compact ? 170 : flashcard ? 340 : state.answerCategory === 'character' ? 132 : 280;
+  const tallest = compact
+    ? 170
+    : flashcard
+      ? 340
+      : state.answerCategory === 'character'
+        ? 132
+        : 280;
+  // The test screen is one window tall, so on a short phone the card gives up
+  // room before the buttons are pushed off the foot.
+  const height = `min(${tallest}px, ${Math.round((tallest / 844) * 100)}dvh)`;
   const lapse = state.gradeCap === 'lapse' || state.outcome === 'lapse';
   const asked = (category: string) => state.answerCategory === category;
   // The asked part of a reveal: red when it was not known, bold on a flashcard.
@@ -405,7 +414,12 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
       height={height}
       lapse={lapse}
       corner={corner}
-      sx={{ gap: compact ? 0.75 : revealed ? 1.5 : 2.25 }}
+      sx={{
+        gap: compact ? 0.75 : revealed ? 1.5 : 2.25,
+        // Clear the corner button (8px inset + 44px wide) on both sides, so the
+        // text stays centred and never runs under the button.
+        ...(corner && { px: '52px' }),
+      }}
     >
       {content}
     </StudyCard>
