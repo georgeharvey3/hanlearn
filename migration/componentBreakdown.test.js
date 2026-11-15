@@ -19,11 +19,16 @@ const strokeCounts = JSON.parse(
   fs.readFileSync(path.join(SOURCE, 'stroke-counts.json'), 'utf8'),
 ).counts;
 
+/** The first and last point of each stroke's median line, from the same stroke data. */
+const strokeEnds = JSON.parse(
+  fs.readFileSync(path.join(SOURCE, 'stroke-ends.json'), 'utf8'),
+).ends;
+
 /** A few building blocks with a label, as the labels file of #531 holds them. */
 const LABELS = { 口: 'mouth', 匕: 'spoon', 矢: 'arrow', 木: 'tree', 身: 'body', 寸: 'hand' };
 
 const breakdown = (char, labels = { labels: LABELS }) =>
-  breakdownOf(breakdownContext({ entries, strokeCounts, labels }), char);
+  breakdownOf(breakdownContext({ entries, strokeCounts, strokeEnds, labels }), char);
 
 /** The characters of a list of parts, null for an unnamed piece. */
 const charsOf = (parts) => parts.map((part) => part.c);
@@ -109,6 +114,22 @@ describe('breakdownOf', () => {
     expect(context.mismatches).toEqual(['斤 > 下: 2 strokes, the stroke data 3']);
   });
 
+  it('does not split a part whose strokes in the parent have another shape', () => {
+    // The left side of 難 is the variant 𦰩, with 大 at the bottom. The data
+    // calls it 堇, whose bottom is 土, and both have 11 strokes.
+    const context = breakdownContext({ entries, strokeCounts, strokeEnds, labels: {} });
+    const hard = breakdownOf(context, '難');
+    expect(charsOf(hard.p)).toEqual(['堇', '隹']);
+    expect(hard.p[0].p).toBeUndefined();
+    expect(context.mismatches).toContain('難 > 堇: the strokes have another shape');
+  });
+
+  it('splits a part whose strokes in the parent have its own shape', () => {
+    const only = breakdown('僅', { labels: {} });
+    expect(charsOf(only.p)).toEqual(['亻', '堇']);
+    expect(charsOf(only.p[1].p)).toEqual(['黄', '土']);
+  });
+
   it('makes loose strokes a piece of their own when the decomposition has no unnamed piece', () => {
     const data = new Map([
       ['甲', { character: '甲', decomposition: '⿰口口', matches: [[0], [0], [0], null, [1], [1], [1]] }],
@@ -124,6 +145,18 @@ describe('breakdownOf', () => {
 });
 
 describe('buildBreakdowns', () => {
+  it('checks the shape of each part against the stroke ends', () => {
+    const { files, mismatches } = buildBreakdowns({
+      chars: ['難'],
+      entries,
+      strokeCounts,
+      strokeEnds,
+      labels: {},
+    });
+    expect(files[breakdownFileName('難')].p[0].p).toBeUndefined();
+    expect(mismatches).toContain('難 > 堇: the strokes have another shape');
+  });
+
   it('fills every part with a fallback label when the labels file is empty', () => {
     const chars = [...'礙射脑好我们是的中国人'];
     const result = buildBreakdowns({ chars, entries, strokeCounts, labels: {} });
