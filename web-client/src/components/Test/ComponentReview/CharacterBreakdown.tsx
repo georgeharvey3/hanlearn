@@ -127,19 +127,17 @@ const CharacterBreakdown: React.FC<{ char: string }> = ({ char }) => {
   const levelPath = focus.p ? path : path.slice(0, -1);
   const level = nodeAt(top, levelPath);
   const parts = level.p!;
-  const selected = focus.p ? null : path[path.length - 1];
-  const lit = (index: number) => selected === null || selected === index;
+  // The index of the focus among the chips, when the focus does not split.
+  const leaf = focus.p ? null : path[path.length - 1];
+  const lit = (index: number) => leaf === null || leaf === index;
 
   const partOfStroke = new Map<number, number>();
   parts.forEach((part, index) => part.s.forEach((stroke) => partOfStroke.set(stroke, index)));
-  const isFaded = (stroke: number) => {
-    const part = partOfStroke.get(stroke);
-    return part === undefined ? path.length > 0 : !lit(part);
-  };
-  const inkOfStroke = (stroke: number) => {
+  /** The ink of a stroke, or null when it fades. */
+  const inkOfStroke = (stroke: number): string | null => {
     const part = partOfStroke.get(stroke);
     if (part !== undefined && lit(part)) return inkOf(part);
-    return path.length > 0 ? colors.divider : colors.text;
+    return path.length > 0 ? null : colors.text;
   };
   const tapStroke = (stroke: number) => {
     const next = pathOfStroke(top, path, stroke);
@@ -158,9 +156,9 @@ const CharacterBreakdown: React.FC<{ char: string }> = ({ char }) => {
         {strokes.map((d, stroke) => (
           <path
             key={stroke}
-            data-testid={isFaded(stroke) ? 'stroke-faded' : undefined}
+            data-testid={inkOfStroke(stroke) === null ? 'stroke-faded' : undefined}
             d={d}
-            fill={inkOfStroke(stroke)}
+            fill={inkOfStroke(stroke) ?? colors.divider}
           />
         ))}
         {/* Two tap layers. The wide halos lie under the exact outlines, so a
@@ -191,13 +189,13 @@ const CharacterBreakdown: React.FC<{ char: string }> = ({ char }) => {
           <ButtonBase
             key={`${levelPath.join('.')}-${index}`}
             aria-label={part.c ?? copy.test.noPartName}
-            aria-pressed={selected === index}
+            aria-pressed={leaf === index}
             onClick={() => setPath([...levelPath, index])}
             sx={{
               width: 44,
               height: 44,
               borderRadius: 1,
-              border: `2px solid ${selected === index ? inkOf(index) : colors.divider}`,
+              border: `2px solid ${leaf === index ? inkOf(index) : colors.divider}`,
               bgcolor: colors.card,
             }}
           >
