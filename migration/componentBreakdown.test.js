@@ -61,8 +61,12 @@ describe('breakdownOf', () => {
     const stone = breakdown('礙').p[0];
     expect(charsOf(stone.p)).toEqual(['厂', '口']);
     expect(stone.p[1].p).toBeUndefined();
-    expect(breakdown('口').p).toBeNull();
-    expect(charsOf(breakdown('口', { labels: {} }).p)).toEqual(['冂', '一']);
+  });
+
+  it('splits the top character even when it has a label', () => {
+    const labels = { labels: { ...LABELS, 射: 'shoot' } };
+    expect(charsOf(breakdown('射', labels).p)).toEqual(['身', '寸']);
+    expect(charsOf(breakdown('口').p)).toEqual(['冂', '一']);
   });
 
   it('gives 射 as 身 + 寸', () => {
@@ -172,6 +176,19 @@ describe('buildBreakdowns', () => {
     expect(Object.keys(result.files)).toEqual(['7919']);
     expect(result.files['7919'].c).toBe('礙');
     expect(result.missing).toEqual(['A']);
+  });
+
+  it('lists the parts that the labels file does not label', () => {
+    const stops = { 石: 'stone', 匕: 'spoon', 矢: 'arrow', 疋: 'roll' };
+    const partly = buildBreakdowns({ chars: ['礙'], entries, strokeCounts, labels: { labels: stops } });
+    expect(partly.fallback).toEqual(['疑']);
+    const fully = buildBreakdowns({
+      chars: ['礙'],
+      entries,
+      strokeCounts,
+      labels: { labels: { ...stops, 疑: 'doubt' } },
+    });
+    expect(fully.fallback).toEqual([]);
   });
 
   it('lists the parts with no label in any source', () => {

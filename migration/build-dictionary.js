@@ -294,6 +294,7 @@ function buildComponentBreakdowns(catalogue, outputDir) {
       result.mismatches.length,
   );
   console.log('Parts with no label in any source: ' + result.unlabelled.join(' '));
+  console.log('Parts that still use the fallback label: ' + result.fallback.length);
 }
 
 /**
