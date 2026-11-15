@@ -35,6 +35,8 @@ export interface Breakdown {
  */
 const files = new Map<string, Promise<Breakdown>>();
 
+// The 404 and Content-Type rules are the ones of fetchFile in sentenceService.ts.
+// A change to the SPA rewrite on Hosting changes both.
 async function fetchBreakdown(char: string): Promise<Breakdown> {
   const name = char.codePointAt(0)!.toString(16);
   const response = await fetch(`/breakdowns/${name}.json`);

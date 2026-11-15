@@ -5,7 +5,7 @@ import { reportError } from '../../../services/errorReporting';
 import { loadCharData } from '../../../utils/charDataLoader';
 
 /** The outlines of the strokes of a character, from the Hanzi Writer data. */
-export interface StrokeData {
+interface StrokeData {
   strokes: string[];
 }
 

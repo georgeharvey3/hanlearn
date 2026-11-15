@@ -213,6 +213,17 @@ describe('ComponentReview', () => {
     expect(await screen.findByText('No components')).toBeInTheDocument();
   });
 
+  it('offers a retry when the stroke data does not load', async () => {
+    mockedLoadCharData.mockImplementationOnce((_char, _onLoad, onError) =>
+      onError(new Error('offline')),
+    );
+    render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+
+    expect(await screen.findByRole('button', { name: '石' })).toBeInTheDocument();
+  });
+
   it('offers a retry when the breakdown does not load', async () => {
     mockedBreakdownOf.mockRejectedValueOnce(new Error('offline'));
     render(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);

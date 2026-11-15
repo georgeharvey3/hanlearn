@@ -104,24 +104,29 @@ const CharacterBreakdown: React.FC<{ char: string }> = ({ char }) => {
         {strokes.map((d, stroke) => (
           <path key={stroke} d={d} fill={inkOfStroke(stroke)} />
         ))}
-        {strokes.map((d, stroke) => {
-          const part = partOfStroke.get(stroke);
-          if (part === undefined) return null;
-          return (
-            <path
-              key={`hit-${stroke}`}
-              data-testid="stroke-hit"
-              d={d}
-              fill="transparent"
-              stroke="transparent"
-              strokeWidth={HIT_WIDTH}
-              strokeLinejoin="round"
-              pointerEvents="all"
-              style={{ cursor: 'pointer' }}
-              onClick={() => setSelected(part)}
-            />
-          );
-        })}
+        {/* Two tap layers. The wide halos lie under the exact outlines, so a
+            tap on a stroke itself always selects its own part, and a halo
+            only takes a tap in the gap between strokes. */}
+        {(['halo', 'core'] as const).map((layer) =>
+          strokes.map((d, stroke) => {
+            const part = partOfStroke.get(stroke);
+            if (part === undefined) return null;
+            return (
+              <path
+                key={`${layer}-${stroke}`}
+                data-testid={layer === 'halo' ? 'stroke-hit' : undefined}
+                d={d}
+                fill="transparent"
+                stroke={layer === 'halo' ? 'transparent' : 'none'}
+                strokeWidth={layer === 'halo' ? HIT_WIDTH : undefined}
+                strokeLinejoin="round"
+                pointerEvents="all"
+                style={{ cursor: 'pointer' }}
+                onClick={() => setSelected(part)}
+              />
+            );
+          }),
+        )}
       </Strokes>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1 }}>
         {parts.map((part, index) => (
