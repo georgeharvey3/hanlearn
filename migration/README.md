@@ -82,6 +82,38 @@ The build also prints a coverage report. The report lists each HSK word that has
 
 The build stops on a gloss override that names no entry, on a malformed record, on a generated sentence that fails the grader, and on a sentence file over 2 MB. It does not stop on low coverage.
 
+## Component Breakdown Build
+
+`npm run build:dict` writes one component breakdown file for each character of the HSK words (#528). The file holds the tree of the parts of the character, the strokes of each part, the meaning clue and the sound clue, and a label for each part. The source is Make Me a Hanzi, the data behind Hanzi Writer.
+
+The committed sources are in `components/`:
+
+- `components/source/dictionary.txt`, `COPYING` and `LGPL`: Make Me a Hanzi at one pinned commit. `dictionary.txt` is LGPL 3.0 or later.
+- `components/source/stroke-counts.json`: the stroke count of each character in `hanzi-writer-data@2.0.1`, the stroke data that the app loads.
+- `components/labels.json`: the labels file. `labels` gives the label of a part, and a part with a label does not split. `groups` names a group that is a real character (`⿱亠凶` is 㐫). `pieces` names an unnamed piece of one character by its path in the decomposition (the `1.2` of 赢 is 凡). An empty file is legal.
+
+`npm --prefix migration run fetch:makemeahanzi` downloads the sources again. The build uses no network. The rules are pure, in `componentBreakdown.js`.
+
+The tree follows three rules (#527):
+
+- A group with no name of its own is not a step. Its pieces join the split directly, so 疑 is 匕 + 矢 + an unnamed piece + 疋.
+- Splitting stops at a part with a label in the labels file, so 口 does not split into 冂 + 一.
+- An unnamed piece never stops a split. It is a part with no character and no label.
+
+A part with no entry in the labels file takes the first sense of its Make Me a Hanzi definition, then the first sense of its CC-CEDICT entry. The build prints each part character that has no label in any source.
+
+The build stops when Make Me a Hanzi and the Hanzi Writer stroke data give a different stroke count for an HSK character. The data often gives a part fewer strokes than the part has alone: 斤 holds a 下 of 2 strokes. Such a part keeps its strokes and its label, but it does not split. The build prints the number of these parts.
+
+The build writes these files to `web-client/public/breakdowns/`. They are build output, and git ignores them:
+
+| File | Contents |
+|---|---|
+| `<code point>.json` | The breakdown of one character. `7919.json` holds 礙. |
+| `ATTRIBUTION.txt` | The source of the files and the Make Me a Hanzi notice |
+| `LICENSE.txt` | The licence of the files: LGPL 3.0, with the Unihan notice |
+
+Each file is `{ c, p }`: the character and its parts, or `p: null` when it does not split. Each part is `{ c, s, l, y?, r?, p? }`. `c` is the character (null for an unnamed piece), `s` the stroke indices in the top character, and `l` the label. `y` is the pinyin, `r` is `meaning` or `sound`, and `p` holds the parts of the part.
+
 ## Reported Sentences
 
 A learner can report a bad sentence from the sentence stages (#469). Each report goes to `users/{userId}/sentenceReports/{sentenceId}`.
