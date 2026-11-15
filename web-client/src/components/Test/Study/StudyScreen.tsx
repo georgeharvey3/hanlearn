@@ -2,7 +2,7 @@ import React from 'react';
 import { Box } from '@mui/material';
 
 import { colors, fonts } from '../../../theme';
-import { DESKTOP_GUTTER } from '../../Layout/Layout';
+import { DESKTOP_GUTTER } from '../../Layout/gutter';
 
 /** The tallest a study screen is on a wide screen: the height of a phone. */
 const STUDY_MAX_HEIGHT = 844;

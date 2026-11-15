@@ -7,6 +7,7 @@ import { useTheme } from '@mui/material/styles';
 import Toolbar, { TOP_BAR_HEIGHT } from '../Navigation/Toolbar/Toolbar';
 import TabBar, { TAB_BAR_HEIGHT } from '../Navigation/TabBar/TabBar';
 import Sidebar, { SIDEBAR_WIDTH } from '../Navigation/Sidebar/Sidebar';
+import { DESKTOP_GUTTER } from './gutter';
 import NotificationSnackbar from '../NotificationSnackbar/NotificationSnackbar';
 import SkipLink from './SkipLink';
 import { FocusModeProvider } from './focusMode';
@@ -37,9 +38,6 @@ const writeCollapsed = (collapsed: boolean): void => {
 interface Props {
   children?: ReactNode;
 }
-
-/** The main area's padding on a wide screen, on every side. */
-export const DESKTOP_GUTTER = 32;
 
 /**
  * The frame round every page. A phone gets a slim top bar and a bottom tab
