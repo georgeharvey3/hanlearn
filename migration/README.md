@@ -125,11 +125,11 @@ Each file is `{ c, p }`: the character and its parts, or `p: null` when it does 
 
 ## Reported Part Meanings
 
-A learner can report a wrong part meaning from the line of a tapped part in the breakdown (#533). Each report goes to `users/{userId}/partReports/{reportId}`. The report holds the character, the part, the stroke indices of the part and the label that the line showed. The part and the label are null for a piece with no name of its own.
+A learner can report a wrong part meaning from the line of a tapped part in the breakdown (#533). Each report goes to `users/{userId}/partReports/{reportId}`. The report holds the character, the parent, the part, the stroke indices of the part and the label that the line showed. The parent is the character directly above the part. The part and the label are null for a piece with no name of its own.
 
 1. Run `node export-part-reports.js`. It writes `part-reports.csv`, with one row for each report. The rows of one part are together.
-2. For a wrong label, change the label of the part in `components/labels.json`.
-3. For a piece with no name of its own, add the piece to `pieces` in `components/labels.json`. The `char` and `strokes` columns find the piece.
+2. For a wrong label, set the label of the part in `labels` in `components/labels.json`. Many labels come from Make Me a Hanzi and are not in the file yet. A part with a label in the file does not split.
+3. For a piece with no name of its own, add the piece to `pieces` in `components/labels.json`, under the parent. The `strokes` column finds the piece in `char`.
 4. Run `npm run build:dict`.
 
 The script needs `service-account.json`, the same as `export-review-log.js`. Git ignores the CSV file. The rows are pure, in `partReportCsv.js`.

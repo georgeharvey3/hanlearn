@@ -5,10 +5,11 @@
  * Pure: export-part-reports.js reads the documents with the Admin SDK and
  * writes the file. The rows of one part sit together, so a person can fix its
  * label in `components/labels.json` once. A piece with no name of its own has
- * an empty part and label; `char` and `strokes` find it.
+ * an empty part and label. The labels file names it under `parent`, and
+ * `strokes` finds it in `char`.
  */
 
-const PART_REPORT_COLUMNS = ['part', 'label', 'char', 'strokes', 'reportedAt'];
+const PART_REPORT_COLUMNS = ['part', 'label', 'parent', 'char', 'strokes', 'reportedAt'];
 
 /** One CSV field: quoted when it holds a comma, a quote or a line break. */
 const field = (value) => {
@@ -18,12 +19,13 @@ const field = (value) => {
 
 const compare = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
-/** The rows of the report documents: by part, then by character, then oldest first. */
+/** The rows of the report documents: by part, by parent, by character, then oldest first. */
 function partReportRows(reports) {
   return reports
     .map((report) => ({
       part: report.part ?? '',
       label: report.label ?? '',
+      parent: report.parent,
       char: report.char,
       strokes: report.strokes.join(' '),
       reportedAt: report.reportedAt?.toDate?.().toISOString() ?? '',
@@ -31,6 +33,7 @@ function partReportRows(reports) {
     .sort(
       (a, b) =>
         compare(a.part, b.part) ||
+        compare(a.parent, b.parent) ||
         compare(a.char, b.char) ||
         compare(a.reportedAt, b.reportedAt),
     );

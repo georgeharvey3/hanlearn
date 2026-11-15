@@ -336,6 +336,7 @@ describe('ComponentReview', () => {
 
       expect(mockedReportPart).toHaveBeenCalledWith('user-1', {
         char: '礙',
+        parent: '疑',
         part: '矢',
         strokes: [7, 8, 9, 10, 11],
         label: 'arrow',
@@ -356,6 +357,7 @@ describe('ComponentReview', () => {
 
       expect(mockedReportPart).toHaveBeenCalledWith('user-1', {
         char: '疑',
+        parent: '疑',
         part: null,
         strokes: [7, 8],
         label: null,

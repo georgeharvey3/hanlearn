@@ -6,6 +6,11 @@
 export interface PartReport {
   /** The character that the breakdown split: the top of the tree. */
   char: string;
+  /**
+   * The character directly above the part: `char` for a part of the first
+   * split. The labels file names an unnamed piece under this character.
+   */
+  parent: string;
   /** The character of the part; null for a piece with no name of its own. */
   part: string | null;
   /** The stroke indices of the part, in the strokes of `char`. They name the part in `char`. */
@@ -31,6 +36,7 @@ export function partReportId(report: PartReport): string {
 export function partReportDocument<T>(report: PartReport, reportedAt: T) {
   return {
     char: report.char,
+    parent: report.parent,
     part: report.part,
     strokes: report.strokes,
     label: report.label,

@@ -19,8 +19,8 @@ type Status = 'idle' | 'sent' | 'failed';
 
 /**
  * One tap saves a report, and the label says that it is saved. Give the
- * button a `key` of the thing that it reports, so that the next thing starts
- * unreported.
+ * button, or a parent of it, a `key` of the thing that it reports, so that
+ * the next thing starts unreported.
  */
 const ReportButton: React.FC<Props> = ({ send, labels, feature, context, sx }) => {
   const [status, setStatus] = useState<Status>('idle');

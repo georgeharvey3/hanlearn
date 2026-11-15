@@ -139,9 +139,9 @@ users/{userId}/
   │       mode: 'audio' | 'text', answer? (Compose only), answerMs, revealed, lookups
   ├── sentenceReports/{sentenceId} # One report of a bad example sentence (#469)
   │   └── sentenceId, word, stage: 'read' | 'write', sentence, english, reportedAt
-  ├── partReports/{reportId}     # One report of a wrong part meaning (#533); the id is
+  ├── partReports/{reportId}     # One report of a wrong part meaning (#533). The id is
   │   │                          # the hex code point of the character, then the strokes
-  │   └── char, part: string | null, strokes: number[], label: string | null, reportedAt
+  │   └── char, parent, part: string | null, strokes: number[], label: string | null, reportedAt
   └── reviewLog/{autoId}         # One document per saved session, write-once (#397)
       ├── version: 2, date: string, reviewedAt: Timestamp  # 1 before #396: `hint` was free
       ├── scheduler: string      # The weights in use: 'fsrs-6-default'

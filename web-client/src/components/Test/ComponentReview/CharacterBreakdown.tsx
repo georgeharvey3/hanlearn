@@ -27,8 +27,15 @@ const Strokes: React.FC<{ size: number; children: React.ReactNode }> = ({ size, 
   </svg>
 );
 
-/** The line of the tapped part. `char` is the top character, whose strokes `part.s` counts in. */
-const PartLine: React.FC<{ char: string; part: BreakdownPart }> = ({ char, part }) => (
+/**
+ * The line of the tapped part. `char` is the top character, whose strokes
+ * `part.s` counts in, and `parent` the character directly above the part.
+ */
+const PartLine: React.FC<{ char: string; parent: string; part: BreakdownPart }> = ({
+  char,
+  parent,
+  part,
+}) => (
   <Box
     data-testid="part-line"
     aria-live="polite"
@@ -56,7 +63,7 @@ const PartLine: React.FC<{ char: string; part: BreakdownPart }> = ({ char, part 
       </Box>
     )}
     {!part.p && <Box sx={{ color: colors.textSecondary }}>{copy.test.smallestPart}</Box>}
-    <ReportPartButton report={{ char, part: part.c, strokes: part.s, label: part.l }} />
+    <ReportPartButton report={{ char, parent, part: part.c, strokes: part.s, label: part.l }} />
   </Box>
 );
 
@@ -211,7 +218,9 @@ const CharacterBreakdown: React.FC<{ char: string }> = ({ char }) => {
         ))}
       </Box>
       {/* The key starts the report of each part unsent. */}
-      {path.length > 0 && <PartLine key={path.join('.')} char={char} part={focus} />}
+      {parent && (
+        <PartLine key={path.join('.')} char={char} parent={parent.c ?? char} part={focus} />
+      )}
       {parent && (
         <Box sx={{ display: 'flex', gap: 2 }}>
           <ButtonBase onClick={() => setPath(path.slice(0, -1))} sx={link}>

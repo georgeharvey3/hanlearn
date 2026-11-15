@@ -684,6 +684,7 @@ describe("partReports", () => {
   // The 矢 of 疑 inside 礙, as the line of the tapped part reports it.
   const arrow: PartReport = {
     char: "礙",
+    parent: "疑",
     part: "矢",
     strokes: [7, 8, 9, 10, 11],
     label: "arrow",
@@ -699,13 +700,33 @@ describe("partReports", () => {
   });
 
   it("accepts the report of a piece with no name of its own", async () => {
-    const piece: PartReport = { char: "疑", part: null, strokes: [7, 8], label: null };
+    const piece: PartReport = {
+      char: "疑",
+      parent: "疑",
+      part: null,
+      strokes: [7, 8],
+      label: null,
+    };
     await assertSucceeds(setDoc(ref(db, path(piece)), report(piece)));
   });
 
-  it("accepts a part outside the Basic Multilingual Plane", async () => {
-    const side: PartReport = { char: "難", part: "𦰩", strokes: [0, 1, 2], label: "clay" };
+  it("accepts characters outside the Basic Multilingual Plane", async () => {
+    const side: PartReport = {
+      char: "𠀀",
+      parent: "𦰩",
+      part: "𠀁",
+      strokes: [0, 1, 2],
+      label: "clay",
+    };
     await assertSucceeds(setDoc(ref(db, path(side)), report(side)));
+  });
+
+  it("accepts the strokes of a large part", async () => {
+    const big: PartReport = {
+      ...arrow,
+      strokes: Array.from({ length: 30 }, (_, i) => i),
+    };
+    await assertSucceeds(setDoc(ref(db, path(big)), report(big)));
   });
 
   it("accepts a second report of the same part", async () => {
@@ -721,6 +742,7 @@ describe("partReports", () => {
     await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { strokes: [] })));
     await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { label: 3 })));
     await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { char: "" })));
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { parent: null })));
   });
 
   it("rejects an id that is not a character and its strokes", async () => {

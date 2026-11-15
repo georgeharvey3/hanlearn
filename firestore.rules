@@ -230,16 +230,20 @@ service cloud.firestore {
         allow read: if request.auth != null && request.auth.uid == userId;
         allow create, update: if request.auth != null && request.auth.uid == userId
           && reportId.matches('[0-9a-f]+-[0-9]+([.][0-9]+)*')
-          && request.resource.data.keys().hasOnly(['char', 'part', 'strokes', 'label', 'reportedAt'])
-          && request.resource.data.keys().hasAll(['char', 'part', 'strokes', 'label', 'reportedAt'])
+          && request.resource.data.keys().hasOnly(['char', 'parent', 'part', 'strokes', 'label', 'reportedAt'])
+          && request.resource.data.keys().hasAll(['char', 'parent', 'part', 'strokes', 'label', 'reportedAt'])
           && request.resource.data.char is string
           && request.resource.data.char.size() > 0
           && request.resource.data.char.size() <= 4
+          && request.resource.data.parent is string
+          && request.resource.data.parent.size() > 0
+          && request.resource.data.parent.size() <= 4
           && (request.resource.data.part == null
             || (request.resource.data.part is string && request.resource.data.part.size() <= 4))
           && request.resource.data.strokes is list
           && request.resource.data.strokes.size() > 0
           && request.resource.data.strokes.size() <= 64
+          // A rule cannot test each element of a list: the first stands for all.
           && request.resource.data.strokes[0] is int
           && (request.resource.data.label == null
             || (request.resource.data.label is string && request.resource.data.label.size() <= 200))
