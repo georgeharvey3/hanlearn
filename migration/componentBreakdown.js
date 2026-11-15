@@ -260,14 +260,18 @@ const breakdownFileName = (char) => char.codePointAt(0).toString(16);
  * Gives the files by name, the characters with no data, the parts whose
  * strokes disagree with their own stroke count, and the part characters that
  * no source gives a label (⺈ has no definition): the labels file needs them.
+ * Also gives the labels of parts that are in no tree (`unused`): a typo, or a
+ * part that only shows inside a part that a label stops.
  */
 function buildBreakdowns({ chars, entries, strokeCounts, labels }) {
   const context = breakdownContext({ entries, strokeCounts, labels });
   const files = {};
   const missing = [];
   const unlabelled = new Set();
+  const seen = new Set();
   const collect = (parts) => {
     for (const part of parts ?? []) {
+      if (part.c !== null) seen.add(part.c);
       if (part.c !== null && part.l === null) unlabelled.add(part.c);
       collect(part.p);
     }
@@ -281,7 +285,14 @@ function buildBreakdowns({ chars, entries, strokeCounts, labels }) {
     collect(breakdown.p);
     files[breakdownFileName(char)] = breakdown;
   }
-  return { files, missing, mismatches: context.mismatches, unlabelled: [...unlabelled].sort() };
+  const unused = Object.keys(context.labels).filter((char) => !seen.has(char)).sort();
+  return {
+    files,
+    missing,
+    mismatches: context.mismatches,
+    unlabelled: [...unlabelled].sort(),
+    unused,
+  };
 }
 
 module.exports = {

@@ -152,6 +152,34 @@ describe('buildBreakdowns', () => {
     });
     expect(filled.unlabelled).toEqual([]);
   });
+
+  it('lists the labels of parts that are in no tree', () => {
+    const labels = { labels: { 口: 'mouth', 冂: 'down box', 水: 'water' } };
+    const result = buildBreakdowns({ chars: ['礙'], entries, strokeCounts, labels });
+    expect(result.unused).toEqual(['冂', '水']);
+  });
+});
+
+describe('the committed labels file', () => {
+  const labels = JSON.parse(fs.readFileSync(path.join(__dirname, 'components', 'labels.json'), 'utf8'));
+  const withLabels = (char) => breakdown(char, labels);
+
+  it('gives 凶 and 丷 a learner label, not the dictionary sense', () => {
+    const fierce = withLabels('脑').p[1].p.find((part) => part.c === '凶');
+    expect(fierce.l).not.toBe('culprit');
+    expect(labels.labels['凶']).toBe(fierce.l);
+    const horns = withLabels('前').p.find((part) => part.c === '丷');
+    expect(horns.l).not.toBe('kwukyel');
+    expect(labels.labels['丷']).toBe(horns.l);
+  });
+
+  it('gives 赢 no unnamed piece, and names its bottom-right piece 凡', () => {
+    const unnamed = [];
+    const walk = (parts) => parts?.forEach((part) => (part.c === null ? unnamed.push(part) : walk(part.p)));
+    walk(withLabels('赢').p);
+    expect(unnamed).toEqual([]);
+    expect(withLabels('赢').p.at(-1)).toMatchObject({ c: '凡', l: 'ordinary' });
+  });
 });
 
 describe('parseIds', () => {

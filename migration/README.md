@@ -103,6 +103,10 @@ The tree follows three rules (#527):
 
 A part with no entry in the labels file takes the first sense of its Make Me a Hanzi definition. The build prints each part character with no label from either source.
 
+The labels file holds the learner label of the most frequent parts in HSK 1–7 (#531). A side form takes its learner name (亻 is "person", not "man"). A character takes the sense that a learner needs inside other characters (凶 is "fierce", not "culprit").
+
+The build stops when the labels file gives a label to a part that is in no breakdown. This occurs with a typo. It also occurs when a part only shows inside a part with a label, because that part does not split. For example, 丄 only shows inside 工.
+
 The build stops when the Hanzi Writer stroke data has no HSK character, or gives it a different stroke count from Make Me a Hanzi. The data often gives a part fewer strokes than the part has alone: 斤 holds a 下 of 2 strokes. Such a part keeps its strokes and its label, but it does not split. The build prints the number of these parts.
 
 The build writes these files to `web-client/public/breakdowns/`. They are build output, and git ignores them:

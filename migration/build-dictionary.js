@@ -243,7 +243,8 @@ const COMPONENTS_DIR = path.join(__dirname, 'components');
  * Hanzi Writer stroke data.
  *
  * Fails the build when Make Me a Hanzi and the Hanzi Writer stroke data
- * disagree on the stroke count of an HSK character.
+ * disagree on the stroke count of an HSK character, and when the labels file
+ * gives a label to a part that is in no breakdown.
  */
 function buildComponentBreakdowns(catalogue, outputDir) {
   const sourceDir = path.join(COMPONENTS_DIR, 'source');
@@ -257,6 +258,12 @@ function buildComponentBreakdowns(catalogue, outputDir) {
       .counts,
     labels: JSON.parse(fs.readFileSync(path.join(COMPONENTS_DIR, 'labels.json'), 'utf8')),
   });
+  if (result.unused.length) {
+    throw new Error(
+      'migration/components/labels.json labels parts that are in no breakdown: ' +
+        result.unused.join(' '),
+    );
+  }
 
   fs.rmSync(outputDir, { recursive: true, force: true });
   fs.mkdirSync(outputDir, { recursive: true });
