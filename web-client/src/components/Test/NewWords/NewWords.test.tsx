@@ -12,8 +12,11 @@ vi.mock('../../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai
 vi.mock('../../../services/dictionaryService', () => ({
   searchWord: vi.fn(),
 }));
-vi.mock('../../../services/decompositionService', () => ({
-  decomposeCharacter: vi.fn(),
+vi.mock('../../../services/breakdownService', () => ({ breakdownOf: vi.fn() }));
+vi.mock('../../../services/partReportService', () => ({ reportPart: vi.fn() }));
+vi.mock('../../../utils/charDataLoader', () => ({
+  loadCharData: vi.fn(),
+  onCharDataError: vi.fn(),
 }));
 vi.mock('../../../services/sentenceService', () => ({ getSegmentedSentence: vi.fn() }));
 vi.mock('../../../services/errorReporting', () => ({ reportError: vi.fn() }));
@@ -31,7 +34,8 @@ import NewWords from './NewWords';
 import { renderWithProviders, authenticatedState, createTestStore } from '../../../test/utils';
 import { Word } from '../../../types/models';
 import { searchWord } from '../../../services/dictionaryService';
-import { decomposeCharacter } from '../../../services/decompositionService';
+import { Breakdown, breakdownOf } from '../../../services/breakdownService';
+import { loadCharData } from '../../../utils/charDataLoader';
 import { getSegmentedSentence } from '../../../services/sentenceService';
 import * as ttsService from '../../../services/ttsService';
 import { clearCharacterGlossCache } from '../ComponentReview/glossCache';
@@ -69,6 +73,33 @@ const diannaoSentence = {
   },
   totalCount: 2,
 };
+
+// The breakdown files of 电 and 脑, as the build writes them (#528).
+const BREAKDOWNS: Record<string, Breakdown> = {
+  电: {
+    c: '电',
+    p: [
+      { c: '日', s: [0, 1, 2, 3], l: 'sun', y: 'rì' },
+      { c: '乚', s: [4], l: 'hook', y: 'yǐn' },
+    ],
+  },
+  脑: {
+    c: '脑',
+    p: [
+      { c: '⺼', s: [0, 1, 2, 3], l: 'flesh', r: 'meaning' },
+      {
+        c: '㐫',
+        s: [4, 5, 6, 7, 8, 9],
+        l: null,
+        p: [
+          { c: '亠', s: [4, 5], l: 'lid', y: 'tóu' },
+          { c: '凶', s: [6, 7, 8, 9], l: 'fierce', y: 'xiōng' },
+        ],
+      },
+    ],
+  },
+};
+const STROKES: Record<string, number> = { 电: 5, 脑: 10 };
 
 const xiuxi = makeWord(2, '休息', 'xiu1 xi5', 'rest/to take a break');
 
@@ -130,10 +161,10 @@ beforeEach(() => {
       : [makeWord(11, char, 'nao3', 'brain/mind/head')],
   );
   vi.mocked(getSegmentedSentence).mockResolvedValue({ sentence: null, totalCount: 0 });
-  vi.mocked(decomposeCharacter).mockResolvedValue([
-    { char: '日', meaning: 'sun', pinyin: 'rì' },
-    { char: '乚', meaning: 'hidden', pinyin: 'yǐn' },
-  ]);
+  vi.mocked(breakdownOf).mockImplementation(async (char: string) => BREAKDOWNS[char]);
+  vi.mocked(loadCharData).mockImplementation((char, onLoad) =>
+    onLoad({ strokes: Array.from({ length: STROKES[char] ?? 0 }, (_, i) => `M${i} 0`) }),
+  );
 });
 
 describe('NewWords — the session bar and the steps', () => {
@@ -183,7 +214,7 @@ describe('NewWords — Understand', () => {
     expect(within(row).getByText('háng')).toBeInTheDocument();
   });
 
-  it('a tap on a character opens its parts in place', async () => {
+  it('a tap on a character opens it, with no breakdown before the trace', async () => {
     const user = userEvent.setup();
     render([diannao]);
     const row = screen.getByRole('button', { name: /^电/ });
@@ -192,21 +223,9 @@ describe('NewWords — Understand', () => {
     await user.click(row);
 
     expect(row).toHaveAttribute('aria-expanded', 'true');
-    expect(await screen.findByText('日')).toBeInTheDocument();
-    expect(screen.getByText('hidden')).toBeInTheDocument();
-    expect(decomposeCharacter).toHaveBeenCalledWith('电');
-  });
-
-  it('offers Try again when the parts fail to load', async () => {
-    const user = userEvent.setup();
-    vi.mocked(decomposeCharacter).mockRejectedValueOnce(new Error('offline'));
-    render([diannao]);
-
-    await user.click(screen.getByRole('button', { name: /^电/ }));
-    expect(await screen.findByText('Parts didn’t load')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByText('日')).toBeInTheDocument();
+    expect(screen.queryByText('Parts')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('breakdown-电')).not.toBeInTheDocument();
+    expect(breakdownOf).not.toHaveBeenCalled();
   });
 });
 
@@ -400,6 +419,52 @@ describe('NewWords — Write', () => {
     await user.click(screen.getByRole('button', { name: 'Next word' }));
     expect(screen.getByText('2 / 2')).toBeInTheDocument();
     expect(currentStep()).toBe('Understand');
+  });
+
+  it('shows no breakdown before the trace ends', async () => {
+    const user = userEvent.setup();
+    render([diannao]);
+    await toWrite(user);
+
+    act(() => completeTrace());
+    act(() => vi.advanceTimersByTime(1000));
+
+    expect(screen.getByRole('img', { name: 'Trace 脑 here' })).toBeInTheDocument();
+    expect(screen.queryByTestId('breakdown-电')).not.toBeInTheDocument();
+    expect(breakdownOf).not.toHaveBeenCalled();
+  });
+
+  it('shows the breakdown of each character after the trace, with drill-down', async () => {
+    const user = userEvent.setup();
+    render([diannao]);
+    await toWrite(user);
+    act(() => completeTrace());
+    act(() => vi.advanceTimersByTime(1000));
+    act(() => completeTrace());
+    act(() => vi.advanceTimersByTime(1000));
+
+    expect(await screen.findByTestId('breakdown-电')).toBeInTheDocument();
+    const nao = await screen.findByTestId('breakdown-脑');
+
+    await user.click(within(nao).getByRole('button', { name: '㐫' }));
+    expect(within(nao).getByRole('button', { name: '凶' })).toBeInTheDocument();
+
+    await user.click(within(nao).getByRole('button', { name: '凶' }));
+    expect(within(nao).getByTestId('part-line')).toHaveTextContent('fierce');
+  });
+
+  it('shows one breakdown for a character the word repeats', async () => {
+    const user = userEvent.setup();
+    vi.mocked(breakdownOf).mockResolvedValue({ c: '妈', p: [{ c: '女', s: [0], l: 'woman' }] });
+    vi.mocked(loadCharData).mockImplementation((_, onLoad) => onLoad({ strokes: ['M0 0'] }));
+    render([makeWord(4, '妈妈', 'ma1 ma5', 'mum')]);
+    await toWrite(user);
+    act(() => completeTrace());
+    act(() => vi.advanceTimersByTime(1000));
+    act(() => completeTrace());
+    act(() => vi.advanceTimersByTime(1000));
+
+    expect(await screen.findAllByTestId('breakdown-妈')).toHaveLength(1);
   });
 
   it('keeps a traced word traced after a jump to another step', async () => {

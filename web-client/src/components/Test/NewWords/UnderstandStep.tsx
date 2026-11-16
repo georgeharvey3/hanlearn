@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Box, ButtonBase, Collapse } from '@mui/material';
+import { Box, ButtonBase } from '@mui/material';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 
 import WordCard from './WordCard';
@@ -10,79 +10,12 @@ import { getSegmentedSentence } from '../../../services/sentenceService';
 import { ResolvedSentence, SentenceWord, resolveSentence } from '../../../utils/sentenceUtils';
 import { glossLine, useCharacterGlosses } from '../ComponentReview/useCharacterGlosses';
 import { CharacterGloss } from '../ComponentReview/characterGloss';
-import { useComponents } from '../ComponentReview/useComponents';
 import { copy } from '../../../copy';
 import { colors, fonts } from '../../../theme';
 import { toneMarks } from '../../../utils/pinyinMarks';
 import { Word } from '../../../types/models';
 
 const skeletonSx = { bgcolor: colors.skeleton, borderRadius: '3px' };
-
-/** The first level of a character's parts. The strokes belong to the Write step. */
-const Parts: React.FC<{ char: string }> = ({ char }) => {
-  const [load, retry] = useComponents(char, 'new-words');
-
-  if (load.status === 'loading') {
-    return (
-      <Box
-        role="status"
-        aria-label={copy.newWords.partsLoading}
-        sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}
-      >
-        {[96, 72].map((width) => (
-          <Box key={width} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ ...skeletonSx, width: 28, height: 28 }} />
-            <Box sx={{ ...skeletonSx, width, height: 12 }} />
-          </Box>
-        ))}
-      </Box>
-    );
-  }
-  if (load.status === 'failed') {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Box component="span" sx={{ fontSize: 14, color: colors.textSecondary }}>
-          {copy.newWords.partsFailed}
-        </Box>
-        <ButtonBase
-          onClick={retry}
-          sx={{
-            height: 44,
-            px: 0.5,
-            fontFamily: fonts.body,
-            fontSize: 14,
-            fontWeight: 600,
-            color: colors.primaryDark,
-          }}
-        >
-          {copy.newWords.tryAgain}
-        </ButtonBase>
-      </Box>
-    );
-  }
-  if (load.components.length === 0) {
-    return <Box sx={{ fontSize: 14, color: colors.textSecondary }}>{copy.newWords.noParts}</Box>;
-  }
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-      {load.components.map((part) => (
-        <Box key={part.char} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Box lang="zh" sx={hanziSx(26, { width: 30, color: colors.primaryLight })}>
-            {part.char}
-          </Box>
-          <Box sx={{ fontSize: 13, color: colors.textSecondary, lineHeight: 1.3 }}>
-            {part.pinyin && (
-              <Box lang="zh-Latn" sx={{ color: colors.text }}>
-                {part.pinyin}
-              </Box>
-            )}
-            {part.meaning}
-          </Box>
-        </Box>
-      ))}
-    </Box>
-  );
-};
 
 interface CharRowProps {
   char: string;
@@ -93,7 +26,10 @@ interface CharRowProps {
   onToggle: () => void;
 }
 
-/** One character of the word. It opens in place, so the word card stays in view. */
+/**
+ * One character of the word. It opens in place to its whole meaning, so the
+ * word card stays in view. The parts wait for the Write step (#534).
+ */
 const CharRow: React.FC<CharRowProps> = ({ char, syllable, gloss, open, onToggle }) => {
   const meaning = glossLine(gloss);
   // The word's own reading, so that 行 in 银行 reads háng, not every reading.
@@ -148,12 +84,6 @@ const CharRow: React.FC<CharRowProps> = ({ char, syllable, gloss, open, onToggle
           }}
         />
       </ButtonBase>
-      <Collapse in={open} unmountOnExit>
-        <Box sx={{ pt: 1.5, pl: 8, display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <Overline>{copy.newWords.parts}</Overline>
-          <Parts char={char} />
-        </Box>
-      </Collapse>
     </Box>
   );
 };
@@ -297,7 +227,7 @@ interface UnderstandStepProps {
   loading: boolean;
 }
 
-/** Step 1: the word, then each character with its pinyin, senses and parts. */
+/** Step 1: the word, then each character with its pinyin and senses. */
 const UnderstandStep: React.FC<UnderstandStepProps> = ({ word, charSet, speak, loading }) => {
   const chars = useMemo(() => word[charSet].split(''), [word, charSet]);
   const glossOf = useCharacterGlosses(chars, charSet, 'new-words');
