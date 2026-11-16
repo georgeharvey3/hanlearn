@@ -239,8 +239,8 @@ const COMPONENTS_DIR = path.join(__dirname, 'components');
 /**
  * Write one component breakdown file for each character of the HSK words,
  * from the committed Make Me a Hanzi data and labels file, with no network.
- * Prints the parts that do not split because their strokes disagree with the
- * Hanzi Writer stroke data.
+ * Prints the parts whose strokes the stroke data cannot pair, and the parts
+ * whose strokes have another shape than the part alone.
  *
  * Fails the build when Make Me a Hanzi and the Hanzi Writer stroke data
  * disagree on the stroke count of an HSK character, and when the labels file
@@ -259,6 +259,12 @@ function buildComponentBreakdowns(catalogue, outputDir) {
     strokeEnds: JSON.parse(fs.readFileSync(path.join(sourceDir, 'stroke-ends.json'), 'utf8')).ends,
     labels: JSON.parse(fs.readFileSync(path.join(COMPONENTS_DIR, 'labels.json'), 'utf8')),
   });
+  if (result.unusedWhole.length) {
+    throw new Error(
+      'migration/components/labels.json lists parts in `whole` that are in no breakdown: ' +
+        result.unusedWhole.join(', '),
+    );
+  }
   if (result.unused.length) {
     throw new Error(
       'migration/components/labels.json labels parts that are in no breakdown: ' +
@@ -290,8 +296,12 @@ function buildComponentBreakdowns(catalogue, outputDir) {
     console.log('No Make Me a Hanzi data, so no breakdown: ' + result.missing.join(' '));
   }
   console.log(
-    'Parts that do not split, because their strokes disagree with the stroke data in count or shape: ' +
+    'Parts that do not split, because the stroke data cannot pair their strokes: ' +
       result.mismatches.length,
+  );
+  console.log(
+    'Parts whose strokes have another shape than the part alone (they still split): ' +
+      result.shapes.length,
   );
   console.log('Parts with no label in any source: ' + result.unlabelled.join(' '));
   console.log('Parts that still use the fallback label: ' + result.fallback.length);

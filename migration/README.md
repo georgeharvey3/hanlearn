@@ -92,7 +92,7 @@ The committed sources are in `components/`:
 - `components/source/GPL`: the GPL 3.0 text, which the LGPL adds to.
 - `components/source/stroke-counts.json`: the stroke count of each character in `hanzi-writer-data@2.0.1`, the stroke data that the app loads.
 - `components/source/stroke-ends.json`: the first and last point of the median line of each stroke in the same data. The shape check reads it.
-- `components/labels.json`: the labels file. `labels` gives the label of a part. A label never stops a split. `groups` names a group that is a real character (`⿱亠凶` is 㐫). `pieces` names an unnamed piece of one character by its path in the decomposition (the `1.2` of 赢 is 凡). `names` gives a label and pinyin to a part that has no entry of its own (㐫 in 脑). An empty file is legal.
+- `components/labels.json`: the labels file. `labels` gives the label of a part. A label never stops a split. `groups` names a group that is a real character (`⿱亠凶` is 㐫). `pieces` names an unnamed piece of one character by its path in the decomposition (the `1.2` of 赢 is 凡). `names` gives a label and pinyin to a part that has no entry of its own (㐫 in 脑). `whole` lists the parts that do not split, as `"parent > part"`. An empty file is legal.
 
 `npm --prefix migration run fetch:makemeahanzi` downloads the sources again. The build uses no network. The rules are pure, in `componentBreakdown.js`.
 
@@ -102,7 +102,9 @@ The tree follows three rules (#527):
 - A label never stops a split. Each part splits as far as the data goes, so 賣 in 續 splits into 士 + 罒 + 貝, and 貝 into 目 + 八. A building block can split into single strokes (口 into 冂 + 一). This is better than a complex part that stays whole and hides its parts.
 - An unnamed piece never stops a split. It is a part with no character and no label.
 
-A part splits only when its strokes in the parent agree with the part alone. The stroke count must be the same. The shape must also be the same: each stroke must start and end near the same place, after the build scales both to the same size. The data can name a part by a character in another form. The left side of 難 is 𦰩, but the data calls it 堇, and the split of 堇 shows 土 for the 大 of 𦰩. A part that fails either check stays whole, and the build prints the count of these parts.
+A part also splits when its parent draws it with a different stroke count. The data often draws a reduced form: 斤 holds a 下 of 2 strokes, and the 攸 of 修 has 6 strokes, not 7. The build pairs the strokes of the part alone with the strokes in the parent, in stroke order. Each pair is the one with the nearest stroke ends, after the build scales both to the same size. A stroke that the parent leaves out drops from the split. A stroke that only the parent has becomes an unnamed piece.
+
+The build also compares the shape of each part with the part alone, but this check only gives a count. A side form fails it as often as a wrong form: the 足 of 跑 changes its last strokes. The data can name a part by a character in another form. The left side of 難 is 𦰩, but the data calls it 堇, and the split of 堇 shows 土 for the 大 of 𦰩. Only `whole` in the labels file stops such a part. The build stops when `whole` lists a part that is in no breakdown.
 
 A part with no entry in the labels file takes the first sense of its Make Me a Hanzi definition. The build prints each part character with no label from either source. It also prints the number of parts that still use this fallback label.
 
@@ -110,7 +112,7 @@ The labels file holds the learner label of the most frequent parts in HSK 1–7 
 
 The build stops when the labels file gives a label to a part that is in no breakdown. This occurs with a typo. It also occurs when a part only shows inside a part that does not split.
 
-The build stops when the Hanzi Writer stroke data has no HSK character, or gives it a different stroke count from Make Me a Hanzi. The data often gives a part fewer strokes than the part has alone: 斤 holds a 下 of 2 strokes. Such a part keeps its strokes and its label, but it does not split. The build prints the number of these parts.
+The build stops when the Hanzi Writer stroke data has no HSK character, or gives it a different stroke count from Make Me a Hanzi. The data often gives a part fewer strokes than the part has alone: 斤 holds a 下 of 2 strokes. Such a part keeps its strokes and its label, and it splits by the pairing above.
 
 The build writes these files to `web-client/public/breakdowns/`. They are build output, and git ignores them:
 

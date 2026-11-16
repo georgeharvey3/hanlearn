@@ -131,23 +131,51 @@ describe('breakdownOf', () => {
     expect(() => breakdownOf(context, '射')).toThrow('射: no Hanzi Writer stroke data');
   });
 
-  it('does not split a part whose strokes disagree with its stroke count', () => {
-    const context = breakdownContext({ entries, strokeCounts, labels: {} });
+  it('splits a part that the parent draws with fewer strokes, by pairing the strokes', () => {
+    const context = breakdownContext({ entries, strokeCounts, strokeEnds, labels: {} });
     const axe = breakdownOf(context, '斤');
     expect(charsOf(axe.p)).toEqual(['厂', '下']);
-    expect(axe.p[1].s).toHaveLength(2);
-    expect(axe.p[1].p).toBeUndefined();
-    expect(context.mismatches).toEqual(['斤 > 下: 2 strokes, the stroke data 3']);
+    expect(axe.p[1].s).toEqual([2, 3]);
+    expect(charsOf(axe.p[1].p)).toEqual(['一', '卜']);
+    expect(context.mismatches).toEqual([]);
+    const far = breakdown('修').p[0];
+    expect(far).toMatchObject({ c: '攸', s: range(0, 5) });
+    expect(charsOf(far.p)).toEqual(['亻', '丨', '攵']);
   });
 
-  it('does not split a part whose strokes in the parent have another shape', () => {
+  it('splits a part that the parent draws with more strokes, with the extra stroke unnamed', () => {
+    const affairs = breakdown('務').p[1];
+    expect(affairs).toMatchObject({ c: '务', s: range(5, 10) });
+    expect(affairs.p.flatMap((part) => part.s).sort((a, b) => a - b)).toEqual(range(5, 10));
+    expect(affairs.p.some((part) => part.c === null)).toBe(true);
+  });
+
+  it('keeps no strokes for a part that the parent leaves out', () => {
+    const context = breakdownContext({ entries, strokeCounts, strokeEnds, labels: {} });
+    const walk = (parts) => parts?.forEach((part) => {
+      expect(part.s.length).toBeGreaterThan(0);
+      walk(part.p);
+    });
+    walk(breakdownOf(context, '黄').p);
+    walk(breakdownOf(context, '僅').p);
+  });
+
+  it('splits a part whose strokes in the parent have another shape, and reports it', () => {
     // The left side of 難 is the variant 𦰩, with 大 at the bottom. The data
     // calls it 堇, whose bottom is 土, and both have 11 strokes.
     const context = breakdownContext({ entries, strokeCounts, strokeEnds, labels: {} });
     const hard = breakdownOf(context, '難');
     expect(charsOf(hard.p)).toEqual(['堇', '隹']);
+    expect(hard.p[0].p).toBeDefined();
+    expect(context.shapes).toContain('難 > 堇: the strokes have another shape');
+  });
+
+  it('keeps a part whole when the labels file lists it in whole', () => {
+    const hard = breakdown('難', { whole: ['難 > 堇'] });
+    expect(hard.p[0].c).toBe('堇');
     expect(hard.p[0].p).toBeUndefined();
-    expect(context.mismatches).toContain('難 > 堇: the strokes have another shape');
+    const shoal = breakdown('灘', { whole: ['難 > 堇'] });
+    expect(shoal.p[1].p[0].p).toBeUndefined();
   });
 
   it('splits a part whose strokes in the parent have its own shape', () => {
@@ -171,16 +199,27 @@ describe('breakdownOf', () => {
 });
 
 describe('buildBreakdowns', () => {
-  it('checks the shape of each part against the stroke ends', () => {
-    const { files, mismatches } = buildBreakdowns({
+  it('reports the parts whose strokes have another shape', () => {
+    const { files, shapes } = buildBreakdowns({
       chars: ['難'],
       entries,
       strokeCounts,
       strokeEnds,
       labels: {},
     });
-    expect(files[breakdownFileName('難')].p[0].p).toBeUndefined();
-    expect(mismatches).toContain('難 > 堇: the strokes have another shape');
+    expect(files[breakdownFileName('難')].p[0].p).toBeDefined();
+    expect(shapes).toContain('難 > 堇: the strokes have another shape');
+  });
+
+  it('lists the parts in whole that are in no breakdown', () => {
+    const result = buildBreakdowns({
+      chars: ['難'],
+      entries,
+      strokeCounts,
+      strokeEnds,
+      labels: { whole: ['難 > 堇', '漢 > 堇'] },
+    });
+    expect(result.unusedWhole).toEqual(['漢 > 堇']);
   });
 
   it('fills every part with a fallback label when the labels file is empty', () => {

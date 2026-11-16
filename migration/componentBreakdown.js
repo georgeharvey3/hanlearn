@@ -99,7 +99,9 @@ const firstSense = (definition) => {
  *   `groups` (a group's decomposition to the character it is) and `pieces`
  *   (a character to the names of its unnamed pieces, by path, "1.2") and
  *   `names` (a part to `{ l, y }`: a label and pinyin for a group
- *   character with no entry of its own, 㐫)
+ *   character with no entry of its own, 㐫) and `whole` (a list of
+ *   "parent > part", for a part that the data names by another form: 𦰩,
+ *   which the data calls 堇, in 難. Only these parts do not split)
  */
 function breakdownContext({ entries, strokeCounts, strokeEnds = {}, labels = {} }) {
   const groupNames = groupNamesOf(entries);
@@ -111,8 +113,11 @@ function breakdownContext({ entries, strokeCounts, strokeEnds = {}, labels = {} 
     labels: labels.labels ?? {},
     pieces: labels.pieces ?? {},
     names: labels.names ?? {},
+    whole: new Set(labels.whole ?? []),
+    wholeUsed: new Set(),
     groupNames,
     mismatches: [],
+    shapes: [],
   };
 }
 
@@ -161,9 +166,7 @@ function annotate(tree, matches, pieceNames = {}) {
  * Throws when the Hanzi Writer stroke data has no character, or disagrees on
  * the stroke count of the character, because every index of the file would
  * then point at the wrong stroke. A part whose strokes disagree with its own
- * stroke count does not split, and goes to `context.mismatches`: the data
- * often draws a reduced form (斤 holds a 下 of 2 strokes), and its own parts
- * cannot map onto the strokes of the parent.
+ * stroke count still splits: see strokeMap.
  */
 function breakdownOf(context, char) {
   const entry = context.entries.get(char);
@@ -187,15 +190,17 @@ function breakdownOf(context, char) {
  * 冂 + 一). `trail` holds the characters above it, so an entry that holds
  * itself does not loop.
  */
-function splitOf(context, char, strokes, trail) {
+function splitOf(context, char, strokes, trail, extra = []) {
   const entry = context.entries.get(char);
-  if (!entry || !entry.decomposition || strokes.length < 2) return null;
+  if (!entry || !entry.decomposition) return null;
+  if (strokes.filter((i) => i !== null).length + extra.length < 2) return null;
   const tree = parseIds(entry.decomposition);
   if (!tree.children) return null;
   const loose = annotate(tree, entry.matches, context.pieces[char]);
   const top = (i) => strokes[i];
   const parts = tree.children.flatMap((child) => partsOf(context, child, top, trail));
-  if (loose.length) parts.push({ c: null, s: loose.map(top), l: null });
+  const unnamed = [...loose.map(top).filter((i) => i !== null), ...extra].sort((a, b) => a - b);
+  if (unnamed.length) parts.push({ c: null, s: unnamed, l: null });
   const etymology = entry.etymology ?? {};
   for (const part of parts) {
     for (const [key, role] of Object.entries(ROLE)) {
@@ -218,34 +223,39 @@ function ordered(parts) {
  * character whose decomposition this is to the top character.
  */
 function partsOf(context, node, top, trail) {
-  const s = node.strokes.map(top);
+  const s = node.strokes.map(top).filter((i) => i !== null);
   if (node.children) {
     const name = context.groupNames.get(node.ids);
     if (!name || trail.includes(name)) {
       return node.children.flatMap((child) => partsOf(context, child, top, trail));
     }
+    // The pieces of a group come from the parent's own decomposition, so
+    // they always map onto the right strokes, whatever form the group takes.
     const part = makePart(context, name, s);
-    if (
-      strokesAgree(context, name, s.length, trail) &&
-      shapesAgree(context, name, s, trail)
-    ) {
-      const inner = ordered(
-        node.children.flatMap((child) => partsOf(context, child, top, [...trail, name])),
-      );
-      if (inner) part.p = inner;
-    }
+    const inner = ordered(
+      node.children.flatMap((child) => partsOf(context, child, top, [...trail, name])),
+    );
+    if (inner) part.p = inner;
     return [part];
   }
   if (node.char === null) return [{ c: null, s, l: null }];
   const part = makePart(context, node.char, s);
-  if (
-    !trail.includes(node.char) &&
-    strokesAgree(context, node.char, s.length, trail) &&
-    shapesAgree(context, node.char, s, trail)
-  ) {
-    const split = splitOf(context, node.char, s, [...trail, node.char]);
-    if (split) part.p = split;
+  if (trail.includes(node.char)) return [part];
+  const key = `${trail[trail.length - 1]} > ${node.char}`;
+  if (context.whole.has(key)) {
+    context.wholeUsed.add(key);
+    return [part];
   }
+  const map = strokeMap(context, node.char, s, trail);
+  if (!map) return [part];
+  if (map.otherShape) {
+    // Only a report: a side form (足 in 跑) fails the check as often as a
+    // wrong form, and a part that stays whole is worse than a split under a
+    // name that is a little off. The labels file's `whole` stops a wrong form.
+    context.shapes.push(`${[...trail, node.char].join(' > ')}: the strokes have another shape`);
+  }
+  const split = splitOf(context, node.char, map.strokes, [...trail, node.char], map.extra);
+  if (split) part.p = split;
   return [part];
 }
 
@@ -258,24 +268,116 @@ function makePart(context, char, strokes) {
 }
 
 /**
- * Whether the strokes that the data gives a part agree with the part's own
- * stroke count. Records a disagreement in `context.mismatches`.
+ * The strokes of the top character that draw each stroke of the part `char`,
+ * from the strokes `given` that the data gives the part. Gives `strokes`, one
+ * entry for each stroke of the part alone (null for a stroke that the parent
+ * leaves out), `extra`, the given strokes that the part alone does not have,
+ * and `otherShape`, true when the given strokes do not have the shape of the
+ * part alone. Gives null only when the stroke data cannot pair the strokes,
+ * and records it in `context.mismatches`.
+ *
+ * The data often draws a part in a reduced or longer form: 斤 holds a 下 of
+ * 2 strokes, and the 攸 of 修 has 6 strokes, not 7. The part still splits:
+ * its strokes and the given strokes are paired by their shape, in stroke
+ * order.
  */
-function strokesAgree(context, char, given, trail) {
+function strokeMap(context, char, given, trail) {
   const count = context.strokeCounts[char] ?? context.entries.get(char)?.matches.length;
-  if (count === undefined || count === given) return true;
-  context.mismatches.push(`${[...trail, char].join(' > ')}: ${given} strokes, the stroke data ${count}`);
-  return false;
+  const own = context.strokeEnds[char];
+  const top = context.strokeEnds[trail[0]];
+  const inside = top && given.map((i) => top[i]);
+  if (count === undefined || count === given.length) {
+    const otherShape = Boolean(own && inside && own.length === given.length && !sameShape(own, inside));
+    return { strokes: given, extra: [], otherShape };
+  }
+  // A part that its parent leaves out completely has no strokes to split.
+  if (given.length === 0) return null;
+  if (!own || !inside || own.length !== count) {
+    context.mismatches.push(`${[...trail, char].join(' > ')}: ${given.length} strokes, the stroke data ${count}`);
+    return null;
+  }
+  const pairs = pairStrokes(own, inside);
+  const strokes = own.map(() => null);
+  for (const [a, b] of pairs) strokes[a] = given[b];
+  const used = new Set(pairs.map(([, b]) => b));
+  const otherShape = !sameShape(
+    pairs.map(([a]) => own[a]),
+    pairs.map(([, b]) => inside[b]),
+  );
+  return { strokes, extra: given.filter((_, b) => !used.has(b)), otherShape };
+}
+
+/** The distance between the ends of two normalised strokes. */
+const strokeDistance = (a, b) =>
+  Math.hypot(a[0][0] - b[0][0], a[0][1] - b[0][1]) + Math.hypot(a[1][0] - b[1][0], a[1][1] - b[1][1]);
+
+/**
+ * Pair the strokes of a part alone (`own`) with the strokes that draw it in
+ * its parent (`inside`), in stroke order, when the counts differ. Each stroke
+ * of the shorter side pairs with one stroke of the longer side. The pairing
+ * has the smallest sum of distances between stroke ends. The ends are scaled
+ * again over the paired strokes only, and the pairing is made again, because
+ * a missing stroke moves the centre and the spread of the rest.
+ *
+ * Gives `[ownIndex, insideIndex]` pairs.
+ */
+function pairStrokes(own, inside) {
+  const flip = own.length < inside.length;
+  const [long, short] = flip ? [inside, own] : [own, inside];
+  const shortEnds = normalisedEnds(short);
+  let pairs = null;
+  for (let round = 0; round < 3; round++) {
+    const scaled = pairs === null
+      ? normalisedEnds(long)
+      : long.map((_, i) => normalisedEndsAt(long, pairs, i));
+    pairs = alignInOrder(long.length, short.length, (i, j) => strokeDistance(scaled[i], shortEnds[j]));
+  }
+  return pairs.map(([i, j]) => (flip ? [j, i] : [i, j]));
+}
+
+/**
+ * The normalised ends of stroke `i` of `strokes`, scaled over the strokes of
+ * the last pairing and the stroke itself.
+ */
+function normalisedEndsAt(strokes, pairs, i) {
+  const set = [...new Set([...pairs.map(([k]) => k), i])].sort((a, b) => a - b);
+  return normalisedEnds(set.map((k) => strokes[k]))[set.indexOf(i)];
+}
+
+/**
+ * The pairing in order of `short` strokes with `long` strokes (short <= long)
+ * that has the smallest sum of `cost(longIndex, shortIndex)`.
+ */
+function alignInOrder(long, short, cost) {
+  const best = Array.from({ length: long + 1 }, () => new Array(short + 1).fill(Infinity));
+  const back = Array.from({ length: long + 1 }, () => new Array(short + 1).fill(false));
+  for (let i = 0; i <= long; i++) best[i][0] = 0;
+  for (let i = 1; i <= long; i++) {
+    for (let j = 1; j <= Math.min(i, short); j++) {
+      const skip = best[i - 1][j];
+      const take = best[i - 1][j - 1] + cost(i - 1, j - 1);
+      if (take <= skip) {
+        best[i][j] = take;
+        back[i][j] = true;
+      } else best[i][j] = skip;
+    }
+  }
+  const pairs = [];
+  for (let i = long, j = short; j > 0; i--) {
+    if (back[i][j]) {
+      pairs.unshift([i - 1, j - 1]);
+      j--;
+    }
+  }
+  return pairs;
 }
 
 /**
  * How far, at most, the end of a stroke of a part in its parent may lie from
  * the same end of the part alone, in units of the spread of the part's stroke
- * ends. Measured on all of Make Me a Hanzi: the 堇 of 僅 and 勤 scores 0.17 or
- * less, and the variant 𦰩 that the data calls 堇 in 難 and 漢 scores 0.42 or
- * more. At 0.35, 1.9% of the parts that split stop, and nearly all of them are
- * a real change of form (算 in 篡, 既 in 廄). The rest are a part stretched
- * by its parent: a step less, never a wrong part.
+ * ends, before the build reports the part. Measured on all of Make Me a Hanzi:
+ * the 堇 of 僅 and 勤 scores 0.17 or less, and the variant 𦰩 that the data
+ * calls 堇 in 難 and 漢 scores 0.42 or more.
  */
 const SHAPE_TOLERANCE = 0.35;
 
@@ -298,24 +400,18 @@ function normalisedEnds(ends) {
 }
 
 /**
- * Whether the strokes `strokes` of the top character have the shape of the
- * part `char` alone. The data can name a part by a character whose form is
- * not the one drawn: the left side of 難 is 𦰩, which the data calls 堇, and
- * the split of 堇 would show 土 for the 大 of 𦰩. The stroke count is the same,
- * so only the shape shows it. Records a disagreement in `context.mismatches`.
+ * Whether two lists of paired strokes have the same shape: each end lies
+ * within SHAPE_TOLERANCE of its partner, after both are scaled to the same
+ * size. The data can name a part by a character whose form is not the one
+ * drawn: the left side of 難 is 𦰩, which the data calls 堇, and its bottom is
+ * 大, not the 土 of 堇. The stroke count is the same, so only the shape shows it.
  */
-function shapesAgree(context, char, strokes, trail) {
-  const own = context.strokeEnds[char];
-  const top = context.strokeEnds[trail[0]];
-  if (!own || !top || own.length !== strokes.length) return true;
-  const inside = normalisedEnds(strokes.map((i) => top[i]));
-  const alone = normalisedEnds(own);
-  const far = inside.some((ends, i) =>
-    ends.some((p, k) => Math.hypot(p[0] - alone[i][k][0], p[1] - alone[i][k][1]) > SHAPE_TOLERANCE),
+function sameShape(own, inside) {
+  const a = normalisedEnds(own);
+  const b = normalisedEnds(inside);
+  return a.every((ends, i) =>
+    ends.every((p, k) => Math.hypot(p[0] - b[i][k][0], p[1] - b[i][k][1]) <= SHAPE_TOLERANCE),
   );
-  if (!far) return true;
-  context.mismatches.push(`${[...trail, char].join(' > ')}: the strokes have another shape`);
-  return false;
 }
 
 /** The name of the breakdown file of a character: its code point in hex, "7919" for 礙. */
@@ -356,10 +452,13 @@ function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, labels }) {
     files[breakdownFileName(char)] = breakdown;
   }
   const unused = Object.keys(context.labels).filter((char) => !seen.has(char)).sort();
+  const unusedWhole = [...context.whole].filter((key) => !context.wholeUsed.has(key)).sort();
   return {
     files,
     missing,
     mismatches: context.mismatches,
+    shapes: context.shapes,
+    unusedWhole,
     unlabelled: [...unlabelled].sort(),
     fallback: [...fallback].sort(),
     unused,
