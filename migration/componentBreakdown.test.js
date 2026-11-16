@@ -85,6 +85,20 @@ describe('breakdownOf', () => {
     expect(charsOf(breakdown('脑').p)).toEqual(['⺼', '亠', '凶']);
   });
 
+  it('names a part from the labels file and still splits it', () => {
+    const groups = { '⿱亠凶': '㐫' };
+    const names = { 㐫: { l: 'fierce (old form)', y: 'xiōng' } };
+    const brain = breakdown('脑', { labels: LABELS, groups, names });
+    expect(brain.p[1]).toMatchObject({ c: '㐫', l: 'fierce (old form)', y: 'xiōng' });
+    expect(charsOf(brain.p[1].p)).toEqual(['亠', '凶']);
+  });
+
+  it('does not list a part that the labels file names as a fallback', () => {
+    const labels = { groups: { '⿱亠凶': '㐫' }, names: { 㐫: { l: 'fierce (old form)' } } };
+    const result = buildBreakdowns({ chars: ['脑'], entries, strokeCounts, labels });
+    expect(result.fallback).not.toContain('㐫');
+  });
+
   it('names an unnamed piece from the labels file, with its loose strokes', () => {
     const win = breakdown('赢', { labels: LABELS, pieces: { 赢: { '1.2': '凡' } } });
     expect(charsOf(win.p)).toEqual(['吂', '⺼', '贝', '凡']);
