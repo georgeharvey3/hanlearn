@@ -238,32 +238,42 @@ const COMPONENTS_DIR = path.join(__dirname, 'components');
 
 /**
  * Write one component breakdown file for each character of the HSK words,
- * from the committed Make Me a Hanzi data and labels file, with no network.
- * Prints the parts whose strokes the stroke data cannot pair, the parts split
- * by shape, and the parts
- * whose strokes have another shape than the part alone.
+ * from the committed AnimCJK and Make Me a Hanzi data, the definitions file
+ * and the labels file, with no network. Prints the number of characters that
+ * each source defines, and the lists that a person can review.
  *
- * Fails the build when Make Me a Hanzi and the Hanzi Writer stroke data
- * disagree on the stroke count of an HSK character, and when the labels file
- * gives a label to a part that is in no breakdown.
+ * Fails the build when:
+ *
+ * - a named part of 2 or more strokes has no definition, because the part
+ *   then splits into strokes with no name. The definitions file needs it
+ * - the definitions file holds a text that no breakdown uses
+ * - the labels file gives a label to a part that is in no breakdown
  */
 function buildComponentBreakdowns(catalogue, outputDir) {
   const sourceDir = path.join(COMPONENTS_DIR, 'source');
+  const readJson = (...parts) => JSON.parse(fs.readFileSync(path.join(...parts), 'utf8'));
   const chars = catalogue.flatMap((list) =>
     list.entries.flatMap((entry) => [...entry.simp, ...entry.trad]),
   );
   const result = buildBreakdowns({
     chars,
     entries: parseMakeMeAHanzi(fs.readFileSync(path.join(sourceDir, 'dictionary.txt'), 'utf8')),
-    strokeCounts: JSON.parse(fs.readFileSync(path.join(sourceDir, 'stroke-counts.json'), 'utf8'))
-      .counts,
-    strokeEnds: JSON.parse(fs.readFileSync(path.join(sourceDir, 'stroke-ends.json'), 'utf8')).ends,
-    labels: JSON.parse(fs.readFileSync(path.join(COMPONENTS_DIR, 'labels.json'), 'utf8')),
+    strokeCounts: readJson(sourceDir, 'stroke-counts.json').counts,
+    strokeEnds: readJson(sourceDir, 'stroke-ends.json').ends,
+    animcjk: readJson(sourceDir, 'animcjk.json'),
+    definitions: readJson(COMPONENTS_DIR, 'definitions.json').definitions,
+    labels: readJson(COMPONENTS_DIR, 'labels.json'),
   });
-  if (result.unusedSearch.length) {
+  if (result.unresolved.length) {
     throw new Error(
-      'migration/components/labels.json lists parts in `search` that are in no breakdown: ' +
-        result.unusedSearch.join(', '),
+      'These parts have no definition with their stroke count. Add each one to ' +
+        'migration/components/definitions.json: ' + result.unresolved.join(', '),
+    );
+  }
+  if (result.unusedDefinitions.length) {
+    throw new Error(
+      'migration/components/definitions.json holds definitions that no breakdown uses: ' +
+        result.unusedDefinitions.join(' '),
     );
   }
   if (result.unused.length) {
@@ -283,7 +293,10 @@ function buildComponentBreakdowns(catalogue, outputDir) {
   }
   fs.writeFileSync(
     path.join(outputDir, 'ATTRIBUTION.txt'),
-    breakdownAttributionText(fs.readFileSync(path.join(sourceDir, 'COPYING'), 'utf8')),
+    breakdownAttributionText(
+      fs.readFileSync(path.join(sourceDir, 'animcjk-COPYING.txt'), 'utf8'),
+      fs.readFileSync(path.join(sourceDir, 'COPYING'), 'utf8'),
+    ),
   );
   fs.copyFileSync(path.join(sourceDir, 'LGPL'), path.join(outputDir, 'LICENSE.txt'));
   fs.copyFileSync(path.join(sourceDir, 'GPL'), path.join(outputDir, 'GPL.txt'));
@@ -294,41 +307,46 @@ function buildComponentBreakdowns(catalogue, outputDir) {
       ' bytes each on average) to: ' + outputDir,
   );
   if (result.missing.length) {
-    console.log('No Make Me a Hanzi data, so no breakdown: ' + result.missing.join(' '));
+    console.log('No definition in any source, so no breakdown: ' + result.missing.join(' '));
   }
-  console.log(
-    'Parts that do not split, because the stroke data cannot pair their strokes: ' +
-      result.mismatches.length,
-  );
-  console.log('Parts split by shape, because the data names another form: ' + result.cuts.join(' | '));
-  console.log(
-    'Parts whose strokes have another shape than the part alone (they still split): ' +
-      result.shapes.length,
-  );
+  const bySource = {};
+  for (const source of Object.values(result.sources)) {
+    bySource[source ?? 'none'] = (bySource[source ?? 'none'] ?? 0) + 1;
+  }
+  console.log('Characters by the source of their definition: ' + JSON.stringify(bySource));
+  console.log('Pieces with no name that split into strokes: ' + result.unnamed.join(', '));
+  console.log('Parts drawn in another stroke order than the part alone: ' + result.reordered.length);
+  console.log('AnimCJK texts in use with another operand count: ' + result.irregular.length);
   console.log('Parts with no label in any source: ' + result.unlabelled.join(' '));
   console.log('Parts that still use the fallback label: ' + result.fallback.length);
 }
 
 /**
- * The text of ATTRIBUTION.txt of the breakdown files. Make Me a Hanzi asks
- * for its COPYING notice, and the Unihan notice in LICENSE.txt asks for a
- * notice that the data is modified.
+ * The text of ATTRIBUTION.txt of the breakdown files. AnimCJK and Make Me a
+ * Hanzi each ask for their notice, and the Unihan notice in LICENSE.txt asks
+ * for a notice that the data is modified.
  */
-const breakdownAttributionText = (copying) => [
-  'The component breakdown files in this directory are derived from',
+const breakdownAttributionText = (animcjk, makeMeAHanzi) => [
+  'The component breakdown files in this directory are derived from the',
+  'dictionary files of AnimCJK (https://github.com/parsimonhi/animCJK) and from',
   'dictionary.txt of Make Me a Hanzi (https://github.com/skishore/makemeahanzi).',
   'HanLearn modified the data: each file holds the tree of the parts of one',
   'character, the strokes of each part, its meaning or sound clue, and a label.',
-  'The labels come from migration/components/labels.json of HanLearn, then from',
-  'the Make Me a Hanzi definitions.',
+  'Some parts come from migration/components/definitions.json of HanLearn. The',
+  'labels come from migration/components/labels.json of HanLearn, then from the',
+  'definitions of Make Me a Hanzi and AnimCJK.',
   '',
   'You can redistribute and/or modify these files under the terms of the GNU',
   'Lesser General Public License, version 3 or later (LICENSE.txt), which adds',
   'to the GNU General Public License, version 3 (GPL.txt).',
   '',
+  'The AnimCJK notice:',
+  '',
+  animcjk.trim(),
+  '',
   'The Make Me a Hanzi notice:',
   '',
-  copying.trim(),
+  makeMeAHanzi.trim(),
 ].join('\n') + '\n';
 
 /**

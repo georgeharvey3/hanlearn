@@ -1,20 +1,35 @@
 /**
  * The component breakdown of a character (#527, #528): the tree of its parts,
  * the strokes of each part, the meaning clue and the sound clue, and a label
- * for each part. The source is Make Me a Hanzi (`dictionary.txt`), the data
- * behind Hanzi Writer. buildBreakdowns is pure: it reads and writes no file.
+ * for each part. buildBreakdowns is pure: it reads and writes no file.
  * build-dictionary.js reads the sources and writes one breakdown file for
  * each HSK character.
  *
- * The tree follows three rules:
+ * The build does not find a part by its shape, and it has no tolerance to
+ * tune. It reads **definitions**. A definition gives one character, drawn
+ * with a known number of strokes, as a list of parts, and it gives each part
+ * its strokes. The sources are:
  *
+ * - AnimCJK. Its "acjk" text gives the parts of a character in stroke order,
+ *   with the stroke count of each part as that character draws it. It names
+ *   a part by the form that the character has: 𢇇 in 聯, not 絲.
+ * - Make Me a Hanzi (`dictionary.txt`), the data behind Hanzi Writer. Each
+ *   entry gives one level of parts, and the part of each stroke.
+ * - The definitions file, for the forms that neither source has.
+ *
+ * The tree follows five rules:
+ *
+ * - Every part splits until it is one stroke. A label never stops a split.
+ * - A part takes the definition of its character that has the same number of
+ *   strokes. A definition with another number of strokes is another form,
+ *   and the part never takes it.
+ * - The strokes of a part pair with the strokes of its definition in stroke
+ *   order. Two strokes change places only on a proof: see strokesFor.
  * - A group with no name of its own is not a step. Its pieces join the split
- *   directly (疑 = 匕 + 矢 + ？ + 疋). A group that is a real character stays a
- *   step (㐫 in 脑).
- * - A label never stops a split. Each part splits as far as the data goes,
- *   so 賣 in 續 splits into 士 + 罒 + 貝, and 口 into 冂 + 一.
- * - An unnamed piece never blocks a split. It is a part of its own with no
- *   label.
+ *   directly (覽 = 臣 + 𠂉 + 一 + 皿 + 見). The labels file can name a group.
+ * - A part with no definition splits into its strokes. The build of the
+ *   dictionary stops on such a part that has a name: the definitions file
+ *   needs its definition.
  */
 
 /** The Ideographic Description Characters, with the number of their operands. */
@@ -28,6 +43,16 @@ const UNNAMED = '？';
 
 /** The role of a part in the etymology of its parent. */
 const ROLE = { semantic: 'meaning', phonetic: 'sound' };
+
+/**
+ * The sources of a definition, in the order that a top character tries them.
+ * The four AnimCJK sets come first: simplified and traditional Chinese, then
+ * Japanese and Korean, which draw many traditional characters the same way.
+ */
+const SOURCES = ['file', 'hans', 'hant', 'ja', 'ko', 'makemeahanzi'];
+
+/** The AnimCJK sets among the sources. */
+const ANIMCJK_SETS = ['hans', 'hant', 'ja', 'ko'];
 
 /**
  * The tree of an Ideographic Description Sequence. A leaf is `{ char }`, with
@@ -62,6 +87,203 @@ function parseMakeMeAHanzi(text) {
   return entries;
 }
 
+const isDigit = (c) => c !== undefined && c >= '0' && c <= '9';
+const isLetter = (c) => c !== undefined && c >= 'a' && c <= 'z';
+const ascending = (a, b) => a - b;
+
+/**
+ * Parse one AnimCJK "acjk" text: `續⿰糹.6賣15`. Gives `{ char, strokes, root,
+ * irregular }`. `strokes` is the stroke count of the character. A node of the
+ * tree is `{ c, alt?, s, kids, partial? }`:
+ *
+ * - `c`: the character of the node, null for a group with no name
+ * - `alt`: a second character for the same node (the `~` mark)
+ * - `s`: the indices of its strokes, in the stroke order of the character
+ * - `kids`: its nodes, or null when the text gives a stroke count only
+ * - `ids`: for a group, its text with no counts and no marks
+ *
+ * The text gives the strokes in order, so each count takes the next strokes.
+ * These marks follow a character:
+ *
+ * - `.`: the radical. The build does not use it.
+ * - `:`: the component is split, and other strokes come between its pieces
+ *   (`可⿹丁:1口.3丁:1`). The pieces of one component join, wherever the text
+ *   has them. A letter after the mark tells two such components apart. When
+ *   the text does not split or name every piece, `kids` is null and
+ *   `partial` holds the pieces.
+ * - `::`: the strokes belong to two components (`臼.⿱𠀉:3彐:2𠀉::彐:1`).
+ *
+ * Some texts of the source do not follow the operand count of an operator:
+ * `党⿳龸5兄⿱口3儿.2` has 2 operands, and `衣.亠2𧘇4` has no operator. The
+ * strokes of each named node are still exact, because the counts are in
+ * stroke order. The parser reads such a text and sets `irregular`. Throws
+ * when a text has no stroke count where it needs one.
+ */
+function parseAcjk(text) {
+  const cs = [...text];
+  let i = 0;
+  let next = 0;
+  let irregular = false;
+  const split = new Map(); // "char:letter" to the split component
+  const pending = new Map(); // a component that an overlap made, with no place yet
+  const open = []; // the characters of the nodes that the parser is inside
+
+  const fail = (what) => {
+    throw new Error(`${what} at ${i} in ${text}`);
+  };
+  const count = () => {
+    let digits = '';
+    while (isDigit(cs[i])) digits += cs[i++];
+    if (digits === '') fail('stroke count expected');
+    const s = [];
+    for (let k = 0; k < Number(digits); k++) s.push(next++);
+    return s;
+  };
+  const head = () => {
+    const h = { c: null, alt: null, key: null, overlap: null, overlapKey: null };
+    if (cs[i] === undefined) fail('component expected');
+    if (cs[i] in OPERATORS || isDigit(cs[i])) return h;
+    h.c = cs[i++];
+    if (cs[i] === '~') {
+      i++;
+      h.alt = h.c;
+      h.c = cs[i++];
+      if (h.c === undefined) fail('character expected');
+    }
+    if (cs[i] === '.') i++;
+    if (cs[i] === ':' && cs[i + 1] === ':') {
+      i += 2;
+      h.overlap = cs[i++];
+      if (cs[i] === '.') i++;
+      if (cs[i] !== ':') fail('split mark expected after an overlap');
+    }
+    if (cs[i] === ':') {
+      i++;
+      const letter = isLetter(cs[i]) ? cs[i++] : '';
+      h.key = `${h.c}:${letter}`;
+      if (h.overlap) h.overlapKey = `${h.overlap}:${letter}`;
+    }
+    return h;
+  };
+  // The body of a node: a count, a decomposition, or, after a split mark,
+  // another component (`十:丨.1`).
+  const body = (node, afterSplit) => {
+    if (isDigit(cs[i])) {
+      node.s = count();
+      node.kids = null;
+    } else if (cs[i] in OPERATORS) {
+      const op = cs[i++];
+      if (node.c !== null) open.push(node.c);
+      node.op = op;
+      node.kids = operands(OPERATORS[op]);
+      if (node.c !== null) open.pop();
+    } else if (afterSplit && cs[i] !== undefined) {
+      const inner = item();
+      node.kids = inner ? [inner] : [];
+    } else fail('stroke count or decomposition expected');
+    return node;
+  };
+  const component = (c, key) => {
+    const node = { c, pieces: [] };
+    split.set(key, node);
+    return node;
+  };
+  // Read one component. Gives its node, or null when the component joined a
+  // split component that the text opened before.
+  const item = () => {
+    const h = head();
+    if (h.c === null) return body({ c: null }, false);
+    const piece = body({ c: null }, h.key !== null);
+    if (h.overlap) {
+      let placed = null;
+      const first = split.get(h.key);
+      if (first) first.pieces.push(piece);
+      else if (open.includes(h.c)) placed = piece;
+      else {
+        placed = component(h.c, h.key);
+        placed.pieces.push(piece);
+      }
+      const second = split.get(h.overlapKey);
+      if (second) second.pieces.push(piece);
+      else if (!open.includes(h.overlap)) {
+        const node = pending.get(h.overlap) ?? { c: h.overlap, pieces: [] };
+        node.pieces.push(piece);
+        pending.set(h.overlap, node);
+      }
+      return placed;
+    }
+    if (pending.has(h.c)) {
+      // The component takes the strokes of an earlier overlap (介 in 养).
+      const node = pending.get(h.c);
+      pending.delete(h.c);
+      node.pieces.push(piece);
+      if (h.key !== null) split.set(h.key, node);
+      return node;
+    }
+    if (h.key !== null) {
+      const known = split.get(h.key);
+      if (known) {
+        known.pieces.push(piece);
+        return null;
+      }
+      const node = component(h.c, h.key);
+      node.pieces.push(piece);
+      return node;
+    }
+    piece.c = h.c;
+    if (h.alt) piece.alt = h.alt;
+    return piece;
+  };
+  const operands = (n) => {
+    const list = [];
+    while (list.length < n) {
+      if (i >= cs.length) {
+        irregular = true;
+        break;
+      }
+      const node = item();
+      if (node) list.push(node);
+    }
+    return list;
+  };
+
+  const h = head();
+  if (h.c === null || h.key !== null) fail('character expected');
+  let root;
+  if (isDigit(cs[i]) || cs[i] in OPERATORS) root = body({ c: h.c }, false);
+  else {
+    irregular = true;
+    root = { c: h.c, kids: [] };
+  }
+  while (i < cs.length) {
+    const node = item();
+    if (!node) continue;
+    irregular = true;
+    if (root.kids === null) fail('text after the stroke count');
+    root.kids.push(node);
+  }
+  if (pending.size) fail('overlap with no second component');
+
+  // Give each node its strokes, and each split component its pieces.
+  const finish = (node) => {
+    if (node.pieces) {
+      for (const piece of node.pieces) finish(piece);
+      node.s = [...new Set(node.pieces.flatMap((piece) => piece.s))].sort(ascending);
+      const whole = node.pieces.every((piece) => piece.kids !== null);
+      node.kids = whole ? node.pieces : null;
+      if (!whole) node.partial = node.pieces;
+      delete node.pieces;
+    } else if (node.kids) {
+      for (const kid of node.kids) finish(kid);
+      node.s = [...new Set(node.kids.flatMap((kid) => kid.s))].sort(ascending);
+    }
+    if (node.c === null && node.op) node.ids = node.op + node.kids.map((kid) => kid.c ?? kid.ids ?? UNNAMED).join('');
+  };
+  finish(root);
+  if (root.s.length !== next) fail('strokes outside the character');
+  return { char: h.c, strokes: next, root, irregular };
+}
+
 /**
  * The character of each decomposition that only one entry has and that holds
  * no unnamed piece. A group with this text is that character (#527: 㐫).
@@ -87,545 +309,476 @@ const firstSense = (definition) => {
 };
 
 /**
+ * The parts of a list of parsed nodes. A group with no name is not a step:
+ * its pieces join the list. A group that `groupNames` names is a part.
+ * A part is `{ c, alt?, s, parts, partial? }`.
+ */
+function partsOfNodes(nodes, groupNames) {
+  return nodes.flatMap((node) => {
+    const name = node.c ?? (node.ids ? groupNames.get(node.ids) : undefined) ?? null;
+    if (name === null) {
+      if (node.kids) return partsOfNodes(node.kids, groupNames);
+      return node.s.length ? [{ c: null, s: node.s, parts: null }] : [];
+    }
+    const part = { c: name, s: node.s, parts: node.kids ? partsOfNodes(node.kids, groupNames) : null };
+    if (node.alt) part.alt = node.alt;
+    if (node.partial) part.partial = partsOfNodes(node.partial, groupNames);
+    return [part];
+  });
+}
+
+/** The definition that an acjk text gives: `{ char, source, strokes, parts, irregular, text }`. */
+function acjkDefinition(text, source, groupNames) {
+  const parsed = parseAcjk(text);
+  return {
+    char: parsed.char,
+    source,
+    strokes: parsed.strokes,
+    parts: parsed.root.kids ? partsOfNodes(parsed.root.kids, groupNames) : null,
+    irregular: parsed.irregular,
+    text,
+  };
+}
+
+/**
+ * The definition that a Make Me a Hanzi entry gives: its decomposition, with
+ * the strokes that `matches` gives each piece. The strokes of no piece make
+ * one unnamed part. Gives null for an entry with no decomposition.
+ */
+function makeMeAHanziDefinition(entry, groupNames) {
+  if (!entry.decomposition) return null;
+  const tree = parseIds(entry.decomposition);
+  const definition = {
+    char: entry.character,
+    source: 'makemeahanzi',
+    strokes: entry.matches.length,
+    parts: null,
+    irregular: false,
+    text: entry.decomposition,
+  };
+  if (!tree.children) return definition;
+  const walk = (node, path) => {
+    const s = entry.matches.flatMap((match, i) =>
+      match && match.length >= path.length && path.every((p, k) => match[k] === p) ? [i] : [],
+    );
+    if (!node.children) return { c: node.char, s, kids: null };
+    return { c: null, ids: node.ids, s, kids: node.children.map((child, k) => walk(child, [...path, k])) };
+  };
+  const named = partsOfNodes(walk(tree, []).kids, groupNames).filter((part) => part.c !== null && part.s.length);
+  const used = new Set(named.flatMap((part) => part.s));
+  const loose = entry.matches.map((_, i) => i).filter((i) => !used.has(i));
+  if (loose.length) named.push({ c: null, s: loose, parts: null });
+  if (named.length > 1) definition.parts = named.sort((a, b) => a.s[0] - b.s[0]);
+  return definition;
+}
+
+/**
+ * The stroke of `reference` that each stroke of `own` is, when the two lists
+ * draw the same character with the same strokes: `map[i]` is the index in
+ * `reference` of stroke `i` of `own`. Each stroke is `[x0, y0, x1, y1]`, the
+ * first and last point of its median line, and both lists use one coordinate
+ * space. Gives null when the counts differ, or when the strokes do not pair
+ * one to one: each stroke must be the nearest stroke of its partner.
+ *
+ * fetch-animcjk.js uses this to tell which AnimCJK drawings have the strokes
+ * of the Hanzi Writer data, and in which order.
+ */
+function strokeOrder(own, reference) {
+  if (own.length !== reference.length) return null;
+  const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) + Math.hypot(a[2] - b[2], a[3] - b[3]);
+  const nearest = (stroke, list) =>
+    list.reduce((best, other, j) => (distance(stroke, other) < distance(stroke, list[best]) ? j : best), 0);
+  const map = own.map((stroke) => nearest(stroke, reference));
+  const back = reference.map((stroke) => nearest(stroke, own));
+  return map.every((j, i) => back[j] === i) ? map : null;
+}
+
+/**
  * The context of the build of all breakdowns.
  *
  * - `entries`: the Make Me a Hanzi map of parseMakeMeAHanzi
  * - `strokeCounts`: the number of strokes of each character in the Hanzi
- *   Writer stroke data
+ *   Writer stroke data, which the app draws
  * - `strokeEnds`: the first and last point of the median line of each stroke
- *   in the same data, `[x0, y0, x1, y1]`. Optional: with none, a part's shape
- *   is not checked
- * - `labels`: the labels file: `labels` (part to label; it never stops a split),
- *   `groups` (a group's decomposition to the character it is) and `pieces`
- *   (a character to the names of its unnamed pieces, by path, "1.2") and
- *   `names` (a part to `{ l, y }`: a label and pinyin for a group
- *   character with no entry of its own, 㐫) and `search` (a list of
- *   "parent > part", for a part that the data names by another form with
- *   its parts in the same places: 𦰩, which the data calls 堇, in 難. The
- *   build looks for its parts by shape)
+ *   in the same data, `[x0, y0, x1, y1]`, with y up. Optional: see strokesFor
+ * - `animcjk`: the AnimCJK file that fetch-animcjk.js writes. `sets` gives the
+ *   acjk text of each character of each set. `order` gives, for a character
+ *   that the set does not draw with the strokes of Hanzi Writer in the same
+ *   order, the Hanzi Writer stroke of each stroke, or null when the strokes
+ *   differ. `meanings` gives `[definition, pinyin]` for a character that Make
+ *   Me a Hanzi does not have
+ * - `definitions`: the acjk texts of the definitions file. A text for a top
+ *   character counts the strokes in the order of Hanzi Writer
+ * - `labels`: the labels file: `labels` (part to label), `groups` (the text
+ *   of a group to the character that it is) and `names` (a part to
+ *   `{ l, y }`: a label and pinyin for a part that no source has an entry for)
  */
-function breakdownContext({ entries, strokeCounts, strokeEnds = {}, labels = {} }) {
+function breakdownContext({
+  entries,
+  strokeCounts,
+  strokeEnds = {},
+  animcjk = {},
+  definitions = [],
+  labels = {},
+}) {
   const groupNames = groupNamesOf(entries);
   for (const [ids, char] of Object.entries(labels.groups ?? {})) groupNames.set(ids, char);
-  return {
+  const context = {
     entries,
     strokeCounts,
     strokeEnds,
-    labels: labels.labels ?? {},
-    pieces: labels.pieces ?? {},
-    names: labels.names ?? {},
-    search: new Set(labels.search ?? []),
-    searchUsed: new Set(),
-    cuts: [],
     groupNames,
-    mismatches: [],
-    shapes: [],
+    order: animcjk.order ?? {},
+    meanings: animcjk.meanings ?? {},
+    labels: labels.labels ?? {},
+    names: labels.names ?? {},
+    definitions: new Map(),
+    malformed: [],
+    unresolved: new Set(),
+    unnamed: new Set(),
+    reordered: new Set(),
+    strokeNames: new Map(),
+    used: new Set(),
   };
+  const add = (definition) => {
+    if (!context.definitions.has(definition.char)) context.definitions.set(definition.char, []);
+    context.definitions.get(definition.char).push(definition);
+  };
+  for (const text of definitions) add(acjkDefinition(text, 'file', groupNames));
+  for (const set of ANIMCJK_SETS) {
+    for (const [char, text] of Object.entries(animcjk.sets?.[set] ?? {})) {
+      // A text that does not parse gives no definition. The build names it
+      // only when a breakdown needs it: see `unresolved`.
+      try {
+        const definition = acjkDefinition(text, set, groupNames);
+        if (definition.char !== char) throw new Error(`${text} is not ${char}`);
+        add(definition);
+      } catch (error) {
+        context.malformed.push(`${set}: ${error.message}`);
+      }
+    }
+  }
+  for (const entry of entries.values()) {
+    const definition = makeMeAHanziDefinition(entry, groupNames);
+    if (definition) add(definition);
+  }
+  return context;
 }
 
-/** The label of a part: the labels file, then the first sense of its dictionary entry. */
+/** The label of a part: the labels file, then the first sense of a dictionary entry. */
 function labelOf(context, char) {
   if (char === null) return null;
   if (context.labels[char]) return context.labels[char];
   if (context.names[char]) return context.names[char].l;
-  return firstSense(context.entries.get(char)?.definition);
+  return (
+    firstSense(context.entries.get(char)?.definition) ?? firstSense(context.meanings[char]?.[0])
+  );
 }
 
+/** The pinyin of a part, when a source has it. */
+const pinyinOf = (context, char) =>
+  context.entries.get(char)?.pinyin?.[0] ?? context.names[char]?.y ?? context.meanings[char]?.[1];
+
 /**
- * Give each node of a decomposition the indices of its strokes. A stroke
- * whose match is null belongs to the one unnamed piece, or to the piece that
- * the labels file names in its place. With no such piece, or more than one,
- * the loose strokes are returned: they make a piece of their own.
+ * The definition of `char` with `strokes` strokes that splits it. The source
+ * of the parent comes first, because one source keeps one stroke order.
  */
-function annotate(tree, matches, pieceNames = {}) {
-  const blanks = [];
-  const walk = (node, path, above) => {
-    node.strokes = matches.flatMap((match, i) =>
-      match && match.length >= path.length && path.every((p, k) => match[k] === p) ? [i] : [],
-    );
-    if (node.children) {
-      node.children.forEach((child, k) => walk(child, [...path, k], [...above, node]));
-    } else if (node.char === null) {
-      node.char = pieceNames[path.join('.')] ?? null;
-      blanks.push([node, ...above]);
-    }
+function definitionOf(context, char, strokes, prefer) {
+  const list = (context.definitions.get(char) ?? []).filter(
+    (definition) => definition.strokes === strokes && definition.parts,
+  );
+  // Make Me a Hanzi stays last: it names a part by a form that has an entry,
+  // and that is not always the form drawn.
+  const rank = (definition) => {
+    if (definition.source === prefer && ANIMCJK_SETS.includes(prefer)) return 0;
+    return SOURCES.indexOf(definition.source);
   };
-  walk(tree, [], []);
-  const loose = matches.flatMap((match, i) => (match === null ? [i] : []));
-  if (loose.length === 0 || blanks.length !== 1) return loose;
-  for (const node of blanks[0]) node.strokes = [...node.strokes, ...loose].sort((a, b) => a - b);
-  return [];
+  return list.sort((a, b) => rank(a) - rank(b))[0] ?? null;
 }
 
 /**
- * The breakdown of one character: `{ c, p }`, where `p` is its parts, or
- * null when the character does not split. Each part is
- * `{ c, s, l, y?, r?, p? }`: the character (null for an unnamed piece), the
- * indices of its strokes in the top character, its label (null for an
- * unnamed piece), its pinyin, its role in its parent's etymology ('meaning'
- * or 'sound') and its own parts.
- *
- * Throws when the Hanzi Writer stroke data has no character, or disagrees on
- * the stroke count of the character, because every index of the file would
- * then point at the wrong stroke. A part whose strokes disagree with its own
- * stroke count still splits: see strokeMap.
+ * The definition that splits a top character, and the Hanzi Writer stroke of
+ * each of its strokes. An AnimCJK definition counts the strokes of the
+ * AnimCJK drawing. It applies only when that drawing has the strokes of Hanzi
+ * Writer, and `order` gives their order. A definition of the file and a Make
+ * Me a Hanzi entry count the strokes of Hanzi Writer. Gives null with no such
+ * definition of the same stroke count.
  */
-function breakdownOf(context, char) {
-  const entry = context.entries.get(char);
-  if (!entry) return { c: char, p: null };
+function topDefinition(context, char) {
   const count = context.strokeCounts[char];
-  if (count === undefined) throw new Error(`${char}: no Hanzi Writer stroke data`);
-  if (entry.matches.length !== count) {
-    throw new Error(
-      `${char}: Make Me a Hanzi gives ${entry.matches.length} strokes, Hanzi Writer ${count}`,
+  const identity = [...Array(count).keys()];
+  for (const source of SOURCES) {
+    const definition = (context.definitions.get(char) ?? []).find(
+      (candidate) => candidate.source === source && candidate.strokes === count && candidate.parts,
     );
-  }
-  const strokes = entry.matches.map((_, i) => i);
-  return { c: char, p: splitOf(context, char, strokes, [char]) };
-}
-
-/**
- * The parts of a character whose strokes in the top character are `strokes`,
- * or null when it does not split. A label never stops a split: a part that
- * stays whole when it has parts of its own hides them from the learner, and
- * that is worse than a building block that splits into strokes (口 into
- * 冂 + 一). `trail` holds the characters above it, so an entry that holds
- * itself does not loop.
- */
-function splitOf(context, char, strokes, trail, extra = []) {
-  const entry = context.entries.get(char);
-  if (!entry || !entry.decomposition) return null;
-  if (strokes.filter((i) => i !== null).length + extra.length < 2) return null;
-  const tree = parseIds(entry.decomposition);
-  if (!tree.children) return null;
-  const loose = annotate(tree, entry.matches, context.pieces[char]);
-  const top = (i) => strokes[i];
-  const parts = tree.children.flatMap((child) => partsOf(context, child, top, trail));
-  const unnamed = [...loose.map(top).filter((i) => i !== null), ...extra].sort((a, b) => a - b);
-  if (unnamed.length) parts.push({ c: null, s: unnamed, l: null });
-  const etymology = entry.etymology ?? {};
-  for (const part of parts) {
-    for (const [key, role] of Object.entries(ROLE)) {
-      if (part.c !== null && etymology[key] === part.c) part.r = role;
-    }
-  }
-  return ordered(parts);
-}
-
-/** The parts with strokes, in the order of their first stroke; null for fewer than 2. */
-function ordered(parts) {
-  const kept = parts.filter((part) => part.s.length > 0);
-  return kept.length > 1 ? kept.sort((a, b) => a.s[0] - b.s[0]) : null;
-}
-
-/**
- * The parts that one node of a decomposition gives. A leaf gives one part.
- * A group that is a real character gives one part, split by its own pieces;
- * any other group gives its pieces directly. `top` maps a stroke index of the
- * character whose decomposition this is to the top character.
- */
-function partsOf(context, node, top, trail) {
-  const s = node.strokes.map(top).filter((i) => i !== null);
-  if (node.children) {
-    const name = context.groupNames.get(node.ids);
-    if (!name || trail.includes(name)) {
-      return node.children.flatMap((child) => partsOf(context, child, top, trail));
-    }
-    // The pieces of a group come from the parent's own decomposition, so
-    // they always map onto the right strokes, whatever form the group takes.
-    const part = makePart(context, name, s);
-    const inner = ordered(
-      node.children.flatMap((child) => partsOf(context, child, top, [...trail, name])),
-    );
-    if (inner) part.p = inner;
-    return [part];
-  }
-  if (node.char === null) return [{ c: null, s, l: null }];
-  return [leafPart(context, node.char, s, trail)];
-}
-
-/**
- * One named part with the strokes `s` of the top character, split as far as
- * the data goes. A part never stays whole because of its form:
- *
- * - When its own parts sit elsewhere in the parent, or the labels file lists
- *   it in `search`, the data names it by a form that the parent does not
- *   draw. The right side of 聯 is 丝 over 丱, which the data calls 絲, side
- *   by side. The build then looks for its parts by shape (shapeCut).
- * - Otherwise, or when the search finds no sure cut, its own split goes onto
- *   the paired strokes. A split under a name that is a little off is better
- *   than a part that stays whole.
- */
-function leafPart(context, char, s, trail) {
-  const part = makePart(context, char, s);
-  if (trail.includes(char)) return part;
-  const where = [...trail, char].join(' > ');
-  const map = strokeMap(context, char, s, trail);
-  if (!map) return part;
-  const key = `${trail[trail.length - 1]} > ${char}`;
-  const listed = context.search.has(key);
-  if (listed) context.searchUsed.add(key);
-  if (map.moved || listed) {
-    const cut = shapeCut(context, s, trail[0], char);
-    if (cut) {
-      context.cuts.push(`${where}: ${cut.map((seg) => seg.c).join(' + ')}`);
-      const inner = ordered(cut.map((seg) => leafPart(context, seg.c, seg.s, [...trail, char])));
-      if (inner) part.p = inner;
-      return part;
-    }
-  }
-  if (map.otherShape || map.moved) {
-    context.shapes.push(`${where}: the strokes have another shape`);
-  }
-  const split = splitOf(context, char, map.strokes, [...trail, char], map.extra);
-  if (split) part.p = split;
-  return part;
-}
-
-/**
- * How well a run of strokes must match a component for a sure cut: the mean
- * distance of its stroke ends, after both are scaled to the same size. The
- * cut of 聯 matches by 0.07 or less (幺 + 幺 + 丱), and 廿 + 口 + 夫 for the 𦰩
- * of 難 by 0.11 or less. At 0.09, 口 fails in 漢, and the cut becomes
- * 廿 + 冖 + 三 + 人.
- */
-const CUT_TOLERANCE = 0.12;
-
-/**
- * The cost of a rare component in the search, per stroke: 0.1 first, then
- * 0.3. A low cost finds the rare 丱 in 聯; a high cost finds 口 + 夫 in 難
- * where the low cost finds the rare 旲.
- */
-const RARITY_COSTS = [0.1, 0.3];
-
-/**
- * How much worse than the best fit another component may fit and still win
- * the tie-break, as a ratio: 夫 (0.076) wins over 夬 (0.063) in 漢, and 又
- * (0.040) does not win over 冂 (0.009) in 網.
- */
-const TIE_RATIO = 1.5;
-
-/** The decompositions that must use a component before a cut can use it: 丱 has 2, 刁 has 1. */
-const MIN_USES = 2;
-
-/** The cost of each run, so that a cut prefers fewer, larger components. */
-const RUN_COST = 0.6;
-
-/**
- * The components that a cut can use, by stroke count: each character that
- * a decomposition of the data uses, with 2 or more strokes and stroke ends.
- * `uses` is the number of decompositions that use it, at least MIN_USES.
- */
-function componentsOf(context) {
-  if (context.components) return context.components;
-  const uses = new Map();
-  for (const entry of context.entries.values()) {
-    for (const ch of [...(entry.decomposition ?? '')]) uses.set(ch, (uses.get(ch) ?? 0) + 1);
-  }
-  const components = new Map();
-  for (const [ch, n] of uses) {
-    const own = context.strokeEnds[ch];
-    if (!own || own.length < 2 || n < MIN_USES || !context.entries.has(ch)) continue;
-    if (!components.has(own.length)) components.set(own.length, []);
-    components.get(own.length).push({ c: ch, ends: normalisedEnds(own), uses: n });
-  }
-  context.components = components;
-  return components;
-}
-
-/**
- * Cut the strokes `strokes` of the top character `topChar` into runs in stroke order,
- * each run drawn by one component. Gives the runs as `{ c, s }`, or null when
- * no cut is sure: each run must match its component within CUT_TOLERANCE, no
- * stroke may stay out of a run, and the cut must have 2 or more runs.
- */
-function shapeCut(context, strokes, topChar, named) {
-  const family = descendantsOf(context, named);
-  const top = context.strokeEnds[topChar];
-  if (!top || strokes.length < 4) return null;
-  const ends = strokes.map((i) => top[i]);
-  const components = componentsOf(context);
-  for (const rarity of RARITY_COSTS) {
-    const n = ends.length;
-    const best = new Array(n + 1).fill(Infinity);
-    const from = new Array(n + 1).fill(null);
-    best[0] = 0;
-    for (let j = 2; j <= n; j++) {
-      for (let i = 0; i <= j - 2; i++) {
-        if (best[i] === Infinity || j - i === n) continue;
-        const inside = normalisedEnds(ends.slice(i, j));
-        const fits = [];
-        for (const component of components.get(j - i) ?? []) {
-          const d = endDistances(component.ends, inside);
-          if (d.max > SHAPE_TOLERANCE || d.mean > CUT_TOLERANCE) continue;
-          fits.push({ c: component.c, uses: component.uses, mean: d.mean, score: d.mean + rarity / Math.sqrt(component.uses) });
-        }
-        if (fits.length === 0) continue;
-        // Of the components that fit about as well as the best, one of the
-        // parts that the data gives the named part (月, not ⺼, in the 明 of
-        // 厭), then the most used one (夫, not the rarer 夬, in 漢).
-        const closest = Math.min(...fits.map((fit) => fit.mean));
-        const rank = (fit) => [family.has(fit.c) ? 1 : 0, fit.uses, -fit.score];
-        const match = fits
-          .filter((fit) => fit.mean <= closest * TIE_RATIO + 0.005)
-          .reduce((x, y) => {
-            const [rx, ry] = [rank(x), rank(y)];
-            const k = rx.findIndex((v, n) => v !== ry[n]);
-            return k !== -1 && ry[k] > rx[k] ? y : x;
-          });
-        const cost = best[i] + RUN_COST + match.score * (j - i);
-        if (cost < best[j]) {
-          best[j] = cost;
-          from[j] = [i, match.c];
-        }
-      }
-    }
-    if (best[n] === Infinity) continue;
-    const cut = [];
-    for (let j = n; j > 0; ) {
-      const [i, c] = from[j];
-      cut.unshift({ c, s: strokes.slice(i, j) });
-      j = i;
-    }
-    return cut;
+    if (!definition) continue;
+    if (!ANIMCJK_SETS.includes(source)) return { definition, map: identity };
+    const order = context.order[source]?.[char];
+    if (order === null) continue;
+    return { definition, map: order ?? identity };
   }
   return null;
 }
 
-/** Every character in the decomposition of `char`, at any depth. */
-function descendantsOf(context, char, found = new Set()) {
-  for (const ch of [...(context.entries.get(char)?.decomposition ?? '')]) {
-    if (found.has(ch) || !context.entries.has(ch)) continue;
-    found.add(ch);
-    descendantsOf(context, ch, found);
-  }
-  return found;
-}
-
-/** The largest and the mean distance between the ends of paired normalised strokes. */
-function endDistances(a, b) {
-  let max = 0;
-  let sum = 0;
-  for (let i = 0; i < a.length; i++) {
-    for (let e = 0; e < 2; e++) {
-      const d = Math.hypot(a[i][e][0] - b[i][e][0], a[i][e][1] - b[i][e][1]);
-      max = Math.max(max, d);
-      sum += d;
-    }
-  }
-  return { max, mean: sum / (2 * a.length) };
-}
-
-/** One part with no parts of its own yet. */
-function makePart(context, char, strokes) {
-  const part = { c: char, s: strokes, l: labelOf(context, char) };
-  const pinyin = context.entries.get(char)?.pinyin?.[0] ?? context.names[char]?.y;
-  if (pinyin) part.y = pinyin;
-  return part;
-}
-
 /**
- * The strokes of the top character that draw each stroke of the part `char`,
- * from the strokes `given` that the data gives the part. Gives `strokes`, one
- * entry for each stroke of the part alone (null for a stroke that the parent
- * leaves out), `extra`, the given strokes that the part alone does not have,
- * and `otherShape`, true when the given strokes do not have the shape of the
- * part alone. Gives null only when the stroke data cannot pair the strokes,
- * and records it in `context.mismatches`.
+ * The breakdown of one character: `{ c, p }`, where `p` is its parts, or
+ * null for a character of one stroke. Each part is `{ c, s, l, y?, r?, p? }`:
+ * the character (null for a piece with no name), the indices of its strokes
+ * in the top character, its label (null with no name), its pinyin, its role
+ * in its parent's etymology ('meaning' or 'sound') and its own parts. Only a
+ * part of one stroke has no parts.
  *
- * The data often draws a part in a reduced or longer form: 斤 holds a 下 of
- * 2 strokes, and the 攸 of 修 has 6 strokes, not 7. The part still splits:
- * its strokes and the given strokes are paired by their shape, in stroke
- * order.
+ * Throws when the Hanzi Writer stroke data has no character, because the
+ * strokes of the file are the strokes of that data.
  */
-function strokeMap(context, char, given, trail) {
-  const count = context.strokeCounts[char] ?? context.entries.get(char)?.matches.length;
-  const own = context.strokeEnds[char];
-  const top = context.strokeEnds[trail[0]];
-  const inside = top && given.map((i) => top[i]);
-  if (count === undefined || count === given.length) {
-    const paired = Boolean(own && inside && own.length === given.length);
-    const otherShape = paired && !sameShape(own, inside);
-    const moved = paired && partsMoved(context.entries.get(char), own, inside, own.map((_, i) => [i, i]));
-    return { strokes: given, extra: [], otherShape, moved };
-  }
-  // A part that its parent leaves out completely has no strokes to split.
-  if (given.length === 0) return null;
-  if (!own || !inside || own.length !== count) {
-    context.mismatches.push(`${[...trail, char].join(' > ')}: ${given.length} strokes, the stroke data ${count}`);
-    return null;
-  }
-  const pairs = pairStrokes(own, inside);
-  const strokes = own.map(() => null);
-  for (const [a, b] of pairs) strokes[a] = given[b];
-  const used = new Set(pairs.map(([, b]) => b));
-  const otherShape = !sameShape(
-    pairs.map(([a]) => own[a]),
-    pairs.map(([, b]) => inside[b]),
-  );
-  const moved = partsMoved(context.entries.get(char), own, inside, pairs);
-  return { strokes, extra: given.filter((_, b) => !used.has(b)), otherShape, moved };
+function breakdownOf(context, char) {
+  const count = context.strokeCounts[char];
+  if (count === undefined) throw new Error(`${char}: no Hanzi Writer stroke data`);
+  const top = topDefinition(context, char);
+  if (top) context.used.add(top.definition);
+  const strokes = [...Array(count).keys()];
+  const node = { c: char, s: strokes, parts: top?.definition.parts ?? null };
+  // The key of the top character is in the trail, so that it takes no
+  // definition by its name: only topDefinition knows the stroke order.
+  const key = `${char}/${count}`;
+  const map = top ? strokesFor(context, char, key, top.definition, top.map) : strokes;
+  const p = splitOf(context, char, node, map, top?.definition.source ?? null, [key]);
+  return { c: char, p };
 }
 
 /**
- * How far, at most, the centre of one part of a part may move between the
- * part alone and the part in its parent, after both are scaled to the same
- * size, before the build looks for its parts by shape. Measured on the HSK
- * characters: a reduced or side form scores 0.12 or less (攸 in 修, 矦 in 候,
- * 车 in 输). A form whose parts sit elsewhere scores 0.19 or more: 絲 for the
- * 丝 over 丱 of 聯 (0.26), 柬 in 练 (0.19), 昜 in 杨 (0.21), 監 in 覽 (0.23).
- */
-const LAYOUT_TOLERANCE = 0.18;
-
-/**
- * Whether the top-level parts of `entry` sit elsewhere in the parent than in
- * the part alone. `pairs` pairs the strokes of the part alone (`own`) with
- * the strokes in the parent (`inside`). The centre of each part is the mean
- * of the midpoints of its paired strokes.
- */
-function partsMoved(entry, own, inside, pairs) {
-  if (!entry) return false;
-  const a = normalisedEnds(pairs.map(([i]) => own[i]));
-  const b = normalisedEnds(pairs.map(([, j]) => inside[j]));
-  const groups = new Map();
-  pairs.forEach(([i], k) => {
-    const group = entry.matches[i]?.[0];
-    if (group === undefined) return;
-    groups.set(group, [...(groups.get(group) ?? []), k]);
-  });
-  if (groups.size < 2) return false;
-  const centre = (ends, ks) =>
-    [0, 1].map((axis) => ks.reduce((sum, k) => sum + (ends[k][0][axis] + ends[k][1][axis]) / 2, 0) / ks.length);
-  return [...groups.values()].some((ks) => {
-    const [ca, cb] = [centre(a, ks), centre(b, ks)];
-    return Math.hypot(ca[0] - cb[0], ca[1] - cb[1]) > LAYOUT_TOLERANCE;
-  });
-}
-
-/** The distance between the ends of two normalised strokes. */
-const strokeDistance = (a, b) =>
-  Math.hypot(a[0][0] - b[0][0], a[0][1] - b[0][1]) + Math.hypot(a[1][0] - b[1][0], a[1][1] - b[1][1]);
-
-/**
- * Pair the strokes of a part alone (`own`) with the strokes that draw it in
- * its parent (`inside`), in stroke order, when the counts differ. Each stroke
- * of the shorter side pairs with one stroke of the longer side. The pairing
- * has the smallest sum of distances between stroke ends. The ends are scaled
- * again over the paired strokes only, and the pairing is made again, because
- * a missing stroke moves the centre and the spread of the rest.
+ * The parts of `node`, or null for one stroke. `node.s` counts the strokes of
+ * the definition that holds the node, and `map` gives the stroke of the top
+ * character `top` for each stroke of that definition. `source` is the source
+ * of that definition. `trail` holds the keys of the nodes above that took a
+ * definition by name, so that no definition holds itself.
  *
- * Gives `[ownIndex, insideIndex]` pairs.
+ * The node splits by the first of these that exists: the parts that its
+ * parent's definition gives it, the definition of its character with the same
+ * number of strokes, the pieces of a split component, and its strokes.
  */
-function pairStrokes(own, inside) {
-  const flip = own.length < inside.length;
-  const [long, short] = flip ? [inside, own] : [own, inside];
-  const shortEnds = normalisedEnds(short);
-  let pairs = null;
-  for (let round = 0; round < 3; round++) {
-    const scaled = pairs === null
-      ? normalisedEnds(long)
-      : long.map((_, i) => normalisedEndsAt(long, pairs, i));
-    pairs = alignInOrder(long.length, short.length, (i, j) => strokeDistance(scaled[i], shortEnds[j]));
-  }
-  return pairs.map(([i, j]) => (flip ? [j, i] : [i, j]));
-}
-
-/**
- * The normalised ends of stroke `i` of `strokes`, scaled over the strokes of
- * the last pairing and the stroke itself.
- */
-function normalisedEndsAt(strokes, pairs, i) {
-  const set = [...new Set([...pairs.map(([k]) => k), i])].sort((a, b) => a - b);
-  return normalisedEnds(set.map((k) => strokes[k]))[set.indexOf(i)];
-}
-
-/**
- * The pairing in order of `short` strokes with `long` strokes (short <= long)
- * that has the smallest sum of `cost(longIndex, shortIndex)`.
- */
-function alignInOrder(long, short, cost) {
-  const best = Array.from({ length: long + 1 }, () => new Array(short + 1).fill(Infinity));
-  const back = Array.from({ length: long + 1 }, () => new Array(short + 1).fill(false));
-  for (let i = 0; i <= long; i++) best[i][0] = 0;
-  for (let i = 1; i <= long; i++) {
-    for (let j = 1; j <= Math.min(i, short); j++) {
-      const skip = best[i - 1][j];
-      const take = best[i - 1][j - 1] + cost(i - 1, j - 1);
-      if (take <= skip) {
-        best[i][j] = take;
-        back[i][j] = true;
-      } else best[i][j] = skip;
+function splitOf(context, top, node, map, source, trail, clues = []) {
+  if (node.s.length < 2) return null;
+  let parts = node.parts;
+  let from = source;
+  let within = map;
+  // The strokes of the node in the top character, in the stroke order of the node.
+  const strokes = node.s.map((i) => map[i]);
+  const key = node.c === null ? null : `${node.c}/${strokes.length}`;
+  if (!parts && key !== null && !trail.includes(key)) {
+    const definition = definitionOf(context, node.c, strokes.length, source);
+    if (definition) {
+      context.used.add(definition);
+      parts = definition.parts;
+      from = definition.source;
+      within = strokesFor(context, top, key, definition, strokes);
     }
   }
-  const pairs = [];
-  for (let i = long, j = short; j > 0; i--) {
-    if (back[i][j]) {
-      pairs.unshift([i - 1, j - 1]);
-      j--;
-    }
+  if (!parts && node.partial) parts = node.partial;
+  const below = key === null || trail.includes(key) ? trail : [...trail, key];
+  // A part that is the same strokes under another name is not a step.
+  if (parts && parts.length === 1 && parts[0].s.length === strokes.length) {
+    const inner = { ...parts[0], c: parts[0].c ?? node.c };
+    return splitOf(context, top, inner, within, from, below, clues);
   }
-  return pairs;
+  if (!parts) {
+    if (node.c === null) context.unnamed.add(`${top} > a piece of ${strokes.length} strokes`);
+    else context.unresolved.add(`${top} > ${key}`);
+    parts = strokes.map((_, i) => ({ c: null, s: [i], parts: null }));
+    within = strokes;
+  }
+  const own = cluesOf(context, node.c, strokes);
+  return parts
+    .map((part) => {
+      const made = makePart(context, part, part.s.map((i) => within[i]));
+      const role = roleOf(made, own, clues);
+      if (role) made.r = role;
+      const inner = splitOf(context, top, part, within, from, below, [...own, ...clues]);
+      if (inner) made.p = inner;
+      return made;
+    })
+    .sort((a, b) => a.s[0] - b.s[0]);
 }
 
 /**
- * How far, at most, the end of a stroke of a part in its parent may lie from
- * the same end of the part alone, in units of the spread of the part's stroke
- * ends, before the build reports the part. Measured on all of Make Me a Hanzi:
- * the 堇 of 僅 and 勤 scores 0.17 or less, and the variant 𦰩 that the data
- * calls 堇 in 難 and 漢 scores 0.42 or more.
+ * The name of each stroke of a definition, where the definition splits down
+ * to a named stroke: 一 and 丨 for the two strokes of 十. Null for a stroke
+ * with no name.
  */
-const SHAPE_TOLERANCE = 0.35;
-
-/**
- * The stroke ends of a set of strokes, centred on their mean and scaled by
- * their spread on each axis. A part drawn narrow or short in its parent then
- * has the same ends as the part alone.
- */
-function normalisedEnds(ends) {
-  const points = ends.flatMap(([x0, y0, x1, y1]) => [[x0, y0], [x1, y1]]);
-  const mean = (k) => points.reduce((sum, p) => sum + p[k], 0) / points.length;
-  const spread = (k, mu) =>
-    Math.max(Math.sqrt(points.reduce((sum, p) => sum + (p[k] - mu) ** 2, 0) / points.length), 1);
-  const [mx, my] = [mean(0), mean(1)];
-  const [sx, sy] = [spread(0, mx), spread(1, my)];
-  return ends.map(([x0, y0, x1, y1]) => [
-    [(x0 - mx) / sx / 4, (y0 - my) / sy / 4],
-    [(x1 - mx) / sx / 4, (y1 - my) / sy / 4],
-  ]);
+function strokeNamesOf(context, definition) {
+  if (context.strokeNames.has(definition)) return context.strokeNames.get(definition);
+  const names = new Array(definition.strokes).fill(null);
+  // The list is in the map before the walk, so a definition that holds
+  // itself reads the empty list and stops.
+  context.strokeNames.set(definition, names);
+  const walk = (parts, at) => {
+    for (const part of parts) {
+      if (part.s.length === 1) {
+        names[at(part.s[0])] = part.c;
+        continue;
+      }
+      // The same order as splitOf: the parts in place, a definition by
+      // name, then the pieces of a split component.
+      if (part.parts) {
+        walk(part.parts, at);
+        continue;
+      }
+      const inner = part.c === null ? null : definitionOf(context, part.c, part.s.length, definition.source);
+      if (inner) strokeNamesOf(context, inner).forEach((name, i) => (names[at(part.s[i])] = name));
+      else if (part.partial) walk(part.partial, at);
+    }
+  };
+  walk(definition.parts, (i) => i);
+  return names;
 }
 
 /**
- * Whether two lists of paired strokes have the same shape: each end lies
- * within SHAPE_TOLERANCE of its partner, after both are scaled to the same
- * size. The data can name a part by a character whose form is not the one
- * drawn: the left side of 難 is 𦰩, which the data calls 堇, and its bottom is
- * 大, not the 土 of 堇. The stroke count is the same, so only the shape shows it.
+ * Whether a stroke with the ends `[x0, y0, x1, y1]`, y up, can have the name.
+ * Four names give a direction: 一 runs across, 丨 and 亅 run down, and 丿
+ * runs down to the left. Any stroke can have another name.
  */
-function sameShape(own, inside) {
-  const a = normalisedEnds(own);
-  const b = normalisedEnds(inside);
-  return a.every((ends, i) =>
-    ends.every((p, k) => Math.hypot(p[0] - b[i][k][0], p[1] - b[i][k][1]) <= SHAPE_TOLERANCE),
-  );
+function strokeFits(name, ends) {
+  const [dx, dy] = [ends[2] - ends[0], ends[3] - ends[1]];
+  if (name === '一') return dx > 0 && Math.abs(dx) > Math.abs(dy);
+  if (name === '丨' || name === '亅') return dy < 0 && Math.abs(dy) > Math.abs(dx);
+  if (name === '丿') return dx < 0 && dy < 0;
+  return true;
+}
+
+/**
+ * The stroke of the top character for each stroke of a definition.
+ * `strokes` holds the strokes in the order that the top character draws
+ * them, and the definition counts the strokes in the order of its own
+ * drawing. The two orders are the same in almost all parts, so stroke `i` of
+ * the definition is `strokes[i]`.
+ *
+ * Two strokes change places only on a proof that both are in the wrong
+ * place: neither one fits its own name, and each one fits the name of the
+ * other. 里 draws the 田 at its top as 丨 𠃍 一 一 丨, and 田 alone is
+ * 丨 𠃍 一 丨 一, so the 丨 and the last 一 of 田 each get the stroke of the
+ * other. The nearest pairs go first, and a stroke is in one pair only.
+ *
+ * A pair inside one part of the definition does not change places here. The
+ * order inside a part belongs to that part: it pairs its own strokes when
+ * the build reaches it. The pair still counts, so neither stroke can pair
+ * with a stroke of another part.
+ *
+ * One stroke that does not fit its name proves nothing. A source can name a
+ * stroke loosely: AnimCJK calls the dot in 監 一. Such a stroke stays.
+ */
+function strokesFor(context, top, key, definition, strokes) {
+  const ends = context.strokeEnds[top];
+  if (!ends) return strokes;
+  const names = strokeNamesOf(context, definition);
+  const fits = (i, j) => strokeFits(names[i], ends[strokes[j]]);
+  const wrong = strokes.map((_, i) => i).filter((i) => !fits(i, i));
+  const pairs = wrong
+    .flatMap((i) => wrong.filter((j) => j > i && fits(i, j) && fits(j, i)).map((j) => [i, j]))
+    .sort((a, b) => a[1] - a[0] - (b[1] - b[0]) || a[0] - b[0]);
+  const inOnePart = (i, j) => definition.parts.some((part) => part.s.includes(i) && part.s.includes(j));
+  const paired = [...strokes];
+  const taken = new Set();
+  let moved = false;
+  for (const [i, j] of pairs) {
+    if (taken.has(i) || taken.has(j)) continue;
+    taken.add(i).add(j);
+    if (inOnePart(i, j)) continue;
+    [paired[i], paired[j]] = [paired[j], paired[i]];
+    moved = true;
+  }
+  if (!moved) return strokes;
+  context.reordered.add(`${top} > ${key}`);
+  return paired;
+}
+
+/** One part with no parts of its own yet. `s` holds its strokes in the top character. */
+function makePart(context, part, s) {
+  const made = { c: part.c, s: [...s].sort(ascending), l: labelOf(context, part.c) };
+  if (made.l === null && part.alt) made.l = labelOf(context, part.alt);
+  const pinyin = part.c === null ? undefined : pinyinOf(context, part.c) ?? (part.alt && pinyinOf(context, part.alt));
+  if (pinyin) made.y = pinyin;
+  return made;
+}
+
+/**
+ * The clues of `char`: the part that gives its meaning and the part that
+ * gives its sound, as Make Me a Hanzi names them. Each clue is
+ * `{ char, role, strokes }`. `strokes` is the text of the strokes that the
+ * Make Me a Hanzi entry gives the clue, in the top character, or null when
+ * the entry does not count the strokes of the node or does not hold the clue.
+ * `strokes` holds the strokes of the node, as in splitOf.
+ */
+function cluesOf(context, char, strokes) {
+  const entry = char === null ? undefined : context.entries.get(char);
+  if (!entry?.etymology) return [];
+  const sets = new Map();
+  if (entry.matches.length === strokes.length && entry.decomposition) {
+    const walk = (node, path) => {
+      const name = node.char ?? context.groupNames.get(node.ids);
+      if (name && path.length) {
+        const s = entry.matches.flatMap((match, i) =>
+          match && match.length >= path.length && path.every((p, k) => match[k] === p) ? [strokes[i]] : [],
+        );
+        if (!sets.has(name)) sets.set(name, s.sort(ascending).join(','));
+      }
+      (node.children ?? []).forEach((child, k) => walk(child, [...path, k]));
+    };
+    walk(parseIds(entry.decomposition), []);
+  }
+  return Object.entries(ROLE).flatMap(([key, role]) => {
+    const clue = entry.etymology[key];
+    return clue ? [{ char: clue, role, strokes: sets.get(clue) ?? null }] : [];
+  });
+}
+
+/**
+ * The role of a part: 'meaning' or 'sound', or null. `own` holds the clues
+ * of the character directly above the part, and `above` the clues of the
+ * characters higher up. A part has the role of a clue of its parent when it
+ * is that character. It has the role of any clue when it is the strokes that
+ * Make Me a Hanzi gives the clue. So the 𧾷 of 跑 is the meaning clue that
+ * the data calls 足, and the 心 of 德 keeps its role under 𢛳, which Make Me
+ * a Hanzi does not have as a step.
+ */
+function roleOf(made, own, above) {
+  if (made.c === null) return null;
+  const strokes = made.s.join(',');
+  const clue =
+    own.find((c) => c.char === made.c || c.strokes === strokes) ??
+    above.find((c) => c.strokes === strokes);
+  return clue?.role ?? null;
 }
 
 /** The name of the breakdown file of a character: its code point in hex, "7919" for 礙. */
 const breakdownFileName = (char) => char.codePointAt(0).toString(16);
 
 /**
- * The breakdown file of each character of `chars` that Make Me a Hanzi has.
- * Gives the files by name, the characters with no data, the parts whose
- * strokes disagree with their own stroke count, and the part characters that
- * no source gives a label (⺈ has no definition): the labels file needs them.
- * Also gives the labels of parts that are in no tree (`unused`): a typo, or a
- * part that only shows inside a part that does not split. `fallback` gives the
- * parts that the labels file does not label: they show the dictionary's first
- * sense, or no label.
+ * The breakdown file of each character of `chars` that has a definition.
+ * Gives the files by name, and these lists for the build to print or stop on:
+ *
+ * - `missing`: the characters with no definition in any source
+ * - `unresolved`: the named parts of 2 or more strokes that no definition
+ *   splits, as "top > part/strokes". Each one splits into its strokes. The
+ *   definitions file needs a definition for it
+ * - `unnamed`: the pieces of 2 or more strokes with no name. Each one splits
+ *   into its strokes
+ * - `reordered`: the parts that the top character draws in another stroke
+ *   order than the part alone: see strokesFor
+ * - `irregular`: the acjk texts in use that do not follow the operand counts
+ * - `sources`: the source of the definition of each top character, null for a
+ *   character that no definition splits
+ * - `unlabelled`: the part characters that no source gives a label
+ * - `fallback`: the parts that the labels file does not label: they show the
+ *   first sense of a dictionary, or no label
+ * - `unused`: the labels of parts that are in no tree (a typo)
+ * - `unusedDefinitions`: the texts of the definitions file that no breakdown
+ *   uses
  */
-function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, labels }) {
-  const context = breakdownContext({ entries, strokeCounts, strokeEnds, labels });
+function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, animcjk, definitions, labels }) {
+  const context = breakdownContext({ entries, strokeCounts, strokeEnds, animcjk, definitions, labels });
   const files = {};
   const missing = [];
+  const sources = {};
   const unlabelled = new Set();
   const fallback = new Set();
   const seen = new Set();
@@ -638,26 +791,28 @@ function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, labels }) {
     }
   };
   for (const char of [...new Set(chars)].sort()) {
-    if (!entries.has(char)) {
+    if (!context.definitions.has(char)) {
       missing.push(char);
       continue;
     }
+    sources[char] = topDefinition(context, char)?.definition.source ?? null;
     const breakdown = breakdownOf(context, char);
     collect(breakdown.p);
     files[breakdownFileName(char)] = breakdown;
   }
-  const unused = Object.keys(context.labels).filter((char) => !seen.has(char)).sort();
-  const unusedSearch = [...context.search].filter((key) => !context.searchUsed.has(key)).sort();
+  const fileDefinitions = [...context.definitions.values()].flat().filter((d) => d.source === 'file');
   return {
     files,
     missing,
-    mismatches: context.mismatches,
-    shapes: context.shapes,
-    cuts: context.cuts,
-    unusedSearch,
+    sources,
+    unresolved: [...context.unresolved].sort(),
+    unnamed: [...context.unnamed].sort(),
+    reordered: [...context.reordered].sort(),
+    irregular: [...context.used].filter((d) => d.irregular).map((d) => `${d.source}: ${d.text}`).sort(),
     unlabelled: [...unlabelled].sort(),
     fallback: [...fallback].sort(),
-    unused,
+    unused: Object.keys(context.labels).filter((char) => !seen.has(char)).sort(),
+    unusedDefinitions: fileDefinitions.filter((d) => !context.used.has(d)).map((d) => d.text),
   };
 }
 
@@ -668,6 +823,8 @@ module.exports = {
   breakdownOf,
   firstSense,
   groupNamesOf,
+  parseAcjk,
   parseIds,
   parseMakeMeAHanzi,
+  strokeOrder,
 };
