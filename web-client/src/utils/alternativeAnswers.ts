@@ -27,12 +27,20 @@ export const takesAlternatives = (direction: Direction): direction is Alternativ
 export type AnswerCategory = 'pinyin' | 'meaning';
 
 /**
+ * Write each spelling of ü as "v". CC-CEDICT writes "u:", and the learner types
+ * "v" or "ü". It must run before the punctuation goes, which would otherwise
+ * turn "lu:4" into "lu4", an answer that no correct spelling matches.
+ */
+export const unifyUmlaut = (pinyin: string): string => pinyin.replace(/u:|ü/gi, 'v');
+
+/**
  * An answer as the grade compares it: no case or punctuation, and for pinyin no
- * spaces or neutral tone numbers.
+ * spaces or neutral tone numbers, and one spelling of ü.
  */
 export const normaliseAnswer = (text: string, category: AnswerCategory): string => {
-  const clean = removePunctuation(text.trim());
-  return category === 'pinyin' ? dropNeutralTone(clean.replace(/ /g, '')) : clean;
+  if (category === 'meaning') return removePunctuation(text.trim());
+  const clean = removePunctuation(unifyUmlaut(text.trim().toLowerCase()));
+  return dropNeutralTone(clean.replace(/ /g, ''));
 };
 
 /** Whether the input is one of the answers. */
