@@ -691,6 +691,9 @@
   "groups": {
     "⿱亠凶": "㐫"
   },
+  "names": {
+    "㐫": { "l": "fierce (old form)", "y": "xiōng" }
+  },
   "pieces": {
     "赢": { "1.2": "凡" }
   }

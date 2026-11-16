@@ -97,7 +97,9 @@ const firstSense = (definition) => {
  *   is not checked
  * - `labels`: the labels file: `labels` (part to label; also the stop list),
  *   `groups` (a group's decomposition to the character it is) and `pieces`
- *   (a character to the names of its unnamed pieces, by path, "1.2")
+ *   (a character to the names of its unnamed pieces, by path, "1.2") and
+ *   `names` (a part to `{ l, y }`: a label and pinyin that do not stop the
+ *   split, for a group character with no entry of its own, 㐫)
  */
 function breakdownContext({ entries, strokeCounts, strokeEnds = {}, labels = {} }) {
   const groupNames = groupNamesOf(entries);
@@ -108,6 +110,7 @@ function breakdownContext({ entries, strokeCounts, strokeEnds = {}, labels = {} 
     strokeEnds,
     labels: labels.labels ?? {},
     pieces: labels.pieces ?? {},
+    names: labels.names ?? {},
     groupNames,
     mismatches: [],
   };
@@ -117,6 +120,7 @@ function breakdownContext({ entries, strokeCounts, strokeEnds = {}, labels = {} 
 function labelOf(context, char) {
   if (char === null) return null;
   if (context.labels[char]) return context.labels[char];
+  if (context.names[char]) return context.names[char].l;
   return firstSense(context.entries.get(char)?.definition);
 }
 
@@ -250,7 +254,7 @@ function partsOf(context, node, top, trail) {
 /** One part with no parts of its own yet. */
 function makePart(context, char, strokes) {
   const part = { c: char, s: strokes, l: labelOf(context, char) };
-  const pinyin = context.entries.get(char)?.pinyin?.[0];
+  const pinyin = context.entries.get(char)?.pinyin?.[0] ?? context.names[char]?.y;
   if (pinyin) part.y = pinyin;
   return part;
 }
@@ -340,7 +344,7 @@ function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, labels }) {
     for (const part of parts ?? []) {
       if (part.c !== null) seen.add(part.c);
       if (part.c !== null && part.l === null) unlabelled.add(part.c);
-      if (part.c !== null && !context.labels[part.c]) fallback.add(part.c);
+      if (part.c !== null && !context.labels[part.c] && !context.names[part.c]) fallback.add(part.c);
       collect(part.p);
     }
   };

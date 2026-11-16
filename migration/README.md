@@ -92,7 +92,7 @@ The committed sources are in `components/`:
 - `components/source/GPL`: the GPL 3.0 text, which the LGPL adds to.
 - `components/source/stroke-counts.json`: the stroke count of each character in `hanzi-writer-data@2.0.1`, the stroke data that the app loads.
 - `components/source/stroke-ends.json`: the first and last point of the median line of each stroke in the same data. The shape check reads it.
-- `components/labels.json`: the labels file. `labels` gives the label of a part. A part with a label does not split, but the top character always splits. `groups` names a group that is a real character (`⿱亠凶` is 㐫). `pieces` names an unnamed piece of one character by its path in the decomposition (the `1.2` of 赢 is 凡). An empty file is legal.
+- `components/labels.json`: the labels file. `labels` gives the label of a part. A part with a label does not split, but the top character always splits. `groups` names a group that is a real character (`⿱亠凶` is 㐫). `pieces` names an unnamed piece of one character by its path in the decomposition (the `1.2` of 赢 is 凡). `names` gives a label and pinyin to a part that has no entry of its own (㐫 in 脑). A name does not stop the split. An empty file is legal.
 
 `npm --prefix migration run fetch:makemeahanzi` downloads the sources again. The build uses no network. The rules are pure, in `componentBreakdown.js`.
 
