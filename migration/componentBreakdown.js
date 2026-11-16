@@ -99,9 +99,10 @@ const firstSense = (definition) => {
  *   `groups` (a group's decomposition to the character it is) and `pieces`
  *   (a character to the names of its unnamed pieces, by path, "1.2") and
  *   `names` (a part to `{ l, y }`: a label and pinyin for a group
- *   character with no entry of its own, 㐫) and `whole` (a list of
- *   "parent > part", for a part that the data names by another form: 𦰩,
- *   which the data calls 堇, in 難. Only these parts do not split)
+ *   character with no entry of its own, 㐫) and `search` (a list of
+ *   "parent > part", for a part that the data names by another form with
+ *   its parts in the same places: 𦰩, which the data calls 堇, in 難. The
+ *   build looks for its parts by shape)
  */
 function breakdownContext({ entries, strokeCounts, strokeEnds = {}, labels = {} }) {
   const groupNames = groupNamesOf(entries);
@@ -113,8 +114,9 @@ function breakdownContext({ entries, strokeCounts, strokeEnds = {}, labels = {} 
     labels: labels.labels ?? {},
     pieces: labels.pieces ?? {},
     names: labels.names ?? {},
-    whole: new Set(labels.whole ?? []),
-    wholeUsed: new Set(),
+    search: new Set(labels.search ?? []),
+    searchUsed: new Set(),
+    cuts: [],
     groupNames,
     mismatches: [],
     shapes: [],
@@ -239,31 +241,179 @@ function partsOf(context, node, top, trail) {
     return [part];
   }
   if (node.char === null) return [{ c: null, s, l: null }];
-  const part = makePart(context, node.char, s);
-  if (trail.includes(node.char)) return [part];
-  const key = `${trail[trail.length - 1]} > ${node.char}`;
-  if (context.whole.has(key)) {
-    context.wholeUsed.add(key);
-    return [part];
+  return [leafPart(context, node.char, s, trail)];
+}
+
+/**
+ * One named part with the strokes `s` of the top character, split as far as
+ * the data goes. A part never stays whole because of its form:
+ *
+ * - When its own parts sit elsewhere in the parent, or the labels file lists
+ *   it in `search`, the data names it by a form that the parent does not
+ *   draw. The right side of 聯 is 丝 over 丱, which the data calls 絲, side
+ *   by side. The build then looks for its parts by shape (shapeCut).
+ * - Otherwise, or when the search finds no sure cut, its own split goes onto
+ *   the paired strokes. A split under a name that is a little off is better
+ *   than a part that stays whole.
+ */
+function leafPart(context, char, s, trail) {
+  const part = makePart(context, char, s);
+  if (trail.includes(char)) return part;
+  const where = [...trail, char].join(' > ');
+  const map = strokeMap(context, char, s, trail);
+  if (!map) return part;
+  const key = `${trail[trail.length - 1]} > ${char}`;
+  const listed = context.search.has(key);
+  if (listed) context.searchUsed.add(key);
+  if (map.moved || listed) {
+    const cut = shapeCut(context, s, trail[0], char);
+    if (cut) {
+      context.cuts.push(`${where}: ${cut.map((seg) => seg.c).join(' + ')}`);
+      const inner = ordered(cut.map((seg) => leafPart(context, seg.c, seg.s, [...trail, char])));
+      if (inner) part.p = inner;
+      return part;
+    }
   }
-  const map = strokeMap(context, node.char, s, trail);
-  if (!map) return [part];
-  if (map.moved) {
-    // The data names the part by a form whose own parts sit elsewhere: the
-    // right side of 聯 is 丝 over 丱, which the data calls 絲, side by side.
-    // Its split would put the wrong parts on the strokes.
-    context.mismatches.push(`${[...trail, node.char].join(' > ')}: its parts sit elsewhere`);
-    return [part];
+  if (map.otherShape || map.moved) {
+    context.shapes.push(`${where}: the strokes have another shape`);
   }
-  if (map.otherShape) {
-    // Only a report: a side form (足 in 跑) fails the check as often as a
-    // wrong form, and a part that stays whole is worse than a split under a
-    // name that is a little off. The labels file's `whole` stops a wrong form.
-    context.shapes.push(`${[...trail, node.char].join(' > ')}: the strokes have another shape`);
-  }
-  const split = splitOf(context, node.char, map.strokes, [...trail, node.char], map.extra);
+  const split = splitOf(context, char, map.strokes, [...trail, char], map.extra);
   if (split) part.p = split;
-  return [part];
+  return part;
+}
+
+/**
+ * How well a run of strokes must match a component for a sure cut: the mean
+ * distance of its stroke ends, after both are scaled to the same size. The
+ * cut of 聯 matches by 0.07 or less (幺 + 幺 + 丱), and 廿 + 口 + 夫 for the 𦰩
+ * of 難 by 0.11 or less. At 0.09, 口 fails in 漢, and the cut becomes
+ * 廿 + 冖 + 三 + 人.
+ */
+const CUT_TOLERANCE = 0.12;
+
+/**
+ * The cost of a rare component in the search, per stroke: 0.1 first, then
+ * 0.3. A low cost finds the rare 丱 in 聯; a high cost finds 口 + 夫 in 難
+ * where the low cost finds the rare 旲.
+ */
+const RARITY_COSTS = [0.1, 0.3];
+
+/**
+ * How much worse than the best fit another component may fit and still win
+ * the tie-break, as a ratio: 夫 (0.076) wins over 夬 (0.063) in 漢, and 又
+ * (0.040) does not win over 冂 (0.009) in 網.
+ */
+const TIE_RATIO = 1.5;
+
+/** The decompositions that must use a component before a cut can use it: 丱 has 2, 刁 has 1. */
+const MIN_USES = 2;
+
+/** The cost of each run, so that a cut prefers fewer, larger components. */
+const RUN_COST = 0.6;
+
+/**
+ * The components that a cut can use, by stroke count: each character that
+ * a decomposition of the data uses, with 2 or more strokes and stroke ends.
+ * `uses` is the number of decompositions that use it, at least MIN_USES.
+ */
+function componentsOf(context) {
+  if (context.components) return context.components;
+  const uses = new Map();
+  for (const entry of context.entries.values()) {
+    for (const ch of [...(entry.decomposition ?? '')]) uses.set(ch, (uses.get(ch) ?? 0) + 1);
+  }
+  const components = new Map();
+  for (const [ch, n] of uses) {
+    const own = context.strokeEnds[ch];
+    if (!own || own.length < 2 || n < MIN_USES || !context.entries.has(ch)) continue;
+    if (!components.has(own.length)) components.set(own.length, []);
+    components.get(own.length).push({ c: ch, ends: normalisedEnds(own), uses: n });
+  }
+  context.components = components;
+  return components;
+}
+
+/**
+ * Cut the strokes `strokes` of the top character `topChar` into runs in stroke order,
+ * each run drawn by one component. Gives the runs as `{ c, s }`, or null when
+ * no cut is sure: each run must match its component within CUT_TOLERANCE, no
+ * stroke may stay out of a run, and the cut must have 2 or more runs.
+ */
+function shapeCut(context, strokes, topChar, named) {
+  const family = descendantsOf(context, named);
+  const top = context.strokeEnds[topChar];
+  if (!top || strokes.length < 4) return null;
+  const ends = strokes.map((i) => top[i]);
+  const components = componentsOf(context);
+  for (const rarity of RARITY_COSTS) {
+    const n = ends.length;
+    const best = new Array(n + 1).fill(Infinity);
+    const from = new Array(n + 1).fill(null);
+    best[0] = 0;
+    for (let j = 2; j <= n; j++) {
+      for (let i = 0; i <= j - 2; i++) {
+        if (best[i] === Infinity || j - i === n) continue;
+        const inside = normalisedEnds(ends.slice(i, j));
+        const fits = [];
+        for (const component of components.get(j - i) ?? []) {
+          const d = endDistances(component.ends, inside);
+          if (d.max > SHAPE_TOLERANCE || d.mean > CUT_TOLERANCE) continue;
+          fits.push({ c: component.c, uses: component.uses, mean: d.mean, score: d.mean + rarity / Math.sqrt(component.uses) });
+        }
+        if (fits.length === 0) continue;
+        // Of the components that fit about as well as the best, one of the
+        // parts that the data gives the named part (月, not ⺼, in the 明 of
+        // 厭), then the most used one (夫, not the rarer 夬, in 漢).
+        const closest = Math.min(...fits.map((fit) => fit.mean));
+        const rank = (fit) => [family.has(fit.c) ? 1 : 0, fit.uses, -fit.score];
+        const match = fits
+          .filter((fit) => fit.mean <= closest * TIE_RATIO + 0.005)
+          .reduce((x, y) => {
+            const [rx, ry] = [rank(x), rank(y)];
+            const k = rx.findIndex((v, n) => v !== ry[n]);
+            return k !== -1 && ry[k] > rx[k] ? y : x;
+          });
+        const cost = best[i] + RUN_COST + match.score * (j - i);
+        if (cost < best[j]) {
+          best[j] = cost;
+          from[j] = [i, match.c];
+        }
+      }
+    }
+    if (best[n] === Infinity) continue;
+    const cut = [];
+    for (let j = n; j > 0; ) {
+      const [i, c] = from[j];
+      cut.unshift({ c, s: strokes.slice(i, j) });
+      j = i;
+    }
+    return cut;
+  }
+  return null;
+}
+
+/** Every character in the decomposition of `char`, at any depth. */
+function descendantsOf(context, char, found = new Set()) {
+  for (const ch of [...(context.entries.get(char)?.decomposition ?? '')]) {
+    if (found.has(ch) || !context.entries.has(ch)) continue;
+    found.add(ch);
+    descendantsOf(context, ch, found);
+  }
+  return found;
+}
+
+/** The largest and the mean distance between the ends of paired normalised strokes. */
+function endDistances(a, b) {
+  let max = 0;
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) {
+    for (let e = 0; e < 2; e++) {
+      const d = Math.hypot(a[i][e][0] - b[i][e][0], a[i][e][1] - b[i][e][1]);
+      max = Math.max(max, d);
+      sum += d;
+    }
+  }
+  return { max, mean: sum / (2 * a.length) };
 }
 
 /** One part with no parts of its own yet. */
@@ -320,10 +470,10 @@ function strokeMap(context, char, given, trail) {
 /**
  * How far, at most, the centre of one part of a part may move between the
  * part alone and the part in its parent, after both are scaled to the same
- * size. Measured on the HSK characters: a reduced or side form scores 0.12
- * or less (攸 in 修, 矦 in 候, 车 in 输). A form whose parts sit elsewhere
- * scores 0.19 or more: 絲 for the 丝 over 丱 of 聯 (0.26), 柬 in 练 (0.19),
- * 昜 in 杨 (0.21), 監 in 覽 (0.23).
+ * size, before the build looks for its parts by shape. Measured on the HSK
+ * characters: a reduced or side form scores 0.12 or less (攸 in 修, 矦 in 候,
+ * 车 in 输). A form whose parts sit elsewhere scores 0.19 or more: 絲 for the
+ * 丝 over 丱 of 聯 (0.26), 柬 in 练 (0.19), 昜 in 杨 (0.21), 監 in 覽 (0.23).
  */
 const LAYOUT_TOLERANCE = 0.18;
 
@@ -497,13 +647,14 @@ function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, labels }) {
     files[breakdownFileName(char)] = breakdown;
   }
   const unused = Object.keys(context.labels).filter((char) => !seen.has(char)).sort();
-  const unusedWhole = [...context.whole].filter((key) => !context.wholeUsed.has(key)).sort();
+  const unusedSearch = [...context.search].filter((key) => !context.searchUsed.has(key)).sort();
   return {
     files,
     missing,
     mismatches: context.mismatches,
     shapes: context.shapes,
-    unusedWhole,
+    cuts: context.cuts,
+    unusedSearch,
     unlabelled: [...unlabelled].sort(),
     fallback: [...fallback].sort(),
     unused,

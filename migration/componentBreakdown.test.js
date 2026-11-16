@@ -170,23 +170,30 @@ describe('breakdownOf', () => {
     expect(context.shapes).toContain('難 > 堇: the strokes have another shape');
   });
 
-  it('keeps a part whole when its own parts sit elsewhere in the parent', () => {
+  it('splits a part by shape when its own parts sit elsewhere in the parent', () => {
     // The right side of 聯 is 丝 over 丱. The data calls it 絲, whose two
-    // parts sit side by side, so its split would put them on the wrong strokes.
+    // parts sit side by side, so the split of 絲 would put them on the wrong strokes.
     const context = breakdownContext({ entries, strokeCounts, strokeEnds, labels: {} });
     const ally = breakdownOf(context, '聯');
     expect(ally.p[1]).toMatchObject({ c: '絲', s: range(6, 16) });
-    expect(ally.p[1].p).toBeUndefined();
-    expect(context.mismatches).toContain('聯 > 絲: its parts sit elsewhere');
-    expect(breakdown('练').p[1].p).toBeUndefined();
+    expect(charsOf(ally.p[1].p)).toEqual(['幺', '幺', '丱']);
+    expect(ally.p[1].p.map((part) => part.s)).toEqual([range(6, 8), range(9, 11), range(12, 16)]);
+    expect(context.cuts).toContain('聯 > 絲: 幺 + 幺 + 丱');
   });
 
-  it('keeps a part whole when the labels file lists it in whole', () => {
-    const hard = breakdown('難', { whole: ['難 > 堇'] });
+  it('never keeps a part whole when the search finds no sure cut', () => {
+    const affairs = breakdown('练').p[1];
+    expect(affairs.c).toBe('柬');
+    expect(affairs.p).toBeDefined();
+  });
+
+  it('splits a part by shape when the labels file lists it in search', () => {
+    // The left side of 難 is 𦰩: 廿 + 口 + 夫. The data calls it 堇.
+    const hard = breakdown('難', { search: ['難 > 堇'] });
     expect(hard.p[0].c).toBe('堇');
-    expect(hard.p[0].p).toBeUndefined();
-    const shoal = breakdown('灘', { whole: ['難 > 堇'] });
-    expect(shoal.p[1].p[0].p).toBeUndefined();
+    expect(charsOf(hard.p[0].p)).toEqual(['廿', '口', '夫']);
+    const shoal = breakdown('灘', { search: ['難 > 堇'] });
+    expect(charsOf(shoal.p[1].p[0].p)).toEqual(['廿', '口', '夫']);
   });
 
   it('splits a part whose strokes in the parent have its own shape', () => {
@@ -222,15 +229,15 @@ describe('buildBreakdowns', () => {
     expect(shapes).toContain('難 > 堇: the strokes have another shape');
   });
 
-  it('lists the parts in whole that are in no breakdown', () => {
+  it('lists the parts in search that are in no breakdown', () => {
     const result = buildBreakdowns({
       chars: ['難'],
       entries,
       strokeCounts,
       strokeEnds,
-      labels: { whole: ['難 > 堇', '漢 > 堇'] },
+      labels: { search: ['難 > 堇', '漢 > 堇'] },
     });
-    expect(result.unusedWhole).toEqual(['漢 > 堇']);
+    expect(result.unusedSearch).toEqual(['漢 > 堇']);
   });
 
   it('fills every part with a fallback label when the labels file is empty', () => {
