@@ -480,6 +480,7 @@ describe('NewWords — Write', () => {
     await toWrite(user);
 
     expect(screen.getByText('Traced')).toBeInTheDocument();
+    expect(await screen.findByTestId('breakdown-电')).toBeInTheDocument();
   });
 
   it('Start test on the last word starts the test, traced or not', async () => {
