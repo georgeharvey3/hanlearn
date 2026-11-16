@@ -170,6 +170,17 @@ describe('breakdownOf', () => {
     expect(context.shapes).toContain('難 > 堇: the strokes have another shape');
   });
 
+  it('keeps a part whole when its own parts sit elsewhere in the parent', () => {
+    // The right side of 聯 is 丝 over 丱. The data calls it 絲, whose two
+    // parts sit side by side, so its split would put them on the wrong strokes.
+    const context = breakdownContext({ entries, strokeCounts, strokeEnds, labels: {} });
+    const ally = breakdownOf(context, '聯');
+    expect(ally.p[1]).toMatchObject({ c: '絲', s: range(6, 16) });
+    expect(ally.p[1].p).toBeUndefined();
+    expect(context.mismatches).toContain('聯 > 絲: its parts sit elsewhere');
+    expect(breakdown('练').p[1].p).toBeUndefined();
+  });
+
   it('keeps a part whole when the labels file lists it in whole', () => {
     const hard = breakdown('難', { whole: ['難 > 堇'] });
     expect(hard.p[0].c).toBe('堇');

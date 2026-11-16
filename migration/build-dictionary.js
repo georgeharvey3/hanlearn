@@ -239,7 +239,7 @@ const COMPONENTS_DIR = path.join(__dirname, 'components');
 /**
  * Write one component breakdown file for each character of the HSK words,
  * from the committed Make Me a Hanzi data and labels file, with no network.
- * Prints the parts whose strokes the stroke data cannot pair, and the parts
+ * Prints the parts whose own parts sit elsewhere in the parent, and the parts
  * whose strokes have another shape than the part alone.
  *
  * Fails the build when Make Me a Hanzi and the Hanzi Writer stroke data
@@ -296,7 +296,7 @@ function buildComponentBreakdowns(catalogue, outputDir) {
     console.log('No Make Me a Hanzi data, so no breakdown: ' + result.missing.join(' '));
   }
   console.log(
-    'Parts that do not split, because the stroke data cannot pair their strokes: ' +
+    'Parts that do not split, because their own parts sit elsewhere in the parent: ' +
       result.mismatches.length,
   );
   console.log(

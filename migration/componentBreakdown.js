@@ -248,6 +248,13 @@ function partsOf(context, node, top, trail) {
   }
   const map = strokeMap(context, node.char, s, trail);
   if (!map) return [part];
+  if (map.moved) {
+    // The data names the part by a form whose own parts sit elsewhere: the
+    // right side of 聯 is 丝 over 丱, which the data calls 絲, side by side.
+    // Its split would put the wrong parts on the strokes.
+    context.mismatches.push(`${[...trail, node.char].join(' > ')}: its parts sit elsewhere`);
+    return [part];
+  }
   if (map.otherShape) {
     // Only a report: a side form (足 in 跑) fails the check as often as a
     // wrong form, and a part that stays whole is worse than a split under a
@@ -287,8 +294,10 @@ function strokeMap(context, char, given, trail) {
   const top = context.strokeEnds[trail[0]];
   const inside = top && given.map((i) => top[i]);
   if (count === undefined || count === given.length) {
-    const otherShape = Boolean(own && inside && own.length === given.length && !sameShape(own, inside));
-    return { strokes: given, extra: [], otherShape };
+    const paired = Boolean(own && inside && own.length === given.length);
+    const otherShape = paired && !sameShape(own, inside);
+    const moved = paired && partsMoved(context.entries.get(char), own, inside, own.map((_, i) => [i, i]));
+    return { strokes: given, extra: [], otherShape, moved };
   }
   // A part that its parent leaves out completely has no strokes to split.
   if (given.length === 0) return null;
@@ -304,7 +313,43 @@ function strokeMap(context, char, given, trail) {
     pairs.map(([a]) => own[a]),
     pairs.map(([, b]) => inside[b]),
   );
-  return { strokes, extra: given.filter((_, b) => !used.has(b)), otherShape };
+  const moved = partsMoved(context.entries.get(char), own, inside, pairs);
+  return { strokes, extra: given.filter((_, b) => !used.has(b)), otherShape, moved };
+}
+
+/**
+ * How far, at most, the centre of one part of a part may move between the
+ * part alone and the part in its parent, after both are scaled to the same
+ * size. Measured on the HSK characters: a reduced or side form scores 0.12
+ * or less (攸 in 修, 矦 in 候, 车 in 输). A form whose parts sit elsewhere
+ * scores 0.19 or more: 絲 for the 丝 over 丱 of 聯 (0.26), 柬 in 练 (0.19),
+ * 昜 in 杨 (0.21), 監 in 覽 (0.23).
+ */
+const LAYOUT_TOLERANCE = 0.18;
+
+/**
+ * Whether the top-level parts of `entry` sit elsewhere in the parent than in
+ * the part alone. `pairs` pairs the strokes of the part alone (`own`) with
+ * the strokes in the parent (`inside`). The centre of each part is the mean
+ * of the midpoints of its paired strokes.
+ */
+function partsMoved(entry, own, inside, pairs) {
+  if (!entry) return false;
+  const a = normalisedEnds(pairs.map(([i]) => own[i]));
+  const b = normalisedEnds(pairs.map(([, j]) => inside[j]));
+  const groups = new Map();
+  pairs.forEach(([i], k) => {
+    const group = entry.matches[i]?.[0];
+    if (group === undefined) return;
+    groups.set(group, [...(groups.get(group) ?? []), k]);
+  });
+  if (groups.size < 2) return false;
+  const centre = (ends, ks) =>
+    [0, 1].map((axis) => ks.reduce((sum, k) => sum + (ends[k][0][axis] + ends[k][1][axis]) / 2, 0) / ks.length);
+  return [...groups.values()].some((ks) => {
+    const [ca, cb] = [centre(a, ks), centre(b, ks)];
+    return Math.hypot(ca[0] - cb[0], ca[1] - cb[1]) > LAYOUT_TOLERANCE;
+  });
 }
 
 /** The distance between the ends of two normalised strokes. */
