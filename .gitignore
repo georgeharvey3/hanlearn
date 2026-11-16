@@ -9,7 +9,6 @@ functions/data/dictionary.json
 web-client/public/premade-lists/
 web-client/public/sentences/
 web-client/public/breakdowns/
-functions/data/char-definitions.json
 functions/lib
 
 # Environment files
