@@ -174,8 +174,8 @@ const TestChengyusTest: React.FC<Props> = ({
   }
 
   // TODO: Design review — this component uses a custom boxShadow and secondary.main
-  // bgcolor that doesn't match the NewWord card style. Consider aligning with the
-  // Paper + border pattern used in NewWord/Test components for consistency.
+  // bgcolor that doesn't match the study card style. Consider aligning with the
+  // Paper + border pattern used in the Test components for consistency.
   return (
     <Box
       sx={{
