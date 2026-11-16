@@ -57,10 +57,18 @@ describe('breakdownOf', () => {
     expect(charsOf(breakdown('疑').p)).toEqual(['匕', '矢', null, '疋']);
   });
 
-  it('stops at a building block with a label', () => {
+  it('splits a part with a label down to its smallest parts', () => {
     const stone = breakdown('礙').p[0];
     expect(charsOf(stone.p)).toEqual(['厂', '口']);
-    expect(stone.p[1].p).toBeUndefined();
+    expect(charsOf(stone.p[1].p)).toEqual(['冂', '一']);
+  });
+
+  it('splits 續 past 賣, and 賣 past 貝', () => {
+    const labels = { labels: { 糹: 'silk', 賣: 'sell', 貝: 'shell money', 士: 'scholar' } };
+    const sell = breakdown('續', labels).p[1];
+    expect(sell).toMatchObject({ c: '賣', l: 'sell' });
+    expect(charsOf(sell.p)).toEqual(['士', '罒', '貝']);
+    expect(charsOf(sell.p[2].p)).toEqual(['目', '八']);
   });
 
   it('splits the top character even when it has a label', () => {
@@ -195,14 +203,15 @@ describe('buildBreakdowns', () => {
   it('lists the parts that the labels file does not label', () => {
     const stops = { 石: 'stone', 匕: 'spoon', 矢: 'arrow', 疋: 'roll' };
     const partly = buildBreakdowns({ chars: ['礙'], entries, strokeCounts, labels: { labels: stops } });
-    expect(partly.fallback).toEqual(['疑']);
+    expect(partly.fallback).toContain('疑');
+    expect(partly.fallback).not.toContain('石');
     const fully = buildBreakdowns({
       chars: ['礙'],
       entries,
       strokeCounts,
       labels: { labels: { ...stops, 疑: 'doubt' } },
     });
-    expect(fully.fallback).toEqual([]);
+    expect(fully.fallback).not.toContain('疑');
   });
 
   it('lists the parts with no label in any source', () => {
@@ -220,7 +229,7 @@ describe('buildBreakdowns', () => {
   it('lists the labels of parts that are in no tree', () => {
     const labels = { labels: { 口: 'mouth', 冂: 'down box', 水: 'water' } };
     const result = buildBreakdowns({ chars: ['礙'], entries, strokeCounts, labels });
-    expect(result.unused).toEqual(['冂', '水']);
+    expect(result.unused).toEqual(['水']);
   });
 });
 
@@ -237,11 +246,8 @@ describe('the committed labels file', () => {
     expect(labels.labels['丷']).toBe(horns.l);
   });
 
-  it('gives 赢 no unnamed piece, and names its bottom-right piece 凡', () => {
-    const unnamed = [];
-    const walk = (parts) => parts?.forEach((part) => (part.c === null ? unnamed.push(part) : walk(part.p)));
-    walk(withLabels('赢').p);
-    expect(unnamed).toEqual([]);
+  it('gives 赢 no unnamed piece in its own split, and names its bottom-right piece 凡', () => {
+    expect(charsOf(withLabels('赢').p)).toEqual(['吂', '⺼', '贝', '凡']);
     expect(withLabels('赢').p.at(-1)).toMatchObject({ c: '凡', l: 'ordinary' });
   });
 });

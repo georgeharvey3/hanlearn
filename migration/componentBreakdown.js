@@ -11,8 +11,8 @@
  * - A group with no name of its own is not a step. Its pieces join the split
  *   directly (疑 = 匕 + 矢 + ？ + 疋). A group that is a real character stays a
  *   step (㐫 in 脑).
- * - Splitting stops at a building block with a label (口, 匕, 矢), so 口
- *   never splits into 冂 + 一. The stop list is the labels file.
+ * - A label never stops a split. Each part splits as far as the data goes,
+ *   so 賣 in 續 splits into 士 + 罒 + 貝, and 口 into 冂 + 一.
  * - An unnamed piece never blocks a split. It is a part of its own with no
  *   label.
  */
@@ -95,11 +95,11 @@ const firstSense = (definition) => {
  * - `strokeEnds`: the first and last point of the median line of each stroke
  *   in the same data, `[x0, y0, x1, y1]`. Optional: with none, a part's shape
  *   is not checked
- * - `labels`: the labels file: `labels` (part to label; also the stop list),
+ * - `labels`: the labels file: `labels` (part to label; it never stops a split),
  *   `groups` (a group's decomposition to the character it is) and `pieces`
  *   (a character to the names of its unnamed pieces, by path, "1.2") and
- *   `names` (a part to `{ l, y }`: a label and pinyin that do not stop the
- *   split, for a group character with no entry of its own, 㐫)
+ *   `names` (a part to `{ l, y }`: a label and pinyin for a group
+ *   character with no entry of its own, 㐫)
  */
 function breakdownContext({ entries, strokeCounts, strokeEnds = {}, labels = {} }) {
   const groupNames = groupNamesOf(entries);
@@ -181,11 +181,11 @@ function breakdownOf(context, char) {
 
 /**
  * The parts of a character whose strokes in the top character are `strokes`,
- * or null when it does not split. A part with a label is a building block,
- * and `partsOf` does not split it. The top character always splits: most
- * HSK characters (是, 道) are also a labelled part of another character.
- * `trail` holds the characters above it, so an entry that holds itself does
- * not loop.
+ * or null when it does not split. A label never stops a split: a part that
+ * stays whole when it has parts of its own hides them from the learner, and
+ * that is worse than a building block that splits into strokes (口 into
+ * 冂 + 一). `trail` holds the characters above it, so an entry that holds
+ * itself does not loop.
  */
 function splitOf(context, char, strokes, trail) {
   const entry = context.entries.get(char);
@@ -227,7 +227,6 @@ function partsOf(context, node, top, trail) {
     const part = makePart(context, name, s);
     if (
       strokesAgree(context, name, s.length, trail) &&
-      !context.labels[name] &&
       shapesAgree(context, name, s, trail)
     ) {
       const inner = ordered(
@@ -242,7 +241,6 @@ function partsOf(context, node, top, trail) {
   if (
     !trail.includes(node.char) &&
     strokesAgree(context, node.char, s.length, trail) &&
-    !context.labels[node.char] &&
     shapesAgree(context, node.char, s, trail)
   ) {
     const split = splitOf(context, node.char, s, [...trail, node.char]);
@@ -329,7 +327,7 @@ const breakdownFileName = (char) => char.codePointAt(0).toString(16);
  * strokes disagree with their own stroke count, and the part characters that
  * no source gives a label (⺈ has no definition): the labels file needs them.
  * Also gives the labels of parts that are in no tree (`unused`): a typo, or a
- * part that only shows inside a part that a label stops. `fallback` gives the
+ * part that only shows inside a part that does not split. `fallback` gives the
  * parts that the labels file does not label: they show the dictionary's first
  * sense, or no label.
  */
