@@ -8,7 +8,7 @@ web-client/public/dictionary.json
 functions/data/dictionary.json
 web-client/public/premade-lists/
 web-client/public/sentences/
-functions/data/char-definitions.json
+web-client/public/breakdowns/
 functions/lib
 
 # Environment files
@@ -41,6 +41,7 @@ migration/*.json
 !migration/package.json
 migration/review-log-*.csv
 migration/sentence-reports.csv
+migration/part-reports.csv
 
 
 # Playwright

@@ -52,7 +52,7 @@ const FILES = [
   'components/Test/NothingDue/SessionLoading.tsx',
   'components/Test/ComponentReview/ComponentReview.tsx',
   'components/Test/ComponentReview/CharacterGlosses.tsx',
-  'components/Test/ComponentReview/ComponentTree.tsx',
+  'components/Test/ComponentReview/CharacterBreakdown.tsx',
   'components/Test/NewWords/NewWords.tsx',
   'components/Test/NewWords/StepRail.tsx',
   'components/Test/NewWords/WordCard.tsx',

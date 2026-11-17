@@ -52,6 +52,11 @@ export const colors = {
 // in lightness and not in hue alone.
 export const levelInk = ['#c5d8cc', '#9dbfad', '#6d9f86', '#3c7a5c', '#1a5c40'] as const;
 
+// The inks of the parts of a character in the component breakdown (#529):
+// navy, seal red, teal and amber. Their CIE lightness is 21, 43, 59 and 71,
+// so a colour-blind learner tells the parts apart by lightness alone.
+export const partInk = ['#1c2f6b', '#b8323f', '#2a9d8f', '#e69f00'] as const;
+
 // The progress chart's line for levels 2 to 5. Mastered takes the seal red so
 // the top line stands out from the greens.
 export const levelLine: Record<number, string> = {
