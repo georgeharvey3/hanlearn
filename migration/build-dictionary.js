@@ -12,6 +12,7 @@
  *   ../web-client/public/premade-lists/ (the catalogue of premade lists, and
  *     hsk-index.json, the HSK index of the Dashboard)
  *   ../web-client/public/sentences/ (the example sentences, see #465)
+ *   ../web-client/public/breakdowns/ (the component breakdowns, see #528)
  *   sentences/coverage.md (the coverage report, on a local run only)
  *   dictionary/emptied-entries.md (the entries that the clean of #488 empties)
  */
@@ -22,6 +23,7 @@ const path = require('path');
 const { ranksOf, resolveCatalogue } = require('./premadeCatalogue');
 const { checkHskIndex, hskIndexOf } = require('./hskIndex');
 const { buildExampleSentences, unfilledOf } = require('./exampleSentences');
+const { buildBreakdowns, parseMakeMeAHanzi } = require('./componentBreakdown');
 const { cleanDictionary, isUnclean } = require('./cleanMeaning');
 
 /**
@@ -233,6 +235,122 @@ const licenseText = ({ licence }) => [
   'of each Tatoeba sentence.',
 ].join('\n') + '\n';
 
+/** The committed sources of the component breakdown (#528). */
+const COMPONENTS_DIR = path.join(__dirname, 'components');
+
+/**
+ * Write one component breakdown file for each character of the HSK words,
+ * from the committed AnimCJK and Make Me a Hanzi data, the definitions file
+ * and the labels file, with no network. Prints the number of characters that
+ * each source defines, and the lists that a person can review.
+ *
+ * Fails the build when:
+ *
+ * - a named part of 2 or more strokes has no definition, because the part
+ *   then splits into strokes with no name. The definitions file needs it
+ * - the definitions file holds a text that no breakdown uses
+ * - the labels file gives a label to a part that is in no breakdown
+ */
+function buildComponentBreakdowns(catalogue, outputDir) {
+  const sourceDir = path.join(COMPONENTS_DIR, 'source');
+  const readJson = (...parts) => JSON.parse(fs.readFileSync(path.join(...parts), 'utf8'));
+  const chars = catalogue.flatMap((list) =>
+    list.entries.flatMap((entry) => [...entry.simp, ...entry.trad]),
+  );
+  const result = buildBreakdowns({
+    chars,
+    entries: parseMakeMeAHanzi(fs.readFileSync(path.join(sourceDir, 'dictionary.txt'), 'utf8')),
+    strokeCounts: readJson(sourceDir, 'stroke-counts.json').counts,
+    strokeEnds: readJson(sourceDir, 'stroke-ends.json').ends,
+    animcjk: readJson(sourceDir, 'animcjk.json'),
+    definitions: readJson(COMPONENTS_DIR, 'definitions.json').definitions,
+    labels: readJson(COMPONENTS_DIR, 'labels.json'),
+  });
+  if (result.unresolved.length) {
+    throw new Error(
+      'These parts have no definition with their stroke count. Add each one to ' +
+        'migration/components/definitions.json: ' + result.unresolved.join(', '),
+    );
+  }
+  if (result.unusedDefinitions.length) {
+    throw new Error(
+      'migration/components/definitions.json holds definitions that no breakdown uses: ' +
+        result.unusedDefinitions.join(' '),
+    );
+  }
+  if (result.unused.length) {
+    throw new Error(
+      'migration/components/labels.json labels parts that are in no breakdown: ' +
+        result.unused.join(' '),
+    );
+  }
+
+  fs.rmSync(outputDir, { recursive: true, force: true });
+  fs.mkdirSync(outputDir, { recursive: true });
+  let bytes = 0;
+  for (const [name, content] of Object.entries(result.files)) {
+    const json = JSON.stringify(content);
+    bytes += Buffer.byteLength(json);
+    fs.writeFileSync(path.join(outputDir, name + '.json'), json);
+  }
+  fs.writeFileSync(
+    path.join(outputDir, 'ATTRIBUTION.txt'),
+    breakdownAttributionText(
+      fs.readFileSync(path.join(sourceDir, 'animcjk-COPYING.txt'), 'utf8'),
+      fs.readFileSync(path.join(sourceDir, 'COPYING'), 'utf8'),
+    ),
+  );
+  fs.copyFileSync(path.join(sourceDir, 'LGPL'), path.join(outputDir, 'LICENSE.txt'));
+  fs.copyFileSync(path.join(sourceDir, 'GPL'), path.join(outputDir, 'GPL.txt'));
+
+  const count = Object.keys(result.files).length;
+  console.log(
+    'Wrote ' + count + ' component breakdowns (' + Math.round(bytes / Math.max(count, 1)) +
+      ' bytes each on average) to: ' + outputDir,
+  );
+  if (result.missing.length) {
+    console.log('No definition in any source, so no breakdown: ' + result.missing.join(' '));
+  }
+  const bySource = {};
+  for (const source of Object.values(result.sources)) {
+    bySource[source ?? 'none'] = (bySource[source ?? 'none'] ?? 0) + 1;
+  }
+  console.log('Characters by the source of their definition: ' + JSON.stringify(bySource));
+  console.log('Pieces with no name that split into strokes: ' + result.unnamed.join(', '));
+  console.log('Parts drawn in another stroke order than the part alone: ' + result.reordered.length);
+  console.log('AnimCJK texts in use with another operand count: ' + result.irregular.length);
+  console.log('Parts with no label in any source: ' + result.unlabelled.join(' '));
+  console.log('Parts that still use the fallback label: ' + result.fallback.length);
+}
+
+/**
+ * The text of ATTRIBUTION.txt of the breakdown files. AnimCJK and Make Me a
+ * Hanzi each ask for their notice, and the Unihan notice in LICENSE.txt asks
+ * for a notice that the data is modified.
+ */
+const breakdownAttributionText = (animcjk, makeMeAHanzi) => [
+  'The component breakdown files in this directory are derived from the',
+  'dictionary files of AnimCJK (https://github.com/parsimonhi/animCJK) and from',
+  'dictionary.txt of Make Me a Hanzi (https://github.com/skishore/makemeahanzi).',
+  'HanLearn modified the data: each file holds the tree of the parts of one',
+  'character, the strokes of each part, its meaning or sound clue, and a label.',
+  'Some parts come from migration/components/definitions.json of HanLearn. The',
+  'labels come from migration/components/labels.json of HanLearn, then from the',
+  'definitions of Make Me a Hanzi and AnimCJK.',
+  '',
+  'You can redistribute and/or modify these files under the terms of the GNU',
+  'Lesser General Public License, version 3 or later (LICENSE.txt), which adds',
+  'to the GNU General Public License, version 3 (GPL.txt).',
+  '',
+  'The AnimCJK notice:',
+  '',
+  animcjk.trim(),
+  '',
+  'The Make Me a Hanzi notice:',
+  '',
+  makeMeAHanzi.trim(),
+].join('\n') + '\n';
+
 /**
  * The SHA-256 of the one cedict_ts.u8 the app ships (2026-01-02).
  *
@@ -399,13 +517,12 @@ const chengyuRowsOf = (table) =>
  * The check of #488: fail the build when a meaning that the app shows holds a
  * Chinese character or a pinyin reference. It reads the files as written.
  */
-function checkClean(words, charDefinitions, outputDir) {
+function checkClean(words, outputDir) {
   const problems = [];
   const check = (where, text) => {
     if (isUnclean(text)) problems.push(where + ': ' + text);
   };
   for (const word of words) check('dictionary.json ' + word.id + ' ' + word.simp, word.meaning);
-  for (const [char, { meaning }] of Object.entries(charDefinitions)) check('char-definitions.json ' + char, meaning);
 
   const listsDir = path.join(outputDir, 'premade-lists');
   for (const { id } of JSON.parse(fs.readFileSync(path.join(listsDir, 'index.json'), 'utf8')).lists) {
@@ -442,13 +559,6 @@ function checkClean(words, charDefinitions, outputDir) {
 function buildDictionary() {
   const outputPath = path.join(__dirname, '..', 'web-client', 'public', 'dictionary.json');
   const functionsOutputPath = path.join(__dirname, '..', 'functions', 'data', 'dictionary.json');
-  const charDefinitionsPath = path.join(
-    __dirname,
-    '..',
-    'functions',
-    'data',
-    'char-definitions.json'
-  );
 
   console.log('Parsing CC-CEDICT...');
   const { words, emptied } = readCleanCedict();
@@ -467,6 +577,9 @@ function buildDictionary() {
   console.log('Writing the example sentences...');
   buildSentences(words, catalogue, ranks, path.join(outputDir, 'sentences'));
 
+  console.log('Writing the component breakdowns...');
+  buildComponentBreakdowns(catalogue, path.join(outputDir, 'breakdowns'));
+
   // Write as compact JSON (no pretty printing to save space). An HSK word
   // carries the frequency rank `q` of the source, which the dictionary search
   // ranks by; CC-CEDICT has no frequency of its own.
@@ -484,28 +597,7 @@ function buildDictionary() {
   fs.writeFileSync(functionsOutputPath, json);
   console.log('Also wrote to: ' + functionsOutputPath);
 
-  // Write a single-character subset for the decomposeCharacter Cloud Function.
-  // Decomposition components are always single characters, so this function
-  // does not need the full dictionary in memory.
-  console.log('Writing char-definitions.json...');
-  const charDefinitions = {};
-  for (const word of words) {
-    // words holds no entry with an empty meaning, so each character takes a meaning.
-    for (const form of [word.simp, word.trad]) {
-      if ([...form].length === 1 && !charDefinitions[form]) {
-        charDefinitions[form] = { pinyin: word.pinyin, meaning: word.meaning };
-      }
-    }
-  }
-  fs.writeFileSync(charDefinitionsPath, JSON.stringify(charDefinitions));
-  console.log(
-    'Wrote ' +
-      Object.keys(charDefinitions).length +
-      ' characters to: ' +
-      charDefinitionsPath
-  );
-
-  checkClean(words, charDefinitions, outputDir);
+  checkClean(words, outputDir);
 
   // Calculate file sizes
   const stats = fs.statSync(outputPath);

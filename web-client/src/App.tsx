@@ -20,6 +20,10 @@ const TestWords = React.lazy(() => import('./containers/TestWords/TestWords'));
 const SettingsPage = React.lazy(() => import('./containers/SettingsPage/SettingsPage'));
 const Credits = React.lazy(() => import('./containers/Credits/Credits'));
 const SentencePractice = React.lazy(() => import('./containers/SentencePractice/SentencePractice'));
+// The dev server only: the production build drops this branch and its chunk.
+const BreakdownPreview = import.meta.env.DEV
+  ? React.lazy(() => import('./containers/BreakdownPreview/BreakdownPreview'))
+  : null;
 
 const mapDispatchToProps = {
   onTryAutoLogin: actions.authCheckState,
@@ -218,6 +222,9 @@ const App: React.FC<Props> = ({
                   </ErrorBoundary>
                 )}
               />
+              {BreakdownPreview && (
+                <Route path="/dev/breakdown" render={() => <BreakdownPreview />} />
+              )}
             </Switch>
           </Suspense>
         </ErrorBoundary>

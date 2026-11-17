@@ -238,8 +238,8 @@ them. See
 [docs/adr/0005-new-words-take-one-direction.md](docs/adr/0005-new-words-take-one-direction.md).
 
 The introduction comes before the test. Each new word goes through three
-**steps**: Understand (the meaning and the parts of each character), Speak (the
-learner says the word) and Write (the learner traces each character). The steps
+**steps**: Understand (the meaning of each character), Speak (the learner says
+the word) and Write (the learner traces each character, then sees its parts). The steps
 record no result, and the learner can skip each one. The Write step is not the
 Compose tab.
 
