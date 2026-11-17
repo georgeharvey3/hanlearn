@@ -29,6 +29,18 @@ const COLLECTION: Word[] = [
 ];
 
 describe('answerMatches', () => {
+  it('accepts ü typed as v or ü against the u: of CC-CEDICT', () => {
+    expect(answerMatches('xiao4 lv4', ['xiao4 lu:4'], 'pinyin')).toBe(true);
+    expect(answerMatches('xiao4 lü4', ['xiao4 lu:4'], 'pinyin')).toBe(true);
+    expect(answerMatches('XIAO4LÜ4', ['xiao4 lu:4'], 'pinyin')).toBe(true);
+  });
+
+  it('keeps ü apart from u', () => {
+    expect(answerMatches('xiao4 lu4', ['xiao4 lu:4'], 'pinyin')).toBe(false);
+    expect(answerMatches('lv4 shi1', ['lu:4 shi1'], 'pinyin')).toBe(true);
+    expect(answerMatches('lu4 shi1', ['lu:4 shi1'], 'pinyin')).toBe(false);
+  });
+
   it('compares a meaning without case or punctuation', () => {
     expect(answerMatches(' To Train! ', ['to train', 'to drill'], 'meaning')).toBe(true);
     expect(answerMatches('train', ['to train'], 'meaning')).toBe(false);

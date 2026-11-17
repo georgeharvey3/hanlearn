@@ -31,6 +31,7 @@ import {
   RemoteAlternatives,
   answerMatches,
   buildAlternativeIndex,
+  normaliseAnswer,
   ownWordAlternatives,
   questionKey,
   takesAlternatives,
@@ -634,8 +635,8 @@ export const useTestEngine = (props: Props) => {
         let toneError = false;
 
         if (current.answerCategory === 'pinyin' && typeof current.answer === 'string') {
-          const cleanAnswer = current.answer.replace(/ /g, '').toLowerCase();
-          const cleanInput = input.trim().replace(/ /g, '').toLowerCase();
+          const cleanAnswer = normaliseAnswer(current.answer, 'pinyin');
+          const cleanInput = normaliseAnswer(input, 'pinyin');
 
           if (testLogic.toneChecker(cleanInput, cleanAnswer)) {
             resultString = copy.test.status.tones;
