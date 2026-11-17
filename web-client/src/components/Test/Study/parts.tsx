@@ -238,6 +238,11 @@ export const StudyCard: React.FC<StudyCardProps> = ({ height, lapse, corner, sx,
       {
         position: 'relative',
         minHeight: height,
+        // The card sits in a column one window tall. A flex item with a set
+        // min-height may shrink to it, which leaves a long meaning spilling out
+        // over the card's edges. It keeps its content's height, and the column
+        // scrolls instead.
+        flexShrink: 0,
         boxSizing: 'border-box',
         p: 2.5,
         bgcolor: colors.card,

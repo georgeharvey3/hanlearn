@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box } from '@mui/material';
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 
-import { hanziSx } from '../Study/parts';
+import CharacterBreakdown from '../ComponentReview/CharacterBreakdown';
+import { Overline, hanziSx } from '../Study/parts';
 import { copy } from '../../../copy';
 import { colors } from '../../../theme';
 import { loadCharData, onCharDataError } from '../../../utils/charDataLoader';
@@ -97,6 +98,8 @@ const WriteStep: React.FC<WriteStepProps> = ({ word, charSet, traced: tracedBefo
   const chars = useMemo(() => word[charSet].split(''), [word, charSet]);
   const [at, setAt] = useState(tracedBefore ? chars.length : 0);
   const traced = at >= chars.length;
+  // A character the word repeats, as in 妈妈, shows one breakdown.
+  const uniqueChars = useMemo(() => Array.from(new Set(chars)), [chars]);
 
   useEffect(() => {
     if (traced) onTraced();
@@ -136,24 +139,33 @@ const WriteStep: React.FC<WriteStepProps> = ({ word, charSet, traced: tracedBefo
         {traced ? (
           <Box
             sx={{
-              width: TRACE_SIZE,
-              height: TRACE_SIZE,
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 1,
+              gap: 0.75,
               color: colors.primaryDark,
               fontWeight: 600,
             }}
           >
-            <CheckRoundedIcon sx={{ fontSize: 48 }} />
+            <CheckRoundedIcon sx={{ fontSize: 24 }} />
             {copy.newWords.traced}
           </Box>
         ) : (
           <TraceBox key={at} char={chars[at]} onDone={() => setAt((n) => n + 1)} />
         )}
       </Box>
+      {/* The parts wait for the end of the trace, so the learner first
+          writes the character from its outline alone (#534). */}
+      {traced && (
+        <>
+          <Overline sx={{ mt: 3, mb: 1 }}>{copy.newWords.parts}</Overline>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {uniqueChars.map((char) => (
+              <CharacterBreakdown key={char} char={char} />
+            ))}
+          </Box>
+        </>
+      )}
     </>
   );
 };

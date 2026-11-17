@@ -238,8 +238,8 @@ them. See
 [docs/adr/0005-new-words-take-one-direction.md](docs/adr/0005-new-words-take-one-direction.md).
 
 The introduction comes before the test. Each new word goes through three
-**steps**: Understand (the meaning and the parts of each character), Speak (the
-learner says the word) and Write (the learner traces each character). The steps
+**steps**: Understand (the meaning of each character), Speak (the learner says
+the word) and Write (the learner traces each character, then sees its parts). The steps
 record no result, and the learner can skip each one. The Write step is not the
 Compose tab.
 
@@ -468,3 +468,12 @@ number. The three forms are the same answer.
 A syllable that the answer gives a neutral tone takes only the neutral tone. A
 full tone on it is a tone error, because 东西 dōngxi and 东西 dōngxī are two
 different words.
+
+## Clean meaning
+
+The **clean meaning** of a dictionary entry is its CC-CEDICT meaning without
+Chinese characters, pinyin references, examples or pronunciation notes. A
+**pointer sense** ("variant of X", "abbr. for X", "used in X") gives the
+senses of its target X. The build writes only clean meanings, so every screen
+reads them (#488). A learner's `amendedMeaning` is not a clean meaning, and it
+never changes.

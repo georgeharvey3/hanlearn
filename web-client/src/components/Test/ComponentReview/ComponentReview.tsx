@@ -3,7 +3,7 @@ import { Box } from '@mui/material';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 
 import CharacterGlosses from './CharacterGlosses';
-import ComponentTree from './ComponentTree';
+import CharacterBreakdown from './CharacterBreakdown';
 import { Overline, TextButton } from '../Study/parts';
 import { copy } from '../../../copy';
 
@@ -32,7 +32,7 @@ const ComponentReview: React.FC<ComponentReviewProps> = ({ chars, charSet, open,
       <CharacterGlosses
         chars={chars}
         charSet={charSet}
-        renderBreakdown={open ? (char) => <ComponentTree char={char} /> : undefined}
+        renderBreakdown={open ? (char) => <CharacterBreakdown char={char} /> : undefined}
       />
       <TextButton
         onClick={onToggle}

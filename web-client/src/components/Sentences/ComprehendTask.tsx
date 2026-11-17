@@ -7,6 +7,7 @@ import { colors, fonts } from '../../theme';
 import WordGlossPanel from '../Test/Study/WordGlossPanel';
 import ReportSentenceButton from '../Test/Study/ReportSentenceButton';
 import { PillToggle, PlayButton, StudyButton, StudyCard } from '../Test/Study/parts';
+import { StudyBody } from '../Test/Study/StudyScreen';
 import * as wordActions from '../../store/actions/index';
 import { RootState } from '../../types/store';
 import { Word } from '../../types/models';
@@ -247,115 +248,116 @@ const ComprehendTask: React.FC<Props> = ({
 
   return (
     <>
-      {/* The line names the target word, so it stays empty until the reveal (#504).
+      <StudyBody>
+        {/* The line names the target word, so it stays empty until the reveal (#504).
           The fixed height keeps the top of the card in place when it fills. */}
-      <Box
-        sx={{
-          mt: 3,
-          height: 30,
-          lineHeight: '30px',
-          textAlign: 'center',
-          fontSize: 15,
-          color: colors.textSecondary,
-        }}
-      >
+        <Box
+          sx={{
+            mt: 3,
+            height: 30,
+            lineHeight: '30px',
+            textAlign: 'center',
+            fontSize: 15,
+            color: colors.textSecondary,
+          }}
+        >
+          {revealed && (
+            <>
+              {copy.sentence.readPrompt}
+              <Box
+                component="span"
+                lang="zh"
+                sx={{ fontFamily: fonts.hanzi, fontSize: 20, color: colors.primaryLight }}
+              >
+                {word[charSet]}
+              </Box>
+            </>
+          )}
+        </Box>
+        <StudyCard
+          height={revealed ? undefined : 260}
+          sx={{ mt: 1.5, gap: 2, justifyContent: textShown ? 'flex-start' : 'center' }}
+        >
+          {useSound && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: textShown ? 1.25 : 1.75 }}>
+              <PlayButton
+                size={textShown ? 44 : 88}
+                loading={synthLoading}
+                onClick={() => play(sentence.chinese.sentence)}
+                label={copy.sentence.playSentence}
+              />
+              {slowToggle(textShown ? 44 : 48)}
+            </Box>
+          )}
+          {textShown && (
+            <Box
+              component="p"
+              lang="zh"
+              sx={{
+                m: 0,
+                fontFamily: fonts.hanzi,
+                fontSize: 34,
+                lineHeight: 1.6,
+                letterSpacing: '0.04em',
+              }}
+            >
+              {renderSentence()}
+            </Box>
+          )}
+          {textShown && (
+            <WordGlossPanel
+              word={openWord}
+              charSet={charSet}
+              added={Boolean(
+                openWord &&
+                addedWords.some((w) => w.simp === openWord.simp && w.trad === openWord.trad),
+              )}
+              onSpeak={(text) => play(text)}
+              onAdd={onAddWord}
+            />
+          )}
+          {revealed && (
+            <Box
+              component="p"
+              lang="zh-Latn"
+              sx={{ m: 0, fontSize: 15, color: colors.textSecondary }}
+            >
+              {sentence.chinese.pinyin}
+            </Box>
+          )}
+          {useSound && !revealed && (
+            <PillToggle pressed={textShown} onClick={onToggleText}>
+              {textShown ? copy.sentence.hideText : copy.sentence.showText}
+            </PillToggle>
+          )}
+        </StudyCard>
         {revealed && (
           <>
-            {copy.sentence.readPrompt}
             <Box
-              component="span"
-              lang="zh"
-              sx={{ fontFamily: fonts.hanzi, fontSize: 20, color: colors.primaryLight }}
+              sx={{
+                mt: 2,
+                p: 1.75,
+                border: `1px solid ${colors.divider}`,
+                borderRadius: 1,
+                bgcolor: colors.card,
+                fontSize: 17,
+              }}
             >
-              {word[charSet]}
+              {sentence.english.sentence}
             </Box>
+            <ReportSentenceButton
+              key={`${word.id}-${sentence.id}`}
+              report={{
+                sentenceId: sentence.id,
+                word: word.simp,
+                stage: 'read',
+                sentence: sentence.chinese.sentence,
+                english: sentence.english.sentence,
+              }}
+            />
           </>
         )}
-      </Box>
-      <StudyCard
-        height={revealed ? undefined : 260}
-        sx={{ mt: 1.5, gap: 2, justifyContent: textShown ? 'flex-start' : 'center' }}
-      >
-        {useSound && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: textShown ? 1.25 : 1.75 }}>
-            <PlayButton
-              size={textShown ? 44 : 88}
-              loading={synthLoading}
-              onClick={() => play(sentence.chinese.sentence)}
-              label={copy.sentence.playSentence}
-            />
-            {slowToggle(textShown ? 44 : 48)}
-          </Box>
-        )}
-        {textShown && (
-          <Box
-            component="p"
-            lang="zh"
-            sx={{
-              m: 0,
-              fontFamily: fonts.hanzi,
-              fontSize: 34,
-              lineHeight: 1.6,
-              letterSpacing: '0.04em',
-            }}
-          >
-            {renderSentence()}
-          </Box>
-        )}
-        {textShown && (
-          <WordGlossPanel
-            word={openWord}
-            charSet={charSet}
-            added={Boolean(
-              openWord &&
-              addedWords.some((w) => w.simp === openWord.simp && w.trad === openWord.trad),
-            )}
-            onSpeak={(text) => play(text)}
-            onAdd={onAddWord}
-          />
-        )}
-        {revealed && (
-          <Box
-            component="p"
-            lang="zh-Latn"
-            sx={{ m: 0, fontSize: 15, color: colors.textSecondary }}
-          >
-            {sentence.chinese.pinyin}
-          </Box>
-        )}
-        {useSound && !revealed && (
-          <PillToggle pressed={textShown} onClick={onToggleText}>
-            {textShown ? copy.sentence.hideText : copy.sentence.showText}
-          </PillToggle>
-        )}
-      </StudyCard>
-      {revealed && (
-        <>
-          <Box
-            sx={{
-              mt: 2,
-              p: 1.75,
-              border: `1px solid ${colors.divider}`,
-              borderRadius: 1,
-              bgcolor: colors.card,
-              fontSize: 17,
-            }}
-          >
-            {sentence.english.sentence}
-          </Box>
-          <ReportSentenceButton
-            key={`${word.id}-${sentence.id}`}
-            report={{
-              sentenceId: sentence.id,
-              word: word.simp,
-              stage: 'read',
-              sentence: sentence.chinese.sentence,
-              english: sentence.english.sentence,
-            }}
-          />
-        </>
-      )}
-      <Box sx={{ flex: 1, minHeight: 24 }} />
+      </StudyBody>
       {revealed ? (
         <GradeButtons onGrade={grade} />
       ) : (

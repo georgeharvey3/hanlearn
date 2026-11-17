@@ -113,7 +113,7 @@ Current membership, matching `functions/src`:
 | Limit | Functions |
 |---|---|
 | 256MB | `getDailyChengyu`, `lookupChengyuChar`, `textToSpeech`, `scoreSimilarity` |
-| 512MB | the `dictionary*` functions, `decomposeCharacter` |
+| 512MB | the `dictionary*` functions |
 
 `dictionaryAlternatives` also builds the index of alternative answers on its
 first call. The peak RSS of a local cold start goes from 191 MB to 221 MB.

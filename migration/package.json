@@ -6,10 +6,14 @@
     "import": "npx ts-node import_firestore.ts",
     "export:review-log": "node export-review-log.js",
     "seed:staging": "node seed-staging.js",
-    "fetch:tatoeba": "node fetch-tatoeba.js"
+    "restore:missed-pass": "node restore-missed-pass.js",
+    "fetch:tatoeba": "node fetch-tatoeba.js",
+    "fetch:makemeahanzi": "node fetch-makemeahanzi.js",
+    "fetch:animcjk": "node fetch-animcjk.js"
   },
   "dependencies": {
-    "firebase-admin": "^12.0.0"
+    "firebase-admin": "^12.0.0",
+    "ts-fsrs": "^5.4.2"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

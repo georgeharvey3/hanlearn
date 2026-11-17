@@ -11,6 +11,7 @@
 
 const crypto = require('crypto');
 const { LICENCE: TATOEBA_LICENCE } = require('./tatoeba');
+const { isUnclean } = require('./cleanMeaning');
 
 /** The length cap of each HSK level, in Han characters and digits. HSK 7–9 has none. */
 const LENGTH_CAPS = { 1: 10, 2: 12, 3: 15, 4: 18, 5: 25, 6: 25 };
@@ -223,6 +224,10 @@ function overridesOf(glossOverrides, bySimp, problems) {
       problems.push(`gloss override ${text}: the gloss is empty`);
       continue;
     }
+    if (gloss !== undefined && isUnclean(gloss)) {
+      problems.push(`gloss override ${text}: the gloss holds Chinese (${gloss})`);
+      continue;
+    }
     if (gloss !== undefined && partsOf(gloss).length > GLOSS_SENSES) {
       problems.push(`gloss override ${text}: the gloss has more than ${GLOSS_SENSES} senses`);
       continue;
@@ -313,13 +318,72 @@ const addCost = (a, b) => ({ other: a.other + b.other, count: a.count + b.count,
 const lessCost = (a, b) =>
   a.other !== b.other ? a.other < b.other : a.count !== b.count ? a.count < b.count : a.q < b.q;
 
+/** The words of an English text, in lower case, with ü as u. */
+const wordsOf = (text) =>
+  text
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z]+/g, ' ');
+
+/** The capitalized words of a text, without their accents. */
+const capitalsOf = (text) =>
+  text
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .match(/\b[A-Z][A-Za-z]*/g) ?? [];
+
+/**
+ * True when the English translation of a sentence holds a name entry: its
+ * romanization ("Bei3 jing1" is "Beijing" or "Bei Jing"), or a word of the
+ * English name at the start of each part of its first sense ("United
+ * Kingdom (UK); Britain"). A word matches on its first 4 letters in any
+ * case, so "British" matches "Britain" and "winter" matches "Winter".
+ */
+function namedIn(english, entry) {
+  const text = ` ${wordsOf(english)} `;
+  const syllables = entry.pinyin
+    .toLowerCase()
+    .replace(/u:/g, 'u')
+    .replace(/[^a-z ]/g, '')
+    .split(' ')
+    .filter((syllable) => syllable !== '');
+  if (syllables.length > 0 && new RegExp(` ${syllables.join(' ?')} `).test(text)) return true;
+  const stem = (word) => word.slice(0, 4).toLowerCase();
+  const shown = new Set(text.split(' ').filter((word) => word.length >= 2).map(stem));
+  const [first = ''] = entry.meaning.split('/');
+  const names = first.split(';').flatMap((part) => capitalsOf(part.split(',')[0]));
+  return names.some((word) => (word.length >= 3 || word === word.toUpperCase()) && shown.has(stem(word)));
+}
+
+/**
+ * True when an entry is a proper name: a capitalized pinyin and a meaning
+ * that starts with a capital or names a surname. 正月 [Zheng1 yue4], "first
+ * month of the lunar year", is not one.
+ */
+const isProperName = (entry) => isName(entry) && /^(?:[A-Z]|surname )/.test(entry.meaning);
+
+/**
+ * True when a segment of more than one character has only proper-name
+ * entries, and the English translation does not hold the name. The split
+ * then takes common words: 水里 in "I swim in the water" is 水 and 里, not the
+ * township Shuili (#488). An HSK word is never such a segment.
+ */
+const isStrayName = (text, entry, english, index) =>
+  entry !== null &&
+  isProperName(entry) &&
+  [...text].length > 1 &&
+  !index.hskBySimp.has(text) &&
+  !namedIn(english, entry);
+
 /**
  * Split one run of Han characters and digits into segments: the split with
  * the fewest non-HSK segments (names and numbers do not count), then the
  * fewest segments, then the best total HSK rank. A Han character with no
- * entry is a segment of its own, and a run of digits is one segment.
+ * entry is a segment of its own, and a run of digits is one segment. A name
+ * that the English does not hold is not a segment (see isStrayName).
  */
-function splitRun(chars, index) {
+function splitRun(chars, index, english = '') {
   const n = chars.length;
   const best = new Array(n + 1).fill(null);
   best[0] = { cost: { other: 0, count: 0, q: 0 }, segments: [] };
@@ -334,7 +398,7 @@ function splitRun(chars, index) {
       for (let end = start + 1; end <= Math.min(n, start + index.longest); end++) {
         const text = chars.slice(start, end).join('');
         const entry = entryOf(text, index);
-        if (entry) candidates.push({ end, text, entry });
+        if (entry && !isStrayName(text, entry, english, index)) candidates.push({ end, text, entry });
       }
       if (!candidates.some((c) => c.end === start + 1)) {
         candidates.push({ end: start + 1, text: chars[start], entry: null });
@@ -353,9 +417,10 @@ function splitRun(chars, index) {
 
 /**
  * The segments of a simplified sentence, each with its position in the text.
- * Punctuation and spaces are not segments.
+ * Punctuation and spaces are not segments. The English translation decides
+ * which names stay one segment.
  */
-function splitSentence(simp, index) {
+function splitSentence(simp, index, english = '') {
   const chars = [...simp];
   const segments = [];
   let start = 0;
@@ -367,7 +432,7 @@ function splitSentence(simp, index) {
     let end = start;
     while (end < chars.length && (HAN.test(chars[end]) || DIGIT.test(chars[end]))) end++;
     let at = start;
-    for (const segment of splitRun(chars.slice(start, end), index)) {
+    for (const segment of splitRun(chars.slice(start, end), index, english)) {
       const length = [...segment.text].length;
       segments.push({ ...segment, at, length });
       at += length;
@@ -444,7 +509,7 @@ function traditionalOf(simp, segments) {
  */
 function prepare(sentence, index) {
   if (OTHER_LETTER.test(sentence.simp)) return { reason: 'holds Latin letters' };
-  const segments = splitSentence(sentence.simp, index);
+  const segments = splitSentence(sentence.simp, index, sentence.english);
   if (segments.length === 0) return { reason: 'holds no Han character' };
   // An override changes the entry that the output shows, not the split or the grade.
   const overrides = segments.map((segment) => index.overrides.get(segment.text));
@@ -826,7 +891,7 @@ function acceptCandidates(inputs, candidates, rounds = {}) {
       reject('is already a sentence');
       continue;
     }
-    const ready = prepare({ id, simp }, index);
+    const ready = prepare({ id, simp, english }, index);
     if (ready.reason) {
       reject(ready.reason);
       continue;
