@@ -121,7 +121,9 @@ describe('ComponentReview', () => {
   });
 
   it('shows the pinyin and meaning of every character without being asked', async () => {
-    renderWithProviders(<ComponentReview chars={['你', '好']} charSet="trad" open={false} onToggle={vi.fn()} />);
+    renderWithProviders(
+      <ComponentReview chars={['你', '好']} charSet="trad" open={false} onToggle={vi.fn()} />,
+    );
 
     expect(await screen.findByText('nǐ')).toBeInTheDocument();
     expect(await screen.findByText('you')).toBeInTheDocument();
@@ -132,7 +134,9 @@ describe('ComponentReview', () => {
   });
 
   it('says so when a character is not in the dictionary', async () => {
-    renderWithProviders(<ComponentReview chars={['〇']} charSet="trad" open={false} onToggle={vi.fn()} />);
+    renderWithProviders(
+      <ComponentReview chars={['〇']} charSet="trad" open={false} onToggle={vi.fn()} />,
+    );
 
     expect(await screen.findByText('Not in the dictionary')).toBeInTheDocument();
   });
@@ -140,13 +144,17 @@ describe('ComponentReview', () => {
   it('says so when the lookup fails', async () => {
     mockedSearchWord.mockRejectedValue(new Error('offline'));
 
-    renderWithProviders(<ComponentReview chars={['好']} charSet="trad" open={false} onToggle={vi.fn()} />);
+    renderWithProviders(
+      <ComponentReview chars={['好']} charSet="trad" open={false} onToggle={vi.fn()} />,
+    );
 
     expect(await screen.findByText('Definition unavailable')).toBeInTheDocument();
   });
 
   it('offers the breakdown without fetching it until it is asked for', async () => {
-    renderWithProviders(<ComponentReview chars={['好']} charSet="trad" open={false} onToggle={vi.fn()} />);
+    renderWithProviders(
+      <ComponentReview chars={['好']} charSet="trad" open={false} onToggle={vi.fn()} />,
+    );
 
     expect(screen.getByRole('button', { name: 'Show components' })).toHaveAttribute(
       'aria-expanded',
@@ -158,14 +166,18 @@ describe('ComponentReview', () => {
 
   it('reports the toggle', async () => {
     const onToggle = vi.fn();
-    renderWithProviders(<ComponentReview chars={['好']} charSet="trad" open={false} onToggle={onToggle} />);
+    renderWithProviders(
+      <ComponentReview chars={['好']} charSet="trad" open={false} onToggle={onToggle} />,
+    );
 
     await userEvent.click(screen.getByRole('button', { name: 'Show components' }));
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
   it('draws each character of the review split into its parts, one chip each', async () => {
-    renderWithProviders(<ComponentReview chars={['礙', '疑']} charSet="trad" open onToggle={vi.fn()} />);
+    renderWithProviders(
+      <ComponentReview chars={['礙', '疑']} charSet="trad" open onToggle={vi.fn()} />,
+    );
 
     const ai = await screen.findByTestId('breakdown-礙');
     expect(within(ai).getByRole('button', { name: '石' })).toBeInTheDocument();
@@ -394,7 +406,9 @@ describe('ComponentReview', () => {
     });
 
     it('offers no report with no account to save it to', async () => {
-      renderWithProviders(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+      renderWithProviders(
+        <ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />,
+      );
       const ai = await screen.findByTestId('breakdown-礙');
       await userEvent.click(within(ai).getByRole('button', { name: '石' }));
 
