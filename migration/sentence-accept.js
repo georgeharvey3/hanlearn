@@ -15,7 +15,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { readCedict, resolveHsk, sentenceInputs, GENERATED_PATH } = require('./build-dictionary');
+const { readCleanCedict, resolveHsk, sentenceInputs, GENERATED_PATH } = require('./build-dictionary');
 const { acceptCandidates, unfilledOf, MAX_ROUNDS } = require('./exampleSentences');
 
 const LICENCE = {
@@ -73,7 +73,7 @@ function withLock(fn) {
 }
 
 function accept(candidates) {
-  const words = readCedict();
+  const { words } = readCleanCedict();
   const { catalogue, ranks } = resolveHsk(words);
   const { inputs, generatedFile } = sentenceInputs(words, catalogue, ranks);
   const result = acceptCandidates(inputs, candidates, generatedFile.rounds ?? {});

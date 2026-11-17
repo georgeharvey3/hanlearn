@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('../../firebase/config', () => ({
@@ -34,6 +34,11 @@ vi.mock('../../services/wordService', async () => {
 });
 vi.mock('../../services/analyticsService', () => ({ trackFeatureUsage: vi.fn() }));
 vi.mock('../../services/errorReporting', () => ({ reportError: vi.fn() }));
+// The real conversion, which a test can hold back to type during it.
+vi.mock('../../utils/charSet', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../utils/charSet')>();
+  return { ...actual, toCharSet: vi.fn(actual.toCharSet) };
+});
 
 import SentencePractice from './SentencePractice';
 import { FocusModeProvider } from '../../components/Layout/focusMode';
@@ -41,6 +46,7 @@ import { renderWithProviders, authenticatedState, createTestStore } from '../../
 import { loadQueueData } from '../../services/sentenceTabsService';
 import { saveGrade } from '../../services/sentencePracticeService';
 import { getSegmentedSentence } from '../../services/sentenceService';
+import { toCharSet } from '../../utils/charSet';
 import * as ttsService from '../../services/ttsService';
 import { searchWord } from '../../services/dictionaryService';
 import { addWordToList } from '../../services/wordService';
@@ -391,6 +397,84 @@ describe('the Compose tab', () => {
     const reference = screen.getByText('Original').nextElementSibling as HTMLElement;
     expect(reference).toHaveTextContent('我的蘋果沒了。');
     expect(within(reference).getByText('wǒ de píng guǒ méi le。')).toBeInTheDocument();
+  });
+
+  describe('with a spoken answer', () => {
+    // The recognizer gives simplified text in each character set (#494).
+    let recognizer: Record<string, (event?: unknown) => void> = {};
+    const say = (transcript: string) =>
+      act(() => {
+        recognizer.result?.({ results: [[{ transcript }]] });
+        recognizer.end?.();
+      });
+
+    beforeEach(() => {
+      recognizer = {};
+      class FakeRecognition {
+        lang = '';
+        start = vi.fn(() => recognizer.audiostart?.());
+        abort = vi.fn();
+        addEventListener = (event: string, handler: (e?: unknown) => void) => {
+          recognizer[event] = handler;
+        };
+      }
+      (window as unknown as { webkitSpeechRecognition: unknown }).webkitSpeechRecognition =
+        FakeRecognition;
+    });
+
+    const speakAnswer = async (charSet: 'simp' | 'trad', transcript: string) => {
+      const user = userEvent.setup();
+      localStorage.setItem('charSet', charSet);
+      setQueue([{ ...STUDY, trad: '學習' }]);
+      renderTab('compose');
+      await user.click(await screen.findByRole('button', { name: 'Record speech' }));
+      say(transcript);
+      const check = screen.getByRole('button', { name: 'Check' });
+      await waitFor(() => expect(check).toBeEnabled());
+      await user.click(check);
+      const answer = screen.getByText('Your answer').nextElementSibling as HTMLElement;
+      await user.click(screen.getByRole('button', { name: 'Right' }));
+      return answer;
+    };
+
+    it('shows a traditional answer, with the target highlighted, for the traditional set', async () => {
+      const answer = await speakAnswer('trad', '我在学习');
+
+      expect(answer).toHaveTextContent('我在學習');
+      expect(within(answer).getByText('學習').tagName).toBe('SPAN');
+      expect(saveGrade).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ answer: '我在學習' }),
+      );
+    });
+
+    it('keeps a typed answer when a conversion ends after it', async () => {
+      const user = userEvent.setup();
+      let convert: (text: string) => void = () => {};
+      vi.mocked(toCharSet).mockImplementationOnce(
+        () => new Promise((resolve) => (convert = resolve)),
+      );
+      setQueue([{ ...STUDY, trad: '學習' }]);
+      renderTab('compose');
+      await user.click(await screen.findByRole('button', { name: 'Record speech' }));
+      say('我在学习');
+
+      const input = screen.getByLabelText('Your answer');
+      await user.type(input, '我學中文');
+      await act(async () => convert('我在學習'));
+
+      expect(input).toHaveValue('我學中文');
+    });
+
+    it('keeps the transcript unchanged for the simplified set', async () => {
+      const answer = await speakAnswer('simp', '我在学习');
+
+      expect(answer).toHaveTextContent('我在学习');
+      expect(saveGrade).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ answer: '我在学习' }),
+      );
+    });
   });
 
   it('uses only words at bank 3 or more', async () => {

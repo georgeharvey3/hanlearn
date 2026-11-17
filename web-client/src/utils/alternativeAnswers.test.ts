@@ -6,6 +6,7 @@ import {
   ownWordAlternatives,
   questionKey,
 } from './alternativeAnswers';
+import { parseMeanings } from './meaningUtils';
 
 const word = (id: number, simp: string, trad: string, pinyin: string, meaning: string): Word => ({
   id,
@@ -31,6 +32,15 @@ describe('answerMatches', () => {
   it('compares a meaning without case or punctuation', () => {
     expect(answerMatches(' To Train! ', ['to train', 'to drill'], 'meaning')).toBe(true);
     expect(answerMatches('train', ['to train'], 'meaning')).toBe(false);
+  });
+
+  it('accepts each sense of a clean meaning (#488)', () => {
+    // The clean meanings that build:dict writes for 谁 and 路.
+    const shei = parseMeanings('who');
+    const lu = parseMeanings('road/journey/route/line (bus etc)/sort; kind');
+    expect(answerMatches('who', shei, 'meaning')).toBe(true);
+    expect(answerMatches('road', lu, 'meaning')).toBe(true);
+    expect(lu.every((sense) => answerMatches(sense, lu, 'meaning'))).toBe(true);
   });
 
   it('compares a pinyin without spaces, case or neutral tone numbers', () => {

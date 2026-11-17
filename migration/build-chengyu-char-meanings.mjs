@@ -14,11 +14,14 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as readline from 'readline';
+import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const require = createRequire(import.meta.url);
+const { readCedict } = require('./build-dictionary.js');
+const { cleanDictionary } = require('./cleanMeaning.js');
 
 function extractChengyuCharacters(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
@@ -46,20 +49,6 @@ function extractChengyuCharacters(filePath) {
   return chars;
 }
 
-function parseCedictLine(line) {
-  if (line.startsWith('#') || line.startsWith('%') || line.trim() === '') {
-    return null;
-  }
-  const match = line.match(/^(\S+) (\S+) \[([^\]]+)\] \/(.+)\/$/);
-  if (!match) return null;
-  return {
-    trad: match[1],
-    simp: match[2],
-    pinyin: match[3],
-    meaning: match[4],
-  };
-}
-
 /**
  * Check if a CC-CEDICT entry is a surname-only or "used in" entry
  * (these are less useful as character meanings).
@@ -77,20 +66,13 @@ function isLowQualityEntry(entry) {
 }
 
 /**
- * Condense a CC-CEDICT meaning string into a short, readable form.
+ * Condense the clean meaning of an entry (#488) into a short, readable form.
  */
-function condenseMeaning(rawMeaning) {
-  const parts = rawMeaning
+function condenseMeaning(cleanMeaning) {
+  const parts = cleanMeaning
     .split('/')
     .map((p) => p.trim())
-    .filter(
-      (p) =>
-        p.length > 0 &&
-        !p.startsWith('variant of') &&
-        !p.startsWith('old variant') &&
-        !p.startsWith('surname ') &&
-        !p.match(/^used in .+\[/),
-    );
+    .filter((p) => p.length > 0 && !p.startsWith('surname '));
 
   const selected = [];
   for (const part of parts) {
@@ -104,13 +86,7 @@ function condenseMeaning(rawMeaning) {
 
 async function buildCharMeanings() {
   const chengyuPath = path.join(__dirname, '..', 'web-client', 'src', 'data', 'chengyus.ts');
-  const cedictPath = path.join(__dirname, 'cedict_ts.u8');
   const outputPath = path.join(__dirname, '..', 'web-client', 'src', 'data', 'chengyuCharMeanings.ts');
-
-  if (!fs.existsSync(cedictPath)) {
-    console.error('cedict_ts.u8 not found. Download CC-CEDICT first.');
-    process.exit(1);
-  }
 
   console.log('Extracting characters from chengyus...');
   const targetChars = extractChengyuCharacters(chengyuPath);
@@ -120,12 +96,12 @@ async function buildCharMeanings() {
   // Collect all entries per character, then pick the best one
   const charEntries = new Map(); // char -> entry[]
 
-  const fileStream = fs.createReadStream(cedictPath, { encoding: 'utf8' });
-  const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
-
-  for await (const line of rl) {
-    const entry = parseCedictLine(line);
-    if (!entry) continue;
+  // The choice of an entry reads the raw meaning, and the table shows the
+  // clean meaning, as build:dict writes it.
+  const raw = readCedict();
+  const clean = new Map(cleanDictionary(raw).words.map((word) => [word.id, word.meaning]));
+  for (const entry of raw) {
+    if (clean.get(entry.id) === '') continue;
 
     // Only interested in single-character entries
     if (entry.simp.length !== 1 && entry.trad.length !== 1) continue;
@@ -144,7 +120,7 @@ async function buildCharMeanings() {
     // Prefer non-surname, non-"used in" entries
     const goodEntries = entries.filter((e) => !isLowQualityEntry(e));
     const best = goodEntries.length > 0 ? goodEntries[0] : entries[0];
-    const meaning = condenseMeaning(best.meaning);
+    const meaning = condenseMeaning(clean.get(best.id));
     charMeanings.set(char, meaning);
   }
 
@@ -171,7 +147,7 @@ async function buildCharMeanings() {
   const output = `/**
  * Pre-computed character meanings for chengyu character breakdowns.
  *
- * Generated from CC-CEDICT by migration/build-chengyu-char-meanings.mjs
+ * Generated from the clean CC-CEDICT meanings (#488) by migration/build-chengyu-char-meanings.mjs
  * Do not edit manually — re-run the build script to update.
  */
 

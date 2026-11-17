@@ -39,7 +39,30 @@ Each entry contains:
 - `simp`: Simplified Chinese
 - `trad`: Traditional Chinese
 - `pinyin`: Romanization
-- `meaning`: English definitions
+- `meaning`: English definitions, divided by "/". Each meaning is a clean meaning (#488)
+
+## Clean Meanings
+
+The build cleans each CC-CEDICT meaning once, with the pure rule of `cleanMeaning.js` (#488). The dictionary, `char-definitions.json`, the premade lists, the sentence glosses and the chengyu character table all read the clean meaning.
+
+- A pointer sense ("variant of", "abbr. for", "used in", "see") becomes the clean senses of its target. The rule follows a pointer to a pointer once at most.
+- A parenthesis that holds Chinese goes: examples, measure words and pronunciations.
+- A Chinese reference in the text goes, and the English around it stays.
+- Labels such as `(fig.)` and classifier senses stay.
+
+An entry with no sense left is not in the dictionary. The build writes these entries to `dictionary/emptied-entries.md`, sorted by HSK level and rank. The build fails when a meaning holds a Chinese character or a pinyin reference.
+
+After a change to the chengyu characters or to the clean rule, run `node build-chengyu-char-meanings.mjs`. Then run Prettier on `web-client/src/data/chengyuCharMeanings.ts`.
+
+### Saved Words
+
+A saved word keeps the meaning that it had when the learner added it. To give the saved words the clean meaning, do these steps:
+
+1. Run `npm run build:dict` at the repo root.
+2. Run `node clean-saved-meanings.js --key <file>`. This dry run writes nothing. It prints the count of changed words, a sample, and the words with no entry.
+3. If the result is correct, run the same command with `--write`.
+
+The script changes only `wordData.meaning`. It never changes `amendedMeaning`. A second run changes nothing. Run it on staging first, and on production only after the maintainer approves.
 
 ## Architecture
 

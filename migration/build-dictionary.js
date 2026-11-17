@@ -14,6 +14,7 @@
  *   ../web-client/public/sentences/ (the example sentences, see #465)
  *   ../web-client/public/breakdowns/ (the component breakdowns, see #528)
  *   sentences/coverage.md (the coverage report, on a local run only)
+ *   dictionary/emptied-entries.md (the entries that the clean of #488 empties)
  */
 
 const crypto = require('crypto');
@@ -23,6 +24,7 @@ const { ranksOf, resolveCatalogue } = require('./premadeCatalogue');
 const { checkHskIndex, hskIndexOf } = require('./hskIndex');
 const { buildExampleSentences, unfilledOf } = require('./exampleSentences');
 const { buildBreakdowns, parseMakeMeAHanzi } = require('./componentBreakdown');
+const { cleanDictionary, isUnclean } = require('./cleanMeaning');
 
 /**
  * The HSK 3.0 bands of the catalogue, from drkameleon/complete-hsk-vocabulary
@@ -415,13 +417,153 @@ function readCedict() {
   return words;
 }
 
+/** The review file of the entries that the clean empties. */
+const EMPTIED_PATH = path.join(__dirname, 'dictionary', 'emptied-entries.md');
+
+/**
+ * The entries of cedict_ts.u8 with their clean meaning (#488), and the
+ * entries with no sense left. Those are not in words, so no search, list or
+ * sentence shows them.
+ */
+function readCleanCedict() {
+  const { words, emptied } = cleanDictionary(readCedict());
+  return { words: words.filter((word) => word.meaning !== ''), emptied };
+}
+
+/**
+ * Write the emptied entries to dictionary/emptied-entries.md for review, on
+ * a local run. CI only prints their count.
+ */
+function writeEmptied(emptied) {
+  console.log(emptied.length + ' entries have no clean sense; the dictionary leaves them out.');
+  if (process.env.CI) return;
+  fs.mkdirSync(path.dirname(EMPTIED_PATH), { recursive: true });
+  fs.writeFileSync(EMPTIED_PATH, emptiedReport(emptied, hskRanks()));
+  console.log('Wrote the emptied entries to: ' + EMPTIED_PATH);
+}
+
+/**
+ * The HSK level and the rank `q` of each word of the HSK source, by its
+ * simplified form and pinyin ("爱 ai4"): the lowest level, and the best rank
+ * at that level.
+ */
+function hskRanks() {
+  const ranks = new Map();
+  HSK_LISTS.forEach((list, i) => {
+    const source = JSON.parse(fs.readFileSync(path.join(__dirname, 'hsk', 'source', list.file), 'utf8'));
+    for (const word of source) {
+      const level = levelOfList(i);
+      for (const form of word.f) {
+        const key = word.s + ' ' + form.i.n.toLowerCase();
+        const known = ranks.get(key);
+        if (!known || level < known.level || (level === known.level && word.q < known.q)) {
+          ranks.set(key, { level, q: word.q });
+        }
+      }
+    }
+  });
+  return ranks;
+}
+
+/**
+ * The text of dictionary/emptied-entries.md: one row for each emptied entry,
+ * sorted by HSK level, then by the rank `q`, then in CC-CEDICT order. An
+ * entry outside HSK comes last.
+ */
+function emptiedReport(emptied, ranks) {
+  const rankOf = (entry) =>
+    ranks.get(entry.simp + ' ' + entry.pinyin.toLowerCase()) ?? { level: Infinity, q: Infinity };
+  const rows = [...emptied].sort((a, b) => {
+    const ra = rankOf(a.entry);
+    const rb = rankOf(b.entry);
+    return ra.level - rb.level || ra.q - rb.q || a.entry.id - b.entry.id;
+  });
+  const cell = (text) => String(text).replace(/\|/g, '\\|');
+  const level = (entry) => {
+    const rank = rankOf(entry).level;
+    return rank === Infinity ? '' : rank === 7 ? '7–9' : String(rank);
+  };
+  return [
+    '# Emptied dictionary entries',
+    '',
+    'The build writes this file (#488). The rule of `migration/cleanMeaning.js` left no',
+    'sense in these entries, so the build leaves them out of the dictionary. Review the',
+    'list when the clean rule changes.',
+    '',
+    'Count: ' + rows.length,
+    '',
+    '| HSK | Traditional | Simplified | Pinyin | Raw meaning | Reason |',
+    '| --- | --- | --- | --- | --- | --- |',
+    ...rows.map(({ entry, reason }) =>
+      '| ' + [level(entry), entry.trad, entry.simp, entry.pinyin, entry.meaning, reason].map(cell).join(' | ') + ' |',
+    ),
+    '',
+  ].join('\n');
+}
+
+/** The chengyu character table that build-chengyu-char-meanings.mjs generates. */
+const CHENGYU_CHAR_MEANINGS_PATH = path.join(__dirname, '..', 'web-client', 'src', 'data', 'chengyuCharMeanings.ts');
+
+/**
+ * The rows of the chengyu character table as Prettier writes it: a bare or
+ * quoted key, and a value in ' or ".
+ */
+const chengyuRowsOf = (table) =>
+  [...table.matchAll(/^\s*'?([^\s':]+)'?: (?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"),$/gmu)].map(
+    ([, char, single, double]) => ({ char, meaning: single ?? double }),
+  );
+
+/**
+ * The check of #488: fail the build when a meaning that the app shows holds a
+ * Chinese character or a pinyin reference. It reads the files as written.
+ */
+function checkClean(words, outputDir) {
+  const problems = [];
+  const check = (where, text) => {
+    if (isUnclean(text)) problems.push(where + ': ' + text);
+  };
+  for (const word of words) check('dictionary.json ' + word.id + ' ' + word.simp, word.meaning);
+
+  const listsDir = path.join(outputDir, 'premade-lists');
+  for (const { id } of JSON.parse(fs.readFileSync(path.join(listsDir, 'index.json'), 'utf8')).lists) {
+    for (const entry of JSON.parse(fs.readFileSync(path.join(listsDir, id + '.json'), 'utf8'))) {
+      check('premade list ' + id + ' ' + entry.simp, entry.meaning);
+    }
+  }
+
+  const sentencesDir = path.join(outputDir, 'sentences');
+  for (const name of fs.readdirSync(sentencesDir).filter((file) => /^[0-9a-f]+\.json$/.test(file))) {
+    const file = JSON.parse(fs.readFileSync(path.join(sentencesDir, name), 'utf8'));
+    for (const [word, sentences] of Object.entries(file)) {
+      for (const sentence of sentences) {
+        for (const segment of sentence.segments ?? []) {
+          check('sentences/' + name + ' ' + word + ' segment ' + segment.s, segment.e);
+        }
+      }
+    }
+  }
+
+  const rows = chengyuRowsOf(fs.readFileSync(CHENGYU_CHAR_MEANINGS_PATH, 'utf8'));
+  if (rows.length === 0) problems.push('chengyuCharMeanings.ts: no row read; the check does not know the format');
+  for (const { char, meaning } of rows) check('chengyuCharMeanings.ts ' + char, meaning);
+
+  if (problems.length > 0) {
+    throw new Error(
+      'A meaning holds Chinese (#488):\n' + problems.slice(0, 50).map((line) => '  ' + line).join('\n') +
+        (problems.length > 50 ? '\n  and ' + (problems.length - 50) + ' more' : ''),
+    );
+  }
+  console.log('Checked: no meaning holds a Chinese character or a pinyin reference.');
+}
+
 function buildDictionary() {
   const outputPath = path.join(__dirname, '..', 'web-client', 'public', 'dictionary.json');
   const functionsOutputPath = path.join(__dirname, '..', 'functions', 'data', 'dictionary.json');
 
   console.log('Parsing CC-CEDICT...');
-  const words = readCedict();
-  console.log('Parsed ' + words.length + ' entries');
+  const { words, emptied } = readCleanCedict();
+  console.log('Parsed ' + words.length + ' entries with a clean meaning');
+  writeEmptied(emptied);
 
   // Ensure output directory exists
   const outputDir = path.dirname(outputPath);
@@ -455,6 +597,8 @@ function buildDictionary() {
   fs.writeFileSync(functionsOutputPath, json);
   console.log('Also wrote to: ' + functionsOutputPath);
 
+  checkClean(words, outputDir);
+
   // Calculate file sizes
   const stats = fs.statSync(outputPath);
   const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
@@ -476,4 +620,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { readCedict, resolveHsk, sentenceInputs, GENERATED_PATH };
+module.exports = { readCedict, readCleanCedict, emptiedReport, chengyuRowsOf, resolveHsk, sentenceInputs, GENERATED_PATH };

@@ -7,6 +7,7 @@ import { useTheme } from '@mui/material/styles';
 import Toolbar, { TOP_BAR_HEIGHT } from '../Navigation/Toolbar/Toolbar';
 import TabBar, { TAB_BAR_HEIGHT } from '../Navigation/TabBar/TabBar';
 import Sidebar, { SIDEBAR_WIDTH } from '../Navigation/Sidebar/Sidebar';
+import { DESKTOP_GUTTER } from './gutter';
 import NotificationSnackbar from '../NotificationSnackbar/NotificationSnackbar';
 import SkipLink from './SkipLink';
 import { FocusModeProvider } from './focusMode';
@@ -77,7 +78,7 @@ const Layout: React.FC<Props> = ({ children }) => {
       : SIDEBAR_WIDTH.expanded
     : 0;
   const topBarHeight = showTopBar ? (phone ? TOP_BAR_HEIGHT.phone : TOP_BAR_HEIGHT.desktop) : 0;
-  const gutter = phone ? 16 : 32;
+  const gutter = phone ? 16 : DESKTOP_GUTTER;
 
   // A toast sits at the bottom centre of the page: above the tab bar on a
   // phone, above the grade buttons in a session, and right of the sidebar on

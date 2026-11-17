@@ -1,8 +1,7 @@
 import { getGenerativeModel, GenerativeModel } from 'firebase/ai';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Converter } from 'opencc-js';
-
 import { ai, db } from '../firebase/config';
+import { CharSet, toCharSet } from '../utils/charSet';
 
 let _model: GenerativeModel | null = null;
 function getModel(): GenerativeModel {
@@ -10,14 +9,6 @@ function getModel(): GenerativeModel {
     _model = getGenerativeModel(ai, { model: 'gemini-2.5-flash-lite' });
   }
   return _model;
-}
-
-let _toTraditional: ((text: string) => string) | null = null;
-function getToTraditional(): (text: string) => string {
-  if (!_toTraditional) {
-    _toTraditional = Converter({ from: 'cn', to: 'tw' });
-  }
-  return _toTraditional;
 }
 
 export interface ChengyuSentence {
@@ -89,15 +80,8 @@ function setLocalCachedSentence(chengyu: string, sentence: ChengyuSentence): voi
   }
 }
 
-function applyCharSet(sentence: ChengyuSentence, charSet: 'simp' | 'trad'): ChengyuSentence {
-  if (charSet === 'trad') {
-    return {
-      chinese: getToTraditional()(sentence.chinese),
-      pinyin: sentence.pinyin,
-      english: sentence.english,
-    };
-  }
-  return sentence;
+async function applyCharSet(sentence: ChengyuSentence, charSet: CharSet): Promise<ChengyuSentence> {
+  return { ...sentence, chinese: await toCharSet(sentence.chinese, charSet) };
 }
 
 export async function getChengyuExampleSentence(
