@@ -19,6 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const admin = require('firebase-admin');
 const { restoreMissedPass } = require('./restoreMissedPass');
+const { fsrsPass } = require('./fsrsPass');
 
 function argument(flag) {
   const index = process.argv.indexOf(flag);
@@ -84,6 +85,7 @@ async function main() {
   const restored = restoreMissedPass(
     { ...current, dueDate: toDate(current.dueDate), lastReview: toDate(current.lastReview) },
     reviews,
+    fsrsPass,
   );
   show('Now', { ...current, dueDate: toDate(current.dueDate), lastReview: toDate(current.lastReview) });
   show('Restored', restored);

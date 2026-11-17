@@ -8,21 +8,12 @@
  * that the wrong grades added. The reviews after it are dropped: a pass would
  * not have brought the word back that day.
  *
- * The FSRS settings are those of web-client/src/utils/scheduling.ts, and
- * restoreMissedPass.test.js checks the result against its nextMemory. The
- * due date takes no fuzz.
+ * The FSRS step is a parameter, `pass(memory, elapsed, now)`: the script
+ * passes fsrsPass.js, and the test passes nextMemory of scheduling.ts. This
+ * file needs no package. The due date takes no fuzz.
  */
 
-const { fsrs, Rating, State } = require('ts-fsrs');
-
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-const scheduler = fsrs({
-  request_retention: 0.9,
-  maximum_interval: 365,
-  enable_fuzz: false,
-  enable_short_term: false,
-});
 
 function bankOf(interval) {
   if (interval <= 0) return 1;
@@ -46,44 +37,21 @@ function memoryBefore(entry, reviewedAt) {
   return { memory: { stability: before.stability, difficulty: before.difficulty, interval }, elapsed };
 }
 
-/** The memory a pass gives, as nextMemory in scheduling.ts gives it. */
-function passMemory(memory, elapsed, now) {
-  const learned = memory.stability > 0;
-  const lastReview = new Date(now.getTime() - elapsed * MS_PER_DAY);
-  const card = {
-    due: learned ? new Date(lastReview.getTime() + memory.interval * MS_PER_DAY) : now,
-    stability: memory.stability,
-    difficulty: learned ? memory.difficulty : 0,
-    elapsed_days: learned ? elapsed : 0,
-    scheduled_days: memory.interval,
-    learning_steps: 0,
-    reps: 0,
-    lapses: 0,
-    state: learned ? State.Review : State.New,
-    last_review: learned ? lastReview : undefined,
-  };
-  const next = scheduler.next(card, now, Rating.Good).card;
-  return {
-    stability: next.stability,
-    difficulty: next.difficulty,
-    interval: Math.min(365, Math.max(1, next.scheduled_days)),
-  };
-}
-
 /**
  * @param current  The direction as Firestore holds it now, dates as Date.
  * @param reviews  The log entries of this word and direction, oldest first,
  *                 each with `reviewedAt` (Date) and `before.lastReview` (Date or null).
+ * @param pass     The FSRS step of a pass: (memory, elapsed, now) => memory.
  * @returns The direction to write, dates as Date.
  */
-function restoreMissedPass(current, reviews) {
+function restoreMissedPass(current, reviews, pass) {
   const first = reviews[0];
   if (!first || first.grade === 'pass') {
     throw new Error('The first review of the day is not a wrong grade, so there is nothing to restore');
   }
   const reviewedAt = first.reviewedAt;
   const { memory, elapsed } = memoryBefore(first, reviewedAt);
-  const next = passMemory(memory, elapsed, reviewedAt);
+  const next = pass(memory, elapsed, reviewedAt);
 
   // A failed retrieval counts as a lapse only on a direction that held a memory.
   const lapsesAdded = reviews.filter((r) => r.grade !== 'pass' && r.before).length;
@@ -104,4 +72,4 @@ function restoreMissedPass(current, reviews) {
   return restored;
 }
 
-module.exports = { restoreMissedPass, passMemory, bankOf };
+module.exports = { restoreMissedPass, bankOf };
