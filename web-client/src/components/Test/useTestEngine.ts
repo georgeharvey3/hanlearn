@@ -92,8 +92,19 @@ const gradeDetailOf = (grade: DirectionGrade): GradeDetail =>
 const componentsToReview = (state: TestState, result: DirectionResult): string[] => {
   if (result === 'pass') return [];
   if (state.answerCategory !== 'character' && state.questionCategory !== 'character') return [];
-  return Array.from(state.chosenCharacter ?? '');
+  const chars = Array.from(state.chosenCharacter ?? '');
+  // A drawn word that lapsed offers only the characters the learner missed.
+  // A fail ("I don't know" or the reveal) offers them all, and so does a
+  // lapse that no one character caused.
+  if (result === 'lapse' && state.missedCharIndices.length > 0) {
+    return chars.filter((_, index) => state.missedCharIndices.includes(index));
+  }
+  return chars;
 };
+
+/** The miss list with `index` added once. */
+const withMissedChar = (missed: number[], index: number): number[] =>
+  missed.includes(index) ? missed : missed.concat(index);
 
 /**
  * The state a question starts with that the question before it may have
@@ -110,6 +121,7 @@ const FRESH_QUESTION = {
   outcome: null,
   gradeClicked: null,
   missCount: 0,
+  missedCharIndices: [] as number[],
   hintShown: false,
   firstWrongAnswer: null,
   alternativesSent: [] as string[],
@@ -218,11 +230,14 @@ export const useTestEngine = (props: Props) => {
         return;
       }
       pendingAdvanceRef.current = advance;
-      setStateMerged({
+      setStateMerged((prevState) => ({
         componentReviewChars: chars,
-        showComponents: false,
+        // A missed drawing opens the breakdown at once: it is the aid for
+        // writing, and the learner was writing.
+        showComponents:
+          chars.length > 0 && prevState.answerCategory === 'character' && prevState.useHandwriting,
         awaitingContinue: true,
-      });
+      }));
     },
     [setStateMerged],
   );
@@ -734,12 +749,17 @@ export const useTestEngine = (props: Props) => {
         // A word of more than one character keeps the cap across its characters,
         // which gives the word the worst grade of them.
         onMistake: (strokeData) => {
+          // onComplete moves `index` on, so read it now, not in the update.
+          const missedIndex = index;
           setStateMerged((prevState) => ({
             missCount: prevState.missCount + 1,
             // Hanzi Writer shows the outline here by itself. The learner did
             // not ask for it, so it is no hint: `misses` records it.
             ...(strokeData.mistakesOnStroke >= missesBeforeHint
-              ? { gradeCap: 'lapse' as const }
+              ? {
+                  gradeCap: 'lapse' as const,
+                  missedCharIndices: withMissedChar(prevState.missedCharIndices, missedIndex),
+                }
               : {}),
           }));
         },
@@ -1083,7 +1103,11 @@ export const useTestEngine = (props: Props) => {
       } catch {
         return;
       }
-      setStateMerged({ gradeCap: 'lapse', hintShown: true });
+      setStateMerged((prevState) => ({
+        gradeCap: 'lapse',
+        hintShown: true,
+        missedCharIndices: withMissedChar(prevState.missedCharIndices, prevState.writingIndex),
+      }));
       setTimeout(() => {
         current.writer!.hideOutline();
       }, 1000);

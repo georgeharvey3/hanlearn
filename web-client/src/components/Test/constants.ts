@@ -56,6 +56,7 @@ export const createInitialState = (props: Props): TestState => {
     gradeCap: 'pass',
     toneErrorCount: 0,
     missCount: 0,
+    missedCharIndices: [],
     hintShown: false,
     firstWrongAnswer: null,
     alternativesSent: [],

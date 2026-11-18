@@ -28,6 +28,7 @@ import React from 'react';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import { copy } from '../../../copy';
 import ComponentReview from './ComponentReview';
 import { clearCharacterGlossCache } from './glossCache';
 import { Breakdown, breakdownOf } from '../../../services/breakdownService';
@@ -131,6 +132,21 @@ describe('ComponentReview', () => {
     expect(await screen.findByText('good')).toBeInTheDocument();
     expect(mockedSearchWord).toHaveBeenCalledWith('你', 'trad');
     expect(mockedSearchWord).toHaveBeenCalledWith('好', 'trad');
+  });
+
+  it('heads the rows with the title it is given', async () => {
+    renderWithProviders(
+      <ComponentReview
+        chars={['你']}
+        charSet="trad"
+        open={false}
+        onToggle={vi.fn()}
+        title={copy.test.missedCharacters}
+      />,
+    );
+
+    expect(screen.getByText('Missed characters')).toBeInTheDocument();
+    expect(await screen.findByText('nǐ')).toBeInTheDocument();
   });
 
   it('says so when a character is not in the dictionary', async () => {
