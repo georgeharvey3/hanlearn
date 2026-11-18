@@ -51,6 +51,12 @@ export interface TestState {
    */
   missCount: number;
   /**
+   * The positions of the characters of a drawn answer that the learner
+   * missed: five misses on one stroke, or the outline hint. The breakdown
+   * after a lapse shows only these.
+   */
+  missedCharIndices: number[];
+  /**
    * Whether the learner asked for a hint during the current question. The
    * outline that the writer shows after five misses on one stroke is not one.
    */

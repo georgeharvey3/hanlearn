@@ -28,6 +28,7 @@ vi.mock('./constants', () => ({
     initialQueueLength: 0,
     gradeList: [],
     gradeCap: 'pass',
+    missedCharIndices: [],
     toneErrorCount: 0,
     alternativesSent: [],
     alternatives: null,
@@ -1461,6 +1462,71 @@ describe('useTestEngine — how the learner got to the grade', () => {
         vi.advanceTimersByTime(1000);
       });
     }
+
+    describe('the breakdown after a missed drawing', () => {
+      function twoCharacterQuestion() {
+        const result = typedQuestion({
+          answerCategory: 'character',
+          questionCategory: 'meaning',
+          answer: '你好',
+          chosenCharacter: '你好',
+          useHandwriting: true,
+          writer: null,
+          currentPair: characterPair,
+          testSet: [makeWord({ pinyin: 'nǐ hǎo', meaning: 'hello' })],
+          queue: [characterPair, meaningPair],
+          qNum: 1,
+        });
+        mockWriter.quiz.mockClear();
+        act(() => {
+          result.current.setStateMerged({ qNum: 2 } as any);
+        });
+        return result;
+      }
+
+      it('opens at once and shows only the character that was missed', () => {
+        const result = twoCharacterQuestion();
+        const first = mockWriter.quiz.mock.calls[0][0];
+        act(() => {
+          first.onComplete();
+        });
+        act(() => {
+          vi.advanceTimersByTime(1000);
+        });
+        const second = mockWriter.quiz.mock.calls[1][0];
+        act(() => {
+          second.onMistake({ mistakesOnStroke: 5, strokeNum: 0, totalMistakes: 5 });
+          second.onComplete();
+        });
+        act(() => {
+          vi.advanceTimersByTime(1000);
+        });
+
+        expect(result.current.state.outcome).toBe('lapse');
+        expect(result.current.state.componentReviewChars).toEqual(['好']);
+        expect(result.current.state.showComponents).toBe(true);
+      });
+
+      it('shows every character after "I don\'t know"', async () => {
+        const result = twoCharacterQuestion();
+        const first = mockWriter.quiz.mock.calls[0][0];
+        act(() => {
+          first.onMistake({ mistakesOnStroke: 5, strokeNum: 0, totalMistakes: 5 });
+        });
+        act(() => {
+          result.current.onIDontKnow();
+        });
+        // The reveal animates each character; the mock resolves at once.
+        for (let tick = 0; tick < 5; tick++) {
+          await act(async () => {
+            await Promise.resolve();
+          });
+        }
+
+        expect(result.current.state.componentReviewChars).toEqual(['你', '好']);
+        expect(result.current.state.showComponents).toBe(true);
+      });
+    });
 
     // The stroke check can count a correct stroke as a miss. See issue #475.
     describe('count as known', () => {

@@ -198,6 +198,7 @@ export const copy = {
     drawArea: 'Handwriting area: draw the character here',
     characterProgress: (index: number, total: number) => `Character ${index} of ${total}`,
     characters: 'Characters',
+    missedCharacters: 'Missed characters',
     showComponents: 'Show components',
     hideComponents: 'Hide components',
     definitionLoading: (char: string) => `Loading the definition of ${char}`,

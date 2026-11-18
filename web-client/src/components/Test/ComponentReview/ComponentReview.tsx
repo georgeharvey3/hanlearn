@@ -14,21 +14,30 @@ interface ComponentReviewProps {
   charSet: 'simp' | 'trad';
   open: boolean;
   onToggle: () => void;
+  /** The heading over the rows. Defaults to "Characters". */
+  title?: string;
 }
 
 /**
  * The reveal that follows a missed character question.
  *
  * The pinyin and meaning of each character are the aid for a missed meaning,
- * so they show at once. The component breakdown is the aid for writing, so it
- * waits behind a button. The session waits for Continue, in TestActions.
+ * so they show at once. The component breakdown is the aid for writing, so
+ * after a missed drawing it opens at once; otherwise it waits behind a button.
+ * The session waits for Continue, in TestActions.
  */
-const ComponentReview: React.FC<ComponentReviewProps> = ({ chars, charSet, open, onToggle }) => {
+const ComponentReview: React.FC<ComponentReviewProps> = ({
+  chars,
+  charSet,
+  open,
+  onToggle,
+  title = copy.test.characters,
+}) => {
   if (chars.length === 0) return null;
 
   return (
     <Box data-testid="component-review" sx={{ display: 'flex', flexDirection: 'column' }}>
-      <Overline sx={{ mt: 0.5, mb: 1 }}>{copy.test.characters}</Overline>
+      <Overline sx={{ mt: 0.5, mb: 1 }}>{title}</Overline>
       <CharacterGlosses
         chars={chars}
         charSet={charSet}
