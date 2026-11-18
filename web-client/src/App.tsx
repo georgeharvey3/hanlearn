@@ -24,6 +24,10 @@ const SentencePractice = React.lazy(() => import('./containers/SentencePractice/
 const BreakdownPreview = import.meta.env.DEV
   ? React.lazy(() => import('./containers/BreakdownPreview/BreakdownPreview'))
   : null;
+// PROTOTYPE (#562): the dev server only.
+const WordPagePrototype = import.meta.env.DEV
+  ? React.lazy(() => import('./containers/WordPagePrototype/WordPagePrototype'))
+  : null;
 
 const mapDispatchToProps = {
   onTryAutoLogin: actions.authCheckState,
@@ -222,6 +226,9 @@ const App: React.FC<Props> = ({
                   </ErrorBoundary>
                 )}
               />
+              {WordPagePrototype && (
+                <Route path="/dev/word/:id" render={() => <WordPagePrototype />} />
+              )}
               {BreakdownPreview && (
                 <Route path="/dev/breakdown" render={() => <BreakdownPreview />} />
               )}

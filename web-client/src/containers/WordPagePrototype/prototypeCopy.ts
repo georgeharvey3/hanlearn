@@ -1,0 +1,27 @@
+// PROTOTYPE (#562). Throwaway strings of the word page prototype. The real
+// page puts these in `src/copy.ts`, in a `wordPage` group.
+export const p = {
+  add: 'Add',
+  added: 'Added',
+  senses: 'Meanings',
+  yourMeaning: 'Your meaning',
+  otherReadings: 'Other readings',
+  example: 'Example',
+  characters: 'Characters',
+  yourProgress: 'Your progress',
+  next: 'Next',
+  lists: 'Lists',
+  lapses: (n: number) => `${n} lapse${n === 1 ? '' : 's'}`,
+  play: 'Play',
+  replay: (char: string) => `Play the strokes of ${char} again`,
+  tabMeaning: 'Meaning',
+  tabCharacters: 'Characters',
+  tabProgress: 'Progress',
+  back: 'Back',
+  dueSoon: 'Due soon',
+  showWord: 'Show word',
+  noBreakdown: '',
+  direction: 'Direction',
+  level: 'Level',
+  due: 'Due',
+};
