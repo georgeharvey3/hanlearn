@@ -25,6 +25,8 @@ import {
   useCharInfo,
   FormToggle,
   formsDiffer,
+  isCustom,
+  OwnWordTag,
 } from './parts';
 import { p } from './prototypeCopy';
 
@@ -116,6 +118,7 @@ const VariantC: React.FC<{ data: PageData }> = ({ data }) => {
             {word.pinyin}
           </Box>
         )}
+        {isCustom(word) && <OwnWordTag />}
         <Speaker text={word[charSet]} />
         {!owned && <AddButton onAdd={data.onAdd} />}
       </Box>
@@ -181,7 +184,7 @@ const VariantC: React.FC<{ data: PageData }> = ({ data }) => {
         )}
         <Box
           component="ol"
-          sx={{ m: 0, pl: 3, color: owned?.ammended_meaning ? colors.textSecondary : colors.text }}
+          sx={{ m: 0, pl: isCustom(word) ? 0 : 3, listStyle: isCustom(word) ? 'none' : undefined, fontWeight: isCustom(word) ? 600 : undefined, color: owned?.ammended_meaning ? colors.textSecondary : colors.text }}
         >
           {sensesOf(entry.meaning).map((s) => (
             <Box component="li" key={s} sx={{ fontSize: 15 }}>

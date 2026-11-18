@@ -26,6 +26,8 @@ import {
   wordSenses,
   formName,
   otherSet,
+  isCustom,
+  OwnWordTag,
 } from './parts';
 import { p } from './prototypeCopy';
 
@@ -72,8 +74,11 @@ const VariantA: React.FC<{ data: PageData }> = ({ data }) => {
               </Box>
             )}
           </Box>
-          <Box lang="zh-Latn" sx={{ mt: 1, fontSize: 20, color: colors.primaryDark, fontWeight: 600 }}>
-            {word.pinyin}
+          <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box lang="zh-Latn" sx={{ fontSize: 20, color: colors.primaryDark, fontWeight: 600 }}>
+              {word.pinyin}
+            </Box>
+            {isCustom(word) && <OwnWordTag />}
           </Box>
           {chars.length > 1 && (
             <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.75 }}>
@@ -110,14 +115,14 @@ const VariantA: React.FC<{ data: PageData }> = ({ data }) => {
         </Box>
       </Box>
 
-      <Section title={p.senses}>
+      <Section title={isCustom(word) ? p.yourMeaning : p.senses}>
         {owned?.ammended_meaning && (
           <Box sx={{ p: 1.5, bgcolor: colors.successSurface, borderRadius: 1 }}>
             <Overline sx={{ mb: 0.5 }}>{p.yourMeaning}</Overline>
             <Box sx={{ fontSize: 16 }}>{owned.ammended_meaning}</Box>
           </Box>
         )}
-        <Box component="ol" sx={{ m: 0, pl: 3, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+        <Box component="ol" sx={{ m: 0, pl: isCustom(word) ? 0 : 3, listStyle: isCustom(word) ? 'none' : undefined, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
           {sensesOf(entry.meaning).map((s) => (
             <Box component="li" key={s} sx={{ fontSize: 16 }}>
               {s}

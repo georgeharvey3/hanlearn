@@ -26,6 +26,8 @@ import {
   FormToggle,
   CharInfo,
   formsDiffer,
+  isCustom,
+  OwnWordTag,
 } from './parts';
 import { p } from './prototypeCopy';
 
@@ -98,6 +100,11 @@ const VariantB: React.FC<{ data: PageData }> = ({ data }) => {
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Box lang="zh-Latn" sx={{ fontSize: 17, fontWeight: 600, color: colors.primaryDark }}>
               {word.pinyin}
+              {isCustom(word) && (
+                <Box component="span" sx={{ ml: 1 }}>
+                  <OwnWordTag />
+                </Box>
+              )}
             </Box>
             <Box
               sx={{
@@ -150,7 +157,8 @@ const VariantB: React.FC<{ data: PageData }> = ({ data }) => {
               <Box sx={{ fontSize: 17 }}>{owned.ammended_meaning}</Box>
             </Box>
           )}
-          <Box component="ol" sx={{ m: 0, pl: 3 }}>
+          {isCustom(word) && <Overline sx={{ mb: -1.5 }}>{p.yourMeaning}</Overline>}
+          <Box component="ol" sx={{ m: 0, pl: isCustom(word) ? 0 : 3, listStyle: isCustom(word) ? 'none' : undefined }}>
             {sensesOf(entry.meaning).map((s) => (
               <Box component="li" key={s} sx={{ fontSize: 16, py: 0.25 }}>
                 {s}

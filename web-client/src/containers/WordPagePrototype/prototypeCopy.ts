@@ -3,6 +3,7 @@
 export const p = {
   add: 'Add',
   animate: 'Animate',
+  ownWord: 'Own word',
   composition: 'Composition',
   added: 'Added',
   senses: 'Meanings',

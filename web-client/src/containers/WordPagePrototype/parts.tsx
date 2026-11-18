@@ -5,6 +5,7 @@ import { Box, ButtonBase, IconButton } from '@mui/material';
 import VolumeUpOutlinedIcon from '@mui/icons-material/VolumeUpOutlined';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
+import EditNoteRoundedIcon from '@mui/icons-material/EditNoteRounded';
 
 import { colors, fonts, levelInk, partInk } from '../../theme';
 import { Word, DIRECTIONS, Direction } from '../../types/models';
@@ -729,3 +730,32 @@ export const CharacterStudio: React.FC<{ char: string }> = ({ char }) => {
     </Box>
   );
 };
+
+// ---- Custom word (round 5) ----
+
+/** A custom word has a negative id: the learner wrote it, the dictionary has no entry. */
+export const isCustom = (w: Word) => w.id < 0;
+
+/** The tag of a custom word, beside its pinyin. */
+export const OwnWordTag: React.FC = () => (
+  <Box
+    component="span"
+    sx={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 0.5,
+      height: 24,
+      px: 1,
+      borderRadius: 999,
+      bgcolor: colors.warningSurface,
+      color: colors.warningText,
+      fontFamily: fonts.body,
+      fontSize: 12,
+      fontWeight: 600,
+      verticalAlign: 'middle',
+    }}
+  >
+    <EditNoteRoundedIcon aria-hidden sx={{ fontSize: 16 }} />
+    {p.ownWord}
+  </Box>
+);
