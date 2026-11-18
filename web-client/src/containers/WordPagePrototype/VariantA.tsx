@@ -10,12 +10,11 @@ import {
   Cover,
   LeechChip,
   LevelPips,
-  MaybeBreakdown,
+  CharacterStudio,
   Overline,
   PageData,
   SentenceView,
   Speaker,
-  StrokePlayer,
   directionRows,
   hanzi,
   hanziOf,
@@ -178,13 +177,15 @@ const VariantA: React.FC<{ data: PageData }> = ({ data }) => {
                   borderBottom: i < chars.length - 1 ? `1px dashed ${colors.divider}` : 'none',
                 }}
               >
-                <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-end' }}>
-                  <StrokePlayer char={char} size={104} />
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'baseline' }}>
+                  <Box lang="zh" sx={hanzi(36)}>
+                    {char}
+                  </Box>
                   {alt && (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
-                      <StrokePlayer char={alt} size={64} />
-                      <Box sx={{ fontSize: 11, color: colors.textSecondary }}>
-                        {formName(otherSet(charSet))}
+                    <Box sx={{ fontSize: 12, color: colors.textSecondary }}>
+                      {formName(otherSet(charSet))}{' '}
+                      <Box component="span" lang="zh" sx={hanzi(20, { color: colors.text })}>
+                        {alt}
                       </Box>
                     </Box>
                   )}
@@ -205,7 +206,7 @@ const VariantA: React.FC<{ data: PageData }> = ({ data }) => {
                     </Box>
                   )}
                 </Box>
-                <MaybeBreakdown char={char} />
+                <CharacterStudio char={char} />
               </Box>
             );
           })}

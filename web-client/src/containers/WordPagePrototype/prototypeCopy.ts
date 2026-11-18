@@ -2,6 +2,7 @@
 // page puts these in `src/copy.ts`, in a `wordPage` group.
 export const p = {
   add: 'Add',
+  animate: 'Animate',
   added: 'Added',
   senses: 'Meanings',
   yourMeaning: 'Your meaning',

@@ -10,12 +10,11 @@ import {
   AddButton,
   Cover,
   LeechChip,
-  MaybeBreakdown,
+  CharacterStudio,
   Overline,
   PageData,
   SentenceView,
   Speaker,
-  StrokePlayer,
   directionRows,
   hanzi,
   hanziOf,
@@ -251,9 +250,8 @@ const VariantB: React.FC<{ data: PageData }> = ({ data }) => {
               ))}
             </Box>
           )}
-          <StrokePlayer key={`${char}-${charIndex}`} char={char} size={220} />
+          <CharacterStudio key={`${char}-${charIndex}`} char={char} />
           <CharReadings info={infoAt(Math.min(charIndex, chars.length - 1))} />
-          <MaybeBreakdown key={`b-${char}-${charIndex}`} char={char} />
         </Box>
       )}
 

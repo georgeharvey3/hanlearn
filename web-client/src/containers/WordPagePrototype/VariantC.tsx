@@ -7,7 +7,6 @@ import { Box, ButtonBase } from '@mui/material';
 
 import { colors, fonts, levelInk } from '../../theme';
 import { BANK_LABELS } from '../../utils/scheduling';
-import CharacterBreakdown from '../../components/Test/ComponentReview/CharacterBreakdown';
 import {
   AddButton,
   Cover,
@@ -16,48 +15,20 @@ import {
   PageData,
   SentenceView,
   Speaker,
-  StrokePlayer,
+  CharacterStudio,
   directionRows,
   hanzi,
   hanziOf,
   nextDue,
   sensesOf,
   useFirstSentence,
-  useHasBreakdown,
   useCharInfo,
   FormToggle,
   formsDiffer,
 } from './parts';
 import { p } from './prototypeCopy';
 
-export const name = 'Strokes first';
-
-/** A picker chip that shows only when the character has a breakdown. */
-const PartChip: React.FC<{ char: string; selected: boolean; onSelect: () => void }> = ({
-  char,
-  selected,
-  onSelect,
-}) => {
-  const has = useHasBreakdown(char);
-  if (!has) return null;
-  return (
-    <ButtonBase
-      aria-pressed={selected}
-      onClick={onSelect}
-      sx={{
-        width: 48,
-        height: 48,
-        borderRadius: 1,
-        border: `2px solid ${selected ? colors.primaryDark : colors.divider}`,
-        bgcolor: colors.card,
-      }}
-    >
-      <Box lang="zh" sx={hanzi(28)}>
-        {char}
-      </Box>
-    </ButtonBase>
-  );
-};
+export const name = 'Character tiles'
 
 const VariantC: React.FC<{ data: PageData }> = ({ data }) => {
   const { entry, owned } = data;
@@ -90,7 +61,22 @@ const VariantC: React.FC<{ data: PageData }> = ({ data }) => {
             key={`${char}-${i}`}
             sx={{ width: box, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}
           >
-            <StrokePlayer char={char} size={box} />
+            {/* A tile per character. The tapped one opens in the panel under the word. */}
+            <ButtonBase
+              aria-pressed={partIndex === i}
+              onClick={() => setPartIndex(i)}
+              sx={{
+                width: box,
+                height: Math.min(box, 96),
+                borderRadius: 1,
+                bgcolor: colors.card,
+                border: `2px solid ${partIndex === i && chars.length > 1 ? colors.primaryDark : colors.divider}`,
+              }}
+            >
+              <Box lang="zh" sx={hanzi(Math.min(box, 96) * 0.7)}>
+                {char}
+              </Box>
+            </ButtonBase>
             {perChar && (
               <Box lang="zh-Latn" sx={{ fontSize: 17, fontWeight: 600, color: colors.primaryDark }}>
                 {syllables[i]}
@@ -121,6 +107,8 @@ const VariantC: React.FC<{ data: PageData }> = ({ data }) => {
           </Box>
         )}
       </Box>
+
+      {partChar && <CharacterStudio key={`${partChar}-${partIndex}`} char={partChar} />}
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}>
         {!perChar && (
@@ -223,22 +211,9 @@ const VariantC: React.FC<{ data: PageData }> = ({ data }) => {
         </Box>
       )}
 
-      {chars.length > 0 && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pb: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Overline sx={{ flex: 1 }}>{p.characters}</Overline>
-            {chars.map((c, i) => (
-              <PartChip key={`${c}-${i}`} char={c} selected={partIndex === i} onSelect={() => setPartIndex(i)} />
-            ))}
-          </Box>
-          {partChar && <PartsOf key={partChar} char={partChar} />}
-        </Box>
-      )}
     </Box>
   );
 };
 
-const PartsOf: React.FC<{ char: string }> = ({ char }) =>
-  useHasBreakdown(char) ? <CharacterBreakdown char={char} /> : null;
 
 export default VariantC;

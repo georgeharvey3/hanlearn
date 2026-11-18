@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Box, ButtonBase, IconButton } from '@mui/material';
 import VolumeUpOutlinedIcon from '@mui/icons-material/VolumeUpOutlined';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
+import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 
 import { colors, fonts, levelInk } from '../../theme';
 import { Word, DIRECTIONS, Direction } from '../../types/models';
@@ -513,3 +514,100 @@ export const FormToggle: React.FC<{
     ))}
   </Box>
 );
+
+// ---- One panel for the strokes and the parts (round 3) ----
+
+/** The size of the panel character: the size CharacterBreakdown draws at. */
+const STUDIO_SIZE = 168;
+
+/**
+ * The parts of a character and its stroke order in one place. At rest the
+ * panel shows the breakdown, the parts in their inks. "Animate" draws the
+ * strokes in order over the same character, then gives the parts back. A
+ * character with no breakdown shows its strokes in ink at rest.
+ */
+export const CharacterStudio: React.FC<{ char: string }> = ({ char }) => {
+  const [load] = useBreakdown(char);
+  const has = load.status === 'done' && !!load.breakdown.p && load.breakdown.p.length > 0;
+  const [animating, setAnimating] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const writer = useRef<HanziWriterInstance | null>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !window.HanziWriter) return undefined;
+    el.innerHTML = '';
+    try {
+      writer.current = window.HanziWriter.create(el, char, {
+        width: STUDIO_SIZE,
+        height: STUDIO_SIZE,
+        // CharacterBreakdown draws the 1024 box edge to edge.
+        padding: 0,
+        showOutline: true,
+        showCharacter: true,
+        strokeColor: colors.text,
+        outlineColor: colors.outline,
+        strokeAnimationSpeed: 1.2,
+        delayBetweenStrokes: 120,
+        charDataLoader: loadCharData,
+      });
+    } catch {
+      writer.current = null;
+    }
+    return () => {
+      el.innerHTML = '';
+      writer.current = null;
+    };
+  }, [char]);
+
+  const animate = () => {
+    if (!writer.current) return;
+    setAnimating(true);
+    writer.current.animateCharacter().then(() => setAnimating(false));
+  };
+
+  // The writer lies over the breakdown character, which is the first thing in
+  // its column. It shows only while it animates, or always when there are no parts.
+  const writerShown = animating || (load.status === 'done' && !has);
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+      <Box sx={{ position: 'relative', minWidth: STUDIO_SIZE, minHeight: STUDIO_SIZE }}>
+        {has && <CharacterBreakdown char={char} />}
+        <Box
+          ref={ref}
+          aria-hidden={!writerShown}
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: STUDIO_SIZE,
+            height: STUDIO_SIZE,
+            bgcolor: colors.paper,
+            visibility: writerShown ? 'visible' : 'hidden',
+            pointerEvents: writerShown ? 'auto' : 'none',
+          }}
+        />
+      </Box>
+      <ButtonBase
+        onClick={animate}
+        disabled={animating}
+        sx={{
+          height: 36,
+          px: 1.75,
+          gap: 0.75,
+          borderRadius: 999,
+          border: `1px solid ${colors.borderStrong}`,
+          bgcolor: colors.card,
+          fontFamily: fonts.body,
+          fontSize: 13,
+          fontWeight: 600,
+          color: animating ? colors.disabledText : colors.text,
+        }}
+      >
+        <PlayArrowRoundedIcon sx={{ fontSize: 18 }} />
+        {p.animate}
+      </ButtonBase>
+    </Box>
+  );
+};
