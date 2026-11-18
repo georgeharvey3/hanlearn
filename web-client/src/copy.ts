@@ -340,7 +340,6 @@ export const copy = {
     levelDue: (level: string, due: string) => (due ? `${level} · ${due}` : level),
     editLists: 'Edit lists',
     details: 'Details',
-    openEntry: (char: string, pinyin: string) => `Open ${char}, ${pinyin}`,
     listsOf: (char: string) => `Lists for ${char}`,
     toastListsSaved: 'Lists saved',
     toastDeleted: 'Word deleted',

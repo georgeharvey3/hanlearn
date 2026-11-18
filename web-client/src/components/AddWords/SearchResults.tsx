@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import { Box, ButtonBase, InputBase } from '@mui/material';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
@@ -8,6 +9,7 @@ import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
 import { Word } from '../../types/models';
 import { Block } from './BankStates';
+import { wordPath } from '../Navigation/navLinks';
 
 export type SearchStatus = 'idle' | 'searching' | 'done' | 'error';
 
@@ -54,34 +56,53 @@ const ResultRow: React.FC<{
       borderBottom: `1px solid ${colors.divider}`,
     }}
   >
-    <Box lang="zh" sx={hanziSx(32, { minWidth: 56 })}>
-      {entry[charSet]}
-    </Box>
-    {state === 'covered' ? (
-      <Box aria-hidden sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <Block width={72} height={12} />
-        <Block width={140} height={10} />
+    {/* A tap on the entry opens its word page. It passes the entry, so the
+        page needs no dictionary call, and no "shown" flag, so a covered word
+        opens covered. */}
+    <ButtonBase
+      component={RouterLink}
+      to={{ pathname: wordPath(entry.id), state: { entry } }}
+      sx={{
+        flex: 1,
+        minWidth: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        gap: 1.5,
+        textAlign: 'left',
+        fontFamily: fonts.body,
+        color: colors.text,
+      }}
+    >
+      <Box lang="zh" sx={hanziSx(32, { minWidth: 56 })}>
+        {entry[charSet]}
       </Box>
-    ) : (
-      // overflowWrap breaks a meaning such as 'with/coordinated/collaborate',
-      // which has no spaces to wrap at, instead of spilling over the hanzi
-      // and the Add button.
-      <Box
-        sx={{
-          flex: 1,
-          minWidth: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '2px',
-          overflowWrap: 'anywhere',
-        }}
-      >
-        <Box lang="zh-Latn" sx={{ fontSize: 15 }}>
-          {entry.pinyin}
+      {state === 'covered' ? (
+        <Box aria-hidden sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Block width={72} height={12} />
+          <Block width={140} height={10} />
         </Box>
-        <Box sx={{ fontSize: 13, color: colors.textSecondary }}>{entry.meaning}</Box>
-      </Box>
-    )}
+      ) : (
+        // overflowWrap breaks a meaning such as 'with/coordinated/collaborate',
+        // which has no spaces to wrap at, instead of spilling over the hanzi
+        // and the Add button.
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px',
+            overflowWrap: 'anywhere',
+          }}
+        >
+          <Box lang="zh-Latn" sx={{ fontSize: 15 }}>
+            {entry.pinyin}
+          </Box>
+          <Box sx={{ fontSize: 13, color: colors.textSecondary }}>{entry.meaning}</Box>
+        </Box>
+      )}
+    </ButtonBase>
     {state !== 'new' ? (
       <Box
         sx={{
