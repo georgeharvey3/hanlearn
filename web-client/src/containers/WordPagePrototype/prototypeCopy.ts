@@ -3,6 +3,7 @@
 export const p = {
   add: 'Add',
   animate: 'Animate',
+  composition: 'Composition',
   added: 'Added',
   senses: 'Meanings',
   yourMeaning: 'Your meaning',

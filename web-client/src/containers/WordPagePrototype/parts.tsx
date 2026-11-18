@@ -6,7 +6,7 @@ import VolumeUpOutlinedIcon from '@mui/icons-material/VolumeUpOutlined';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 
-import { colors, fonts, levelInk } from '../../theme';
+import { colors, fonts, levelInk, partInk } from '../../theme';
 import { Word, DIRECTIONS, Direction } from '../../types/models';
 import { BANK_LABELS, isLeech } from '../../utils/scheduling';
 import { DIRECTION_LABELS } from '../../utils/directions';
@@ -515,99 +515,212 @@ export const FormToggle: React.FC<{
   </Box>
 );
 
-// ---- One panel for the strokes and the parts (round 3) ----
+// ---- One panel for the strokes and the parts (round 3, toggle in round 4) ----
 
 /** The size of the panel character: the size CharacterBreakdown draws at. */
 const STUDIO_SIZE = 168;
 
+interface StrokeGeometry {
+  strokes: string[];
+  medians: number[][][];
+}
+
+const geometryCache = new Map<string, Promise<StrokeGeometry>>();
+const geometryOf = (char: string) => {
+  let hit = geometryCache.get(char);
+  if (!hit) {
+    hit = new Promise<StrokeGeometry>((resolve, reject) =>
+      loadCharData(char, (data) => resolve(data as StrokeGeometry), reject),
+    );
+    geometryCache.set(char, hit);
+    hit.catch(() => geometryCache.delete(char));
+  }
+  return hit;
+};
+
+const lengthOf = (median: number[][]) =>
+  median.slice(1).reduce((sum, [x, y], i) => sum + Math.hypot(x - median[i][0], y - median[i][1]), 0);
+
+/** Animation timing, in the units of the 1024 box. */
+const MS_PER_UNIT = 0.9;
+const MIN_STROKE_MS = 250;
+const GAP_MS = 120;
+
 /**
- * The parts of a character and its stroke order in one place. At rest the
- * panel shows the breakdown, the parts in their inks. "Animate" draws the
- * strokes in order over the same character, then gives the parts back. A
- * character with no breakdown shows its strokes in ink at rest.
+ * The character drawn as plain SVG, in one ink or in the inks of its parts.
+ * With `play`, each stroke is brushed in order along its median, the way
+ * Hanzi Writer draws, so both views share one animation.
+ */
+const InkCharacter: React.FC<{
+  id: string;
+  geometry: StrokeGeometry;
+  inkOf: (stroke: number) => string;
+  play: number;
+}> = ({ id, geometry, inkOf, play }) => {
+  let at = 0;
+  const timing = geometry.medians.map((median) => {
+    const length = lengthOf(median);
+    const ms = Math.max(MIN_STROKE_MS, length * MS_PER_UNIT);
+    const t = { length, delay: at, ms };
+    at += ms + GAP_MS;
+    return t;
+  });
+  return (
+    <svg viewBox="0 0 1024 1024" width={STUDIO_SIZE} height={STUDIO_SIZE} aria-hidden="true">
+      <style>{`@keyframes brush-${id} { to { stroke-dashoffset: 0; } }`}</style>
+      <g transform="translate(0, 900) scale(1, -1)">
+        {play > 0 &&
+          geometry.strokes.map((d, i) => <path key={`o${i}`} d={d} fill={colors.outline} />)}
+        {geometry.strokes.map((d, i) =>
+          play === 0 ? (
+            <path key={i} d={d} fill={inkOf(i)} />
+          ) : (
+            <g key={`${play}-${i}`}>
+              <clipPath id={`${id}-clip-${i}`}>
+                <path d={d} />
+              </clipPath>
+              <polyline
+                clipPath={`url(#${id}-clip-${i})`}
+                points={geometry.medians[i].map(([x, y]) => `${x},${y}`).join(' ')}
+                fill="none"
+                stroke={inkOf(i)}
+                strokeWidth={200}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray={timing[i].length + 200}
+                strokeDashoffset={timing[i].length + 200}
+                style={{
+                  animation: `brush-${id} ${timing[i].ms}ms linear ${timing[i].delay}ms forwards`,
+                }}
+              />
+            </g>
+          ),
+        )}
+      </g>
+    </svg>
+  );
+};
+
+const totalMs = (g: StrokeGeometry) =>
+  g.medians.reduce((sum, m) => sum + Math.max(MIN_STROKE_MS, lengthOf(m) * MS_PER_UNIT) + GAP_MS, 0);
+
+/** A labelled on/off switch. */
+const ViewSwitch: React.FC<{ label: string; on: boolean; onChange: (on: boolean) => void }> = ({
+  label,
+  on,
+  onChange,
+}) => (
+  <ButtonBase
+    role="switch"
+    aria-checked={on}
+    onClick={() => onChange(!on)}
+    sx={{ height: 36, px: 1, gap: 1, borderRadius: 1, fontFamily: fonts.body, fontSize: 13, fontWeight: 600 }}
+  >
+    {label}
+    <Box
+      component="span"
+      sx={{
+        width: 34,
+        height: 20,
+        borderRadius: 10,
+        p: '2px',
+        boxSizing: 'border-box',
+        bgcolor: on ? colors.primaryDark : colors.borderStrong,
+        display: 'flex',
+        justifyContent: on ? 'flex-end' : 'flex-start',
+        transition: 'background-color 120ms',
+      }}
+    >
+      <Box component="span" sx={{ width: 16, height: 16, borderRadius: '50%', bgcolor: colors.white }} />
+    </Box>
+  </ButtonBase>
+);
+
+/**
+ * The strokes and the parts of a character in one panel. "Composition" picks
+ * the view: the parts in their inks (tappable, as after a CM lapse), or the
+ * character in plain ink. "Animate" draws the strokes in order in the chosen
+ * view, then shows that view at rest again. A character with no breakdown has
+ * no Composition switch: it is always in ink.
  */
 export const CharacterStudio: React.FC<{ char: string }> = ({ char }) => {
   const [load] = useBreakdown(char);
-  const has = load.status === 'done' && !!load.breakdown.p && load.breakdown.p.length > 0;
+  const parts = load.status === 'done' && load.breakdown.p && load.breakdown.p.length > 0 ? load.breakdown.p : null;
+  const [composition, setComposition] = useState(true);
+  const [geometry, setGeometry] = useState<StrokeGeometry | null>(null);
+  const [play, setPlay] = useState(0);
   const [animating, setAnimating] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const writer = useRef<HanziWriterInstance | null>(null);
+  const id = `studio-${char.codePointAt(0)!.toString(16)}`;
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el || !window.HanziWriter) return undefined;
-    el.innerHTML = '';
-    try {
-      writer.current = window.HanziWriter.create(el, char, {
-        width: STUDIO_SIZE,
-        height: STUDIO_SIZE,
-        // CharacterBreakdown draws the 1024 box edge to edge.
-        padding: 0,
-        showOutline: true,
-        showCharacter: true,
-        strokeColor: colors.text,
-        outlineColor: colors.outline,
-        strokeAnimationSpeed: 1.2,
-        delayBetweenStrokes: 120,
-        charDataLoader: loadCharData,
-      });
-    } catch {
-      writer.current = null;
-    }
+    let cancelled = false;
+    geometryOf(char)
+      .then((g) => !cancelled && setGeometry(g))
+      .catch(() => undefined);
     return () => {
-      el.innerHTML = '';
-      writer.current = null;
+      cancelled = true;
     };
   }, [char]);
 
+  useEffect(() => {
+    if (!animating || !geometry) return undefined;
+    const timer = setTimeout(() => setAnimating(false), totalMs(geometry));
+    return () => clearTimeout(timer);
+  }, [animating, geometry, play]);
+
+  const showParts = composition && !!parts;
+  const partOf = new Map<number, number>();
+  parts?.forEach((part, index) => part.s.forEach((stroke) => partOf.set(stroke, index)));
+  const inkOf = (stroke: number) =>
+    showParts ? partInk[(partOf.get(stroke) ?? 0) % partInk.length] : colors.text;
+
   const animate = () => {
-    if (!writer.current) return;
+    setPlay((n) => n + 1);
     setAnimating(true);
-    writer.current.animateCharacter().then(() => setAnimating(false));
   };
 
-  // The writer lies over the breakdown character, which is the first thing in
-  // its column. It shows only while it animates, or always when there are no parts.
-  const writerShown = animating || (load.status === 'done' && !has);
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
       <Box sx={{ position: 'relative', minWidth: STUDIO_SIZE, minHeight: STUDIO_SIZE }}>
-        {has && <CharacterBreakdown char={char} />}
-        <Box
-          ref={ref}
-          aria-hidden={!writerShown}
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: STUDIO_SIZE,
-            height: STUDIO_SIZE,
-            bgcolor: colors.paper,
-            visibility: writerShown ? 'visible' : 'hidden',
-            pointerEvents: writerShown ? 'auto' : 'none',
-          }}
-        />
+        {showParts && <CharacterBreakdown char={char} />}
+        {geometry && (animating || !showParts) && (
+          <Box
+            sx={{
+              position: showParts ? 'absolute' : 'static',
+              top: 0,
+              left: '50%',
+              transform: showParts ? 'translateX(-50%)' : 'none',
+              width: STUDIO_SIZE,
+              height: STUDIO_SIZE,
+              bgcolor: colors.paper,
+            }}
+          >
+            <InkCharacter id={id} geometry={geometry} inkOf={inkOf} play={animating ? play : 0} />
+          </Box>
+        )}
       </Box>
-      <ButtonBase
-        onClick={animate}
-        disabled={animating}
-        sx={{
-          height: 36,
-          px: 1.75,
-          gap: 0.75,
-          borderRadius: 999,
-          border: `1px solid ${colors.borderStrong}`,
-          bgcolor: colors.card,
-          fontFamily: fonts.body,
-          fontSize: 13,
-          fontWeight: 600,
-          color: animating ? colors.disabledText : colors.text,
-        }}
-      >
-        <PlayArrowRoundedIcon sx={{ fontSize: 18 }} />
-        {p.animate}
-      </ButtonBase>
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+        {parts && <ViewSwitch label={p.composition} on={composition} onChange={setComposition} />}
+        <ButtonBase
+          onClick={animate}
+          disabled={animating || !geometry}
+          sx={{
+            height: 36,
+            px: 1.75,
+            gap: 0.75,
+            borderRadius: 999,
+            border: `1px solid ${colors.borderStrong}`,
+            bgcolor: colors.card,
+            fontFamily: fonts.body,
+            fontSize: 13,
+            fontWeight: 600,
+            color: animating ? colors.disabledText : colors.text,
+          }}
+        >
+          <PlayArrowRoundedIcon sx={{ fontSize: 18 }} />
+          {p.animate}
+        </ButtonBase>
+      </Box>
     </Box>
   );
 };
