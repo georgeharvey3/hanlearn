@@ -8,7 +8,8 @@ import { loadCharData } from '../../utils/charDataLoader';
 import { Point, animationLength, strokeTimings } from '../../utils/strokeAnimation';
 import { reportError } from '../../services/errorReporting';
 import { hanziSx } from '../Test/Study/parts';
-import CharacterBreakdown, { CHAR_SIZE } from './CharacterBreakdown';
+import CharacterBreakdown from './CharacterBreakdown';
+import { CHAR_SIZE } from './size';
 import { useBreakdown } from './useBreakdown';
 
 /** The outlines and the medians of the strokes, from the Hanzi Writer data. */
@@ -143,8 +144,8 @@ const CharacterPanel: React.FC<{ char: string }> = ({ char }) => {
   const id = `panel-${char.codePointAt(0)!.toString(16)}`;
 
   useEffect(() => {
+    // The panel takes a key by its character, so a new character starts with no data.
     let cancelled = false;
-    setData(null);
     strokeDataOf(char)
       .then((loaded) => {
         if (!cancelled) setData(loaded);

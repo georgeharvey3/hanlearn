@@ -7,8 +7,7 @@ import { colors, fonts, partInk } from '../../theme';
 import { useBreakdown } from './useBreakdown';
 import ReportPartButton from './ReportPartButton';
 
-/** The size of the character drawn in place, in pixels. */
-export const CHAR_SIZE = 168;
+import { CHAR_SIZE } from './size';
 
 /**
  * The width, in the 1024-unit stroke space, of the invisible line around each
