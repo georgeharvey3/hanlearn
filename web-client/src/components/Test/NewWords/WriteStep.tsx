@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box } from '@mui/material';
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 
-import CharacterBreakdown from '../ComponentReview/CharacterBreakdown';
+import CharacterBreakdown from '../../Characters/CharacterBreakdown';
 import { Overline, hanziSx } from '../Study/parts';
 import { copy } from '../../../copy';
 import { colors } from '../../../theme';

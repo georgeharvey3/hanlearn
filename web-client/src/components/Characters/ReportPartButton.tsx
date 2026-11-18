@@ -1,11 +1,11 @@
 import React from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 
-import { copy } from '../../../copy';
-import { RootState } from '../../../types/store';
-import { reportPart } from '../../../services/partReportService';
-import { PartReport } from '../../../utils/partReports';
-import ReportButton from '../Study/ReportButton';
+import { copy } from '../../copy';
+import { RootState } from '../../types/store';
+import { reportPart } from '../../services/partReportService';
+import { PartReport } from '../../utils/partReports';
+import ReportButton from '../Test/Study/ReportButton';
 
 const mapStateToProps = (state: RootState) => ({ userId: state.auth.userId });
 
