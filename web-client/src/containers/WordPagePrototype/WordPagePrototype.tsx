@@ -60,12 +60,15 @@ const COVERED: Word = { ...XUEXI, id: 9005, simp: '图书馆', trad: '圖書館'
 const YINHANG: Word = { id: 9006, simp: '银行', trad: '銀行', pinyin: 'yín háng', meaning: 'bank/CL:家[jia1],個|个[ge4]' };
 const TUSHUGUAN: Word = { ...XUEXI, id: 9007, simp: '图书馆', trad: '圖書館', pinyin: 'tú shū guǎn', meaning: 'library/CL:家[jia1],個|个[ge4]', ammended_meaning: undefined, due_date: day(9) };
 
+// A custom word: a negative id, and the meaning the learner wrote.
+const CUSTOM: Word = { ...XUEXI, id: -3, simp: '老铁', trad: '老鐵', pinyin: 'lǎo tiě', meaning: 'close friend, bro (slang)', ammended_meaning: undefined, due_date: day(6) };
+
 const VARIANTS = [
   { key: 'A', name: nameA, C: VariantA },
   { key: 'B', name: nameB, C: VariantB },
   { key: 'C', name: nameC, C: VariantC },
 ];
-const CASES = ['owned', 'new', 'covered', 'bank', 'library', 'store'];
+const CASES = ['owned', 'new', 'covered', 'bank', 'library', 'custom', 'store'];
 
 const WordPagePrototype: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -102,6 +105,9 @@ const WordPagePrototype: React.FC = () => {
     } else if (kase === 'bank') {
       entry = YINHANG;
       owned = addedIds.includes(entry.id) ? { ...TUSHUGUAN, ...YINHANG } : null;
+    } else if (kase === 'custom') {
+      entry = CUSTOM;
+      owned = CUSTOM;
     } else if (kase === 'library') {
       entry = TUSHUGUAN;
       owned = TUSHUGUAN;
