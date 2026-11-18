@@ -49,6 +49,16 @@ export async function searchDictionary(query: string, charSet: 'simp' | 'trad'):
 }
 
 /**
+ * One dictionary entry by its id, for the word page (#562). Null when no
+ * entry has the id.
+ */
+export async function getEntry(id: number): Promise<Word | null> {
+  const fn = httpsCallable<{ id: number }, Word | null>(functions, 'dictionaryEntry');
+  const result = await retryTransient(() => fn({ id }));
+  return result.data;
+}
+
+/**
  * Look up a single simplified character to get its pinyin and traditional form.
  */
 export async function lookupCharacter(

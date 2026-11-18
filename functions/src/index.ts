@@ -14,6 +14,7 @@ admin.initializeApp();
 export {
   dictionarySearch,
   dictionarySearchWord,
+  dictionaryEntry,
   dictionaryLookupCharacter,
   dictionaryLookupCharacterByTrad,
   dictionaryConvertText,
