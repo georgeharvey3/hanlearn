@@ -5,11 +5,6 @@ import { Box, ButtonBase } from '@mui/material';
 
 import { colors, fonts } from '../../theme';
 import { BANK_LABELS } from '../../utils/scheduling';
-import { toneMarks } from '../../utils/pinyinMarks';
-import {
-  glossLine,
-  useCharacterGlosses,
-} from '../../components/Test/ComponentReview/useCharacterGlosses';
 import {
   AddButton,
   Cover,
@@ -28,6 +23,10 @@ import {
   otherForm,
   sensesOf,
   useFirstSentence,
+  useCharInfo,
+  wordSenses,
+  formName,
+  otherSet,
 } from './parts';
 import { p } from './prototypeCopy';
 
@@ -47,7 +46,8 @@ const VariantA: React.FC<{ data: PageData }> = ({ data }) => {
   const { entry, owned, charSet } = data;
   const word = owned ?? entry;
   const chars = hanziOf(word[charSet]);
-  const glossFor = useCharacterGlosses(chars, charSet);
+  const infoAt = useCharInfo(word, charSet);
+  const otherChars = hanziOf(word[otherSet(charSet)]);
   const sentence = useFirstSentence(word, charSet);
 
   if (data.covered) return <Cover onShow={data.onShow} />;
@@ -57,20 +57,53 @@ const VariantA: React.FC<{ data: PageData }> = ({ data }) => {
     <Box sx={{ textAlign: 'left' }}>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, pt: 2, pb: 2.5 }}>
-        <Box sx={{ flex: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5 }}>
-            <Box lang="zh" sx={hanzi(72)}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: 1.5 }}>
+            <Box lang="zh" sx={hanzi(72, { whiteSpace: 'nowrap' })}>
               {word[charSet]}
             </Box>
             {other && (
-              <Box lang="zh" sx={hanzi(24, { color: colors.textSecondary })}>
-                {other}
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <Box lang="zh" sx={hanzi(34, { color: colors.textSecondary, whiteSpace: 'nowrap' })}>
+                  {other}
+                </Box>
+                <Box sx={{ fontSize: 11, color: colors.textSecondary, mt: 0.5 }}>
+                  {formName(otherSet(charSet))}
+                </Box>
               </Box>
             )}
           </Box>
           <Box lang="zh-Latn" sx={{ mt: 1, fontSize: 20, color: colors.primaryDark, fontWeight: 600 }}>
             {word.pinyin}
           </Box>
+          {chars.length > 1 && (
+            <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.75 }}>
+              {chars.map((char, i) => (
+                <React.Fragment key={`${char}-${i}`}>
+                  {i > 0 && <Box sx={{ color: colors.textSecondary }}>+</Box>}
+                  <Box
+                    sx={{
+                      display: 'inline-flex',
+                      alignItems: 'baseline',
+                      gap: 0.75,
+                      px: 1,
+                      py: 0.5,
+                      borderRadius: 1,
+                      bgcolor: colors.card,
+                      border: `1px solid ${colors.divider}`,
+                    }}
+                  >
+                    <Box lang="zh" sx={hanzi(20)}>
+                      {char}
+                    </Box>
+                    <Box sx={{ fontSize: 13, color: colors.textSecondary }}>
+                      {wordSenses(infoAt(i), 1) || '…'}
+                    </Box>
+                  </Box>
+                </React.Fragment>
+              ))}
+            </Box>
+          )}
         </Box>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', pt: 1 }}>
           <Speaker text={word[charSet]} />
@@ -130,7 +163,10 @@ const VariantA: React.FC<{ data: PageData }> = ({ data }) => {
       {chars.length > 0 && (
         <Section title={p.characters}>
           {chars.map((char, i) => {
-            const gloss = glossFor(char);
+            const info = infoAt(i);
+            const reading = info?.inWord ?? info?.others[0];
+            const alt = otherChars[i] && otherChars[i] !== char ? otherChars[i] : null;
+            const others = info ? info.others.filter((r) => r !== reading) : [];
             return (
               <Box
                 key={`${char}-${i}`}
@@ -142,16 +178,32 @@ const VariantA: React.FC<{ data: PageData }> = ({ data }) => {
                   borderBottom: i < chars.length - 1 ? `1px dashed ${colors.divider}` : 'none',
                 }}
               >
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-end' }}>
                   <StrokePlayer char={char} size={104} />
-                  <Box sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-                    {gloss && gloss.pinyins.length > 0 && (
-                      <Box lang="zh-Latn" sx={{ fontSize: 16, fontWeight: 600, color: colors.primaryDark }}>
-                        {gloss.pinyins.map(toneMarks).join(' / ')}
+                  {alt && (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                      <StrokePlayer char={alt} size={64} />
+                      <Box sx={{ fontSize: 11, color: colors.textSecondary }}>
+                        {formName(otherSet(charSet))}
                       </Box>
-                    )}
-                    <Box sx={{ fontSize: 14, color: colors.textSecondary }}>{glossLine(gloss)}</Box>
-                  </Box>
+                    </Box>
+                  )}
+                </Box>
+                <Box sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+                  {reading && (
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                      <Box lang="zh-Latn" sx={{ flex: 'none', fontSize: 16, fontWeight: 600, color: colors.primaryDark }}>
+                        {reading.pinyin}
+                      </Box>
+                      <Box sx={{ fontSize: 15 }}>{reading.senses.slice(0, 4).join(' · ')}</Box>
+                    </Box>
+                  )}
+                  {!reading && <Box sx={{ fontSize: 14, color: colors.textSecondary }}>{wordSenses(info)}</Box>}
+                  {others.length > 0 && (
+                    <Box sx={{ mt: 0.5, fontSize: 13, color: colors.textSecondary }}>
+                      {others.slice(0, 3).map((r) => `${r.pinyin} ${r.senses.slice(0, 2).join(', ')}`).join('  ·  ')}
+                    </Box>
+                  )}
                 </Box>
                 <MaybeBreakdown char={char} />
               </Box>

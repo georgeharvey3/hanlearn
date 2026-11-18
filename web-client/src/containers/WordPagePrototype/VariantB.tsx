@@ -6,11 +6,6 @@ import { Box, ButtonBase } from '@mui/material';
 
 import { colors, fonts, levelInk } from '../../theme';
 import { BANK_LABELS } from '../../utils/scheduling';
-import { toneMarks } from '../../utils/pinyinMarks';
-import {
-  glossLine,
-  useCharacterGlosses,
-} from '../../components/Test/ComponentReview/useCharacterGlosses';
 import {
   AddButton,
   Cover,
@@ -25,9 +20,13 @@ import {
   hanzi,
   hanziOf,
   nextDue,
-  otherForm,
   sensesOf,
   useFirstSentence,
+  useCharInfo,
+  wordSenses,
+  FormToggle,
+  CharInfo,
+  formsDiffer,
 } from './parts';
 import { p } from './prototypeCopy';
 
@@ -35,11 +34,39 @@ export const name = 'Header + tabs';
 
 type Tab = 'meaning' | 'characters' | 'progress';
 
+/** The reading of the character in this word, large, then its other readings. */
+const CharReadings: React.FC<{ info: CharInfo | undefined }> = ({ info }) => {
+  if (!info) return null;
+  const main = info.inWord ?? info.others[0];
+  const rest = info.others.filter((r) => r !== main);
+  return (
+    <Box sx={{ alignSelf: 'stretch', display: 'flex', flexDirection: 'column', gap: 1 }}>
+      {main && (
+        <Box sx={{ textAlign: 'center' }}>
+          <Box lang="zh-Latn" sx={{ fontSize: 20, fontWeight: 600, color: colors.primaryDark }}>
+            {main.pinyin}
+          </Box>
+          <Box sx={{ fontSize: 15 }}>{main.senses.slice(0, 5).join(' · ')}</Box>
+        </Box>
+      )}
+      {rest.map((r) => (
+        <Box key={r.pinyin + r.senses[0]} sx={{ fontSize: 13, color: colors.textSecondary, textAlign: 'center' }}>
+          <Box component="span" lang="zh-Latn" sx={{ fontWeight: 600 }}>
+            {r.pinyin}
+          </Box>{' '}
+          {r.senses.slice(0, 3).join(' · ')}
+        </Box>
+      ))}
+    </Box>
+  );
+};
+
 const VariantB: React.FC<{ data: PageData }> = ({ data }) => {
-  const { entry, owned, charSet } = data;
+  const { entry, owned } = data;
+  const [charSet, setCharSet] = useState(data.charSet);
   const word = owned ?? entry;
+  const infoAt = useCharInfo(word, charSet);
   const chars = hanziOf(word[charSet]);
-  const glossFor = useCharacterGlosses(chars, charSet);
   const sentence = useFirstSentence(word, charSet);
   const [tab, setTab] = useState<Tab>('meaning');
   const [charIndex, setCharIndex] = useState(0);
@@ -51,9 +78,7 @@ const VariantB: React.FC<{ data: PageData }> = ({ data }) => {
     ...(chars.length > 0 ? ([['characters', p.tabCharacters]] as [Tab, string][]) : []),
     ...(owned ? ([['progress', p.tabProgress]] as [Tab, string][]) : []),
   ];
-  const other = otherForm(word, charSet);
   const char = chars[Math.min(charIndex, chars.length - 1)];
-  const gloss = char ? glossFor(char) : undefined;
 
   return (
     <Box sx={{ textAlign: 'left' }}>
@@ -74,11 +99,6 @@ const VariantB: React.FC<{ data: PageData }> = ({ data }) => {
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Box lang="zh-Latn" sx={{ fontSize: 17, fontWeight: 600, color: colors.primaryDark }}>
               {word.pinyin}
-              {other && (
-                <Box component="span" lang="zh" sx={hanzi(16, { color: colors.textSecondary, ml: 1 })}>
-                  {other}
-                </Box>
-              )}
             </Box>
             <Box
               sx={{
@@ -95,6 +115,11 @@ const VariantB: React.FC<{ data: PageData }> = ({ data }) => {
           <Speaker text={word[charSet]} />
           {!owned && <AddButton onAdd={data.onAdd} sx={{ px: 2 }} />}
         </Box>
+        {formsDiffer(word) && (
+          <Box sx={{ mt: 1.25 }}>
+            <FormToggle word={word} value={charSet} onChange={setCharSet} size={16} />
+          </Box>
+        )}
         <Box role="tablist" sx={{ display: 'flex', mt: 1.5 }}>
           {tabs.map(([key, label]) => (
             <ButtonBase
@@ -133,6 +158,49 @@ const VariantB: React.FC<{ data: PageData }> = ({ data }) => {
               </Box>
             ))}
           </Box>
+          {chars.length > 1 && (
+            <Box>
+              <Overline sx={{ mb: 0.75 }}>{p.characters}</Overline>
+              <Box sx={{ border: `1px solid ${colors.divider}`, borderRadius: 1, bgcolor: colors.card }}>
+                {chars.map((c, i) => {
+                  const info = infoAt(i);
+                  const reading = info?.inWord ?? info?.others[0];
+                  return (
+                    <ButtonBase
+                      key={`${c}-${i}`}
+                      onClick={() => {
+                        setCharIndex(i);
+                        setTab('characters');
+                      }}
+                      sx={{
+                        width: '100%',
+                        display: 'grid',
+                        gridTemplateColumns: '40px 56px 1fr 16px',
+                        alignItems: 'center',
+                        gap: 1,
+                        px: 1.5,
+                        py: 1,
+                        textAlign: 'left',
+                        fontFamily: fonts.body,
+                        borderBottom: i < chars.length - 1 ? `1px solid ${colors.divider}` : 'none',
+                      }}
+                    >
+                      <Box lang="zh" sx={hanzi(28)}>
+                        {c}
+                      </Box>
+                      <Box lang="zh-Latn" sx={{ fontSize: 15, fontWeight: 600, color: colors.primaryDark }}>
+                        {reading?.pinyin}
+                      </Box>
+                      <Box sx={{ fontSize: 14, color: colors.textSecondary, minWidth: 0, overflowWrap: 'anywhere' }}>
+                        {wordSenses(info, 3)}
+                      </Box>
+                      <Box sx={{ color: colors.textSecondary }}>›</Box>
+                    </ButtonBase>
+                  );
+                })}
+              </Box>
+            </Box>
+          )}
           {data.otherReadings.length > 0 && (
             <Box sx={{ fontSize: 14, color: colors.textSecondary }}>
               {p.otherReadings}:{' '}
@@ -184,14 +252,7 @@ const VariantB: React.FC<{ data: PageData }> = ({ data }) => {
             </Box>
           )}
           <StrokePlayer key={`${char}-${charIndex}`} char={char} size={220} />
-          <Box sx={{ textAlign: 'center' }}>
-            {gloss && gloss.pinyins.length > 0 && (
-              <Box lang="zh-Latn" sx={{ fontSize: 18, fontWeight: 600, color: colors.primaryDark }}>
-                {gloss.pinyins.map(toneMarks).join(' / ')}
-              </Box>
-            )}
-            <Box sx={{ fontSize: 15, color: colors.textSecondary }}>{glossLine(gloss)}</Box>
-          </Box>
+          <CharReadings info={infoAt(Math.min(charIndex, chars.length - 1))} />
           <MaybeBreakdown key={`b-${char}-${charIndex}`} char={char} />
         </Box>
       )}

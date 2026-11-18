@@ -19,6 +19,8 @@ import CharacterBreakdown from '../../components/Test/ComponentReview/CharacterB
 import { useBreakdown } from '../../components/Test/ComponentReview/useBreakdown';
 import { Block } from '../../components/AddWords/BankStates';
 import * as ttsService from '../../services/ttsService';
+import { searchWord } from '../../services/dictionaryService';
+import { toneMarks } from '../../utils/pinyinMarks';
 import { p } from './prototypeCopy';
 
 /** Everything a variant gets. The data layer above the switcher builds it. */
@@ -370,3 +372,144 @@ export const SentenceView: React.FC<{
     </Box>
   );
 };
+
+// ---- Opposite character set and the meanings of the characters (round 2) ----
+
+/** One reading of one character: pinyin in tone marks and its senses. */
+export interface CharReading {
+  pinyin: string;
+  senses: string[];
+}
+
+/** The readings of a character, the one this word uses first. */
+export interface CharInfo {
+  /** The reading of the character in this word, when one matches the syllable. */
+  inWord: CharReading | null;
+  others: CharReading[];
+  failed?: boolean;
+}
+
+const readingCache = new Map<string, Promise<CharReading[]>>();
+const readingsOf = (char: string, charSet: 'simp' | 'trad') => {
+  const key = `${charSet}:${char}`;
+  let hit = readingCache.get(key);
+  if (!hit) {
+    hit = searchWord(char, charSet).then((rows) =>
+      rows
+        .filter((r) => r[charSet] === char)
+        .map((r) => ({ pinyin: toneMarks(r.pinyin), senses: sensesOf(r.meaning) })),
+    );
+    readingCache.set(key, hit);
+    hit.catch(() => readingCache.delete(key));
+  }
+  return hit;
+};
+
+const fold = (s: string) => s.normalize('NFC').toLowerCase().trim();
+
+/**
+ * The readings of each character of the word, split into the one the word
+ * uses (matched on the syllable at its place) and the rest.
+ */
+export const useCharInfo = (word: Word, charSet: 'simp' | 'trad') => {
+  const chars = hanziOf(word[charSet]);
+  const syllables = word.pinyin.split(/\s+/);
+  const key = `${charSet}:${chars.join('')}:${word.pinyin}`;
+  const [info, setInfo] = useState<{ key: string; byIndex: (CharInfo | undefined)[] }>({
+    key,
+    byIndex: [],
+  });
+  useEffect(() => {
+    let cancelled = false;
+    chars.forEach((char, i) => {
+      readingsOf(char, charSet)
+        .then((readings) => {
+          const syl = syllables.length === chars.length ? fold(syllables[i]) : null;
+          const exact = syllables.length === chars.length ? syllables[i].normalize('NFC') : null;
+          // An exact match first, so 書 shū (book) wins over 書 Shū (surname).
+          const match = syl
+            ? readings.find((r) => r.pinyin.normalize('NFC') === exact) ??
+              readings.find((r) => fold(r.pinyin) === syl) ??
+              null
+            : null;
+          const value: CharInfo = { inWord: match, others: readings.filter((r) => r !== match) };
+          if (!cancelled)
+            setInfo((prev) => {
+              const byIndex = prev.key === key ? [...prev.byIndex] : [];
+              byIndex[i] = value;
+              return { key, byIndex };
+            });
+        })
+        .catch(() => {
+          if (!cancelled)
+            setInfo((prev) => {
+              const byIndex = prev.key === key ? [...prev.byIndex] : [];
+              byIndex[i] = { inWord: null, others: [], failed: true };
+              return { key, byIndex };
+            });
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return (i: number): CharInfo | undefined => (info.key === key ? info.byIndex[i] : undefined);
+};
+
+/** The senses to show for a character in this word: its matching reading, or the first. */
+export const wordSenses = (info: CharInfo | undefined, n = 3): string => {
+  if (!info) return '';
+  if (info.failed) return 'Definition unavailable';
+  const r = info.inWord ?? info.others[0];
+  return r ? r.senses.slice(0, n).join(' · ') : '';
+};
+
+export const formName = (set: 'simp' | 'trad') => (set === 'trad' ? 'Traditional' : 'Simplified');
+export const otherSet = (set: 'simp' | 'trad'): 'simp' | 'trad' => (set === 'trad' ? 'simp' : 'trad');
+export const formsDiffer = (w: Word) => w.simp !== w.trad;
+
+/** A two-way switch between the traditional and simplified forms of the word. */
+export const FormToggle: React.FC<{
+  word: Word;
+  value: 'simp' | 'trad';
+  onChange: (set: 'simp' | 'trad') => void;
+  size?: number;
+}> = ({ word, value, onChange, size = 18 }) => (
+  <Box
+    role="radiogroup"
+    sx={{
+      display: 'inline-flex',
+      border: `1px solid ${colors.borderStrong}`,
+      borderRadius: 999,
+      p: '2px',
+      bgcolor: colors.card,
+    }}
+  >
+    {(['trad', 'simp'] as const).map((set) => (
+      <ButtonBase
+        key={set}
+        role="radio"
+        aria-checked={value === set}
+        aria-label={formName(set)}
+        onClick={() => onChange(set)}
+        sx={{
+          px: 1.5,
+          height: 32,
+          borderRadius: 999,
+          bgcolor: value === set ? colors.text : 'transparent',
+          color: value === set ? colors.white : colors.text,
+          gap: 0.75,
+          fontFamily: fonts.body,
+        }}
+      >
+        <Box component="span" lang="zh" sx={hanzi(size)}>
+          {word[set]}
+        </Box>
+        <Box component="span" sx={{ fontSize: 11, opacity: 0.8 }}>
+          {set === 'trad' ? 'Trad' : 'Simp'}
+        </Box>
+      </ButtonBase>
+    ))}
+  </Box>
+);

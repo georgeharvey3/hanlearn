@@ -1,7 +1,8 @@
 // PROTOTYPE (#562): three variants of the word page, switchable via
 // `?variant=A|B|C`, on the dev-only route /dev/word/:id. `?case=` picks the
 // data: `owned` (学习, a leech on CM and an amended meaning), `new` (行 xíng,
-// not owned, with other readings), `covered` (owned and due today), `store`
+// not owned, with other readings), `bank` (银行, not owned: 行 reads háng
+// here), `library` (图书馆, three characters, owned), `covered` (owned and due today), `store`
 // (the learner's word with the id of the route, when signed in). Throwaway:
 // the data is fixtures in memory, and Add writes nothing.
 import React, { useMemo, useState } from 'react';
@@ -56,12 +57,15 @@ const HENG: Word = { id: 9004, simp: '行', trad: '行', pinyin: 'hèng', meanin
 
 const COVERED: Word = { ...XUEXI, id: 9005, simp: '图书馆', trad: '圖書館', pinyin: 'tú shū guǎn', meaning: 'library/CL:家[jia1],個|个[ge4]', ammended_meaning: undefined, due_date: day(0) };
 
+const YINHANG: Word = { id: 9006, simp: '银行', trad: '銀行', pinyin: 'yín háng', meaning: 'bank/CL:家[jia1],個|个[ge4]' };
+const TUSHUGUAN: Word = { ...XUEXI, id: 9007, simp: '图书馆', trad: '圖書館', pinyin: 'tú shū guǎn', meaning: 'library/CL:家[jia1],個|个[ge4]', ammended_meaning: undefined, due_date: day(9) };
+
 const VARIANTS = [
   { key: 'A', name: nameA, C: VariantA },
   { key: 'B', name: nameB, C: VariantB },
   { key: 'C', name: nameC, C: VariantC },
 ];
-const CASES = ['owned', 'new', 'covered', 'store'];
+const CASES = ['owned', 'new', 'covered', 'bank', 'library', 'store'];
 
 const WordPagePrototype: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -95,6 +99,12 @@ const WordPagePrototype: React.FC = () => {
         ? { ...entry, level: 1, due_date: day(0), listIds: ['l1'], directions: dirs({ MC: [1, 0], MP: [1, 0], PM: [1, 0], PC: [1, 0], CM: [1, 0] }) }
         : null;
       listNames = ['HSK 1'];
+    } else if (kase === 'bank') {
+      entry = YINHANG;
+      owned = addedIds.includes(entry.id) ? { ...TUSHUGUAN, ...YINHANG } : null;
+    } else if (kase === 'library') {
+      entry = TUSHUGUAN;
+      owned = TUSHUGUAN;
     } else if (kase === 'covered') {
       entry = COVERED;
       owned = COVERED;

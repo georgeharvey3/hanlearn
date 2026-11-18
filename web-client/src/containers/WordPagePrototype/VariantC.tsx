@@ -7,10 +7,6 @@ import { Box, ButtonBase } from '@mui/material';
 
 import { colors, fonts, levelInk } from '../../theme';
 import { BANK_LABELS } from '../../utils/scheduling';
-import {
-  glossLine,
-  useCharacterGlosses,
-} from '../../components/Test/ComponentReview/useCharacterGlosses';
 import CharacterBreakdown from '../../components/Test/ComponentReview/CharacterBreakdown';
 import {
   AddButton,
@@ -25,10 +21,12 @@ import {
   hanzi,
   hanziOf,
   nextDue,
-  otherForm,
   sensesOf,
   useFirstSentence,
   useHasBreakdown,
+  useCharInfo,
+  FormToggle,
+  formsDiffer,
 } from './parts';
 import { p } from './prototypeCopy';
 
@@ -62,12 +60,14 @@ const PartChip: React.FC<{ char: string; selected: boolean; onSelect: () => void
 };
 
 const VariantC: React.FC<{ data: PageData }> = ({ data }) => {
-  const { entry, owned, charSet } = data;
+  const { entry, owned } = data;
+  const [charSet, setCharSet] = useState(data.charSet);
   const word = owned ?? entry;
+  const infoAt = useCharInfo(word, charSet);
   const chars = hanziOf(word[charSet]);
-  const glossFor = useCharacterGlosses(chars, charSet);
   const sentence = useFirstSentence(word, charSet);
-  const [partChar, setPartChar] = useState<string | null>(chars[0] ?? null);
+  const [partIndex, setPartIndex] = useState(0);
+  const partChar = chars[partIndex] ?? null;
 
   if (data.covered) return <Cover onShow={data.onShow} />;
 
@@ -75,10 +75,14 @@ const VariantC: React.FC<{ data: PageData }> = ({ data }) => {
   const perChar = syllables.length === chars.length;
   // Phone width less the gutters, shared by the boxes, at most 150 each.
   const box = Math.min(150, Math.floor((340 - 8 * (chars.length - 1)) / Math.max(chars.length, 1)));
-  const other = otherForm(word, charSet);
 
   return (
     <Box sx={{ textAlign: 'left', pt: 2, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+      {formsDiffer(word) && (
+        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <FormToggle word={word} value={charSet} onChange={setCharSet} />
+        </Box>
+      )}
       {/* The word, drawn */}
       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
         {chars.map((char, i) => (
@@ -92,20 +96,23 @@ const VariantC: React.FC<{ data: PageData }> = ({ data }) => {
                 {syllables[i]}
               </Box>
             )}
-            <Box
-              sx={{
-                fontSize: 12,
-                color: colors.textSecondary,
-                textAlign: 'center',
-                overflowWrap: 'anywhere',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-              }}
-            >
-              {glossLine(glossFor(char))}
-            </Box>
+            {(() => {
+              const info = infoAt(i);
+              const main = info?.inWord ?? info?.others[0];
+              const rest = info ? info.others.filter((r) => r !== main).length : 0;
+              return (
+                <>
+                  <Box sx={{ fontSize: 13, textAlign: 'center', overflowWrap: 'anywhere', lineHeight: 1.35 }}>
+                    {info?.failed ? 'Definition unavailable' : main?.senses.slice(0, 3).join(' · ')}
+                  </Box>
+                  {rest > 0 && (
+                    <Box sx={{ fontSize: 11, color: colors.textSecondary }}>
+                      {`+${rest} other reading${rest === 1 ? '' : 's'}`}
+                    </Box>
+                  )}
+                </>
+              );
+            })()}
           </Box>
         ))}
         {chars.length === 0 && (
@@ -119,11 +126,6 @@ const VariantC: React.FC<{ data: PageData }> = ({ data }) => {
         {!perChar && (
           <Box lang="zh-Latn" sx={{ fontSize: 18, fontWeight: 600, color: colors.primaryDark }}>
             {word.pinyin}
-          </Box>
-        )}
-        {other && (
-          <Box lang="zh" sx={hanzi(20, { color: colors.textSecondary })}>
-            {other}
           </Box>
         )}
         <Speaker text={word[charSet]} />
@@ -225,8 +227,8 @@ const VariantC: React.FC<{ data: PageData }> = ({ data }) => {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Overline sx={{ flex: 1 }}>{p.characters}</Overline>
-            {Array.from(new Set(chars)).map((c) => (
-              <PartChip key={c} char={c} selected={partChar === c} onSelect={() => setPartChar(c)} />
+            {chars.map((c, i) => (
+              <PartChip key={`${c}-${i}`} char={c} selected={partIndex === i} onSelect={() => setPartIndex(i)} />
             ))}
           </Box>
           {partChar && <PartsOf key={partChar} char={partChar} />}
