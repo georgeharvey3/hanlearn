@@ -682,7 +682,12 @@ export const CharacterStudio: React.FC<{ char: string }> = ({ char }) => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
       <Box sx={{ position: 'relative', minWidth: STUDIO_SIZE, minHeight: STUDIO_SIZE }}>
-        {showParts && <CharacterBreakdown char={char} />}
+        {/* No part takes a tap while the strokes draw. */}
+        {showParts && (
+          <Box aria-disabled={animating} sx={{ pointerEvents: animating ? 'none' : 'auto' }}>
+            <CharacterBreakdown char={char} />
+          </Box>
+        )}
         {geometry && (animating || !showParts) && (
           <Box
             sx={{
