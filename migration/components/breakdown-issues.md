@@ -16,6 +16,10 @@ Causes that more than one entry shares. Fill this in as entries repeat.
   part that has the right number of strokes but the wrong strokes, and the
   build prefers AnimCJK to Make Me a Hanzi (`definitionOf` and `topDefinition`
   in `migration/componentBreakdown.js`). Entries: 酉.
+- **A shape name given a meaning.** AnimCJK sometimes names a group of
+  strokes by a character with the same shape, only as a shape. The labels
+  file then gives that character its meaning, and the app shows a meaning
+  and pinyin that have nothing to do with the strokes. Entries: 丅.
 
 ## Entries
 
@@ -45,3 +49,24 @@ Causes that more than one entry shares. Fill this in as entries repeat.
   尊 遵 酋.
 - **Possible fix:** a definition of 酉 in `definitions.json`, or a rule that
   catches this kind of split for all characters. Decide at the review.
+
+### 丅 (seen in 嚴, from 敢)
+
+- **Status:** cause known
+- **What looks wrong:** the two top strokes of 敢 (a horizontal and a short
+  vertical) show as "below xià".
+- **What the build gives:** a part 丅 with the label "below" and the pinyin
+  xià.
+- **What it should be:** two plain strokes with no meaning or pinyin, or a
+  shape name. In the old forms of 敢 these strokes come from a hand, not
+  from 下, so "below" is wrong.
+- **Cause:** AnimCJK defines 敢 as `敢⿰⿱丅2耳6攵.4` (hant and ja sets). It
+  uses 丅 only for the shape. `labels.json` gives 丅 the label "below", and
+  the pinyin comes from its dictionary entry. Make Me a Hanzi marks the same
+  strokes as unknown: `⿰⿱？耳攵`.
+- **Affects:** every character that AnimCJK splits with 丅: 敢 斤 瓦 華 鬲,
+  and the characters that hold them, for example 嚴 憨 新 近 所 瓶 曄 隔
+  融.
+- **Possible fix:** treat 丅 as a shape with no label and no pinyin. A label
+  of "hand" just for 敢 would not work, because a label applies to a part
+  everywhere, and it is wrong in 斤 and 華. Decide at the review.
