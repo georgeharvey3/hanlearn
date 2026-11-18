@@ -121,7 +121,8 @@ const NewWords: React.FC<NewWordsProps> = ({ words, startTest }) => {
   const stepsPassed = step + (current === 'write' && done.write ? 1 : 0);
 
   return (
-    <StudyScreen>
+    // Fixed: the body scrolls and Continue stays pinned at the foot on a phone.
+    <StudyScreen fixed>
       <StudyTop
         stage={copy.newWords.stage}
         done={index + stepsPassed / STEPS.length}

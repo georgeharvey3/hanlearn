@@ -150,6 +150,11 @@ const Test: React.FC<Props> = (props) => {
           charSet={state.charSet}
           open={state.showComponents}
           onToggle={onToggleComponents}
+          title={
+            state.answerCategory === 'character' && state.useHandwriting
+              ? copy.test.missedCharacters
+              : undefined
+          }
         />
         {state.answerCategory !== 'character' && !compact && (
           <AnswerInput
