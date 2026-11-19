@@ -196,7 +196,7 @@ The build stops when the labels file gives a label to a part that is in no break
 
 ### The Wiktionary comparison
 
-A source can name a part wrongly, and the tree rules cannot find this error (#563). So the build compares the top-level parts of each HSK character with its Wiktionary composition. Wiktionary does not replace a source, because it has no stroke data.
+A source can name a part wrongly, and the tree rules cannot find this error (#563). So the build compares the parts of each named part with the Wiktionary composition of that part. It does this at every level of each tree, and the top character is a named part too. In 續, it compares 續 = 糹 + 賣, then 賣 = 士 + 買, then 買 = 罒 + 貝. A piece with no name and a stroke are not compared. Wiktionary does not replace a source, because it has no stroke data, so the comparison cannot find a part with the right name and the wrong strokes.
 
 The comparison uses these rules:
 
@@ -207,7 +207,14 @@ The comparison uses these rules:
 - A `㇯` group takes one part away from another. It is one part with no name, and it matches no part.
 - A part that one side splits matches when its own composition gives the parts of the other side. 劳 is 艹 + 冖 + 力 in the breakdown and `⿱𫇦力` in Wiktionary, and 𫇦 is `⿱艹冖`.
 
-A local run writes the differences to `components/wiktionary-differences.md`. CI only prints their number. A difference does not stop the build. For each character in the report, correct `definitions.json`, or accept the source.
+A local run writes the differences to `components/wiktionary-differences.md`. CI only prints their number. A difference does not stop the build.
+
+The report gives one row for each split of a part, with the HSK characters that hold it. The rows in the most characters come first, because one correction fixes all of them. The report has two tables:
+
+- **Parts**: the breakdown splits the part into other parts than Wiktionary. A wrong part name is in this table.
+- **Strokes**: the breakdown splits the part into strokes. Such a split names no wrong part, and Wiktionary often writes the strokes as other forms (口 is 丨 𠃍 一, and `⿱冂一`).
+
+For each row, correct `definitions.json`, or accept the source.
 
 The breakdown files hold no Wiktionary data, so their `LICENSE.txt` does not change. `ATTRIBUTION.txt` credits Wiktionary for the comparison.
 

@@ -356,8 +356,37 @@ describe('compareWithWiktionary', () => {
       丑: '⿴ユ十(HJKTV) or ⿻彐丨(G)',
     });
     expect(result.differences).toEqual([
-      { char: '丑', parts: ['𠃌', '丨', '一', '一'], composition: '⿴ユ十(HJKTV) or ⿻彐丨(G)' },
+      { char: '丑', parts: ['𠃌', '丨', '一', '一'], composition: '⿴ユ十(HJKTV) or ⿻彐丨(G)', tops: ['丑'], strokes: true },
     ]);
+  });
+
+  it('compares every named part at every level, once for each split', () => {
+    const part = (c, parts = null) => ({ c, s: [0, 1], l: null, ...(parts ? { p: parts } : {}) });
+    // 賣 splits wrongly into 士 + 貝 in 續 and in 讀. 糹 and the piece with no name are not compared.
+    const sells = () => part('賣', [part('士', [part('十'), part('一')]), part('貝')]);
+    const breakdowns = [
+      { c: '續', p: [part('糹'), sells()] },
+      { c: '讀', p: [part('訁'), sells()] },
+      { c: '买', p: [part(null, [part('一'), part('丨')]), part('头')] },
+    ];
+    const result = compareWithWiktionary(breakdowns, {
+      續: '⿰糹賣',
+      讀: '⿰言賣',
+      賣: '⿱士買',
+      士: '⿱十一',
+      买: '⿱乛头',
+    });
+    expect(result.differences).toEqual([
+      { char: '賣', parts: ['士', '貝'], composition: '⿱士買', tops: ['續', '讀'], strokes: false },
+      { char: '买', parts: [null, '头'], composition: '⿱乛头', tops: ['买'], strokes: false },
+    ]);
+  });
+
+  it('marks a split into strokes, which can name no wrong part', () => {
+    const stroke = (c, i) => ({ c, s: [i], l: null });
+    const mouth = { c: '口', p: [stroke('丨', 0), stroke('𠃍', 1), stroke('一', 2)] };
+    const result = compareWithWiktionary([mouth], { 口: '⿱冂一' });
+    expect(result.differences.map((d) => d.strokes)).toEqual([true]);
   });
 
   it('treats a side form and its full form as the same part', () => {

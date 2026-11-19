@@ -326,12 +326,12 @@ function buildComponentBreakdowns(catalogue, outputDir) {
   writeWiktionaryDifferences(Object.values(result.files));
 }
 
-/** The report of the characters whose parts differ from Wiktionary (#563). */
+/** The report of the parts whose own parts differ from Wiktionary (#563). */
 const WIKTIONARY_DIFFERENCES_PATH = path.join(COMPONENTS_DIR, 'wiktionary-differences.md');
 
 /**
- * Compare the top-level parts of each breakdown with its Wiktionary
- * composition. The differences never fail the build: a person reads them,
+ * Compare each named part of each breakdown, at every level, with its
+ * Wiktionary composition. The differences never fail the build: a person reads them,
  * then corrects definitions.json or accepts the source. A local run writes
  * the report. CI only prints the count.
  */
@@ -341,7 +341,7 @@ function writeWiktionaryDifferences(breakdowns) {
   );
   const result = compareWithWiktionary(breakdowns, wiktionary.compositions);
   console.log(
-    'Characters whose parts differ from Wiktionary: ' + result.differences.length +
+    'Splits that differ from Wiktionary: ' + result.differences.length +
       ' (no composition: ' + result.absent.length + ', composition that does not parse: ' +
       result.malformed.length + ')',
   );
@@ -350,26 +350,49 @@ function writeWiktionaryDifferences(breakdowns) {
   console.log('Wrote the differences to: ' + WIKTIONARY_DIFFERENCES_PATH);
 }
 
-/** The text of wiktionary-differences.md. */
+/**
+ * The text of wiktionary-differences.md. The splits in the most characters
+ * come first, because one correction fixes all of them.
+ */
 function wiktionaryDifferencesReport(result, dump) {
   const parts = (list) => list.map((c) => c ?? '？').join(' ');
   const chars = (list) => (list.length ? list.join(' ') : 'none');
+  const tops = (list) =>
+    list.length > 8 ? list.slice(0, 8).join(' ') + ' and ' + (list.length - 8) + ' more' : list.join(' ');
+  const table = (strokes) => [
+    '| Part | Breakdown | Wiktionary | In |',
+    '| --- | --- | --- | --- |',
+    ...result.differences
+      .filter((d) => d.strokes === strokes)
+      .sort((a, b) => b.tops.length - a.tops.length)
+      .map((d) => `| ${d.char} | ${parts(d.parts)} | ${d.composition} | ${tops(d.tops)} |`),
+  ];
   return [
     '# Wiktionary differences',
     '',
     '`npm run build:dict` writes this file. Do not edit it.',
     '',
-    'The table lists the HSK characters whose top-level parts in the component',
-    'breakdown are not the parts of the Wiktionary composition. For each one,',
-    'correct `definitions.json`, or accept the source.',
+    'The table lists each named part, at any level of the component breakdown,',
+    'whose parts are not the parts of its Wiktionary composition. A top',
+    'character is a named part too. "In" gives the HSK characters that hold the',
+    'split. For each row, correct `definitions.json`, or accept the source.',
     '',
     'The compositions come from Wiktionary (https://en.wiktionary.org), through',
     'Wiktextract (https://kaikki.org), from the dump dated ' + dump + '. They are',
     'available under CC BY-SA 4.0: see `source/wiktionary-NOTICE.txt`.',
     '',
-    '| Character | Breakdown | Wiktionary |',
-    '| --- | --- | --- |',
-    ...result.differences.map((d) => `| ${d.char} | ${parts(d.parts)} | ${d.composition} |`),
+    '## Parts',
+    '',
+    'The breakdown splits the part into other parts than Wiktionary.',
+    '',
+    ...table(false),
+    '',
+    '## Strokes',
+    '',
+    'The breakdown splits the part into strokes, so it names no wrong part.',
+    'Wiktionary often writes the strokes as other forms.',
+    '',
+    ...table(true),
     '',
     'No composition: ' + chars(result.absent),
     '',

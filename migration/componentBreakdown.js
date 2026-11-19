@@ -925,15 +925,20 @@ const compositionParts = (tree) => {
 };
 
 /**
- * Compare the top-level parts of each breakdown with the Wiktionary
- * composition of its character (#563). `breakdowns` holds `{ c, p }` as
+ * Compare the parts of each named part of each breakdown, at every level,
+ * with the Wiktionary composition of its character (#563). The top
+ * character is a named part too. `breakdowns` holds `{ c, p }` as
  * breakdownOf gives it, and `compositions` the composition text of each
- * character. Gives:
+ * character. A piece with no name and a stroke are not compared. Gives:
  *
- * - `differences`: `{ char, parts, composition }` for each character whose
- *   parts match no alternative of its composition
- * - `absent`: the characters with no composition
- * - `malformed`: the characters whose composition does not parse
+ * - `differences`: `{ char, parts, composition, tops }` for each split whose
+ *   parts match no alternative of the composition. One split of one part is
+ *   one difference, and `tops` gives the top characters that hold it.
+ *   `strokes` is true when every part is one stroke: such a split can name
+ *   no wrong part, and Wiktionary often writes the strokes as other forms
+ *   (口 = 丨 𠃍 一 and ⿱冂一)
+ * - `absent`: the named parts with no composition
+ * - `malformed`: the named parts whose composition does not parse
  */
 function compareWithWiktionary(breakdowns, compositions) {
   // The parts of each alternative of the composition of a part, by its name.
@@ -945,25 +950,46 @@ function compareWithWiktionary(breakdowns, compositions) {
     }
     return splits.get(name);
   };
-  const differences = [];
-  const absent = [];
-  const malformed = [];
-  for (const { c: char, p } of breakdowns) {
-    const composition = compositions[char];
+  // One entry for each split: the same part with the same parts in many
+  // characters is one row of the report.
+  const splitsSeen = new Map();
+  const absent = new Set();
+  const malformed = new Set();
+  const compare = (node, top) => {
+    const parts = node.p.map((part) => part.c);
+    const key = `${node.c} ${parts.map((c) => c ?? UNNAMED).join(' ')}`;
+    const seen = splitsSeen.get(key);
+    if (seen) {
+      if (seen.difference && !seen.difference.tops.includes(top)) seen.difference.tops.push(top);
+      return;
+    }
+    const entry = { difference: null };
+    splitsSeen.set(key, entry);
+    const composition = compositions[node.c];
     if (composition === undefined) {
-      absent.push(char);
-      continue;
+      absent.add(node.c);
+      return;
     }
     const alternatives = parseComposition(composition);
     if (alternatives === null) {
-      malformed.push(char);
-      continue;
+      malformed.add(node.c);
+      return;
     }
-    const parts = (p ?? []).map((part) => part.c);
-    const same = alternatives.some((tree) => sameParts(parts.map(samePart), compositionParts(tree).map(samePart), splitsOf));
-    if (!same) differences.push({ char, parts, composition });
-  }
-  return { differences, absent, malformed };
+    const same = alternatives.some((tree) =>
+      sameParts(parts.map(samePart), compositionParts(tree).map(samePart), splitsOf),
+    );
+    if (!same) {
+      const strokes = node.p.every((part) => part.s.length === 1);
+      entry.difference = { char: node.c, parts, composition, tops: [top], strokes };
+    }
+  };
+  const walk = (node, top) => {
+    if (node.c !== null && node.p) compare(node, top);
+    for (const part of node.p ?? []) walk(part, top);
+  };
+  for (const breakdown of breakdowns) walk(breakdown, breakdown.c);
+  const differences = [...splitsSeen.values()].flatMap((entry) => (entry.difference ? [entry.difference] : []));
+  return { differences, absent: [...absent], malformed: [...malformed] };
 }
 
 /**
