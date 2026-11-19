@@ -40,9 +40,9 @@ async function get(url) {
 }
 
 async function main() {
-  const page = await (await get(DATES_URL)).text();
-  const dump = /enwiktionary dump\s+dated (\d{4}-\d{2}-\d{2})/.exec(page.replace(/<[^>]*>/g, ' '))?.[1];
-  const extracted = /extracted on (\d{4}-\d{2}-\d{2})/.exec(page.replace(/<[^>]*>/g, ' '))?.[1];
+  const page = (await (await get(DATES_URL)).text()).replace(/<[^>]*>/g, ' ');
+  const dump = /enwiktionary dump\s+dated (\d{4}-\d{2}-\d{2})/.exec(page)?.[1];
+  const extracted = /extracted on (\d{4}-\d{2}-\d{2})/.exec(page)?.[1];
   if (!dump || !extracted) throw new Error(`${DATES_URL}: no dump date or extraction date`);
 
   const response = await get(DATA_URL);

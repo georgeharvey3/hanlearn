@@ -881,20 +881,24 @@ function parseComposition(text) {
   } catch {
     return null;
   }
-  return alternatives;
+  return alternatives.length ? alternatives : null;
 }
 
 /**
  * The forms of one part. Each group holds a full form, its side forms and
  * the code points of the same form in other blocks: the sources name the
- * meat radical 月, ⺼ or 肉, and the jade radical 王 or 𤣩. NFKC joins the
+ * meat radical 月 or ⺼, and the jade radical 王 or 𤣩. NFKC joins the
  * Kangxi Radicals block and the compatibility ideographs first.
+ *
+ * A group never joins two characters that both stand alone. 肉 and 月, or
+ * 玉 and 王, stay apart, so that a breakdown that names the wrong one of
+ * them is in the report.
  */
 const SAME_PART = [
   '人亻𠆢⺅', '水氵氺⺡⺢', '手扌龵⺘', '心忄㣺⺗', '言讠訁⻈', '金钅釒', '食饣飠𩙿', '糸纟糹',
   '艸艹⺾⺿⻀', '辵辶⻌⻍⻎', '刀刂リ⺉', '犬犭⺨', '示礻⺬⺭', '衣衤⻂', '火灬⺣', '攴攵', '网罒',
-  '爪爫⺤', '爿丬', '足𧾷⻊', '川巛', '襾覀', '牛牜', '玉王𤣩', '竹⺮𥫗', '羊𦍌⺶⺷', '長镸', '卩㔾',
-  '歹歺', '肉月⺼', '雨⻗', '阝⻏⻖', '冂⺆', '小⺌⺍', '卜⺊', '彐⺕', '贝⻉', '车⻋', '长⻓',
+  '爪爫⺤', '爿丬', '足𧾷⻊', '川巛', '襾覀', '牛牜', '王𤣩', '竹⺮𥫗', '羊𦍌⺶⺷', '長镸', '卩㔾',
+  '歹歺', '月⺼', '雨⻗', '阝⻏⻖', '冂⺆', '小⺌⺍', '卜⺊', '彐⺕', '贝⻉', '车⻋', '长⻓',
   '门⻔', '页⻚', '风⻛', '飞⻜', '马⻢', '鱼⻥', '鸟⻦', '齐⻬', '齿⻮', '龙⻰', '龟⻳',
 ];
 const FULL_FORM = new Map(SAME_PART.flatMap((forms) => [...forms].map((form) => [form, [...forms][0]])));
@@ -908,12 +912,16 @@ const samePart = (char) => {
 
 /**
  * The top-level parts of a composition tree. A group is not a step, the same
- * rule as the breakdown: its pieces join the list. A tree of one character
- * has no parts.
+ * rule as the tree: its parts join the list. A ㇯ group takes one part away
+ * from another, so it is one part with no name, and it matches no part. A
+ * tree of one character has no parts.
  */
 const compositionParts = (tree) => {
-  const pieces = (node) => (node.op ? node.children.flatMap(pieces) : [node.char]);
-  return tree.op ? pieces(tree) : [];
+  const parts = (node) => {
+    if (node.op === '㇯') return [null];
+    return node.op ? node.children.flatMap(parts) : [node.char];
+  };
+  return tree.op ? parts(tree) : [];
 };
 
 /**
@@ -962,13 +970,15 @@ function compareWithWiktionary(breakdowns, compositions) {
  * Whether two lists of parts name the same strokes. The parts that both
  * lists hold cancel. Then a part splits into the parts of its own
  * composition when the other list holds one of them (劳 = 艹 冖 力 and
- * ⿱𫇦力, because 𫇦 = ⿱艹冖). The lists match when no part is left. Each
- * split adds a part, so the number of splits has a limit: a composition
- * that holds its own character stops there.
+ * ⿱𫇦力, because 𫇦 = ⿱艹冖). The lists match when no part is left. The
+ * number of splits has a limit, so a composition that holds its own
+ * character stops there.
  */
+const MAX_SPLITS = 32;
+
 function sameParts(a, b, splitsOf) {
   const left = [[...a], [...b]];
-  for (let round = 0; round < 32; round++) {
+  for (let round = 0; round < MAX_SPLITS; round++) {
     for (const part of [...left[0]]) {
       const j = left[1].indexOf(part);
       if (j >= 0) {

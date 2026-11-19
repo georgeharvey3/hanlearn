@@ -362,8 +362,8 @@ describe('compareWithWiktionary', () => {
 
   it('treats a side form and its full form as the same part', () => {
     const result = compareWithWiktionary(
-      [tree('你', ['亻', '尔']), tree('肌', ['月', '几']), tree('腎', ['臤', '⺼']), tree('帅', ['刂', '巾'])],
-      { 你: '⿰人尔', 肌: '⿰⺼几', 腎: '⿱臤肉', 帅: '⿰リ巾' },
+      [tree('你', ['亻', '尔']), tree('肌', ['月', '几']), tree('泳', ['氵', '永']), tree('帅', ['刂', '巾'])],
+      { 你: '⿰人尔', 肌: '⿰⺼几', 泳: '⿰水永', 帅: '⿰リ巾' },
     );
     expect(result.differences).toEqual([]);
   });
@@ -380,6 +380,23 @@ describe('compareWithWiktionary', () => {
   it('lists a character with no composition, or with one that does not parse, apart', () => {
     const result = compareWithWiktionary([tree('好', ['女', '子']), tree('丐', ['一', '丏'])], { 好: '⿰女' });
     expect(result).toEqual({ differences: [], absent: ['丐'], malformed: ['好'] });
+  });
+
+  it('keeps two characters with the same shape apart', () => {
+    const result = compareWithWiktionary([tree('皇', ['白', '玉']), tree('明', ['日', '肉'])], {
+      皇: '⿱白王',
+      明: '⿰日月',
+    });
+    expect(result.differences.map((d) => d.char)).toEqual(['皇', '明']);
+  });
+
+  it('matches no parts to a composition that takes one part away from another', () => {
+    const result = compareWithWiktionary([tree('即', ['艮', '㇒'])], { 即: '㇯艮㇒' });
+    expect(result.differences.map((d) => d.char)).toEqual(['即']);
+  });
+
+  it('lists an empty composition as one that does not parse', () => {
+    expect(compareWithWiktionary([tree('好', ['女', '子'])], { 好: '' }).malformed).toEqual(['好']);
   });
 
   it('reads a composition with a space before its regions or after a comma', () => {

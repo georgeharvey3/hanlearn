@@ -202,7 +202,9 @@ The comparison uses these rules:
 
 - The parts match when they match one alternative of the composition. A composition can give an alternative for each region: `⿱亽㇇(G) or ⿱亼㇇(HTJKV)`.
 - A group of the composition is not a step, the same rule as the tree.
-- A side form and its full form are the same part (亻 and 人). The forms of one part are in `SAME_PART` in `componentBreakdown.js`.
+- The order of the parts does not count.
+- A side form and its full form are the same part (亻 and 人). The forms of one part are in `SAME_PART` in `componentBreakdown.js`. Two characters that both stand alone are never the same part, so 月 and 肉, and 王 and 玉, stay apart.
+- A `㇯` group takes one part away from another. It is one part with no name, and it matches no part.
 - A part that one side splits matches when its own composition gives the parts of the other side. 劳 is 艹 + 冖 + 力 in the breakdown and `⿱𫇦力` in Wiktionary, and 𫇦 is `⿱艹冖`.
 
 A local run writes the differences to `components/wiktionary-differences.md`. CI only prints their number. A difference does not stop the build. For each character in the report, correct `definitions.json`, or accept the source.
