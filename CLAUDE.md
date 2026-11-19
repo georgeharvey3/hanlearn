@@ -82,10 +82,10 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 - [web-client/src/services/sentencePracticeService.ts](web-client/src/services/sentencePracticeService.ts) - Saves each grade of the Comprehend and Compose tabs: first the queue state in `sentencePractice`, then a write-once entry in `sentenceLog`. A failed log write does not reject the grade (#489)
 - [web-client/src/services/sentenceTabsService.ts](web-client/src/services/sentenceTabsService.ts) - Loads the words, the `sentencePractice` documents and the sentence ids that the two tabs need, and gives the status of each tab for the dot and the finish screen. The queue rules are pure, in [web-client/src/utils/sentenceQueue.ts](web-client/src/utils/sentenceQueue.ts)
 - [web-client/src/services/chengyuSentenceService.ts](web-client/src/services/chengyuSentenceService.ts) - Generates example sentences for chengyu display
-- [web-client/src/services/breakdownService.ts](web-client/src/services/breakdownService.ts) - Reads the component breakdown of a character from `/breakdowns/` on Hosting. The reveal after a `CM` lapse draws the character in place, split into its parts in the inks of `partInk` (#529)
+- [web-client/src/services/breakdownService.ts](web-client/src/services/breakdownService.ts) - Reads the component breakdown of a character from `/breakdowns/` on Hosting. The reveal after a `CM` lapse draws the character in place, split into its parts in the inks of `partInk` (#529). The breakdown parts are in `components/Characters/`, because the word page uses them too. `CharacterPanel` shows the parts or the character in one ink, and animates the strokes in the inks of the view (#562)
 - [web-client/src/services/ttsService.ts](web-client/src/services/ttsService.ts) - Text-to-speech via Howler.js; called directly from components (not via Redux)
 
-Note: `ttsService`, `sentenceService`, `sentenceReportService`, `partReportService`, `sentencePracticeService`, `sentenceTabsService`, `breakdownService`, `dictionaryService`, and `premadeListService` are called directly from components (not via Redux thunks) — this is intentional for operations that are UI-local and do not need shared global state. `TestWords` also calls `wordService.getUserWords` directly: the store holds only the active list, and the session needs the whole collection for its alternative answers (#348).
+Note: `ttsService`, `sentenceService`, `sentenceReportService`, `partReportService`, `sentencePracticeService`, `sentenceTabsService`, `breakdownService`, `dictionaryService`, and `premadeListService` are called directly from components (not via Redux thunks) — this is intentional for operations that are UI-local and do not need shared global state. `TestWords` also calls `wordService.getUserWords` directly: the store holds only the active list, and the session needs the whole collection for its alternative answers (#348). For the same reason, the word page calls `wordService.getUserWord` when the active list does not hold the word (#562).
 
 #### Component Pattern
 
@@ -170,6 +170,7 @@ Security rules in [firestore.rules](firestore.rules): users can only access thei
 - `getDailyChengyu` - Rotates through chengyus daily
 - `dictionarySearch` - The search of the Add Words screen: hanzi, pinyin or English, ranked in tiers, at most 30 entries. The rules are pure, in [functions/src/dictionarySearch.ts](functions/src/dictionarySearch.ts) (#425)
 - `dictionarySearchWord` - The exact lookup of an entry by its characters
+- `dictionaryEntry` - One entry by its id, for the word page of an entry that the learner does not have. The rule is pure, in [functions/src/dictionaryEntry.ts](functions/src/dictionaryEntry.ts) (#562)
 - `dictionaryAlternatives` - The alternative answers of the questions of one session, from all of CC-CEDICT. The rules are pure, in [functions/src/alternativeAnswers.ts](functions/src/alternativeAnswers.ts) (#348)
 - `lookupChengyuChar` - Character details for chengyu quiz
 
@@ -221,6 +222,7 @@ Development uses local emulators (configured in [firebase.json](firebase.json)):
 - Type definitions are in [web-client/src/types/](web-client/src/types/)
 - The `amendedMeaning` field allows users to override dictionary definitions
 - The build stamps its commit into the bundle and into `/version.json`; the app compares the two on load and on returning to the foreground, and reloads itself when a newer build is deployed ([web-client/src/utils/appVersion.ts](web-client/src/utils/appVersion.ts)). Without it a cached `index.html` — an iOS home-screen app keeps one — pins the app to an old bundle indefinitely
+- The **word page** (`/word/:id`) shows one dictionary entry or one custom word: a header, a character set switch, and the Meaning, Characters and Progress tabs. A search result and the Details link of a word row open it. It manages nothing, and a word that is due soon stays covered until the learner taps it (#562)
 - An unfinished session is saved to `localStorage` (`web-client/src/utils/savedSession.ts`) and offered back on the next visit, because nothing reaches Firestore until a session ends. See [docs/adr/0014-resume-an-unfinished-session.md](docs/adr/0014-resume-an-unfinished-session.md)
 - A study session ends when its cards end. The sentence tasks are the **Comprehend** and **Compose** tabs (`/comprehend`, `/compose`), directly below Study. A sentence grade orders the queue of its tab and never changes the schedule of a word. See [docs/adr/0021-sentence-tasks-are-a-separate-practice.md](docs/adr/0021-sentence-tasks-are-a-separate-practice.md)
 - Chengyu challenges rotate daily based on days since May 24, 2021

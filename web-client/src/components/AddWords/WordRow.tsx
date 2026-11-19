@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import { Box, ButtonBase, IconButton } from '@mui/material';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import VolumeUpOutlinedIcon from '@mui/icons-material/VolumeUpOutlined';
@@ -14,6 +15,7 @@ import { BANK_LABELS } from '../../utils/scheduling';
 import { formatRelativeDueDate } from '../../utils/formatRelativeDueDate';
 import { isCovered, listIdsOf, removalDeletes } from '../../utils/wordBank';
 import { Block } from './BankStates';
+import { wordPath } from '../Navigation/navLinks';
 import * as ttsService from '../../services/ttsService';
 
 interface Props {
@@ -94,8 +96,8 @@ const actionSx = {
 } as const;
 
 /**
- * One word of the bank. A tap opens it in place: play, the meanings, the leech
- * flag, the lists that hold it and "Remove". A word due soon shows grey blocks in place of
+ * One word of the bank. A tap opens it in place: play, "Details" for its word
+ * page, the meanings, the leech flag, the lists that hold it and "Remove". A word due soon shows grey blocks in place of
  * its characters, pinyin and meaning until a tap shows it.
  */
 const WordRow: React.FC<Props> = ({
@@ -205,12 +207,21 @@ const WordRow: React.FC<Props> = ({
             >
               <VolumeUpOutlinedIcon />
             </IconButton>
-            <Box sx={{ fontSize: 14, color: colors.textSecondary }}>
+            <Box sx={{ flex: 1, fontSize: 14, color: colors.textSecondary }}>
               {copy.wordBank.levelDue(
                 levelName,
                 word.due_date ? formatRelativeDueDate(word.due_date) : '',
               )}
             </Box>
+            {/* The row passes "shown", so a word that the learner uncovered here
+                opens uncovered on its page. */}
+            <ButtonBase
+              component={RouterLink}
+              to={{ pathname: wordPath(word.id), state: { shown } }}
+              sx={actionSx}
+            >
+              {copy.wordBank.details}
+            </ButtonBase>
           </Box>
           <MeaningEditor
             value={word.meaning}

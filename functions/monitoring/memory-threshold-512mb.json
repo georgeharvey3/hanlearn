@@ -9,7 +9,7 @@
     {
       "displayName": "user_memory_bytes p99 above 435 MiB for 1 minute",
       "conditionThreshold": {
-        "filter": "resource.type=\"cloud_function\" metric.type=\"cloudfunctions.googleapis.com/function/user_memory_bytes\" resource.label.\"function_name\"=monitoring.regex.full_match(\"dictionarySearchWord|dictionaryLookupCharacter|dictionaryLookupCharacterByTrad|dictionaryConvertText|dictionarySubstringMatch|dictionaryAlternatives\")",
+        "filter": "resource.type=\"cloud_function\" metric.type=\"cloudfunctions.googleapis.com/function/user_memory_bytes\" resource.label.\"function_name\"=monitoring.regex.full_match(\"dictionarySearchWord|dictionaryEntry|dictionaryLookupCharacter|dictionaryLookupCharacterByTrad|dictionaryConvertText|dictionarySubstringMatch|dictionaryAlternatives\")",
         "aggregations": [
           {
             "alignmentPeriod": "300s",

@@ -16,6 +16,7 @@ import {
   SearchIndex,
   WordResult,
 } from './dictionarySearch';
+import { createEntryIndex, entryById, EntryIndex } from './dictionaryEntry';
 
 // In-memory dictionary state (persists across warm invocations)
 let dictionaryLoaded = false;
@@ -23,6 +24,7 @@ let entries: DictionaryEntry[] = [];
 const simpIndex: Map<string, DictionaryEntry[]> = new Map();
 const tradIndex: Map<string, DictionaryEntry[]> = new Map();
 let searchIndex: SearchIndex;
+let entryIndex: EntryIndex;
 // Built on the first call of dictionaryAlternatives only, so that the other
 // dictionary functions do not carry it.
 let alternativeIndex: AlternativeIndex | null = null;
@@ -50,6 +52,7 @@ function loadDictionary(): void {
     tradIndex.get(entry.trad)!.push(entry);
   }
   searchIndex = createSearchIndex(entries);
+  entryIndex = createEntryIndex(entries);
 
   dictionaryLoaded = true;
   console.log(`Dictionary loaded: ${entries.length} entries`);
@@ -232,6 +235,21 @@ export const dictionarySearch = dictionaryRuntime.https.onCall(
       return searchDictionary(searchIndex, query, charSet);
     }
   )
+);
+
+/**
+ * One entry by its id, for the word page of an entry that the learner does not
+ * have (#562). Null when no entry has the id.
+ */
+export const dictionaryEntry = dictionaryRuntime.https.onCall(
+  withErrorReporting('dictionaryEntry', (data: { id: number }) => {
+    const id = data?.id;
+    if (typeof id !== 'number' || !Number.isInteger(id)) {
+      throw new functions.https.HttpsError('invalid-argument', 'id is required');
+    }
+    loadDictionary();
+    return entryById(entryIndex, id);
+  })
 );
 
 export const dictionaryLookupCharacter = dictionaryRuntime.https.onCall(

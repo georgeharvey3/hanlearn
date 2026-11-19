@@ -161,6 +161,27 @@ describe('AddWords — the word rows', () => {
     );
   });
 
+  it('links an open row to its word page', async () => {
+    renderBank([farWord]);
+    await userEvent.click(await screen.findByText('附近'));
+
+    await userEvent.click(screen.getByRole('link', { name: 'Details' }));
+
+    expect(window.location.pathname).toBe(`/word/${farWord.id}`);
+    expect(window.history.state.state).toEqual({ shown: false });
+  });
+
+  it('passes "shown" from a row that the learner uncovered', async () => {
+    renderBank([dueWord]);
+    await userEvent.click(await screen.findByRole('button', { name: 'Due soon. Show the word' }));
+    await userEvent.click(screen.getByText('认识'));
+
+    await userEvent.click(screen.getByRole('link', { name: 'Details' }));
+
+    expect(window.location.pathname).toBe(`/word/${dueWord.id}`);
+    expect(window.history.state.state).toEqual({ shown: true });
+  });
+
   it('does not let the learner clear the last list of a word', async () => {
     renderBank([farWord]);
     await userEvent.click(await screen.findByText('附近'));
@@ -219,6 +240,18 @@ describe('AddWords — the search', () => {
     expect(screen.getByRole('button', { name: 'Add 好, hào' })).toBeInTheDocument();
     // The results take the place of the word list.
     expect(screen.queryByText('附近')).not.toBeInTheDocument();
+  });
+
+  it('opens the word page of an entry on a tap of its text, with the entry', async () => {
+    renderBank([farWord]);
+    await screen.findByText('附近');
+    mockedWordService.searchWord.mockResolvedValue([hao, hao4]);
+
+    await searchFor('好');
+    await userEvent.click(await screen.findByText('to be fond of'));
+
+    expect(window.location.pathname).toBe(`/word/${hao4.id}`);
+    expect(window.history.state.state).toEqual({ entry: hao4 });
   });
 
   it('adds an entry in one tap and marks it Added', async () => {

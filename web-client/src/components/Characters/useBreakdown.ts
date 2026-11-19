@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { Breakdown, breakdownOf } from '../../../services/breakdownService';
-import { reportError } from '../../../services/errorReporting';
-import { loadCharData } from '../../../utils/charDataLoader';
+import { Breakdown, breakdownOf } from '../../services/breakdownService';
+import { reportError } from '../../services/errorReporting';
+import { loadCharData } from '../../utils/charDataLoader';
 
 /** The outlines of the strokes of a character, from the Hanzi Writer data. */
 interface StrokeData {
