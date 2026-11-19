@@ -20,9 +20,9 @@ The breakdown splits the part into other parts than Wiktionary.
 | 氵 | 丶 冫 | ⿱⺀㇀ | 塗 梁 瀉 瀑 灑 灘 灣 范 and 225 more |
 | 火 | 丶 丿 人 | ⿻⿰丿丿人(GJKV),⿻丷人(HT) | 恢 愁 撈 灰 灵 灶 灸 炉 and 72 more |
 | 𠀉 | 丿 上 | ⿷⿱丿丄一 or ⿻⿱丿丨二 | 兒 掐 瀉 焰 瘦 舅 舆 與 and 30 more |
-| 西 | 兀 口 | ⿱一𠁤 | 奠 晒 栖 猶 蘸 遵 酒 酗 and 27 more |
 | 𠃛 | 丨 𠃌 二 | ⿰𰀄亅 | 們 攔 門 閃 閉 閒 間 閘 and 23 more |
 | 冋 | 冂 囗 | ⿵冂口 | 倘 堂 撐 撑 敲 當 僑 償 and 23 more |
+| 酉 | 兀 日 | ⿴西一 | 奠 猶 蘸 遵 酒 酗 酣 酥 and 22 more |
 | 臼 | 𠀉 彐 | ⿵⿲丨⿱丿一⿹𠃍一一 | 兒 掐 瀉 焰 瘦 舅 艘 陷 and 19 more |
 | 良 | 丶 𫜹 𠄌 丶 | ⿱丶艮(GHT),⿱丨艮(JK),⿱一艮(V) | 朗 蝕 鄉 餃 餅 餒 餓 餘 and 18 more |
 | 比 | 匕 匕 | ⿰⿺𠄌一匕(GHT),⿻𠃏⿰一一(GHT),⿰⿱⺊㇀匕(JKV) | 塵 批 攙 昆 楷 灑 皆 媲 and 12 more |
@@ -65,6 +65,7 @@ The breakdown splits the part into other parts than Wiktionary.
 | 專 | 叀 寸 | ⿳⿻一申⿰㇀丶寸 or ⿱⿻一⿻虫一寸 | 團 傳 專 磚 轉 |
 | 鹿 | 广 𠃍 丨 丨 一 比 | ⿸⿸广⿻コ⿰丨丨比 | 塵 灑 曬 鹿 麗 |
 | 旡 | 一 𠃊 儿 | ⿸⿻丆𠃋乚(GHTJ) or ⿸⿻丆丄乚(K) | 慨 概 既 溉 潛 |
+| 西 | 兀 口 | ⿱一𠁤 | 晒 栖 洒 牺 西 |
 | 更 | 一 曰 乂 | ⿱一⿻日乂 | 甦 便 更 硬 鞭 |
 | 乏 | 丿 之 | ⿱㇒之 | 眨 乏 泛 貶 贬 |
 | 囱 | 丿 囗 夂 | ⿱丿⿴囗⿻𠂊乀(GHV) or ⿱丿⿴囗夕(T) or ⿱丿⿴囗夊(JK) | 聰 蔥 囱 窗 總 |
@@ -224,7 +225,7 @@ Wiktionary often writes the strokes as other forms.
 
 | Part | Breakdown | Wiktionary | In |
 | --- | --- | --- | --- |
-| 口 | 丨 𠃍 一 | ⿱冂一 | 倉 偉 儉 儲 兄 兑 兔 兢 and 969 more |
+| 口 | 丨 𠃍 一 | ⿱冂一 | 倉 偉 儉 儲 兄 兑 兔 兢 and 943 more |
 | 丷 | 丶 丿 | ⿰丶㇒ | 倖 倘 倦 儀 億 光 兑 兰 and 491 more |
 | 冖 | 丿 乛 | ⿰丶乛 | 冗 写 割 唠 嘗 夢 憂 按 and 246 more |
 | 尸 | 𠃍 一 丿 | ⿰丿コ | 倉 倔 刷 剧 創 劈 呢 嘱 and 93 more |

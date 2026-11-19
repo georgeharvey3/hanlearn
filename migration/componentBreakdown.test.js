@@ -196,6 +196,16 @@ describe('breakdownOf', () => {
     expect(charsOf(sigh.p)).toEqual(['廿', '口', '夫']);
   });
 
+  it('splits 酉 into 兀 laid over 日, with the bottom line in 日', () => {
+    // AnimCJK gives 酉 as 西 + 一, so its 口 closed on the inner line.
+    expect(breakdown('酉').p.map((part) => [part.c, part.s])).toEqual([
+      ['兀', [0, 3, 4]],
+      ['日', [1, 2, 5, 6]],
+    ]);
+    const wine = breakdown('酒').p.find((part) => part.c === '酉');
+    expect(charsOf(wine.p)).toEqual(['兀', '日']);
+  });
+
   it('gives the role of a clue to a part below a step that Make Me a Hanzi does not have', () => {
     const [step, right] = breakdown('德').p;
     expect(step.r).toBeUndefined();
@@ -294,6 +304,15 @@ describe('buildBreakdowns', () => {
     const result = build(['礙', '\u{2FFFF}']);
     expect(Object.keys(result.files)).toContain('7919');
     expect(result.missing).toEqual(['\u{2FFFF}']);
+  });
+
+  it('gives a part that is only a shape its label and no pinyin', () => {
+    const shape = (labels) =>
+      allParts(build(['嚴'], { labels }).files[breakdownFileName('嚴')].p).find((part) => part.c === '丅');
+    expect(shape({ labels: { 丅: 'below' } })).toMatchObject({ l: 'below', y: 'xià' });
+    const part = shape({ labels: { 丅: 'T shape' }, shapes: ['丅'] });
+    expect(part.l).toBe('T shape');
+    expect(part).not.toHaveProperty('y');
   });
 
   it('fills a part with a fallback label, and lists it', () => {

@@ -416,8 +416,10 @@ function strokeOrder(own, reference) {
  * - `definitions`: the acjk texts of the definitions file. A text for a top
  *   character counts the strokes in the order of Hanzi Writer
  * - `labels`: the labels file: `labels` (part to label), `groups` (the text
- *   of a group to the character that it is) and `names` (a part to
- *   `{ l, y }`: a label and pinyin for a part that no source has an entry for)
+ *   of a group to the character that it is), `names` (a part to `{ l, y }`:
+ *   a label and pinyin for a part that no source has an entry for) and
+ *   `shapes` (the parts that a source names only for their shape: they show
+ *   their label and no pinyin)
  */
 function breakdownContext({
   entries,
@@ -438,6 +440,7 @@ function breakdownContext({
     meanings: animcjk.meanings ?? {},
     labels: labels.labels ?? {},
     names: labels.names ?? {},
+    shapes: new Set(labels.shapes ?? []),
     definitions: new Map(),
     malformed: [],
     unresolved: new Set(),
@@ -481,9 +484,15 @@ function labelOf(context, char) {
   );
 }
 
-/** The pinyin of a part, when a source has it. */
-const pinyinOf = (context, char) =>
-  context.entries.get(char)?.pinyin?.[0] ?? context.names[char]?.y ?? context.meanings[char]?.[1];
+/**
+ * The pinyin of a part, when a source has it. A part in `shapes` has none: a
+ * source names it by a character only for its shape, and the sound of that
+ * character is not the sound of the part (丅 in 敢 is not xià).
+ */
+const pinyinOf = (context, char) => {
+  if (context.shapes.has(char)) return undefined;
+  return context.entries.get(char)?.pinyin?.[0] ?? context.names[char]?.y ?? context.meanings[char]?.[1];
+};
 
 /**
  * The definition of `char` with `strokes` strokes that splits it. The source
