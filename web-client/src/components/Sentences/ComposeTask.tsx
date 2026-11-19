@@ -8,6 +8,7 @@ import ReportSentenceButton from '../Test/Study/ReportSentenceButton';
 import {
   MicButton,
   Overline,
+  PlayButton,
   StatusLine,
   StudyButton,
   StudyCard,
@@ -78,7 +79,8 @@ const stripPunctuation = (text: string): string =>
  *
  * An answer is necessary before the reveal, so each task is a real attempt.
  * With sound on, the mic and the keyboard both take the answer, and the
- * reference plays at the reveal.
+ * reference plays from a button after the reveal. It does not play by
+ * itself, so the learner reads it first (#564).
  */
 const ComposeTask: React.FC<Props> = ({
   synthAvailable,
@@ -99,6 +101,7 @@ const ComposeTask: React.FC<Props> = ({
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState('');
+  const [synthLoading, setSynthLoading] = useState(false);
   const recognition = useRef<SpeechRecognition | null>(null);
   /** The spoken answer that waits for its conversion, if any. */
   const pendingSpeech = useRef<object | null>(null);
@@ -198,7 +201,6 @@ const ComposeTask: React.FC<Props> = ({
     revealedAt.current = Date.now();
     setRevealed(true);
     setMessage('');
-    if (useSound) speak(sentence.chinese, { slow: false, voice, lang }, () => {});
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -282,21 +284,33 @@ const ComposeTask: React.FC<Props> = ({
             {withTarget(entered)}
           </Box>
           <Overline sx={{ mt: 2, mb: 0.75 }}>{copy.sentence.original}</Overline>
-          <Box lang="zh" sx={answerBox}>
-            {withTarget(sentence.chinese)}
-            <Box
-              component="p"
-              lang="zh-Latn"
-              sx={{
-                m: 0,
-                mt: 0.75,
-                fontFamily: fonts.body,
-                fontSize: 15,
-                color: colors.textSecondary,
-              }}
-            >
-              {sentence.pinyin}
+          <Box sx={{ ...answerBox, display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+            <Box lang="zh" sx={{ flex: 1 }}>
+              {withTarget(sentence.chinese)}
+              <Box
+                component="p"
+                lang="zh-Latn"
+                sx={{
+                  m: 0,
+                  mt: 0.75,
+                  fontFamily: fonts.body,
+                  fontSize: 15,
+                  color: colors.textSecondary,
+                }}
+              >
+                {sentence.pinyin}
+              </Box>
             </Box>
+            {useSound && (
+              <PlayButton
+                size={44}
+                loading={synthLoading}
+                onClick={() =>
+                  speak(sentence.chinese, { slow: false, voice, lang }, setSynthLoading)
+                }
+                label={copy.sentence.playSentence}
+              />
+            )}
           </Box>
           <ReportSentenceButton
             key={`${word.id}-${sentence.id}`}
