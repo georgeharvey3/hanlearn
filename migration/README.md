@@ -152,13 +152,14 @@ A top character takes the first of these definitions that has its Hanzi Writer s
 
 ### The tree
 
-The tree follows five rules:
+The tree follows six rules:
 
 - Every part splits until it is one stroke. A label never stops a split. So 賣 in 續 splits into 士 + 買, 買 into 罒 + 貝, and 口 into its 3 strokes.
 - A part takes the definition of its character that has the same number of strokes. A definition with another number of strokes is another form, and the part never takes it. 朗 draws 良 with 6 strokes, and 良 alone has 7.
 - The strokes of a part pair with the strokes of its definition in stroke order.
 - A group with no name is not a step. Its pieces join the split directly, so 覽 is 臣 + 𠂉 + 一 + 皿 + 見. `groups` in the labels file can name a group: `⿱廿⿻口夫` is 𦰩, the left side of 難.
 - A part with no definition splits into its strokes. The strokes have no name.
+- A character never holds itself. A decomposition of Make Me a Hanzi names a group only when it holds every stroke of its character: 求 is `⿻一氺`, and the dot is in no piece. The build stops when a part has the name of a character above it.
 
 A part looks for a definition in this order: the parts that its parent gives it in place, a text of the definitions file, the AnimCJK sets, then Make Me a Hanzi. The AnimCJK set of the parent comes first. Make Me a Hanzi is last, because it names a part by a form that has an entry. That form is not always the form drawn.
 
@@ -187,6 +188,8 @@ The build stops when a named part of 2 or more strokes has no definition. The me
 ### Labels
 
 `labels` in the labels file gives the label of a part. `names` gives a label and pinyin to a part that has no entry of its own (㐫 in 脑). An empty file is legal.
+
+`shapes` in the labels file lists the parts that a source names only for their shape. Such a part shows its label and no pinyin. AnimCJK uses 丅 only for the shape of the top of 敢, 斤 and 華, so 丅 is "T shape", not "below", xià. A part in `shapes` has no meaning in any character, so do not add a part that has its meaning in other characters (扌, 厂).
 
 A part with no entry in the labels file takes the first sense of its Make Me a Hanzi definition, then of its AnimCJK definition. The build prints each part character with no label from any source. It also prints the number of parts that still use this fallback label.
 

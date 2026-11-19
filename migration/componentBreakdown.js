@@ -17,7 +17,7 @@
  *   entry gives one level of parts, and the part of each stroke.
  * - The definitions file, for the forms that neither source has.
  *
- * The tree follows five rules:
+ * The tree follows six rules:
  *
  * - Every part splits until it is one stroke. A label never stops a split.
  * - A part takes the definition of its character that has the same number of
@@ -30,6 +30,8 @@
  * - A part with no definition splits into its strokes. The build of the
  *   dictionary stops on such a part that has a name: the definitions file
  *   needs its definition.
+ * - A character never holds itself: see groupNamesOf, and `selfNamed` of
+ *   buildBreakdowns.
  */
 
 /** The Ideographic Description Characters, with the number of their operands. */
