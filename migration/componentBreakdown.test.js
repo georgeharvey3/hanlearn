@@ -6,11 +6,13 @@ import {
   breakdownFileName,
   breakdownOf,
   buildBreakdowns,
+  compareWithWiktionary,
   firstSense,
   parseAcjk,
   parseIds,
   parseMakeMeAHanzi,
   strokeOrder,
+  wiktionaryComposition,
 } from './componentBreakdown';
 
 const COMPONENTS = path.join(__dirname, 'components');
@@ -341,5 +343,73 @@ describe('labels', () => {
     expect(firstSense('(archaic) table')).toBe('table');
     expect(firstSense('')).toBeNull();
     expect(firstSense(undefined)).toBeNull();
+  });
+});
+
+describe('compareWithWiktionary', () => {
+  /** A breakdown with these top-level parts. */
+  const tree = (c, parts) => ({ c, p: parts.map((part, i) => ({ c: part, s: [i], l: null })) });
+
+  it('lists a character whose top-level parts differ from its composition', () => {
+    const result = compareWithWiktionary([tree('好', ['女', '子']), tree('丑', ['𠃌', '丨', '一', '一'])], {
+      好: '⿰女子',
+      丑: '⿴ユ十(HJKTV) or ⿻彐丨(G)',
+    });
+    expect(result.differences).toEqual([
+      { char: '丑', parts: ['𠃌', '丨', '一', '一'], composition: '⿴ユ十(HJKTV) or ⿻彐丨(G)' },
+    ]);
+  });
+
+  it('treats a side form and its full form as the same part', () => {
+    const result = compareWithWiktionary(
+      [tree('你', ['亻', '尔']), tree('肌', ['月', '几']), tree('腎', ['臤', '⺼']), tree('帅', ['刂', '巾'])],
+      { 你: '⿰人尔', 肌: '⿰⺼几', 腎: '⿱臤肉', 帅: '⿰リ巾' },
+    );
+    expect(result.differences).toEqual([]);
+  });
+
+  it('matches a part that one side splits, when its own composition gives the parts of the other side', () => {
+    const compositions = { 劳: '⿱𫇦力', 𫇦: '⿱艹冖', 器: '⿱哭吅', 哭: '⿱吅犬', 㗊: '⿱吅吅', 獄: '⿰狺犬' };
+    const result = compareWithWiktionary(
+      [tree('劳', ['艹', '冖', '力']), tree('器', ['㗊', '犬']), tree('獄', ['犭', '訧'])],
+      compositions,
+    );
+    expect(result.differences.map((d) => d.char)).toEqual(['獄']);
+  });
+
+  it('lists a character with no composition, or with one that does not parse, apart', () => {
+    const result = compareWithWiktionary([tree('好', ['女', '子']), tree('丐', ['一', '丏'])], { 好: '⿰女' });
+    expect(result).toEqual({ differences: [], absent: ['丐'], malformed: ['好'] });
+  });
+
+  it('reads a composition with a space before its regions or after a comma', () => {
+    const result = compareWithWiktionary([tree('倦', ['亻', '巻'])], { 倦: '⿰亻卷 (GTKV), ⿰亻巻 (J)' });
+    expect(result).toEqual({ differences: [], absent: [], malformed: [] });
+  });
+});
+
+describe('wiktionaryComposition', () => {
+  const gloss = (text) => ({ word: '好', pos: 'character', senses: [{ glosses: [text] }] });
+
+  it('takes the ids of the Han char template', () => {
+    const entry = {
+      word: '赤',
+      pos: 'character',
+      head_templates: [{ name: 'Han char', args: { rn: '155', ids: '⿱土⿻小丿(GTJKV),⿱土⿻小丨(H)' } }],
+      senses: [{ glosses: ['赤 (Kangxi radical 155, composition ⿱土⿻小丿(GTJKV) or ⿱土⿻小丨(H))'] }],
+    };
+    expect(wiktionaryComposition(entry)).toBe('⿱土⿻小丿(GTJKV),⿱土⿻小丨(H)');
+  });
+
+  it('takes the composition of the gloss when no template has it', () => {
+    expect(wiktionaryComposition(gloss('好 (Kangxi radical 38, 女+3, 6 strokes, composition ⿰女子)'))).toBe('⿰女子');
+    expect(wiktionaryComposition(gloss('今 (6 strokes, composition ⿱亽㇇(G) or ⿱亼㇇(HTJKV))'))).toBe(
+      '⿱亽㇇(G) or ⿱亼㇇(HTJKV)',
+    );
+  });
+
+  it('gives null for an entry that is not a character, or that has no composition', () => {
+    expect(wiktionaryComposition({ ...gloss('composition ⿰女子)'), pos: 'noun' })).toBeNull();
+    expect(wiktionaryComposition(gloss('好 (Kangxi radical 38, 6 strokes)'))).toBeNull();
   });
 });

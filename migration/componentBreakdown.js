@@ -816,8 +816,187 @@ function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, animcjk, de
   };
 }
 
+/**
+ * The composition text of one Wiktextract entry, or null. The Han char
+ * template gives it as `ids`. Wiktextract keeps the arguments of only some
+ * templates, so the text of the gloss is the second place to look: the
+ * composition is its last field, `…, composition ⿰女子)`.
+ */
+function wiktionaryComposition(entry) {
+  if (entry.pos !== 'character') return null;
+  const template = (entry.head_templates ?? []).find((t) => t.name === 'Han char' && t.args?.ids);
+  if (template) return template.args.ids;
+  for (const sense of entry.senses ?? []) {
+    for (const gloss of sense.glosses ?? []) {
+      const match = /composition (.+)\)$/.exec(gloss);
+      if (match) return match[1];
+    }
+  }
+  return null;
+}
+
+/**
+ * The operators of a Wiktionary composition: the Ideographic Description
+ * Characters of Unicode 15.1 too, and ㇯, which takes one part away from another.
+ */
+const WIKTIONARY_OPERATORS = { ...OPERATORS, '⿼': 2, '⿽': 2, '⿾': 1, '⿿': 1, '㇯': 2 };
+
+/**
+ * The alternatives of a Wiktionary composition, as trees of `{ char }` and
+ * `{ op, children }`. A composition can give more than one, each with an
+ * optional list of regions: `⿰龺月 or ⿰龺⿵⺆⺀`, `⿱亽㇇(G) or ⿱亼㇇(HTJKV)`,
+ * `⿱一二,⿱𠄟一`. A space before a list of regions or after a comma does not
+ * count. Gives null when the text does not parse.
+ */
+function parseComposition(text) {
+  const cs = [...text];
+  const stop = new Set([undefined, '(', ')', ',', ' ']);
+  let i = 0;
+  const read = () => {
+    const c = cs[i++];
+    if (stop.has(c)) throw new Error(`malformed composition: ${text}`);
+    if (!(c in WIKTIONARY_OPERATORS)) return { char: c };
+    const children = [];
+    for (let n = 0; n < WIKTIONARY_OPERATORS[c]; n++) children.push(read());
+    return { op: c, children };
+  };
+  const alternatives = [];
+  const space = () => {
+    while (cs[i] === ' ' && cs.slice(i, i + 4).join('') !== ' or ') i += 1;
+  };
+  try {
+    while (i < cs.length) {
+      space();
+      alternatives.push(read());
+      space();
+      if (cs[i] === '(') {
+        const end = cs.indexOf(')', i);
+        if (end < 0) return null;
+        i = end + 1;
+      }
+      if (cs[i] === ',') i += 1;
+      else if (cs.slice(i, i + 4).join('') === ' or ') i += 4;
+      else if (i < cs.length) return null;
+    }
+  } catch {
+    return null;
+  }
+  return alternatives;
+}
+
+/**
+ * The forms of one part. Each group holds a full form, its side forms and
+ * the code points of the same form in other blocks: the sources name the
+ * meat radical 月, ⺼ or 肉, and the jade radical 王 or 𤣩. NFKC joins the
+ * Kangxi Radicals block and the compatibility ideographs first.
+ */
+const SAME_PART = [
+  '人亻𠆢⺅', '水氵氺⺡⺢', '手扌龵⺘', '心忄㣺⺗', '言讠訁⻈', '金钅釒', '食饣飠𩙿', '糸纟糹',
+  '艸艹⺾⺿⻀', '辵辶⻌⻍⻎', '刀刂リ⺉', '犬犭⺨', '示礻⺬⺭', '衣衤⻂', '火灬⺣', '攴攵', '网罒',
+  '爪爫⺤', '爿丬', '足𧾷⻊', '川巛', '襾覀', '牛牜', '玉王𤣩', '竹⺮𥫗', '羊𦍌⺶⺷', '長镸', '卩㔾',
+  '歹歺', '肉月⺼', '雨⻗', '阝⻏⻖', '冂⺆', '小⺌⺍', '卜⺊', '彐⺕', '贝⻉', '车⻋', '长⻓',
+  '门⻔', '页⻚', '风⻛', '飞⻜', '马⻢', '鱼⻥', '鸟⻦', '齐⻬', '齿⻮', '龙⻰', '龟⻳',
+];
+const FULL_FORM = new Map(SAME_PART.flatMap((forms) => [...forms].map((form) => [form, [...forms][0]])));
+
+/** One name for each form of a part. A piece with no name matches no part. */
+const samePart = (char) => {
+  if (char === null) return UNNAMED;
+  const form = char.normalize('NFKC');
+  return FULL_FORM.get(form) ?? form;
+};
+
+/**
+ * The top-level parts of a composition tree. A group is not a step, the same
+ * rule as the breakdown: its pieces join the list. A tree of one character
+ * has no parts.
+ */
+const compositionParts = (tree) => {
+  const pieces = (node) => (node.op ? node.children.flatMap(pieces) : [node.char]);
+  return tree.op ? pieces(tree) : [];
+};
+
+/**
+ * Compare the top-level parts of each breakdown with the Wiktionary
+ * composition of its character (#563). `breakdowns` holds `{ c, p }` as
+ * breakdownOf gives it, and `compositions` the composition text of each
+ * character. Gives:
+ *
+ * - `differences`: `{ char, parts, composition }` for each character whose
+ *   parts match no alternative of its composition
+ * - `absent`: the characters with no composition
+ * - `malformed`: the characters whose composition does not parse
+ */
+function compareWithWiktionary(breakdowns, compositions) {
+  // The parts of each alternative of the composition of a part, by its name.
+  const splits = new Map();
+  const splitsOf = (name) => {
+    if (!splits.has(name)) {
+      const trees = compositions[name] ? parseComposition(compositions[name]) ?? [] : [];
+      splits.set(name, trees.map((tree) => compositionParts(tree).map(samePart)).filter((parts) => parts.length));
+    }
+    return splits.get(name);
+  };
+  const differences = [];
+  const absent = [];
+  const malformed = [];
+  for (const { c: char, p } of breakdowns) {
+    const composition = compositions[char];
+    if (composition === undefined) {
+      absent.push(char);
+      continue;
+    }
+    const alternatives = parseComposition(composition);
+    if (alternatives === null) {
+      malformed.push(char);
+      continue;
+    }
+    const parts = (p ?? []).map((part) => part.c);
+    const same = alternatives.some((tree) => sameParts(parts.map(samePart), compositionParts(tree).map(samePart), splitsOf));
+    if (!same) differences.push({ char, parts, composition });
+  }
+  return { differences, absent, malformed };
+}
+
+/**
+ * Whether two lists of parts name the same strokes. The parts that both
+ * lists hold cancel. Then a part splits into the parts of its own
+ * composition when the other list holds one of them (劳 = 艹 冖 力 and
+ * ⿱𫇦力, because 𫇦 = ⿱艹冖). The lists match when no part is left. Each
+ * split adds a part, so the number of splits has a limit: a composition
+ * that holds its own character stops there.
+ */
+function sameParts(a, b, splitsOf) {
+  const left = [[...a], [...b]];
+  for (let round = 0; round < 32; round++) {
+    for (const part of [...left[0]]) {
+      const j = left[1].indexOf(part);
+      if (j >= 0) {
+        left[1].splice(j, 1);
+        left[0].splice(left[0].indexOf(part), 1);
+      }
+    }
+    if (left[0].length === 0 && left[1].length === 0) return true;
+    const split = () => {
+      for (const [side, other] of [[0, 1], [1, 0]]) {
+        for (const [i, part] of left[side].entries()) {
+          const pieces = splitsOf(part).find((list) => list.some((piece) => left[other].includes(piece)));
+          if (pieces) {
+            left[side].splice(i, 1, ...pieces);
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+    if (!split()) return false;
+  }
+  return false;
+}
+
 module.exports = {
   breakdownContext,
+  compareWithWiktionary,
   breakdownFileName,
   buildBreakdowns,
   breakdownOf,
@@ -827,4 +1006,5 @@ module.exports = {
   parseIds,
   parseMakeMeAHanzi,
   strokeOrder,
+  wiktionaryComposition,
 };

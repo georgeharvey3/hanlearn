@@ -119,10 +119,11 @@ The committed sources are in `components/`:
 - `components/source/dictionary.txt`, `COPYING` and `LGPL`: Make Me a Hanzi at one pinned commit. `dictionary.txt` is LGPL 3.0 or later.
 - `components/source/GPL`: the GPL 3.0 text, which the LGPL adds to.
 - `components/source/stroke-counts.json` and `stroke-ends.json`: the stroke count of each character in `hanzi-writer-data@2.0.1`, and the first and last point of each stroke. The app draws this stroke data.
+- `components/source/wiktionary.json`: the Wiktionary composition of each character entry, from the Translingual dictionary of Wiktextract on kaikki.org. The file gives the date of the Wiktionary dump. `wiktionary-NOTICE.txt` gives the credit. The text is CC BY-SA 4.0. The build uses it only for the comparison below.
 - `components/definitions.json`: the definitions file. It holds the acjk text of each form that the two sources do not have.
 - `components/labels.json`: the labels file.
 
-`npm --prefix migration run fetch:makemeahanzi` downloads the Make Me a Hanzi and Hanzi Writer files again. Then `npm --prefix migration run fetch:animcjk` downloads the AnimCJK file again. The build uses no network. The rules are pure, in `componentBreakdown.js`.
+`npm --prefix migration run fetch:makemeahanzi` downloads the Make Me a Hanzi and Hanzi Writer files again. Then `npm --prefix migration run fetch:animcjk` downloads the AnimCJK file again. `npm --prefix migration run fetch:wiktionary` downloads the Wiktionary file again. kaikki.org keeps only its latest extraction, so a new download gives the data of a new dump. The build uses no network. The rules are pure, in `componentBreakdown.js`.
 
 ### The acjk text
 
@@ -192,6 +193,21 @@ A part with no entry in the labels file takes the first sense of its Make Me a H
 The labels file holds the learner label of the most frequent parts in HSK 1–7 (#531), and of every part of the HSK 1–3 trees of that time (#532). It also holds a label for each stroke and for the frequent forms that AnimCJK names. A side form takes its learner name (亻 is "person", not "man"). A character takes the sense that a learner needs inside other characters (凶 is "fierce", not "culprit").
 
 The build stops when the labels file gives a label to a part that is in no breakdown. This occurs with a typo.
+
+### The Wiktionary comparison
+
+A source can name a part wrongly, and the tree rules cannot find this error (#563). So the build compares the top-level parts of each HSK character with its Wiktionary composition. Wiktionary does not replace a source, because it has no stroke data.
+
+The comparison uses these rules:
+
+- The parts match when they match one alternative of the composition. A composition can give an alternative for each region: `⿱亽㇇(G) or ⿱亼㇇(HTJKV)`.
+- A group of the composition is not a step, the same rule as the tree.
+- A side form and its full form are the same part (亻 and 人). The forms of one part are in `SAME_PART` in `componentBreakdown.js`.
+- A part that one side splits matches when its own composition gives the parts of the other side. 劳 is 艹 + 冖 + 力 in the breakdown and `⿱𫇦力` in Wiktionary, and 𫇦 is `⿱艹冖`.
+
+A local run writes the differences to `components/wiktionary-differences.md`. CI only prints their number. A difference does not stop the build. For each character in the report, correct `definitions.json`, or accept the source.
+
+The breakdown files hold no Wiktionary data, so their `LICENSE.txt` does not change. `ATTRIBUTION.txt` credits Wiktionary for the comparison.
 
 ### Output
 

@@ -14,6 +14,8 @@
  *   ../web-client/public/sentences/ (the example sentences, see #465)
  *   ../web-client/public/breakdowns/ (the component breakdowns, see #528)
  *   sentences/coverage.md (the coverage report, on a local run only)
+ *   components/wiktionary-differences.md (the parts that differ from
+ *     Wiktionary, see #563, on a local run only)
  *   dictionary/emptied-entries.md (the entries that the clean of #488 empties)
  */
 
@@ -23,7 +25,7 @@ const path = require('path');
 const { ranksOf, resolveCatalogue } = require('./premadeCatalogue');
 const { checkHskIndex, hskIndexOf } = require('./hskIndex');
 const { buildExampleSentences, unfilledOf } = require('./exampleSentences');
-const { buildBreakdowns, parseMakeMeAHanzi } = require('./componentBreakdown');
+const { buildBreakdowns, compareWithWiktionary, parseMakeMeAHanzi } = require('./componentBreakdown');
 const { cleanDictionary, isUnclean } = require('./cleanMeaning');
 
 /**
@@ -321,6 +323,59 @@ function buildComponentBreakdowns(catalogue, outputDir) {
   console.log('AnimCJK texts in use with another operand count: ' + result.irregular.length);
   console.log('Parts with no label in any source: ' + result.unlabelled.join(' '));
   console.log('Parts that still use the fallback label: ' + result.fallback.length);
+  writeWiktionaryDifferences(Object.values(result.files));
+}
+
+/** The report of the characters whose parts differ from Wiktionary (#563). */
+const WIKTIONARY_DIFFERENCES_PATH = path.join(COMPONENTS_DIR, 'wiktionary-differences.md');
+
+/**
+ * Compare the top-level parts of each breakdown with its Wiktionary
+ * composition. The differences never fail the build: a person reads them,
+ * then corrects definitions.json or accepts the source. A local run writes
+ * the report. CI only prints the count.
+ */
+function writeWiktionaryDifferences(breakdowns) {
+  const wiktionary = JSON.parse(
+    fs.readFileSync(path.join(COMPONENTS_DIR, 'source', 'wiktionary.json'), 'utf8'),
+  );
+  const result = compareWithWiktionary(breakdowns, wiktionary.compositions);
+  console.log(
+    'Characters whose parts differ from Wiktionary: ' + result.differences.length +
+      ' (no composition: ' + result.absent.length + ', composition that does not parse: ' +
+      result.malformed.length + ')',
+  );
+  if (process.env.CI) return;
+  fs.writeFileSync(WIKTIONARY_DIFFERENCES_PATH, wiktionaryDifferencesReport(result, wiktionary.dump));
+  console.log('Wrote the differences to: ' + WIKTIONARY_DIFFERENCES_PATH);
+}
+
+/** The text of wiktionary-differences.md. */
+function wiktionaryDifferencesReport(result, dump) {
+  const parts = (list) => list.map((c) => c ?? '？').join(' ');
+  const chars = (list) => (list.length ? list.join(' ') : 'none');
+  return [
+    '# Wiktionary differences',
+    '',
+    '`npm run build:dict` writes this file. Do not edit it.',
+    '',
+    'The table lists the HSK characters whose top-level parts in the component',
+    'breakdown are not the parts of the Wiktionary composition. For each one,',
+    'correct `definitions.json`, or accept the source.',
+    '',
+    'The compositions come from Wiktionary (https://en.wiktionary.org), through',
+    'Wiktextract (https://kaikki.org), from the dump dated ' + dump + '. They are',
+    'available under CC BY-SA 4.0: see `source/wiktionary-NOTICE.txt`.',
+    '',
+    '| Character | Breakdown | Wiktionary |',
+    '| --- | --- | --- |',
+    ...result.differences.map((d) => `| ${d.char} | ${parts(d.parts)} | ${d.composition} |`),
+    '',
+    'No composition: ' + chars(result.absent),
+    '',
+    'A composition that does not parse: ' + chars(result.malformed),
+    '',
+  ].join('\n');
 }
 
 /**
@@ -337,6 +392,10 @@ const breakdownAttributionText = (animcjk, makeMeAHanzi) => [
   'Some parts come from migration/components/definitions.json of HanLearn. The',
   'labels come from migration/components/labels.json of HanLearn, then from the',
   'definitions of Make Me a Hanzi and AnimCJK.',
+  '',
+  'HanLearn checks the parts against the compositions of Wiktionary',
+  '(https://en.wiktionary.org), CC BY-SA 4.0, through Wiktextract',
+  '(https://kaikki.org). These files hold no Wiktionary data.',
   '',
   'You can redistribute and/or modify these files under the terms of the GNU',
   'Lesser General Public License, version 3 or later (LICENSE.txt), which adds',
