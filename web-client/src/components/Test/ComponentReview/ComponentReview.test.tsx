@@ -347,10 +347,16 @@ describe('ComponentReview', () => {
     expect(line).toHaveTextContent('The smallest part here');
   });
 
-  describe('the report of a wrong part meaning', () => {
+  describe('the report of a wrong breakdown', () => {
     const signedIn = () => ({ store: createTestStore(authenticatedState('user-1')) });
+    const send = async (reason?: string) => {
+      await userEvent.click(screen.getByRole('button', { name: 'Report breakdown' }));
+      if (reason)
+        await userEvent.type(screen.getByRole('textbox', { name: 'Reason (optional)' }), reason);
+      await userEvent.click(screen.getByRole('button', { name: 'Send' }));
+    };
 
-    it('saves the character, the part and the label shown in one tap', async () => {
+    it('saves the character, the part, the label shown and the reason', async () => {
       mockedReportPart.mockResolvedValue();
       renderWithProviders(
         <ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />,
@@ -360,7 +366,7 @@ describe('ComponentReview', () => {
       await userEvent.click(within(ai).getByRole('button', { name: '疑' }));
       await userEvent.click(within(ai).getByRole('button', { name: '矢' }));
 
-      await userEvent.click(screen.getByRole('button', { name: 'Report meaning' }));
+      await send('  The arrow is not here  ');
 
       expect(mockedReportPart).toHaveBeenCalledWith('user-1', {
         char: '礙',
@@ -368,12 +374,14 @@ describe('ComponentReview', () => {
         part: '矢',
         strokes: [7, 8, 9, 10, 11],
         label: 'arrow',
+        reason: 'The arrow is not here',
       });
       const line = screen.getByTestId('part-line');
       expect(within(line).getByRole('button', { name: 'Reported' })).toBeDisabled();
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     });
 
-    it('reports a piece with no name of its own as no part and no label', async () => {
+    it('saves no reason when the learner gives none', async () => {
       mockedReportPart.mockResolvedValue();
       renderWithProviders(
         <ComponentReview chars={['疑']} charSet="trad" open onToggle={vi.fn()} />,
@@ -381,7 +389,7 @@ describe('ComponentReview', () => {
       );
       await userEvent.click(await screen.findByRole('button', { name: 'no name of its own' }));
 
-      await userEvent.click(screen.getByRole('button', { name: 'Report meaning' }));
+      await send();
 
       expect(mockedReportPart).toHaveBeenCalledWith('user-1', {
         char: '疑',
@@ -389,7 +397,22 @@ describe('ComponentReview', () => {
         part: null,
         strokes: [7, 8],
         label: null,
+        reason: null,
       });
+    });
+
+    it('saves nothing until the learner sends the report', async () => {
+      renderWithProviders(
+        <ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />,
+        signedIn(),
+      );
+      const ai = await screen.findByTestId('breakdown-礙');
+      await userEvent.click(within(ai).getByRole('button', { name: '石' }));
+
+      await userEvent.click(screen.getByRole('button', { name: 'Report breakdown' }));
+
+      expect(screen.getByRole('textbox', { name: 'Reason (optional)' })).toBeInTheDocument();
+      expect(mockedReportPart).not.toHaveBeenCalled();
     });
 
     it('offers the report again for the next part tapped', async () => {
@@ -400,14 +423,14 @@ describe('ComponentReview', () => {
       );
       const ai = await screen.findByTestId('breakdown-礙');
       await userEvent.click(within(ai).getByRole('button', { name: '石' }));
-      await userEvent.click(screen.getByRole('button', { name: 'Report meaning' }));
+      await send();
 
       await userEvent.click(within(ai).getByRole('button', { name: '疑' }));
 
-      expect(screen.getByRole('button', { name: 'Report meaning' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Report breakdown' })).toBeEnabled();
     });
 
-    it('offers the report again when the save fails', async () => {
+    it('offers the report again, with the same reason, when the save fails', async () => {
       mockedReportPart.mockRejectedValue(new Error('permission-denied'));
       renderWithProviders(
         <ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />,
@@ -416,9 +439,11 @@ describe('ComponentReview', () => {
       const ai = await screen.findByTestId('breakdown-礙');
       await userEvent.click(within(ai).getByRole('button', { name: '石' }));
 
-      await userEvent.click(screen.getByRole('button', { name: 'Report meaning' }));
+      await send('Wrong split');
+      await userEvent.click(await screen.findByRole('button', { name: 'Report failed' }));
 
-      expect(await screen.findByRole('button', { name: 'Report failed' })).toBeEnabled();
+      expect(mockedReportPart).toHaveBeenCalledTimes(2);
+      expect(mockedReportPart.mock.calls[1][1]).toMatchObject({ reason: 'Wrong split' });
     });
 
     it('offers no report with no account to save it to', async () => {
@@ -428,7 +453,7 @@ describe('ComponentReview', () => {
       const ai = await screen.findByTestId('breakdown-礙');
       await userEvent.click(within(ai).getByRole('button', { name: '石' }));
 
-      expect(screen.queryByRole('button', { name: 'Report meaning' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Report breakdown' })).not.toBeInTheDocument();
     });
   });
 });

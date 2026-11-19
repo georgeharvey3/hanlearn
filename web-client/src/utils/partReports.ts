@@ -1,7 +1,8 @@
 /**
- * What a learner reports about the label of one part of a character (#533).
- * A person reads the reports with `node migration/export-part-reports.js` and
- * corrects `migration/components/labels.json`.
+ * What a learner reports about one part of the breakdown of a character: its
+ * label (#533), or its split, with an optional reason (#563). A person reads
+ * the reports with `node migration/export-part-reports.js` and corrects
+ * `migration/components/labels.json` or `definitions.json`.
  */
 export interface PartReport {
   /** The character that the breakdown split: the top of the tree. */
@@ -17,6 +18,17 @@ export interface PartReport {
   strokes: number[];
   /** The label that the line showed; null when it showed "no name of its own". */
   label: string | null;
+  /** What the learner wrote about the breakdown, trimmed; null when they wrote nothing. */
+  reason: string | null;
+}
+
+/** The longest reason that a report keeps. The rules allow no more. */
+export const MAX_REASON_LENGTH = 500;
+
+/** The reason that a report saves from the text of the field. */
+export function reasonOf(text: string): string | null {
+  const reason = text.trim().slice(0, MAX_REASON_LENGTH);
+  return reason === '' ? null : reason;
 }
 
 /**
@@ -40,6 +52,7 @@ export function partReportDocument<T>(report: PartReport, reportedAt: T) {
     part: report.part,
     strokes: report.strokes,
     label: report.label,
+    reason: report.reason,
     reportedAt,
   };
 }

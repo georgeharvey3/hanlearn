@@ -1,6 +1,6 @@
 /**
- * The CSV file of the reports of wrong part meanings, one row for each
- * report (#533).
+ * The CSV file of the reports of wrong breakdowns, one row for each report
+ * (#533). A report from #563 on can carry a reason; an older one has none.
  *
  * Pure: export-part-reports.js reads the documents with the Admin SDK and
  * writes the file. The rows of one part sit together, so a person can fix its
@@ -9,7 +9,7 @@
  * `strokes` finds it in `char`.
  */
 
-const PART_REPORT_COLUMNS = ['part', 'label', 'parent', 'char', 'strokes', 'reportedAt'];
+const PART_REPORT_COLUMNS = ['part', 'label', 'parent', 'char', 'strokes', 'reason', 'reportedAt'];
 
 /** One CSV field: quoted when it holds a comma, a quote or a line break. */
 const field = (value) => {
@@ -28,6 +28,7 @@ function partReportRows(reports) {
       parent: report.parent,
       char: report.char,
       strokes: report.strokes.join(' '),
+      reason: report.reason ?? '',
       reportedAt: report.reportedAt?.toDate?.().toISOString() ?? '',
     }))
     .sort(

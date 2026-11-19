@@ -688,6 +688,7 @@ describe("partReports", () => {
     part: "矢",
     strokes: [7, 8, 9, 10, 11],
     label: "arrow",
+    reason: null,
   };
   const path = (r: PartReport) => `users/user-1/partReports/${partReportId(r)}`;
   const report = (r: PartReport, extra: Record<string, unknown> = {}) => ({
@@ -706,6 +707,7 @@ describe("partReports", () => {
       part: null,
       strokes: [7, 8],
       label: null,
+      reason: null,
     };
     await assertSucceeds(setDoc(ref(db, path(piece)), report(piece)));
   });
@@ -717,6 +719,7 @@ describe("partReports", () => {
       part: "𠀁",
       strokes: [0, 1, 2],
       label: "clay",
+      reason: null,
     };
     await assertSucceeds(setDoc(ref(db, path(side)), report(side)));
   });
@@ -743,6 +746,19 @@ describe("partReports", () => {
     await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { label: 3 })));
     await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { char: "" })));
     await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { parent: null })));
+  });
+
+  it("accepts a reason, and a report with no reason from an older bundle", async () => {
+    const reasoned: PartReport = { ...arrow, reason: "The arrow is not here" };
+    await assertSucceeds(setDoc(ref(db, path(reasoned)), report(reasoned)));
+    const { reason: _reason, ...older } = report(arrow);
+    await assertSucceeds(setDoc(ref(db, path(arrow)), older));
+  });
+
+  it("rejects an empty reason, a reason too long or a reason that is not text", async () => {
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { reason: "" })));
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { reason: "x".repeat(501) })));
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { reason: 3 })));
   });
 
   it("rejects an id that is not a character and its strokes", async () => {
