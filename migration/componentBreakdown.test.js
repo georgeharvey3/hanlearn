@@ -87,6 +87,15 @@ describe('parseAcjk', () => {
     expect(hand).toMatchObject({ c: '彐', s: [3, 4, 5] });
   });
 
+  it('gives a shared stroke inside a named part to that part, not to a second part of its name', () => {
+    const [group] = parseAcjk('养⿱⿸⺶⿱丷.2⿻三3⺶::介:1介3').root.kids;
+    const [sheep, between] = group.kids;
+    const names = (node) => (node.kids ?? node.partial ?? []).flatMap((kid) => [kid.c, ...names(kid)]);
+    expect(sheep).toMatchObject({ c: '⺶', s: [0, 1, 2, 3, 4, 5] });
+    expect(names(sheep)).not.toContain('⺶');
+    expect(between).toMatchObject({ c: '介', s: [5, 6, 7, 8] });
+  });
+
   it('keeps both characters of one part', () => {
     const [, tongue] = parseAcjk('舎⿱𠆢2舌~𠮷.6').root.kids;
     expect(tongue).toMatchObject({ c: '𠮷', alt: '舌', s: range(2, 7) });
@@ -245,6 +254,21 @@ describe('buildBreakdowns', () => {
     const good = result.files[breakdownFileName('朗')].p[0];
     expect(good.p).toEqual(range(0, 5).map((i) => ({ c: null, s: [i], l: null })));
     expect(build(['朗']).unresolved).toEqual([]);
+  });
+
+  it('names no group by a decomposition that leaves out strokes of its character', () => {
+    // Make Me a Hanzi gives 求 as ⿻一氺, and the dot is in no piece.
+    const result = build(['求', '囱']);
+    const named = (parts) => (parts ?? []).flatMap((part) => [part.c, ...named(part.p)]);
+    expect(named(result.files[breakdownFileName('求')].p)).not.toContain('求');
+    expect(named(result.files[breakdownFileName('囱')].p)).not.toContain('囱');
+  });
+
+  it('lists a part that has the name of a character above it', () => {
+    // 好 = 女 + 子, and the labels file names the group of 子 好.
+    const result = build(['好'], { definitions: ['好⿰女3⿱乛1⿻一1亅1'], labels: { groups: { '⿱乛⿻一亅': '好' } } });
+    expect(result.selfNamed).toEqual(['好 > 好']);
+    expect(build(['好']).selfNamed).toEqual([]);
   });
 
   it('lists the definitions of the file that no breakdown uses', () => {

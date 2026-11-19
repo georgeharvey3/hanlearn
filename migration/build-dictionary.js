@@ -250,6 +250,8 @@ const COMPONENTS_DIR = path.join(__dirname, 'components');
  *
  * - a named part of 2 or more strokes has no definition, because the part
  *   then splits into strokes with no name. The definitions file needs it
+ * - a part has the name of a character above it, because a character never
+ *   holds itself
  * - the definitions file holds a text that no breakdown uses
  * - the labels file gives a label to a part that is in no breakdown
  */
@@ -272,6 +274,12 @@ function buildComponentBreakdowns(catalogue, outputDir) {
     throw new Error(
       'These parts have no definition with their stroke count. Add each one to ' +
         'migration/components/definitions.json: ' + result.unresolved.join(', '),
+    );
+  }
+  if (result.selfNamed.length) {
+    throw new Error(
+      'These parts have the name of a character above them, and a character never holds itself: ' +
+        result.selfNamed.join(', '),
     );
   }
   if (result.unusedDefinitions.length) {

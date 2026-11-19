@@ -167,16 +167,18 @@ function parseAcjk(text) {
   };
   // The body of a node: a count, a decomposition, or, after a split mark,
   // another component (`十:丨.1`).
-  const body = (node, afterSplit) => {
+  // `name` is the character of the component that the body belongs to: a
+  // piece of a named component gets its name only after its body.
+  const body = (node, afterSplit, name = node.c) => {
     if (isDigit(cs[i])) {
       node.s = count();
       node.kids = null;
     } else if (cs[i] in OPERATORS) {
       const op = cs[i++];
-      if (node.c !== null) open.push(node.c);
+      if (name !== null) open.push(name);
       node.op = op;
       node.kids = operands(OPERATORS[op]);
-      if (node.c !== null) open.pop();
+      if (name !== null) open.pop();
     } else if (afterSplit && cs[i] !== undefined) {
       const inner = item();
       node.kids = inner ? [inner] : [];
@@ -193,7 +195,7 @@ function parseAcjk(text) {
   const item = () => {
     const h = head();
     if (h.c === null) return body({ c: null }, false);
-    const piece = body({ c: null }, h.key !== null);
+    const piece = body({ c: null }, h.key !== null, h.c);
     if (h.overlap) {
       let placed = null;
       const first = split.get(h.key);
@@ -287,6 +289,9 @@ function parseAcjk(text) {
 /**
  * The character of each decomposition that only one entry has and that holds
  * no unnamed piece. A group with this text is that character (#527: 㐫).
+ * The decomposition must hold every stroke of its character: 求 is ⿻一氺 with
+ * the dot in no piece, so ⿻一氺 is not 求, and the group of 求 that has no dot
+ * must not take its name (#563).
  */
 function groupNamesOf(entries) {
   const names = new Map();
@@ -294,6 +299,7 @@ function groupNamesOf(entries) {
   for (const [char, entry] of entries) {
     const ids = entry.decomposition;
     if (!ids || [...ids].length < 3 || ids.includes(UNNAMED)) continue;
+    if (entry.matches.some((match) => match === null)) continue;
     if (names.has(ids)) shared.add(ids);
     else names.set(ids, char);
   }
@@ -773,6 +779,8 @@ const breakdownFileName = (char) => char.codePointAt(0).toString(16);
  * - `unused`: the labels of parts that are in no tree (a typo)
  * - `unusedDefinitions`: the texts of the definitions file that no breakdown
  *   uses
+ * - `selfNamed`: the parts that have the name of a character above them, as
+ *   "top > part". A character never holds itself
  */
 function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, animcjk, definitions, labels }) {
   const context = breakdownContext({ entries, strokeCounts, strokeEnds, animcjk, definitions, labels });
@@ -782,12 +790,14 @@ function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, animcjk, de
   const unlabelled = new Set();
   const fallback = new Set();
   const seen = new Set();
-  const collect = (parts) => {
+  const selfNamed = new Set();
+  const collect = (parts, above) => {
     for (const part of parts ?? []) {
+      if (part.c !== null && above.includes(part.c)) selfNamed.add(`${above[0]} > ${part.c}`);
       if (part.c !== null) seen.add(part.c);
       if (part.c !== null && part.l === null) unlabelled.add(part.c);
       if (part.c !== null && !context.labels[part.c] && !context.names[part.c]) fallback.add(part.c);
-      collect(part.p);
+      collect(part.p, part.c === null ? above : [...above, part.c]);
     }
   };
   for (const char of [...new Set(chars)].sort()) {
@@ -797,7 +807,7 @@ function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, animcjk, de
     }
     sources[char] = topDefinition(context, char)?.definition.source ?? null;
     const breakdown = breakdownOf(context, char);
-    collect(breakdown.p);
+    collect(breakdown.p, [char]);
     files[breakdownFileName(char)] = breakdown;
   }
   const fileDefinitions = [...context.definitions.values()].flat().filter((d) => d.source === 'file');
@@ -813,6 +823,7 @@ function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, animcjk, de
     fallback: [...fallback].sort(),
     unused: Object.keys(context.labels).filter((char) => !seen.has(char)).sort(),
     unusedDefinitions: fileDefinitions.filter((d) => !context.used.has(d)).map((d) => d.text),
+    selfNamed: [...selfNamed].sort(),
   };
 }
 
