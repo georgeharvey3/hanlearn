@@ -356,7 +356,7 @@ describe('the Compose tab', () => {
     expect(check).toBeEnabled();
   });
 
-  it('shows the answer above the reference, plays it, and saves the raw answer', async () => {
+  it('shows the answer above the reference, and saves the raw answer', async () => {
     const user = userEvent.setup();
     setQueue([STUDY]);
     renderTab('compose');
@@ -368,7 +368,6 @@ describe('the Compose tab', () => {
     expect(answer).toHaveTextContent('我在学习');
     const reference = screen.getByText('Original').nextElementSibling as HTMLElement;
     expect(within(reference).getByText(/wǒ xué xí/)).toBeInTheDocument();
-    expect(ttsService.speak).toHaveBeenCalledWith('我学习中文。', expect.anything());
 
     await user.click(screen.getByRole('button', { name: 'Right' }));
     expect(saveGrade).toHaveBeenCalledWith(
@@ -381,6 +380,30 @@ describe('the Compose tab', () => {
         answer: '我在学习',
       }),
     );
+  });
+
+  it('plays the reference only on request', async () => {
+    const user = userEvent.setup();
+    setQueue([STUDY]);
+    renderTab('compose');
+
+    await user.type(await screen.findByLabelText('Your answer'), '我在学习');
+    await user.click(screen.getByRole('button', { name: 'Check' }));
+    expect(ttsService.speak).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Play sentence' }));
+    expect(ttsService.speak).toHaveBeenCalledWith('我学习中文。', expect.anything());
+  });
+
+  it('offers no play button with sound off', async () => {
+    const user = userEvent.setup();
+    setQueue([STUDY]);
+    renderTab('compose', false);
+
+    await user.type(await screen.findByLabelText('Your answer'), '我在学习');
+    await user.click(screen.getByRole('button', { name: 'Check' }));
+    expect(screen.getByText('Original')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Play sentence' })).not.toBeInTheDocument();
   });
 
   it('reads the pinyin of a traditional sentence from its simplified text', async () => {
