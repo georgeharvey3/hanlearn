@@ -350,6 +350,16 @@ export const getUserWords = async (userId: string, listId?: string): Promise<Wor
 };
 
 /**
+ * One word of the learner, from any list, or null when the learner does not
+ * have it. The word page reads it when the active list does not hold the
+ * word (#562).
+ */
+export const getUserWord = async (userId: string, wordId: number): Promise<Word | null> => {
+  const snapshot = await getDoc(doc(db, 'users', userId, 'userWords', wordId.toString()));
+  return snapshot.exists() ? mapDocumentToWord(snapshot as any, true) : null;
+};
+
+/**
  * Get words that are due for review (due date <= today).
  * Optionally filtered by listId.
  */

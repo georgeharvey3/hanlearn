@@ -19,6 +19,7 @@ const PremadeList = React.lazy(() => import('./containers/PremadeList/PremadeLis
 const TestWords = React.lazy(() => import('./containers/TestWords/TestWords'));
 const SettingsPage = React.lazy(() => import('./containers/SettingsPage/SettingsPage'));
 const Credits = React.lazy(() => import('./containers/Credits/Credits'));
+const WordPage = React.lazy(() => import('./containers/WordPage/WordPage'));
 const SentencePractice = React.lazy(() => import('./containers/SentencePractice/SentencePractice'));
 // The dev server only: the production build drops this branch and its chunk.
 const BreakdownPreview = import.meta.env.DEV
@@ -171,6 +172,14 @@ const App: React.FC<Props> = ({
                 render={() => (
                   <ErrorBoundary>
                     <AddWords />
+                  </ErrorBoundary>
+                )}
+              />
+              <Route
+                path="/word/:id"
+                render={() => (
+                  <ErrorBoundary>
+                    <WordPage />
                   </ErrorBoundary>
                 )}
               />

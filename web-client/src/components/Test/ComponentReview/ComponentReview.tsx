@@ -3,7 +3,7 @@ import { Box } from '@mui/material';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 
 import CharacterGlosses from './CharacterGlosses';
-import CharacterBreakdown from './CharacterBreakdown';
+import CharacterBreakdown from '../../Characters/CharacterBreakdown';
 import { Overline, TextButton } from '../Study/parts';
 import { copy } from '../../../copy';
 

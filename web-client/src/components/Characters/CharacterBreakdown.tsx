@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { Box, ButtonBase, CircularProgress } from '@mui/material';
 
-import { copy } from '../../../copy';
-import { BreakdownPart } from '../../../services/breakdownService';
-import { colors, fonts, partInk } from '../../../theme';
+import { copy } from '../../copy';
+import { BreakdownPart } from '../../services/breakdownService';
+import { colors, fonts, partInk } from '../../theme';
 import { useBreakdown } from './useBreakdown';
 import ReportPartButton from './ReportPartButton';
 
-/** The size of the character drawn in place, in pixels. */
-const CHAR_SIZE = 168;
+import { CHAR_SIZE } from './size';
 
 /**
  * The width, in the 1024-unit stroke space, of the invisible line around each
