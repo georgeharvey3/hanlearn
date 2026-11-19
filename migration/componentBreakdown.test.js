@@ -397,6 +397,14 @@ describe('compareWithWiktionary', () => {
     expect(result.differences).toEqual([]);
   });
 
+  it('treats the code point of a variant shape that only components use as its character', () => {
+    const result = compareWithWiktionary(
+      [tree('月', ['⺆', '二']), tree('妇', ['女', '彐']), tree('节', ['艹', '卩']), tree('變', ['䜌', '攵'])],
+      { 月: '⿵⺆𠄠', 妇: '⿰女𫜹', 节: '⿱艹𰆊', 變: '⿱龻攵' },
+    );
+    expect(result.differences).toEqual([]);
+  });
+
   it('matches a part that one side splits, when its own composition gives the parts of the other side', () => {
     const compositions = { 劳: '⿱𫇦力', 𫇦: '⿱艹冖', 器: '⿱哭吅', 哭: '⿱吅犬', 㗊: '⿱吅吅', 獄: '⿰狺犬' };
     const result = compareWithWiktionary(

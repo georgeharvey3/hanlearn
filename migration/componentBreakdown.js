@@ -887,7 +887,9 @@ function parseComposition(text) {
 /**
  * The forms of one part. Each group holds a full form, its side forms and
  * the code points of the same form in other blocks: the sources name the
- * meat radical 月 or ⺼, and the jade radical 王 or 𤣩. NFKC joins the
+ * meat radical 月 or ⺼, and the jade radical 王 or 𤣩. A group also holds
+ * the code point of a variant shape that only components use: Wiktionary
+ * writes 𠄠 for 二 and 𫜹 for 彐. NFKC joins the
  * Kangxi Radicals block and the compatibility ideographs first.
  *
  * A group never joins two characters that both stand alone. 肉 and 月, or
@@ -897,11 +899,13 @@ function parseComposition(text) {
 const SAME_PART = [
   '人亻𠆢⺅', '水氵氺⺡⺢', '手扌龵⺘', '心忄㣺⺗', '言讠訁⻈', '金钅釒', '食饣飠𩙿', '糸纟糹',
   '艸艹⺾⺿⻀', '辵辶⻌⻍⻎', '刀刂リ⺉', '犬犭⺨', '示礻⺬⺭', '衣衤⻂', '火灬⺣', '攴攵', '网罒',
-  '爪爫⺤', '爿丬', '足𧾷⻊', '川巛', '襾覀', '牛牜', '王𤣩', '竹⺮𥫗', '羊𦍌⺶⺷', '長镸', '卩㔾',
-  '歹歺', '月⺼', '雨⻗', '阝⻏⻖', '冂⺆', '小⺌⺍', '卜⺊', '彐⺕', '贝⻉', '车⻋', '长⻓',
-  '门⻔', '页⻚', '风⻛', '飞⻜', '马⻢', '鱼⻥', '鸟⻦', '齐⻬', '齿⻮', '龙⻰', '龟⻳',
+  '爪爫⺤', '爿丬', '足𧾷⻊', '川巛', '襾覀', '牛牜', '王𤣩', '竹⺮𥫗', '羊𦍌⺶⺷', '長镸', '卩㔾𰆊',
+  '歹歺', '月⺼', '雨⻗', '阝⻏⻖', '冂⺆', '小⺌⺍', '卜⺊', '彐⺕𫜹', '贝⻉', '车⻋', '长⻓',
+  '门⻔', '页⻚', '风⻛', '飞⻜', '马⻢', '鱼⻥', '鸟⻦', '齐⻬', '齿⻮', '龙⻰', '龟⻳', '二𠄠', '䜌龻', '収𰀡', '亦𰁜',
 ];
 const FULL_FORM = new Map(SAME_PART.flatMap((forms) => [...forms].map((form) => [form, [...forms][0]])));
+/** The other forms of each full form. */
+const FORMS = new Map(SAME_PART.map((forms) => [[...forms][0], [...forms].slice(1)]));
 
 /** One name for each form of a part. A piece with no name matches no part. */
 const samePart = (char) => {
@@ -943,9 +947,12 @@ const compositionParts = (tree) => {
 function compareWithWiktionary(breakdowns, compositions) {
   // The parts of each alternative of the composition of a part, by its name.
   const splits = new Map();
+  // `name` is the name that samePart gives, so each form of the part brings
+  // its own composition: 収 has none, and 𰀡 is ⿲丨丨又.
   const splitsOf = (name) => {
     if (!splits.has(name)) {
-      const trees = compositions[name] ? parseComposition(compositions[name]) ?? [] : [];
+      const forms = [name, ...(FORMS.get(name) ?? [])];
+      const trees = forms.flatMap((form) => (compositions[form] ? parseComposition(compositions[form]) ?? [] : []));
       splits.set(name, trees.map((tree) => compositionParts(tree).map(samePart)).filter((parts) => parts.length));
     }
     return splits.get(name);
@@ -1013,13 +1020,25 @@ function sameParts(a, b, splitsOf) {
       }
     }
     if (left[0].length === 0 && left[1].length === 0) return true;
+    // The other list holds all the parts of a split: 収 = ⿲丨丨又 before 収 = ⿰丩又.
+    const holdsAll = (pieces, other) => {
+      const rest = [...other];
+      return pieces.every((piece) => {
+        const k = rest.indexOf(piece);
+        if (k >= 0) rest.splice(k, 1);
+        return k >= 0;
+      });
+    };
+    const holdsOne = (pieces, other) => pieces.some((piece) => other.includes(piece));
     const split = () => {
-      for (const [side, other] of [[0, 1], [1, 0]]) {
-        for (const [i, part] of left[side].entries()) {
-          const pieces = splitsOf(part).find((list) => list.some((piece) => left[other].includes(piece)));
-          if (pieces) {
-            left[side].splice(i, 1, ...pieces);
-            return true;
+      for (const fits of [holdsAll, holdsOne]) {
+        for (const [side, other] of [[0, 1], [1, 0]]) {
+          for (const [i, part] of left[side].entries()) {
+            const pieces = splitsOf(part).find((list) => fits(list, left[other]));
+            if (pieces) {
+              left[side].splice(i, 1, ...pieces);
+              return true;
+            }
           }
         }
       }
