@@ -230,7 +230,8 @@ service cloud.firestore {
         allow read: if request.auth != null && request.auth.uid == userId;
         allow create, update: if request.auth != null && request.auth.uid == userId
           && reportId.matches('[0-9a-f]+-[0-9]+([.][0-9]+)*')
-          && request.resource.data.keys().hasOnly(['char', 'parent', 'part', 'strokes', 'label', 'reportedAt'])
+          // `reason` is optional, so a report from a bundle before #563 still saves.
+          && request.resource.data.keys().hasOnly(['char', 'parent', 'part', 'strokes', 'label', 'reason', 'reportedAt'])
           && request.resource.data.keys().hasAll(['char', 'parent', 'part', 'strokes', 'label', 'reportedAt'])
           && request.resource.data.char is string
           && request.resource.data.char.size() > 0
@@ -247,6 +248,10 @@ service cloud.firestore {
           && request.resource.data.strokes[0] is int
           && (request.resource.data.label == null
             || (request.resource.data.label is string && request.resource.data.label.size() <= 200))
+          && (!('reason' in request.resource.data) || request.resource.data.reason == null
+            || (request.resource.data.reason is string
+              && request.resource.data.reason.size() > 0
+              && request.resource.data.reason.size() <= 500))
           && request.resource.data.reportedAt is timestamp;
         allow delete: if false;
       }

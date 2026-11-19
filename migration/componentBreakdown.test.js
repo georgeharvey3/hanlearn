@@ -6,11 +6,13 @@ import {
   breakdownFileName,
   breakdownOf,
   buildBreakdowns,
+  compareWithWiktionary,
   firstSense,
   parseAcjk,
   parseIds,
   parseMakeMeAHanzi,
   strokeOrder,
+  wiktionaryComposition,
 } from './componentBreakdown';
 
 const COMPONENTS = path.join(__dirname, 'components');
@@ -83,6 +85,15 @@ describe('parseAcjk', () => {
     const [hill, hand] = parseAcjk('臼.⿱𠀉:3彐:2𠀉::彐:1').root.kids;
     expect(hill).toMatchObject({ c: '𠀉', s: [0, 1, 2, 5] });
     expect(hand).toMatchObject({ c: '彐', s: [3, 4, 5] });
+  });
+
+  it('gives a shared stroke inside a named part to that part, not to a second part of its name', () => {
+    const [group] = parseAcjk('养⿱⿸⺶⿱丷.2⿻三3⺶::介:1介3').root.kids;
+    const [sheep, between] = group.kids;
+    const names = (node) => (node.kids ?? node.partial ?? []).flatMap((kid) => [kid.c, ...names(kid)]);
+    expect(sheep).toMatchObject({ c: '⺶', s: [0, 1, 2, 3, 4, 5] });
+    expect(names(sheep)).not.toContain('⺶');
+    expect(between).toMatchObject({ c: '介', s: [5, 6, 7, 8] });
   });
 
   it('keeps both characters of one part', () => {
@@ -185,6 +196,16 @@ describe('breakdownOf', () => {
     expect(charsOf(sigh.p)).toEqual(['廿', '口', '夫']);
   });
 
+  it('splits 酉 into 兀 laid over 日, with the bottom line in 日', () => {
+    // AnimCJK gives 酉 as 西 + 一, so its 口 closed on the inner line.
+    expect(breakdown('酉').p.map((part) => [part.c, part.s])).toEqual([
+      ['兀', [0, 3, 4]],
+      ['日', [1, 2, 5, 6]],
+    ]);
+    const wine = breakdown('酒').p.find((part) => part.c === '酉');
+    expect(charsOf(wine.p)).toEqual(['兀', '日']);
+  });
+
   it('gives the role of a clue to a part below a step that Make Me a Hanzi does not have', () => {
     const [step, right] = breakdown('德').p;
     expect(step.r).toBeUndefined();
@@ -245,6 +266,21 @@ describe('buildBreakdowns', () => {
     expect(build(['朗']).unresolved).toEqual([]);
   });
 
+  it('names no group by a decomposition that leaves out strokes of its character', () => {
+    // Make Me a Hanzi gives 求 as ⿻一氺, and the dot is in no piece.
+    const result = build(['求', '囱']);
+    const named = (parts) => (parts ?? []).flatMap((part) => [part.c, ...named(part.p)]);
+    expect(named(result.files[breakdownFileName('求')].p)).not.toContain('求');
+    expect(named(result.files[breakdownFileName('囱')].p)).not.toContain('囱');
+  });
+
+  it('lists a part that has the name of a character above it', () => {
+    // 好 = 女 + 子, and the labels file names the group of 子 好.
+    const result = build(['好'], { definitions: ['好⿰女3⿱乛1⿻一1亅1'], labels: { groups: { '⿱乛⿻一亅': '好' } } });
+    expect(result.selfNamed).toEqual(['好 > 好']);
+    expect(build(['好']).selfNamed).toEqual([]);
+  });
+
   it('lists the definitions of the file that no breakdown uses', () => {
     const text = '良⿱丶1⿰⿰𫜹3𠄌1丶1';
     expect(build(['朗'], { definitions: [text] }).unusedDefinitions).toEqual([]);
@@ -268,6 +304,15 @@ describe('buildBreakdowns', () => {
     const result = build(['礙', '\u{2FFFF}']);
     expect(Object.keys(result.files)).toContain('7919');
     expect(result.missing).toEqual(['\u{2FFFF}']);
+  });
+
+  it('gives a part that is only a shape its label and no pinyin', () => {
+    const shape = (labels) =>
+      allParts(build(['嚴'], { labels }).files[breakdownFileName('嚴')].p).find((part) => part.c === '丅');
+    expect(shape({ labels: { 丅: 'below' } })).toMatchObject({ l: 'below', y: 'xià' });
+    const part = shape({ labels: { 丅: 'T shape' }, shapes: ['丅'] });
+    expect(part.l).toBe('T shape');
+    expect(part).not.toHaveProperty('y');
   });
 
   it('fills a part with a fallback label, and lists it', () => {
@@ -341,5 +386,127 @@ describe('labels', () => {
     expect(firstSense('(archaic) table')).toBe('table');
     expect(firstSense('')).toBeNull();
     expect(firstSense(undefined)).toBeNull();
+  });
+});
+
+describe('compareWithWiktionary', () => {
+  /** A breakdown with these top-level parts. */
+  const tree = (c, parts) => ({ c, p: parts.map((part, i) => ({ c: part, s: [i], l: null })) });
+
+  it('lists a character whose top-level parts differ from its composition', () => {
+    const result = compareWithWiktionary([tree('好', ['女', '子']), tree('丑', ['𠃌', '丨', '一', '一'])], {
+      好: '⿰女子',
+      丑: '⿴ユ十(HJKTV) or ⿻彐丨(G)',
+    });
+    expect(result.differences).toEqual([
+      { char: '丑', parts: ['𠃌', '丨', '一', '一'], composition: '⿴ユ十(HJKTV) or ⿻彐丨(G)', tops: ['丑'], strokes: true },
+    ]);
+  });
+
+  it('compares every named part at every level, once for each split', () => {
+    const part = (c, parts = null) => ({ c, s: [0, 1], l: null, ...(parts ? { p: parts } : {}) });
+    // 賣 splits wrongly into 士 + 貝 in 續 and in 讀. 糹 and the piece with no name are not compared.
+    const sells = () => part('賣', [part('士', [part('十'), part('一')]), part('貝')]);
+    const breakdowns = [
+      { c: '續', p: [part('糹'), sells()] },
+      { c: '讀', p: [part('訁'), sells()] },
+      { c: '买', p: [part(null, [part('一'), part('丨')]), part('头')] },
+    ];
+    const result = compareWithWiktionary(breakdowns, {
+      續: '⿰糹賣',
+      讀: '⿰言賣',
+      賣: '⿱士買',
+      士: '⿱十一',
+      买: '⿱乛头',
+    });
+    expect(result.differences).toEqual([
+      { char: '賣', parts: ['士', '貝'], composition: '⿱士買', tops: ['續', '讀'], strokes: false },
+      { char: '买', parts: [null, '头'], composition: '⿱乛头', tops: ['买'], strokes: false },
+    ]);
+  });
+
+  it('marks a split into strokes, which can name no wrong part', () => {
+    const stroke = (c, i) => ({ c, s: [i], l: null });
+    const mouth = { c: '口', p: [stroke('丨', 0), stroke('𠃍', 1), stroke('一', 2)] };
+    const result = compareWithWiktionary([mouth], { 口: '⿱冂一' });
+    expect(result.differences.map((d) => d.strokes)).toEqual([true]);
+  });
+
+  it('treats a side form and its full form as the same part', () => {
+    const result = compareWithWiktionary(
+      [tree('你', ['亻', '尔']), tree('肌', ['月', '几']), tree('泳', ['氵', '永']), tree('帅', ['刂', '巾'])],
+      { 你: '⿰人尔', 肌: '⿰⺼几', 泳: '⿰水永', 帅: '⿰リ巾' },
+    );
+    expect(result.differences).toEqual([]);
+  });
+
+  it('treats the code point of a variant shape that only components use as its character', () => {
+    const result = compareWithWiktionary(
+      [tree('月', ['⺆', '二']), tree('妇', ['女', '彐']), tree('节', ['艹', '卩']), tree('變', ['䜌', '攵'])],
+      { 月: '⿵⺆𠄠', 妇: '⿰女𫜹', 节: '⿱艹𰆊', 變: '⿱龻攵' },
+    );
+    expect(result.differences).toEqual([]);
+  });
+
+  it('matches a part that one side splits, when its own composition gives the parts of the other side', () => {
+    const compositions = { 劳: '⿱𫇦力', 𫇦: '⿱艹冖', 器: '⿱哭吅', 哭: '⿱吅犬', 㗊: '⿱吅吅', 獄: '⿰狺犬' };
+    const result = compareWithWiktionary(
+      [tree('劳', ['艹', '冖', '力']), tree('器', ['㗊', '犬']), tree('獄', ['犭', '訧'])],
+      compositions,
+    );
+    expect(result.differences.map((d) => d.char)).toEqual(['獄']);
+  });
+
+  it('lists a character with no composition, or with one that does not parse, apart', () => {
+    const result = compareWithWiktionary([tree('好', ['女', '子']), tree('丐', ['一', '丏'])], { 好: '⿰女' });
+    expect(result).toEqual({ differences: [], absent: ['丐'], malformed: ['好'] });
+  });
+
+  it('keeps two characters with the same shape apart', () => {
+    const result = compareWithWiktionary([tree('皇', ['白', '玉']), tree('明', ['日', '肉'])], {
+      皇: '⿱白王',
+      明: '⿰日月',
+    });
+    expect(result.differences.map((d) => d.char)).toEqual(['皇', '明']);
+  });
+
+  it('matches no parts to a composition that takes one part away from another', () => {
+    const result = compareWithWiktionary([tree('即', ['艮', '㇒'])], { 即: '㇯艮㇒' });
+    expect(result.differences.map((d) => d.char)).toEqual(['即']);
+  });
+
+  it('lists an empty composition as one that does not parse', () => {
+    expect(compareWithWiktionary([tree('好', ['女', '子'])], { 好: '' }).malformed).toEqual(['好']);
+  });
+
+  it('reads a composition with a space before its regions or after a comma', () => {
+    const result = compareWithWiktionary([tree('倦', ['亻', '巻'])], { 倦: '⿰亻卷 (GTKV), ⿰亻巻 (J)' });
+    expect(result).toEqual({ differences: [], absent: [], malformed: [] });
+  });
+});
+
+describe('wiktionaryComposition', () => {
+  const gloss = (text) => ({ word: '好', pos: 'character', senses: [{ glosses: [text] }] });
+
+  it('takes the ids of the Han char template', () => {
+    const entry = {
+      word: '赤',
+      pos: 'character',
+      head_templates: [{ name: 'Han char', args: { rn: '155', ids: '⿱土⿻小丿(GTJKV),⿱土⿻小丨(H)' } }],
+      senses: [{ glosses: ['赤 (Kangxi radical 155, composition ⿱土⿻小丿(GTJKV) or ⿱土⿻小丨(H))'] }],
+    };
+    expect(wiktionaryComposition(entry)).toBe('⿱土⿻小丿(GTJKV),⿱土⿻小丨(H)');
+  });
+
+  it('takes the composition of the gloss when no template has it', () => {
+    expect(wiktionaryComposition(gloss('好 (Kangxi radical 38, 女+3, 6 strokes, composition ⿰女子)'))).toBe('⿰女子');
+    expect(wiktionaryComposition(gloss('今 (6 strokes, composition ⿱亽㇇(G) or ⿱亼㇇(HTJKV))'))).toBe(
+      '⿱亽㇇(G) or ⿱亼㇇(HTJKV)',
+    );
+  });
+
+  it('gives null for an entry that is not a character, or that has no composition', () => {
+    expect(wiktionaryComposition({ ...gloss('composition ⿰女子)'), pos: 'noun' })).toBeNull();
+    expect(wiktionaryComposition(gloss('好 (Kangxi radical 38, 6 strokes)'))).toBeNull();
   });
 });

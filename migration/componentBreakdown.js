@@ -17,7 +17,7 @@
  *   entry gives one level of parts, and the part of each stroke.
  * - The definitions file, for the forms that neither source has.
  *
- * The tree follows five rules:
+ * The tree follows six rules:
  *
  * - Every part splits until it is one stroke. A label never stops a split.
  * - A part takes the definition of its character that has the same number of
@@ -30,6 +30,8 @@
  * - A part with no definition splits into its strokes. The build of the
  *   dictionary stops on such a part that has a name: the definitions file
  *   needs its definition.
+ * - A character never holds itself: see groupNamesOf, and `selfNamed` of
+ *   buildBreakdowns.
  */
 
 /** The Ideographic Description Characters, with the number of their operands. */
@@ -167,16 +169,18 @@ function parseAcjk(text) {
   };
   // The body of a node: a count, a decomposition, or, after a split mark,
   // another component (`十:丨.1`).
-  const body = (node, afterSplit) => {
+  // `name` is the character of the component that the body belongs to: a
+  // piece of a named component gets its name only after its body.
+  const body = (node, afterSplit, name = node.c) => {
     if (isDigit(cs[i])) {
       node.s = count();
       node.kids = null;
     } else if (cs[i] in OPERATORS) {
       const op = cs[i++];
-      if (node.c !== null) open.push(node.c);
+      if (name !== null) open.push(name);
       node.op = op;
       node.kids = operands(OPERATORS[op]);
-      if (node.c !== null) open.pop();
+      if (name !== null) open.pop();
     } else if (afterSplit && cs[i] !== undefined) {
       const inner = item();
       node.kids = inner ? [inner] : [];
@@ -193,7 +197,7 @@ function parseAcjk(text) {
   const item = () => {
     const h = head();
     if (h.c === null) return body({ c: null }, false);
-    const piece = body({ c: null }, h.key !== null);
+    const piece = body({ c: null }, h.key !== null, h.c);
     if (h.overlap) {
       let placed = null;
       const first = split.get(h.key);
@@ -287,6 +291,9 @@ function parseAcjk(text) {
 /**
  * The character of each decomposition that only one entry has and that holds
  * no unnamed piece. A group with this text is that character (#527: 㐫).
+ * The decomposition must hold every stroke of its character: 求 is ⿻一氺 with
+ * the dot in no piece, so ⿻一氺 is not 求, and the group of 求 that has no dot
+ * must not take its name (#563).
  */
 function groupNamesOf(entries) {
   const names = new Map();
@@ -294,6 +301,7 @@ function groupNamesOf(entries) {
   for (const [char, entry] of entries) {
     const ids = entry.decomposition;
     if (!ids || [...ids].length < 3 || ids.includes(UNNAMED)) continue;
+    if (entry.matches.some((match) => match === null)) continue;
     if (names.has(ids)) shared.add(ids);
     else names.set(ids, char);
   }
@@ -410,8 +418,10 @@ function strokeOrder(own, reference) {
  * - `definitions`: the acjk texts of the definitions file. A text for a top
  *   character counts the strokes in the order of Hanzi Writer
  * - `labels`: the labels file: `labels` (part to label), `groups` (the text
- *   of a group to the character that it is) and `names` (a part to
- *   `{ l, y }`: a label and pinyin for a part that no source has an entry for)
+ *   of a group to the character that it is), `names` (a part to `{ l, y }`:
+ *   a label and pinyin for a part that no source has an entry for) and
+ *   `shapes` (the parts that a source names only for their shape: they show
+ *   their label and no pinyin)
  */
 function breakdownContext({
   entries,
@@ -432,6 +442,7 @@ function breakdownContext({
     meanings: animcjk.meanings ?? {},
     labels: labels.labels ?? {},
     names: labels.names ?? {},
+    shapes: new Set(labels.shapes ?? []),
     definitions: new Map(),
     malformed: [],
     unresolved: new Set(),
@@ -475,9 +486,15 @@ function labelOf(context, char) {
   );
 }
 
-/** The pinyin of a part, when a source has it. */
-const pinyinOf = (context, char) =>
-  context.entries.get(char)?.pinyin?.[0] ?? context.names[char]?.y ?? context.meanings[char]?.[1];
+/**
+ * The pinyin of a part, when a source has it. A part in `shapes` has none: a
+ * source names it by a character only for its shape, and the sound of that
+ * character is not the sound of the part (丅 in 敢 is not xià).
+ */
+const pinyinOf = (context, char) => {
+  if (context.shapes.has(char)) return undefined;
+  return context.entries.get(char)?.pinyin?.[0] ?? context.names[char]?.y ?? context.meanings[char]?.[1];
+};
 
 /**
  * The definition of `char` with `strokes` strokes that splits it. The source
@@ -773,6 +790,8 @@ const breakdownFileName = (char) => char.codePointAt(0).toString(16);
  * - `unused`: the labels of parts that are in no tree (a typo)
  * - `unusedDefinitions`: the texts of the definitions file that no breakdown
  *   uses
+ * - `selfNamed`: the parts that have the name of a character above them, as
+ *   "top > part". A character never holds itself
  */
 function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, animcjk, definitions, labels }) {
   const context = breakdownContext({ entries, strokeCounts, strokeEnds, animcjk, definitions, labels });
@@ -782,12 +801,14 @@ function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, animcjk, de
   const unlabelled = new Set();
   const fallback = new Set();
   const seen = new Set();
-  const collect = (parts) => {
+  const selfNamed = new Set();
+  const collect = (parts, above) => {
     for (const part of parts ?? []) {
+      if (part.c !== null && above.includes(part.c)) selfNamed.add(`${above[0]} > ${part.c}`);
       if (part.c !== null) seen.add(part.c);
       if (part.c !== null && part.l === null) unlabelled.add(part.c);
       if (part.c !== null && !context.labels[part.c] && !context.names[part.c]) fallback.add(part.c);
-      collect(part.p);
+      collect(part.p, part.c === null ? above : [...above, part.c]);
     }
   };
   for (const char of [...new Set(chars)].sort()) {
@@ -797,7 +818,7 @@ function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, animcjk, de
     }
     sources[char] = topDefinition(context, char)?.definition.source ?? null;
     const breakdown = breakdownOf(context, char);
-    collect(breakdown.p);
+    collect(breakdown.p, [char]);
     files[breakdownFileName(char)] = breakdown;
   }
   const fileDefinitions = [...context.definitions.values()].flat().filter((d) => d.source === 'file');
@@ -813,11 +834,246 @@ function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, animcjk, de
     fallback: [...fallback].sort(),
     unused: Object.keys(context.labels).filter((char) => !seen.has(char)).sort(),
     unusedDefinitions: fileDefinitions.filter((d) => !context.used.has(d)).map((d) => d.text),
+    selfNamed: [...selfNamed].sort(),
   };
+}
+
+/**
+ * The composition text of one Wiktextract entry, or null. The Han char
+ * template gives it as `ids`. Wiktextract keeps the arguments of only some
+ * templates, so the text of the gloss is the second place to look: the
+ * composition is its last field, `…, composition ⿰女子)`.
+ */
+function wiktionaryComposition(entry) {
+  if (entry.pos !== 'character') return null;
+  const template = (entry.head_templates ?? []).find((t) => t.name === 'Han char' && t.args?.ids);
+  if (template) return template.args.ids;
+  for (const sense of entry.senses ?? []) {
+    for (const gloss of sense.glosses ?? []) {
+      const match = /composition (.+)\)$/.exec(gloss);
+      if (match) return match[1];
+    }
+  }
+  return null;
+}
+
+/**
+ * The operators of a Wiktionary composition: the Ideographic Description
+ * Characters of Unicode 15.1 too, and ㇯, which takes one part away from another.
+ */
+const WIKTIONARY_OPERATORS = { ...OPERATORS, '⿼': 2, '⿽': 2, '⿾': 1, '⿿': 1, '㇯': 2 };
+
+/**
+ * The alternatives of a Wiktionary composition, as trees of `{ char }` and
+ * `{ op, children }`. A composition can give more than one, each with an
+ * optional list of regions: `⿰龺月 or ⿰龺⿵⺆⺀`, `⿱亽㇇(G) or ⿱亼㇇(HTJKV)`,
+ * `⿱一二,⿱𠄟一`. A space before a list of regions or after a comma does not
+ * count. Gives null when the text does not parse.
+ */
+function parseComposition(text) {
+  const cs = [...text];
+  const stop = new Set([undefined, '(', ')', ',', ' ']);
+  let i = 0;
+  const read = () => {
+    const c = cs[i++];
+    if (stop.has(c)) throw new Error(`malformed composition: ${text}`);
+    if (!(c in WIKTIONARY_OPERATORS)) return { char: c };
+    const children = [];
+    for (let n = 0; n < WIKTIONARY_OPERATORS[c]; n++) children.push(read());
+    return { op: c, children };
+  };
+  const alternatives = [];
+  const space = () => {
+    while (cs[i] === ' ' && cs.slice(i, i + 4).join('') !== ' or ') i += 1;
+  };
+  try {
+    while (i < cs.length) {
+      space();
+      alternatives.push(read());
+      space();
+      if (cs[i] === '(') {
+        const end = cs.indexOf(')', i);
+        if (end < 0) return null;
+        i = end + 1;
+      }
+      if (cs[i] === ',') i += 1;
+      else if (cs.slice(i, i + 4).join('') === ' or ') i += 4;
+      else if (i < cs.length) return null;
+    }
+  } catch {
+    return null;
+  }
+  return alternatives.length ? alternatives : null;
+}
+
+/**
+ * The forms of one part. Each group holds a full form, its side forms and
+ * the code points of the same form in other blocks: the sources name the
+ * meat radical 月 or ⺼, and the jade radical 王 or 𤣩. A group also holds
+ * the code point of a variant shape that only components use: Wiktionary
+ * writes 𠄠 for 二 and 𫜹 for 彐. NFKC joins the
+ * Kangxi Radicals block and the compatibility ideographs first.
+ *
+ * A group never joins two characters that both stand alone. 肉 and 月, or
+ * 玉 and 王, stay apart, so that a breakdown that names the wrong one of
+ * them is in the report.
+ */
+const SAME_PART = [
+  '人亻𠆢⺅', '水氵氺⺡⺢', '手扌龵⺘', '心忄㣺⺗', '言讠訁⻈', '金钅釒', '食饣飠𩙿', '糸纟糹',
+  '艸艹⺾⺿⻀', '辵辶⻌⻍⻎', '刀刂リ⺉', '犬犭⺨', '示礻⺬⺭', '衣衤⻂', '火灬⺣', '攴攵', '网罒',
+  '爪爫⺤', '爿丬', '足𧾷⻊', '川巛', '襾覀', '牛牜', '王𤣩', '竹⺮𥫗', '羊𦍌⺶⺷', '長镸', '卩㔾𰆊',
+  '歹歺', '月⺼', '雨⻗', '阝⻏⻖', '冂⺆', '小⺌⺍', '卜⺊', '彐⺕𫜹', '贝⻉', '车⻋', '长⻓',
+  '门⻔', '页⻚', '风⻛', '飞⻜', '马⻢', '鱼⻥', '鸟⻦', '齐⻬', '齿⻮', '龙⻰', '龟⻳', '二𠄠', '䜌龻', '収𰀡', '亦𰁜',
+];
+const FULL_FORM = new Map(SAME_PART.flatMap((forms) => [...forms].map((form) => [form, [...forms][0]])));
+/** The other forms of each full form. */
+const FORMS = new Map(SAME_PART.map((forms) => [[...forms][0], [...forms].slice(1)]));
+
+/** One name for each form of a part. A piece with no name matches no part. */
+const samePart = (char) => {
+  if (char === null) return UNNAMED;
+  const form = char.normalize('NFKC');
+  return FULL_FORM.get(form) ?? form;
+};
+
+/**
+ * The top-level parts of a composition tree. A group is not a step, the same
+ * rule as the tree: its parts join the list. A ㇯ group takes one part away
+ * from another, so it is one part with no name, and it matches no part. A
+ * tree of one character has no parts.
+ */
+const compositionParts = (tree) => {
+  const parts = (node) => {
+    if (node.op === '㇯') return [null];
+    return node.op ? node.children.flatMap(parts) : [node.char];
+  };
+  return tree.op ? parts(tree) : [];
+};
+
+/**
+ * Compare the parts of each named part of each breakdown, at every level,
+ * with the Wiktionary composition of its character (#563). The top
+ * character is a named part too. `breakdowns` holds `{ c, p }` as
+ * breakdownOf gives it, and `compositions` the composition text of each
+ * character. A piece with no name and a stroke are not compared. Gives:
+ *
+ * - `differences`: `{ char, parts, composition, tops }` for each split whose
+ *   parts match no alternative of the composition. One split of one part is
+ *   one difference, and `tops` gives the top characters that hold it.
+ *   `strokes` is true when every part is one stroke: such a split can name
+ *   no wrong part, and Wiktionary often writes the strokes as other forms
+ *   (口 = 丨 𠃍 一 and ⿱冂一)
+ * - `absent`: the named parts with no composition
+ * - `malformed`: the named parts whose composition does not parse
+ */
+function compareWithWiktionary(breakdowns, compositions) {
+  // The parts of each alternative of the composition of a part, by its name.
+  const splits = new Map();
+  // `name` is the name that samePart gives, so each form of the part brings
+  // its own composition: 収 has none, and 𰀡 is ⿲丨丨又.
+  const splitsOf = (name) => {
+    if (!splits.has(name)) {
+      const forms = [name, ...(FORMS.get(name) ?? [])];
+      const trees = forms.flatMap((form) => (compositions[form] ? parseComposition(compositions[form]) ?? [] : []));
+      splits.set(name, trees.map((tree) => compositionParts(tree).map(samePart)).filter((parts) => parts.length));
+    }
+    return splits.get(name);
+  };
+  // One entry for each split: the same part with the same parts in many
+  // characters is one row of the report.
+  const splitsSeen = new Map();
+  const absent = new Set();
+  const malformed = new Set();
+  const compare = (node, top) => {
+    const parts = node.p.map((part) => part.c);
+    const key = `${node.c} ${parts.map((c) => c ?? UNNAMED).join(' ')}`;
+    const seen = splitsSeen.get(key);
+    if (seen) {
+      if (seen.difference && !seen.difference.tops.includes(top)) seen.difference.tops.push(top);
+      return;
+    }
+    const entry = { difference: null };
+    splitsSeen.set(key, entry);
+    const composition = compositions[node.c];
+    if (composition === undefined) {
+      absent.add(node.c);
+      return;
+    }
+    const alternatives = parseComposition(composition);
+    if (alternatives === null) {
+      malformed.add(node.c);
+      return;
+    }
+    const same = alternatives.some((tree) =>
+      sameParts(parts.map(samePart), compositionParts(tree).map(samePart), splitsOf),
+    );
+    if (!same) {
+      const strokes = node.p.every((part) => part.s.length === 1);
+      entry.difference = { char: node.c, parts, composition, tops: [top], strokes };
+    }
+  };
+  const walk = (node, top) => {
+    if (node.c !== null && node.p) compare(node, top);
+    for (const part of node.p ?? []) walk(part, top);
+  };
+  for (const breakdown of breakdowns) walk(breakdown, breakdown.c);
+  const differences = [...splitsSeen.values()].flatMap((entry) => (entry.difference ? [entry.difference] : []));
+  return { differences, absent: [...absent], malformed: [...malformed] };
+}
+
+/**
+ * Whether two lists of parts name the same strokes. The parts that both
+ * lists hold cancel. Then a part splits into the parts of its own
+ * composition when the other list holds one of them (劳 = 艹 冖 力 and
+ * ⿱𫇦力, because 𫇦 = ⿱艹冖). The lists match when no part is left. The
+ * number of splits has a limit, so a composition that holds its own
+ * character stops there.
+ */
+const MAX_SPLITS = 32;
+
+function sameParts(a, b, splitsOf) {
+  const left = [[...a], [...b]];
+  for (let round = 0; round < MAX_SPLITS; round++) {
+    for (const part of [...left[0]]) {
+      const j = left[1].indexOf(part);
+      if (j >= 0) {
+        left[1].splice(j, 1);
+        left[0].splice(left[0].indexOf(part), 1);
+      }
+    }
+    if (left[0].length === 0 && left[1].length === 0) return true;
+    // The other list holds all the parts of a split: 収 = ⿲丨丨又 before 収 = ⿰丩又.
+    const holdsAll = (pieces, other) => {
+      const rest = [...other];
+      return pieces.every((piece) => {
+        const k = rest.indexOf(piece);
+        if (k >= 0) rest.splice(k, 1);
+        return k >= 0;
+      });
+    };
+    const holdsOne = (pieces, other) => pieces.some((piece) => other.includes(piece));
+    const split = () => {
+      for (const fits of [holdsAll, holdsOne]) {
+        for (const [side, other] of [[0, 1], [1, 0]]) {
+          for (const [i, part] of left[side].entries()) {
+            const pieces = splitsOf(part).find((list) => fits(list, left[other]));
+            if (pieces) {
+              left[side].splice(i, 1, ...pieces);
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    };
+    if (!split()) return false;
+  }
+  return false;
 }
 
 module.exports = {
   breakdownContext,
+  compareWithWiktionary,
   breakdownFileName,
   buildBreakdowns,
   breakdownOf,
@@ -827,4 +1083,5 @@ module.exports = {
   parseIds,
   parseMakeMeAHanzi,
   strokeOrder,
+  wiktionaryComposition,
 };

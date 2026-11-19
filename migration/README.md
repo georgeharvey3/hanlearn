@@ -119,10 +119,11 @@ The committed sources are in `components/`:
 - `components/source/dictionary.txt`, `COPYING` and `LGPL`: Make Me a Hanzi at one pinned commit. `dictionary.txt` is LGPL 3.0 or later.
 - `components/source/GPL`: the GPL 3.0 text, which the LGPL adds to.
 - `components/source/stroke-counts.json` and `stroke-ends.json`: the stroke count of each character in `hanzi-writer-data@2.0.1`, and the first and last point of each stroke. The app draws this stroke data.
+- `components/source/wiktionary.json`: the Wiktionary composition of each character entry, from the Translingual dictionary of Wiktextract on kaikki.org. The file gives the date of the Wiktionary dump. `wiktionary-NOTICE.txt` gives the credit. The text is CC BY-SA 4.0. The build uses it only for the comparison below.
 - `components/definitions.json`: the definitions file. It holds the acjk text of each form that the two sources do not have.
 - `components/labels.json`: the labels file.
 
-`npm --prefix migration run fetch:makemeahanzi` downloads the Make Me a Hanzi and Hanzi Writer files again. Then `npm --prefix migration run fetch:animcjk` downloads the AnimCJK file again. The build uses no network. The rules are pure, in `componentBreakdown.js`.
+`npm --prefix migration run fetch:makemeahanzi` downloads the Make Me a Hanzi and Hanzi Writer files again. Then `npm --prefix migration run fetch:animcjk` downloads the AnimCJK file again. `npm --prefix migration run fetch:wiktionary` downloads the Wiktionary file again. kaikki.org keeps only its latest extraction, so a new download gives the data of a new dump. The build uses no network. The rules are pure, in `componentBreakdown.js`.
 
 ### The acjk text
 
@@ -151,13 +152,14 @@ A top character takes the first of these definitions that has its Hanzi Writer s
 
 ### The tree
 
-The tree follows five rules:
+The tree follows six rules:
 
 - Every part splits until it is one stroke. A label never stops a split. So 賣 in 續 splits into 士 + 買, 買 into 罒 + 貝, and 口 into its 3 strokes.
 - A part takes the definition of its character that has the same number of strokes. A definition with another number of strokes is another form, and the part never takes it. 朗 draws 良 with 6 strokes, and 良 alone has 7.
 - The strokes of a part pair with the strokes of its definition in stroke order.
 - A group with no name is not a step. Its pieces join the split directly, so 覽 is 臣 + 𠂉 + 一 + 皿 + 見. `groups` in the labels file can name a group: `⿱廿⿻口夫` is 𦰩, the left side of 難.
 - A part with no definition splits into its strokes. The strokes have no name.
+- A character never holds itself. A decomposition of Make Me a Hanzi names a group only when it holds every stroke of its character: 求 is `⿻一氺`, and the dot is in no piece. The build stops when a part has the name of a character above it.
 
 A part looks for a definition in this order: the parts that its parent gives it in place, a text of the definitions file, the AnimCJK sets, then Make Me a Hanzi. The AnimCJK set of the parent comes first. Make Me a Hanzi is last, because it names a part by a form that has an entry. That form is not always the form drawn.
 
@@ -187,11 +189,37 @@ The build stops when a named part of 2 or more strokes has no definition. The me
 
 `labels` in the labels file gives the label of a part. `names` gives a label and pinyin to a part that has no entry of its own (㐫 in 脑). An empty file is legal.
 
+`shapes` in the labels file lists the parts that a source names only for their shape. Such a part shows its label and no pinyin. AnimCJK uses 丅 only for the shape of the top of 敢, 斤 and 華, so 丅 is "T shape", not "below", xià. A part in `shapes` has no meaning in any character, so do not add a part that has its meaning in other characters (扌, 厂).
+
 A part with no entry in the labels file takes the first sense of its Make Me a Hanzi definition, then of its AnimCJK definition. The build prints each part character with no label from any source. It also prints the number of parts that still use this fallback label.
 
 The labels file holds the learner label of the most frequent parts in HSK 1–7 (#531), and of every part of the HSK 1–3 trees of that time (#532). It also holds a label for each stroke and for the frequent forms that AnimCJK names. A side form takes its learner name (亻 is "person", not "man"). A character takes the sense that a learner needs inside other characters (凶 is "fierce", not "culprit").
 
 The build stops when the labels file gives a label to a part that is in no breakdown. This occurs with a typo.
+
+### The Wiktionary comparison
+
+A source can name a part wrongly, and the tree rules cannot find this error (#563). So the build compares the parts of each named part with the Wiktionary composition of that part. It does this at every level of each tree, and the top character is a named part too. In 續, it compares 續 = 糹 + 賣, then 賣 = 士 + 買, then 買 = 罒 + 貝. A piece with no name and a stroke are not compared. Wiktionary does not replace a source, because it has no stroke data, so the comparison cannot find a part with the right name and the wrong strokes.
+
+The comparison uses these rules:
+
+- The parts match when they match one alternative of the composition. A composition can give an alternative for each region: `⿱亽㇇(G) or ⿱亼㇇(HTJKV)`.
+- A group of the composition is not a step, the same rule as the tree.
+- The order of the parts does not count.
+- A side form and its full form are the same part (亻 and 人). The forms of one part are in `SAME_PART` in `componentBreakdown.js`. Two characters that both stand alone are never the same part, so 月 and 肉, and 王 and 玉, stay apart.
+- A `㇯` group takes one part away from another. It is one part with no name, and it matches no part.
+- A part that one side splits matches when its own composition gives the parts of the other side. 劳 is 艹 + 冖 + 力 in the breakdown and `⿱𫇦力` in Wiktionary, and 𫇦 is `⿱艹冖`.
+
+A local run writes the differences to `components/wiktionary-differences.md`. CI only prints their number. A difference does not stop the build.
+
+The report gives one row for each split of a part, with the HSK characters that hold it. The rows in the most characters come first, because one correction fixes all of them. The report has two tables:
+
+- **Parts**: the breakdown splits the part into other parts than Wiktionary. A wrong part name is in this table.
+- **Strokes**: the breakdown splits the part into strokes. Such a split names no wrong part, and Wiktionary often writes the strokes as other forms (口 is 丨 𠃍 一, and `⿱冂一`).
+
+For each row, correct `definitions.json`, or accept the source.
+
+The breakdown files hold no Wiktionary data, so their `LICENSE.txt` does not change. `ATTRIBUTION.txt` credits Wiktionary for the comparison.
 
 ### Output
 

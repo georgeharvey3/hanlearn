@@ -1,5 +1,5 @@
 /**
- * Export the reports of wrong part meanings of all learners to a CSV file,
+ * Export the reports of wrong breakdowns of all learners to a CSV file,
  * one row for each report. See issue #533.
  *
  * A learner reports the label of a part from the line of a tapped part in the

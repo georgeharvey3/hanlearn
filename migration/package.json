@@ -9,7 +9,8 @@
     "restore:missed-pass": "node restore-missed-pass.js",
     "fetch:tatoeba": "node fetch-tatoeba.js",
     "fetch:makemeahanzi": "node fetch-makemeahanzi.js",
-    "fetch:animcjk": "node fetch-animcjk.js"
+    "fetch:animcjk": "node fetch-animcjk.js",
+    "fetch:wiktionary": "node fetch-wiktionary.js"
   },
   "dependencies": {
     "firebase-admin": "^12.0.0",
