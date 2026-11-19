@@ -300,7 +300,12 @@ const WordPageBody: React.FC<Props> = ({
               />
             )}
             {activeTab === 'characters' && chars.length > 0 && (
-              <CharactersTab chars={chars} index={index} onSelect={setCharIndex} readingsAt={readingsAt} />
+              <CharactersTab
+                chars={chars}
+                index={index}
+                onSelect={setCharIndex}
+                readingsAt={readingsAt}
+              />
             )}
             {activeTab === 'progress' && owned && <ProgressTab word={owned} lists={lists} />}
           </Box>

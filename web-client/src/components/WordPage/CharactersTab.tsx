@@ -29,7 +29,10 @@ const CharactersTab: React.FC<Props> = ({ chars, index, onSelect, readingsAt }) 
   return (
     <Box sx={{ py: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
       {chars.length > 1 && (
-        <Box role="radiogroup" sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1 }}>
+        <Box
+          role="radiogroup"
+          sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1 }}
+        >
           {chars.map((c, i) => (
             <ButtonBase
               key={`${c}-${i}`}
@@ -53,7 +56,15 @@ const CharactersTab: React.FC<Props> = ({ chars, index, onSelect, readingsAt }) 
         </Box>
       )}
       <CharacterPanel key={`${char}-${index}`} char={char} />
-      <Box sx={{ alignSelf: 'stretch', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+      <Box
+        sx={{
+          alignSelf: 'stretch',
+          textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 0.75,
+        }}
+      >
         {line.pinyin && (
           <Box lang="zh-Latn" sx={{ fontSize: 20, fontWeight: 600, color: colors.primaryDark }}>
             {line.pinyin}

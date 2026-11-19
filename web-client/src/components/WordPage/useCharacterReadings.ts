@@ -62,7 +62,10 @@ export const useCharacterReadings = (
       entriesOf(char, charSet)
         .then((entries) => record(index, readingsInWord(entries, syllables[index])))
         .catch((error) => {
-          reportError(error, { feature: 'character-lookup', context: { char, phase: 'word-page' } });
+          reportError(error, {
+            feature: 'character-lookup',
+            context: { char, phase: 'word-page' },
+          });
           record(index, 'failed');
         });
     });

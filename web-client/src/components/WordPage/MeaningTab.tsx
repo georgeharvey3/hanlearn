@@ -34,7 +34,8 @@ const useFirstSentence = (word: Word, charSet: CharSet) => {
     let cancelled = false;
     getSegmentedSentence(word.simp, charSet)
       .then(({ sentence: found }) => {
-        if (!cancelled) setLoaded({ key, sentence: found ? resolveSentence(found, charSet) : null });
+        if (!cancelled)
+          setLoaded({ key, sentence: found ? resolveSentence(found, charSet) : null });
       })
       .catch((error) => reportError(error, { feature: 'word-page-sentence' }));
     return () => {
@@ -86,11 +87,14 @@ const SentenceCard: React.FC<{
             if (i === sentence.chinese.targetIndex) {
               return (
                 <Highlight key={i}>
-                  {sentence.chinese.target ? button(sentence.chinese.target, 'target') : word[charSet]}
+                  {sentence.chinese.target
+                    ? button(sentence.chinese.target, 'target')
+                    : word[charSet]}
                 </Highlight>
               );
             }
-            if (typeof segment === 'string') return <React.Fragment key={i}>{segment}</React.Fragment>;
+            if (typeof segment === 'string')
+              return <React.Fragment key={i}>{segment}</React.Fragment>;
             return button(segment, i);
           })}
         </Box>
@@ -174,7 +178,9 @@ const MeaningTab: React.FC<Props> = ({
       {chars.length > 1 && (
         <Box>
           <Overline sx={{ mb: 0.75 }}>{copy.wordPage.characters}</Overline>
-          <Box sx={{ bgcolor: colors.card, border: `1px solid ${colors.divider}`, borderRadius: 1 }}>
+          <Box
+            sx={{ bgcolor: colors.card, border: `1px solid ${colors.divider}`, borderRadius: 1 }}
+          >
             {chars.map((char, i) => {
               const line = readingLine(readingsAt(i));
               return (

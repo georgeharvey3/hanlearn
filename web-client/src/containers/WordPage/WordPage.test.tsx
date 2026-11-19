@@ -156,14 +156,15 @@ describe('WordPage', () => {
     expect(screen.getByRole('heading', { name: '學習' })).toBeInTheDocument();
     expect(screen.getByText('xué xí')).toBeInTheDocument();
     const senses = screen.getByRole('list', { name: copy.wordPage.meaningTab });
-    expect(within(senses).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      'to learn',
-      'to study',
-    ]);
+    expect(
+      within(senses)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['to learn', 'to study']);
     expect(await screen.findByTestId('word-sentence')).toHaveTextContent('I study.');
-    expect(screen.getByRole('button', { name: copy.wordPage.openCharacter('學') })).toHaveTextContent(
-      'xué',
-    );
+    expect(
+      screen.getByRole('button', { name: copy.wordPage.openCharacter('學') }),
+    ).toHaveTextContent('xué');
     expect(screen.queryByRole('button', { name: copy.wordPage.add })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: copy.wordPage.progressTab }));
@@ -180,8 +181,12 @@ describe('WordPage', () => {
 
     await user.click(screen.getByRole('tab', { name: copy.wordPage.progressTab }));
 
-    expect(within(screen.getByTestId('direction-CM')).getByText(copy.wordBank.leech)).toBeInTheDocument();
-    expect(within(screen.getByTestId('direction-CM')).getByText(copy.wordPage.lapses(9))).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('direction-CM')).getByText(copy.wordBank.leech),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('direction-CM')).getByText(copy.wordPage.lapses(9)),
+    ).toBeInTheDocument();
     expect(within(screen.getByTestId('direction-PC')).queryByText(copy.wordBank.leech)).toBeNull();
   });
 
@@ -265,7 +270,13 @@ describe('WordPage', () => {
   });
 
   it('shows the meaning of a custom word under the "Own word" tag', async () => {
-    const custom = studied({ id: -3, simp: '老铁', trad: '老鐵', pinyin: 'lao3 tie3', meaning: 'close friend (slang)' });
+    const custom = studied({
+      id: -3,
+      simp: '老铁',
+      trad: '老鐵',
+      pinyin: 'lao3 tie3',
+      meaning: 'close friend (slang)',
+    });
     renderPage(-3, { words: [custom] });
 
     expect(screen.getByText(copy.wordPage.ownWord)).toBeInTheDocument();
@@ -303,7 +314,10 @@ describe('WordPage', () => {
       'true',
     );
     expect(screen.getByRole('radio', { name: '拉' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getAllByRole('radio').map((r) => r.getAttribute('aria-label'))).toEqual(['卡', '拉']);
+    expect(screen.getAllByRole('radio').map((r) => r.getAttribute('aria-label'))).toEqual([
+      '卡',
+      '拉',
+    ]);
     expect(await screen.findByTestId('character-panel-拉')).toBeInTheDocument();
     // A character with no breakdown shows no switch and no placeholder.
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();

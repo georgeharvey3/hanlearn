@@ -30,7 +30,11 @@ const LeechFlag: React.FC = () => (
 
 /** Five segments, filled to the level in the level's ink. */
 const LevelBar: React.FC<{ level: number }> = ({ level }) => (
-  <Box role="img" aria-label={BANK_LABELS[level] ?? BANK_LABELS[1]} sx={{ display: 'flex', gap: '3px' }}>
+  <Box
+    role="img"
+    aria-label={BANK_LABELS[level] ?? BANK_LABELS[1]}
+    sx={{ display: 'flex', gap: '3px' }}
+  >
     {[1, 2, 3, 4, 5].map((i) => (
       <Box
         key={i}
@@ -76,11 +80,21 @@ const ProgressTab: React.FC<{ word: Word; lists: WordList[] }> = ({ word, lists 
             sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box sx={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{DIRECTION_LABELS[direction]}</Box>
+              <Box sx={{ flex: 1, fontSize: 14, fontWeight: 600 }}>
+                {DIRECTION_LABELS[direction]}
+              </Box>
               {isLeech(state?.lapses) && <LeechFlag />}
             </Box>
             <LevelBar level={dirLevel} />
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', columnGap: 1.5, fontSize: 13, color: colors.textSecondary }}>
+            <Box
+              sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                columnGap: 1.5,
+                fontSize: 13,
+                color: colors.textSecondary,
+              }}
+            >
               <span>{BANK_LABELS[dirLevel]}</span>
               {state?.dueDate && <span>{formatRelativeDueDate(state.dueDate)}</span>}
               {lapses > 0 && <span>{copy.wordPage.lapses(lapses)}</span>}
