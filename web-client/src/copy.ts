@@ -384,8 +384,6 @@ export const copy = {
     next: (due: string) => `Next · ${due}`,
     lapses: (n: number) => `${n} lapse${n === 1 ? '' : 's'}`,
     lists: 'Lists',
-    loadFailed: 'Word did not load',
-    retry: 'Retry',
     notFound: 'No entry',
   },
   premadeLists: {
