@@ -168,12 +168,14 @@ export function withErrorReporting<TData, TResult>(
   data: TData,
   context: functions.https.CallableContext
 ) => Promise<TResult> {
-  return withLatencyLog(functionName, async (data: TData, context: functions.https.CallableContext) => {
+  // The latency line times the handler only, not the Sentry flush below.
+  const timed = withLatencyLog(functionName, handler);
+  return async (data, context) => {
     try {
-      return await handler(data, context);
+      return await timed(data, context);
     } catch (err) {
       await reportError(functionName, err, context);
       throw err;
     }
-  });
+  };
 }

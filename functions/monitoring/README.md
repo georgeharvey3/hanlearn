@@ -140,7 +140,7 @@ A `dictionary*` function also writes one `dictionary load` line for each stage o
 its first call, with the fields `stage` and `ms`. Each function builds only the
 indexes that it reads ([src/dictionaryStore.ts](../src/dictionaryStore.ts)).
 
-To see the cold calls of one function, use this filter in Cloud Logging:
+To see the first calls of one function, use this filter in Cloud Logging:
 
 ```
 resource.type="cloud_function"
@@ -149,7 +149,7 @@ jsonPayload.function="dictionarySearch"
 jsonPayload.firstCall=true
 ```
 
-To see the warm calls, change the last line to `jsonPayload.firstCall=false`.
+To see the other calls, change the last line to `jsonPayload.firstCall=false`.
 The time that the learner waits also holds the network and the start of the
 container. The web client measures that time: Sentry samples 10% of the page
 traces, and each callable request is an `http.client` span.

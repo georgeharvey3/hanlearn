@@ -145,7 +145,7 @@ function substringMatchInternal(
  *
  * The dictionary store reads a 15.9 MB JSON file and builds the indexes of the
  * function over all 124k entries, once per instance. Measured peak RSS for that
- * cold start is about 194 MB (see scripts/measure-dictionary-memory.js and issue #319), so
+ * cold start, with the two character indexes only, was about 194 MB (see scripts/measure-dictionary-memory.js and issue #319), so
  * the 1st gen default of 256 MB leaves only 24% of headroom. 512 MB leaves 62%,
  * and the larger CPU share that comes with it also shortens the cold start.
  */
@@ -287,8 +287,10 @@ export const dictionaryAlternatives = dictionaryRuntime.https.onCall(
 
     // The rate-limit transaction waits on the network, and the index build is
     // CPU work, so the build runs while the transaction is in flight (#498).
-    // The empty catch stops an unhandled rejection when the build throws
-    // first; the await below still gets the rejection.
+    // A caller that the limit rejects on a cold instance still builds the
+    // index, but the instance keeps it for later calls. The empty catch stops
+    // an unhandled rejection when the build throws first. The await below
+    // still gets the rejection.
     const allowed = checkRateLimit(
       context.auth.uid,
       'dictionaryAlternatives',

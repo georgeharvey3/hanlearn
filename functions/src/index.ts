@@ -102,8 +102,8 @@ export const getDailyChengyu = standardRuntime.https.onCall(
 
     // Try reading the cached document first (1 read instead of full scan). The
     // read runs beside the rate-limit transaction, not after it, so the caller
-    // waits for one round trip and not two (#498). A rejected caller gets
-    // nothing from the read.
+    // waits for one round trip and not two (#498). A caller that the limit
+    // rejects still costs this one read, and gets nothing from it.
     const [, cacheDoc] = await Promise.all([
       checkRateLimit(uid, 'getDailyChengyu', RATE_LIMITS.getDailyChengyu),
       cacheRef.get(),
@@ -232,6 +232,7 @@ export const lookupChengyuChar = standardRuntime.https.onCall(
     }
 
     // The query runs beside the rate-limit transaction, as in getDailyChengyu.
+    // A caller that the limit rejects still costs this query.
     const [, wordsSnapshot] = await Promise.all([
       checkRateLimit(uid, 'lookupChengyuChar', RATE_LIMITS.lookupChengyuChar),
       db.collection('words').where('simp', '==', char).get(),
