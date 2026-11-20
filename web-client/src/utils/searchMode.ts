@@ -3,6 +3,8 @@
  * Latin query. Chinese reads it as pinyin, English as an English meaning. A
  * hanzi query reads the same in both. The device keeps the last mode.
  */
+
+// The same values as the server's, in functions/src/dictionarySearch.ts.
 export type SearchMode = 'chinese' | 'english';
 
 const KEY = 'searchMode';

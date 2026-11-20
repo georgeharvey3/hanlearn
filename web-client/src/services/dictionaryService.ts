@@ -13,6 +13,7 @@ import { traceAsync } from './performanceService';
 import { retryTransient } from '../utils/retry';
 import { AlternativeDirection } from '../utils/alternativeAnswers';
 import { SearchMode } from '../utils/searchMode';
+import { CharSet } from '../utils/charSet';
 
 /**
  * Search for words by exact character match.
@@ -33,7 +34,7 @@ export async function searchWord(character: string, charSet: 'simp' | 'trad'): P
 
 interface SearchRequest {
   query: string;
-  charSet: 'simp' | 'trad';
+  charSet: CharSet;
   mode: SearchMode;
 }
 
@@ -46,7 +47,7 @@ const searchCallable = () => httpsCallable<SearchRequest, Word[]>(functions, 'di
  */
 export async function searchDictionary(
   query: string,
-  charSet: 'simp' | 'trad',
+  charSet: CharSet,
   mode: SearchMode,
 ): Promise<Word[]> {
   const parsed = searchInputSchema.safeParse(query);

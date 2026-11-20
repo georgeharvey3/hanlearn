@@ -4,7 +4,7 @@ import * as functions from 'firebase-functions/v1';
 import { checkRateLimit, RATE_LIMITS } from './rateLimit';
 import { withErrorReporting } from './reporting';
 import { alternativeAnswers, readAlternativesRequest } from './alternativeAnswers';
-import { ModeOf, searchDictionary, SearchMode, WordResult } from './dictionarySearch';
+import { SearchModeIndex, searchDictionary, SearchMode, WordResult } from './dictionarySearch';
 import { entryById } from './dictionaryEntry';
 import { createDictionaryStore } from './dictionaryStore';
 
@@ -178,8 +178,10 @@ export const dictionarySearchWord = dictionaryRuntime.https.onCall(
 export const dictionarySearch = dictionaryRuntime.https.onCall(
   withErrorReporting(
     'dictionarySearch',
-    (data: { query: string; charSet: 'simp' | 'trad'; mode: SearchMode }) => {
-      const { query, charSet, mode } = data;
+    (data: { query: string; charSet: 'simp' | 'trad'; mode?: SearchMode }) => {
+      // A bundle from before #577 sends no mode. It reads as Chinese until the
+      // app reloads, because the functions deploy before the hosting.
+      const { query, charSet, mode = 'chinese' } = data;
       const validCharSet = charSet === 'simp' || charSet === 'trad';
       const validMode = mode === 'chinese' || mode === 'english';
       if (typeof query !== 'string' || query.length > 100 || !validCharSet || !validMode) {
@@ -188,7 +190,7 @@ export const dictionarySearch = dictionaryRuntime.https.onCall(
           'query, charSet and mode are required'
         );
       }
-      const search: ModeOf =
+      const search: SearchModeIndex =
         mode === 'english' ? { mode, english: dictionary.englishIndex() } : { mode };
       return searchDictionary(dictionary.searchIndex(), query, charSet, search);
     }

@@ -48,6 +48,7 @@ import {
   warmEnglishSearch as warmEnglishSearchCall,
 } from './dictionaryService';
 import { SearchMode } from '../utils/searchMode';
+import { CharSet } from '../utils/charSet';
 import { addSessionToBatch } from './retentionService';
 import { recordReviewLog, reviewEntry, type ReviewLogEntry } from './reviewLogService';
 import type { ReviewOutcome } from '../utils/retention';
@@ -672,7 +673,7 @@ export const finishTest = async (
  */
 export const searchWord = async (
   query: string,
-  charSet: 'simp' | 'trad',
+  charSet: CharSet,
   mode: SearchMode,
 ): Promise<Word[]> => {
   return searchDictionary(query, charSet, mode);

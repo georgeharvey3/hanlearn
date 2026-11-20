@@ -354,13 +354,13 @@ function compare(index: SearchIndex, matches: Matches, charSet: 'simp' | 'trad')
 }
 
 /** The search mode, with the English index that only the English mode reads. */
-export type ModeOf = { mode: 'chinese' } | { mode: 'english'; english: EnglishIndex };
+export type SearchModeIndex = { mode: 'chinese' } | { mode: 'english'; english: EnglishIndex };
 
 export function searchDictionary(
   index: SearchIndex,
   rawQuery: string,
   charSet: 'simp' | 'trad',
-  search: ModeOf,
+  search: SearchModeIndex,
 ): WordResult[] {
   const query = rawQuery.trim();
   if (!query) return [];
