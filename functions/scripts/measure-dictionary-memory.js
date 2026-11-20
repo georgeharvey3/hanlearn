@@ -141,6 +141,17 @@ if (!fs.existsSync(searchModule)) {
 const searched = time(() => require(searchModule).createSearchIndex(entries));
 record('build the search index', searched.elapsedMs);
 
+// Stage 3c: the two other indexes. Since #498 each function builds only the
+// indexes that it reads (src/dictionaryStore.ts), so the peak above is the
+// worst case of an instance that built them all, not the cost of one function.
+const lib = (name) => require(path.join(__dirname, '..', 'lib', name));
+const entryIndexed = time(() => lib('dictionaryEntry.js').createEntryIndex(entries));
+record('build the entry index', entryIndexed.elapsedMs);
+const alternativesIndexed = time(() =>
+  lib('alternativeAnswers.js').createAlternativeIndex(entries)
+);
+record('build the alternative index', alternativesIndexed.elapsedMs);
+
 // Stage 4: what the instance holds for the rest of its life, after a full GC.
 if (typeof global.gc === 'function') {
   global.gc();
@@ -181,6 +192,19 @@ for (const stage of stages) {
   );
 }
 console.log('-'.repeat(72));
+
+// The load work of the first call of each function, after the module load.
+const perFunction = [
+  ['dictionarySearch', searched.elapsedMs],
+  ['dictionaryEntry', entryIndexed.elapsedMs],
+  ['dictionaryAlternatives', alternativesIndexed.elapsedMs],
+  ['the character lookups', indexed.elapsedMs],
+];
+console.log('\nfirst-call load (read + parse, then the index of the function):');
+for (const [name, indexMs] of perFunction) {
+  console.log(`  ${name.padEnd(24)} ${pad(fixed(parsed.elapsedMs + indexMs), 8)}ms`);
+}
+
 console.log(`\npeak RSS: ${fixed(peakMb)} MB`);
 for (const limit of AVAILABLE_LIMITS) {
   if (limit.mb < peakMb) continue;

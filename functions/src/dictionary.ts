@@ -3,60 +3,19 @@ import * as path from 'path';
 import * as functions from 'firebase-functions/v1';
 import { checkRateLimit, RATE_LIMITS } from './rateLimit';
 import { withErrorReporting } from './reporting';
-import {
-  AlternativeIndex,
-  alternativeAnswers,
-  createAlternativeIndex,
-  readAlternativesRequest,
-} from './alternativeAnswers';
-import {
-  createSearchIndex,
-  DictionaryEntry,
-  searchDictionary,
-  SearchIndex,
-  WordResult,
-} from './dictionarySearch';
-import { createEntryIndex, entryById, EntryIndex } from './dictionaryEntry';
-
-// In-memory dictionary state (persists across warm invocations)
-let dictionaryLoaded = false;
-let entries: DictionaryEntry[] = [];
-const simpIndex: Map<string, DictionaryEntry[]> = new Map();
-const tradIndex: Map<string, DictionaryEntry[]> = new Map();
-let searchIndex: SearchIndex;
-let entryIndex: EntryIndex;
-// Built on the first call of dictionaryAlternatives only, so that the other
-// dictionary functions do not carry it.
-let alternativeIndex: AlternativeIndex | null = null;
+import { alternativeAnswers, readAlternativesRequest } from './alternativeAnswers';
+import { searchDictionary, WordResult } from './dictionarySearch';
+import { entryById } from './dictionaryEntry';
+import { createDictionaryStore } from './dictionaryStore';
 
 /**
- * Load the dictionary from the bundled JSON file into memory.
- * Only runs once per Cloud Function instance.
+ * The dictionary of this instance (persists across warm invocations). Each
+ * function builds only the indexes that it reads, on its first call (#498).
  */
-function loadDictionary(): void {
-  if (dictionaryLoaded) return;
-
+const dictionary = createDictionaryStore(() => {
   const dictPath = path.join(__dirname, '..', 'data', 'dictionary.json');
-  const raw = fs.readFileSync(dictPath, 'utf8');
-  entries = JSON.parse(raw);
-
-  for (const entry of entries) {
-    if (!simpIndex.has(entry.simp)) {
-      simpIndex.set(entry.simp, []);
-    }
-    simpIndex.get(entry.simp)!.push(entry);
-
-    if (!tradIndex.has(entry.trad)) {
-      tradIndex.set(entry.trad, []);
-    }
-    tradIndex.get(entry.trad)!.push(entry);
-  }
-  searchIndex = createSearchIndex(entries);
-  entryIndex = createEntryIndex(entries);
-
-  dictionaryLoaded = true;
-  console.log(`Dictionary loaded: ${entries.length} entries`);
-}
+  return JSON.parse(fs.readFileSync(dictPath, 'utf8'));
+});
 
 /**
  * Search for words by exact character match.
@@ -65,8 +24,7 @@ function searchWordInternal(
   character: string,
   charSet: 'simp' | 'trad'
 ): WordResult[] {
-  loadDictionary();
-
+  const { simp: simpIndex, trad: tradIndex } = dictionary.characterIndexes();
   const primaryIndex = charSet === 'simp' ? simpIndex : tradIndex;
   const fallbackIndex = charSet === 'simp' ? tradIndex : simpIndex;
 
@@ -90,9 +48,7 @@ function searchWordInternal(
 function lookupCharacterInternal(
   char: string
 ): { pinyin: string; trad: string } | null {
-  loadDictionary();
-
-  const results = simpIndex.get(char);
+  const results = dictionary.characterIndexes().simp.get(char);
   if (!results || results.length === 0) return null;
 
   return { pinyin: results[0].pinyin, trad: results[0].trad };
@@ -104,9 +60,7 @@ function lookupCharacterInternal(
 function lookupCharacterByTradInternal(
   char: string
 ): { pinyin: string; simp: string } | null {
-  loadDictionary();
-
-  const results = tradIndex.get(char);
+  const results = dictionary.characterIndexes().trad.get(char);
   if (!results || results.length === 0) return null;
 
   return { pinyin: results[0].pinyin, simp: results[0].simp };
@@ -119,8 +73,7 @@ function convertTextInternal(
   text: string,
   toCharSet: 'simp' | 'trad'
 ): string {
-  loadDictionary();
-
+  const { simp: simpIndex, trad: tradIndex } = dictionary.characterIndexes();
   const fromIndex = toCharSet === 'trad' ? simpIndex : tradIndex;
   let result = '';
 
@@ -143,8 +96,7 @@ function substringMatchInternal(
   text: string,
   charSet: 'simp' | 'trad'
 ): WordResult[] {
-  loadDictionary();
-
+  const { simp: simpIndex, trad: tradIndex } = dictionary.characterIndexes();
   const primaryIndex = charSet === 'simp' ? simpIndex : tradIndex;
   const fallbackIndex = charSet === 'simp' ? tradIndex : simpIndex;
   const results: WordResult[] = [];
@@ -191,9 +143,9 @@ function substringMatchInternal(
 /**
  * Runtime options for every `dictionary*` function.
  *
- * `loadDictionary()` reads a 15.9 MB JSON file and builds two Map indexes over
- * all 124k entries, once per instance. Measured peak RSS for that cold start is
- * about 194 MB (see scripts/measure-dictionary-memory.js and issue #319), so
+ * The dictionary store reads a 15.9 MB JSON file and builds the indexes of the
+ * function over all 124k entries, once per instance. Measured peak RSS for that
+ * cold start, with the two character indexes only, was about 194 MB (see scripts/measure-dictionary-memory.js and issue #319), so
  * the 1st gen default of 256 MB leaves only 24% of headroom. 512 MB leaves 62%,
  * and the larger CPU share that comes with it also shortens the cold start.
  */
@@ -231,8 +183,7 @@ export const dictionarySearch = dictionaryRuntime.https.onCall(
           'query and charSet are required'
         );
       }
-      loadDictionary();
-      return searchDictionary(searchIndex, query, charSet);
+      return searchDictionary(dictionary.searchIndex(), query, charSet);
     }
   )
 );
@@ -247,8 +198,7 @@ export const dictionaryEntry = dictionaryRuntime.https.onCall(
     if (typeof id !== 'number' || !Number.isInteger(id)) {
       throw new functions.https.HttpsError('invalid-argument', 'id is required');
     }
-    loadDictionary();
-    return entryById(entryIndex, id);
+    return entryById(dictionary.entryIndex(), id);
   })
 );
 
@@ -327,12 +277,6 @@ export const dictionaryAlternatives = dictionaryRuntime.https.onCall(
         'Authentication required'
       );
     }
-    await checkRateLimit(
-      context.auth.uid,
-      'dictionaryAlternatives',
-      RATE_LIMITS.dictionaryAlternatives
-    );
-
     const request = readAlternativesRequest(data);
     if (!request) {
       throw new functions.https.HttpsError(
@@ -341,9 +285,20 @@ export const dictionaryAlternatives = dictionaryRuntime.https.onCall(
       );
     }
 
-    loadDictionary();
-    alternativeIndex ??= createAlternativeIndex(entries);
-    const index = alternativeIndex;
+    // The rate-limit transaction waits on the network, and the index build is
+    // CPU work, so the build runs while the transaction is in flight (#498).
+    // A caller that the limit rejects on a cold instance still builds the
+    // index, but the instance keeps it for later calls. The empty catch stops
+    // an unhandled rejection when the build throws first. The await below
+    // still gets the rejection.
+    const allowed = checkRateLimit(
+      context.auth.uid,
+      'dictionaryAlternatives',
+      RATE_LIMITS.dictionaryAlternatives
+    );
+    allowed.catch(() => undefined);
+    const index = dictionary.alternativeIndex();
+    await allowed;
     return request.questions.map((question) =>
       alternativeAnswers(index, question, request.charSet)
     );

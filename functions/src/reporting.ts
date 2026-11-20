@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/google-cloud-serverless';
 import * as functions from 'firebase-functions/v1';
+import { withLatencyLog } from './latency';
 
 /**
  * Error reporting for the Cloud Functions.
@@ -156,6 +157,9 @@ type CallableHandler<TData, TResult> = (
  * returns a Firebase function object with deploy metadata, and the Sentry
  * wrappers such as `Sentry.wrapHttpFunction` expect a plain HTTP handler, so
  * they remove that metadata.
+ *
+ * Every callable has this wrapper, so it also writes the latency line of each
+ * call (#498).
  */
 export function withErrorReporting<TData, TResult>(
   functionName: string,
@@ -164,9 +168,11 @@ export function withErrorReporting<TData, TResult>(
   data: TData,
   context: functions.https.CallableContext
 ) => Promise<TResult> {
+  // The latency line times the handler only, not the Sentry flush below.
+  const timed = withLatencyLog(functionName, handler);
   return async (data, context) => {
     try {
-      return await handler(data, context);
+      return await timed(data, context);
     } catch (err) {
       await reportError(functionName, err, context);
       throw err;
