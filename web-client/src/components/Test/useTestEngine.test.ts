@@ -95,6 +95,7 @@ import { useTestEngine } from './useTestEngine';
 import { canCountAsKnown } from './countAsKnown';
 import { Word } from '../../types/models';
 import { Props } from './types';
+import * as ttsService from '../../services/ttsService';
 
 const makeWord = (overrides: Partial<Word> = {}): Word => ({
   id: 1,
@@ -1102,6 +1103,50 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
       onMistake({ mistakesOnStroke: 5, strokeNum: 0, totalMistakes: 5 });
     });
     expect(result.current.state.gradeCap).toBe('lapse');
+  });
+});
+
+describe('useTestEngine — the audio of the next question', () => {
+  const asked = { index: '0', aCategory: 'M' as any, qCategory: 'C' as any };
+  const word2 = makeWord({ id: 2, simp: '再见', trad: '再見', pinyin: 'zài jiàn' });
+
+  function startQuestion(
+    next: { index: string; aCategory: any; qCategory: any },
+    useSound: boolean,
+  ) {
+    const result = renderEngineWithState({
+      answerCategory: 'meaning',
+      questionCategory: 'character',
+      useSound,
+      currentPair: asked,
+      testSet: [makeWord(), word2],
+      queue: [asked, next],
+      charSet: 'trad',
+      chosenCharacter: '你好',
+      qNum: 1,
+    });
+    vi.mocked(ttsService.prefetch).mockClear();
+    act(() => {
+      result.current.setStateMerged({ qNum: 2 } as any);
+    });
+  }
+
+  it('fetches the audio of the next question when that question plays its audio', () => {
+    startQuestion({ index: '1', aCategory: 'M' as any, qCategory: 'P' as any }, true);
+
+    expect(ttsService.prefetch).toHaveBeenCalledWith('再見');
+  });
+
+  it('fetches nothing when the next question plays no audio', () => {
+    startQuestion({ index: '1', aCategory: 'P' as any, qCategory: 'M' as any }, true);
+
+    expect(ttsService.prefetch).not.toHaveBeenCalled();
+  });
+
+  it('fetches nothing when the sound is off', () => {
+    startQuestion({ index: '1', aCategory: 'M' as any, qCategory: 'P' as any }, false);
+
+    expect(ttsService.prefetch).not.toHaveBeenCalled();
   });
 });
 

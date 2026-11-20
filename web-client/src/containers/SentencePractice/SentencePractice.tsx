@@ -10,7 +10,12 @@ import StudyTop from '../../components/Test/Study/StudyTop';
 import { StudyButton } from '../../components/Test/Study/parts';
 import ComprehendTask from '../../components/Sentences/ComprehendTask';
 import ComposeTask from '../../components/Sentences/ComposeTask';
-import { TaskLoading, TaskOutcome } from '../../components/Sentences/shared';
+import {
+  TaskLoading,
+  TaskOutcome,
+  prefetchSentenceAudio,
+  readUseSound,
+} from '../../components/Sentences/shared';
 import { useFocusMode } from '../../components/Layout/focusMode';
 import { routes } from '../../components/Navigation/navLinks';
 import * as wordActions from '../../store/actions/index';
@@ -37,6 +42,7 @@ type Phase = 'loading' | 'error' | 'tasks' | 'done';
  */
 const SentencePractice: React.FC<Props> = ({ tab }) => {
   const userId = useSelector((state: RootState) => state.auth.userId);
+  const synthAvailable = useSelector((state: RootState) => state.settings.synthAvailable);
   const dispatch = useDispatch<AppDispatch>();
   const history = useHistory();
 
@@ -79,6 +85,14 @@ const SentencePractice: React.FC<Props> = ({ tab }) => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // With sound on, a Comprehend task plays its sentence as it shows, so the
+  // audio of the next task is fetched while the learner does this one (#576).
+  useEffect(() => {
+    if (tab !== 'comprehend' || phase !== 'tasks' || !readUseSound(synthAvailable)) return;
+    const next = set[position + 1];
+    if (next) prefetchSentenceAudio(next.word, next.sentenceId);
+  }, [phase, position, set, synthAvailable, tab]);
 
   const empty = phase === 'tasks' && set.length === 0;
   // The finish screen keeps focus mode, as the Study finish screen does, so its

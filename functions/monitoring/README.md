@@ -140,6 +140,12 @@ A `dictionary*` function also writes one `dictionary load` line for each stage o
 its first call, with the fields `stage` and `ms`. Each function builds only the
 indexes that it reads ([src/dictionaryStore.ts](../src/dictionaryStore.ts)).
 
+`textToSpeech` also writes one `tts steps` line for each call (#576). The field
+`steps` gives the time of each network step in milliseconds: `rateLimit`,
+`token` and `synthesis`. A step that did not run is not in the field. The
+field `tokenCached` is `true` when the call used the access token of an earlier
+call. The function keeps the token until one minute before it expires.
+
 To see the first calls of one function, use this filter in Cloud Logging:
 
 ```

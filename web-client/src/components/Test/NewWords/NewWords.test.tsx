@@ -167,6 +167,19 @@ beforeEach(() => {
   );
 });
 
+describe('NewWords — the audio of the next word', () => {
+  it('fetches the audio of the next word while the learner reads this one', () => {
+    render([diannao, xiuxi]);
+    expect(ttsService.prefetch).toHaveBeenCalledWith('休息');
+  });
+
+  it('fetches nothing when the sound is off', () => {
+    localStorage.setItem('useSound', 'false');
+    render([diannao, xiuxi]);
+    expect(ttsService.prefetch).not.toHaveBeenCalled();
+  });
+});
+
 describe('NewWords — the session bar and the steps', () => {
   it('shows the stage, the word count and the Understand step first', () => {
     render([diannao, xiuxi]);

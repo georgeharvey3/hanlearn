@@ -162,5 +162,34 @@ describe('ttsService', () => {
       mockCallable.mockRejectedValue(new Error('Network error'));
       expect(() => prefetch('失败')).not.toThrow();
     });
+
+    it('lets a play that comes before the prefetch ends wait for it, with no second call', async () => {
+      let answer!: (value: { data: { audioContent: string } }) => void;
+      mockCallable.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+
+      prefetch('在途');
+      speak('在途');
+      answer({ data: { audioContent: btoa('in-flight') } });
+
+      await vi.waitFor(() => {
+        expect(MockHowl).toHaveBeenCalled();
+      });
+      expect(mockCallable).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls again on a play after a prefetch that failed', async () => {
+      mockCallable.mockRejectedValueOnce(new Error('Network error'));
+      prefetch('重试');
+      await vi.waitFor(() => expect(mockCallable).toHaveBeenCalledTimes(1));
+      await Promise.resolve();
+
+      mockCallable.mockResolvedValue({ data: { audioContent: btoa('retry') } });
+      speak('重试');
+
+      await vi.waitFor(() => {
+        expect(MockHowl).toHaveBeenCalled();
+      });
+      expect(mockCallable).toHaveBeenCalledTimes(2);
+    });
   });
 });

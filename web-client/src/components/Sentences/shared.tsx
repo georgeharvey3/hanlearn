@@ -5,11 +5,13 @@ import { copy } from '../../copy';
 import { colors } from '../../theme';
 import { CharSet } from '../../utils/charSet';
 import { SentenceResult } from '../../utils/sentenceQueue';
-import { SentenceWord } from '../../utils/sentenceUtils';
+import { SentenceWord, resolveSentence } from '../../utils/sentenceUtils';
 import { SentenceGrade } from '../../utils/sentencePracticeDocuments';
 import { StudyButton, hanziSx } from '../Test/Study/parts';
 import { StudyBody } from '../Test/Study/StudyScreen';
 import * as ttsService from '../../services/ttsService';
+import { getSegmentedSentence } from '../../services/sentenceService';
+import { Word } from '../../types/models';
 
 /** What a task reports when the learner grades it: the grade, less what the tab knows. */
 export type TaskOutcome = Omit<SentenceGrade, 'wordId' | 'sentenceId' | 'tab' | 'at'>;
@@ -39,6 +41,25 @@ export function speak(
     onEnd: () => onLoading(false),
     onError: () => onLoading(false),
   });
+}
+
+/**
+ * Fetch the audio of a Comprehend sentence before its task shows, with the
+ * text and the speed that the task plays it with. A play that waits for the
+ * Cloud call starts late (#576).
+ */
+export function prefetchSentenceAudio(word: Word, sentenceId: string): void {
+  const charSet = readCharSet();
+  const slow = localStorage.getItem('slowMode') === 'true';
+  getSegmentedSentence(word.simp, charSet, sentenceId)
+    .then(({ sentence }) => {
+      if (!sentence) return;
+      const text = resolveSentence(sentence, charSet).chinese.sentence;
+      ttsService.prefetch(text, slow ? SLOW_SPEED : 1.0);
+    })
+    .catch(() => {
+      // The task loads the sentence again, and reports a failure there.
+    });
 }
 
 export const TaskLoading: React.FC = () => (

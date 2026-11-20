@@ -75,3 +75,30 @@ export function withLatencyLog<TData, TContext, TResult>(
     }
   };
 }
+
+export interface StepTimer {
+  /** Run one step of a handler and keep its time, also when it fails. */
+  time<T>(name: string, step: () => Promise<T>): Promise<T>;
+  /** The time of each step that ran, in milliseconds. */
+  steps(): Record<string, number>;
+}
+
+/**
+ * Time the steps of one call. The latency line gives only the handler time,
+ * so a handler with several network steps in sequence logs this as well, to
+ * show which step is slow (#576).
+ */
+export function stepTimer(now: () => number = () => performance.now()): StepTimer {
+  const steps: Record<string, number> = {};
+  return {
+    async time(name, step) {
+      const started = now();
+      try {
+        return await step();
+      } finally {
+        steps[name] = Math.round(now() - started);
+      }
+    },
+    steps: () => ({ ...steps }),
+  };
+}
