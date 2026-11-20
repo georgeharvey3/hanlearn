@@ -68,9 +68,10 @@ For example, 嫌 means "to find (something) objectionable". For
 她嫌这件衣服太贵，没有买, write "She found this dress too expensive, so she
 did not buy it." Do not write "She thought this dress was too expensive".
 
-Do not start most sentences with the same words. Model sentences repeat a few
-openings, for example 他很… and 这个…很…. The accept script rejects a
-candidate when its opening is already common across all words.
+Use a different frame for each sentence. The frame is the first two words of
+a sentence. Model sentences repeat a few frames, for example 他很… and
+这个…很…. The accept script rejects a candidate when its frame is already
+common across all words.
 
 A sentence for an HSK 7–9 word has no level limit and no length limit. Even
 so, use common words and keep the sentence short.

@@ -41,8 +41,10 @@ function argument(flag) {
 async function learnerWords(keyPath) {
   const admin = require('firebase-admin');
   const serviceAccount = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
-  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-  const snapshot = await admin.firestore().collectionGroup('userWords').select('wordData.simp').get();
+  const app = admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+  // The field mask reads one field of each word, not the scheduling state.
+  const snapshot = await app.firestore().collectionGroup('userWords').select('wordData.simp').get();
+  await app.delete();
   const words = new Set();
   for (const doc of snapshot.docs) {
     const simp = doc.get('wordData.simp');
