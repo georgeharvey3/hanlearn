@@ -43,8 +43,8 @@ const OPERATORS = {
 /** The mark of an unnamed piece in a Make Me a Hanzi decomposition. */
 const UNNAMED = '？';
 
-/** The side of a meaning-and-sound origin that each etymology field gives. */
-const ROLE = { semantic: 'meaning', phonetic: 'sound' };
+/** The side of a meaning-and-sound origin that each etymology field gives, and its key in the file. */
+const SIDES = { semantic: { side: 'meaning', key: 'm' }, phonetic: { side: 'sound', key: 'n' } };
 
 /** The etymology types of Make Me a Hanzi that give a story origin. */
 const STORY_TYPES = new Set(['ideographic', 'pictographic']);
@@ -730,15 +730,15 @@ function makePart(context, part, s) {
 }
 
 /**
- * The clues of a meaning-and-sound etymology of `char`: the part that gives
+ * The sides of a meaning-and-sound etymology of `char`: the part that gives
  * its meaning and the part that gives its sound, as the etymology names them.
- * Each clue is `{ char, role, strokes }`. `strokes` is the text of the
- * strokes that the Make Me a Hanzi entry gives the clue, in the top
+ * Each side is `{ char, side, key, strokes }`. `strokes` is the text of the
+ * strokes that the Make Me a Hanzi entry gives the part, in the top
  * character, or null when the entry does not count the strokes of the
- * character or does not hold the clue. `strokes[i]` is the stroke of the top
+ * character or does not hold the part. `strokes[i]` is the stroke of the top
  * character for stroke `i` of the entry.
  */
-function cluesOf(context, char, strokes, etymology) {
+function sidesOf(context, char, strokes, etymology) {
   const entry = context.entries.get(char);
   const sets = new Map();
   if (entry && entry.matches.length === strokes.length && entry.decomposition) {
@@ -754,9 +754,9 @@ function cluesOf(context, char, strokes, etymology) {
     };
     walk(parseIds(entry.decomposition), []);
   }
-  return Object.entries(ROLE).flatMap(([key, role]) => {
-    const clue = etymology[key];
-    return clue ? [{ char: clue, role, strokes: sets.get(clue) ?? null }] : [];
+  return Object.entries(SIDES).flatMap(([field, { side, key }]) => {
+    const part = etymology[field];
+    return part ? [{ char: part, side, key, strokes: sets.get(part) ?? null }] : [];
   });
 }
 
@@ -770,17 +770,17 @@ function* levelsOf(parts) {
 }
 
 /**
- * The part that a clue is, by the stroke match: a top part that is the clue
- * character or has its strokes, or a deeper part with its strokes. So the
+ * The part that a side names, by the stroke match: a top part that is the
+ * character of the side or has its strokes, or a deeper part with its strokes. So the
  * 𧾷 of 跑 is the meaning part that the data calls 足, and the 心 of 德 is
  * found under 𢛳, which Make Me a Hanzi does not have as a step. Null when no
  * part matches.
  */
-function cluePart(parts, clue) {
+function sidePart(parts, side) {
   let depth = 0;
   for (const level of levelsOf(parts)) {
     const hit = level.find(
-      (part) => (depth === 0 && part.c === clue.char) || part.s.join(',') === clue.strokes,
+      (part) => (depth === 0 && part.c === side.char) || part.s.join(',') === side.strokes,
     );
     if (hit) return hit;
     depth += 1;
@@ -832,7 +832,7 @@ function storyOf(hint, top, parts, misses) {
  * - a meaning-and-sound origin, `{ m?, n? }`, for a pictophonetic character.
  *   `m` is the meaning part, `{ c, l?, s? }`, with the gloss of the entry.
  *   `n` is the sound part, `{ c, y?, s? }`, with its pinyin. `s` holds the
- *   strokes of the part that the stroke match finds (see cluePart), and `c`
+ *   strokes of the part that the stroke match finds (see sidePart), and `c`
  *   its character. With no such part, `c` is the character of the data and
  *   there is no `s`. A side that the entry does not name is not there
  *
@@ -856,18 +856,18 @@ function originOf(context, char, parts, map) {
   }
   if (etymology.type !== 'pictophonetic') return null;
   const origin = {};
-  for (const clue of cluesOf(context, char, map, etymology)) {
-    const part = cluePart(parts, clue);
-    const side = { c: part?.c ?? clue.char };
-    if (clue.role === 'meaning') {
-      if (etymology.hint) side.l = etymology.hint;
+  for (const side of sidesOf(context, char, map, etymology)) {
+    const part = sidePart(parts, side);
+    const made = { c: part?.c ?? side.char };
+    if (side.side === 'meaning') {
+      if (etymology.hint) made.l = etymology.hint;
     } else {
-      const pinyin = part?.y ?? pinyinOf(context, clue.char);
-      if (pinyin) side.y = pinyin;
+      const pinyin = part?.y ?? pinyinOf(context, side.char);
+      if (pinyin) made.y = pinyin;
     }
-    if (part) side.s = part.s;
-    else mismatch(clue.role, clue.char);
-    origin[clue.role === 'meaning' ? 'm' : 'n'] = side;
+    if (part) made.s = part.s;
+    else mismatch(side.side, side.char);
+    origin[side.key] = made;
   }
   return Object.keys(origin).length ? origin : null;
 }

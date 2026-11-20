@@ -109,6 +109,23 @@ describe('CharacterPanel', () => {
     expect(screen.queryByText(copy.test.origin)).not.toBeInTheDocument();
   });
 
+  it('keeps the origin, in plain text, when Composition is off', async () => {
+    mockedBreakdownOf.mockResolvedValue(MING);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole('switch', { name: copy.wordPage.composition }));
+
+    expect(screen.getByTestId('origin')).toHaveTextContent('The light of the sun 日 and moon 月');
+    expect(screen.queryByTestId('origin-part')).not.toBeInTheDocument();
+  });
+
+  it('shows the origin of a character of one stroke, which has no parts', async () => {
+    mockedBreakdownOf.mockResolvedValue({ c: '一', p: null, o: { t: ['The number 1'] } });
+    renderPanel('一');
+
+    expect(await screen.findByTestId('origin')).toHaveTextContent('The number 1');
+  });
+
   it('shows the character in one ink when Composition is off', async () => {
     mockedBreakdownOf.mockResolvedValue(MING);
     renderPanel();

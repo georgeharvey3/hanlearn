@@ -242,9 +242,9 @@ The build writes these files to `web-client/public/breakdowns/`. They are build 
 | `LICENSE.txt` | The licence of the files: LGPL 3.0, with the Unihan notice |
 | `GPL.txt` | The GPL 3.0, which the LGPL adds to |
 
-Each file is `{ c, p, o? }`: the character, its parts and its origin. `p` is `null` for a character of one stroke. Each part is `{ c, s, l, y?, p? }`. `c` is the character (`null` for a piece with no name), `s` the stroke indices in the top character, and `l` the label. `y` is the pinyin, and `p` holds the parts of the part.
+Each file is `{ c, p, o? }`: the character, its parts and its origin. `p` is `null` for a character of one stroke. Each part is `{ c, s, l, y?, p? }`. `c` is the character (`null` for a piece with no name), `s` the stroke indices in the top character, and `l` the label. `y` is the pinyin, and `p` holds the parts of the part. Only a part of one stroke has no `p`. Two parts can share a stroke (the 田 and the 土 of 里).
 
-A story origin is `{ t }`. `t` is a list of segments: a text, or `{ c, s }` for a character that is a part, with the strokes of that part. A meaning-and-sound origin is `{ m?, n? }`. `m` is `{ c, l?, s? }`: the meaning part and its gloss. `n` is `{ c, y?, s? }`: the sound part and its pinyin. A side with no `s` matches no part. The app shows a part of the origin in the ink of the top part that holds its strokes. Only a part of one stroke has no `p`. Two parts can share a stroke (the 田 and the 土 of 里).
+A story origin is `{ t }`. `t` is a list of segments: a text, or `{ c, s }` for a character that is a part, with the strokes of that part. A meaning-and-sound origin is `{ m?, n? }`. `m` is `{ c, l?, s? }`: the meaning part and its gloss. `n` is `{ c, y?, s? }`: the sound part and its pinyin. A side with no `s` matches no part. The app shows a part of the origin in the ink of the top part that holds its strokes.
 
 ### Review
 

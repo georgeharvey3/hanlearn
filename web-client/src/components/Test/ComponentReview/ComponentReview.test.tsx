@@ -266,6 +266,14 @@ describe('ComponentReview', () => {
     expect(within(origin).queryByTestId('origin-part')).not.toBeInTheDocument();
   });
 
+  it('shows the origin of a character of one stroke under "No components"', async () => {
+    mockedBreakdownOf.mockResolvedValue({ c: '一', p: null, o: { t: ['The number 1'] } });
+    renderWithProviders(<ComponentReview chars={['一']} charSet="trad" open onToggle={vi.fn()} />);
+
+    expect(await screen.findByTestId('origin')).toHaveTextContent('The number 1');
+    expect(screen.getByText(copy.test.noComponents)).toBeInTheDocument();
+  });
+
   it('shows the line of a part tapped on the character itself', async () => {
     renderWithProviders(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
 
