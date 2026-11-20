@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { acceptCandidates, buildExampleSentences, sentenceId } from './exampleSentences';
+import { acceptCandidates, buildExampleSentences, orderGaps, sentenceId } from './exampleSentences';
 import { cleanDictionary } from './cleanMeaning';
 
 /**
@@ -678,10 +678,58 @@ describe('accepting generated candidates', () => {
     expect(result.rounds).toEqual({ 书: 3 });
   });
 
+  it('rejects a candidate whose frame is common across the generated sentences of all words', () => {
+    // 24 sentences of 喜欢 open with 他很. Each candidate opens with the same
+    // frame once the word itself is a slot.
+    const objects = ['书', '饭', '老师', '朋友', '学生', '电脑', '中国', '汉语', '我们', '你', '她', '家'];
+    const gen = objects.flatMap((object) => [
+      generated('喜欢', `他很喜欢${object}。`),
+      generated('喜欢', `他很喜欢${object}了。`),
+    ]);
+    const result = accept(
+      [
+        { word: '吃', simp: '他很喜欢吃饭。', english: 'He likes to eat.' },
+        { word: '吃', simp: '我们去吃饭。', english: 'We go to eat.' },
+      ],
+      { gen },
+    );
+    expect(result.records.map((r) => r.simp)).toEqual(['我们去吃饭。']);
+    expect(result.rejects).toEqual([
+      {
+        word: '吃',
+        simp: '他很喜欢吃饭。',
+        reason: 'the frame 他 很 opens 24 of 24 generated sentences',
+      },
+    ]);
+  });
+
+  it('accepts a common frame while the generated sentences are few', () => {
+    const gen = ['书', '饭', '老师'].map((object) => generated('喜欢', `他很喜欢${object}。`));
+    const result = accept([{ word: '吃', simp: '他很喜欢吃饭。', english: 'a' }], { gen });
+    expect(result.records.map((r) => r.simp)).toEqual(['他很喜欢吃饭。']);
+  });
+
   it('rejects a candidate longer than the cap of its word', () => {
     const result = accept([{ word: '书', simp: '我们的老师今天很喜欢看书。', english: 'a' }]);
     expect(result.rejects).toEqual([
       { word: '书', simp: '我们的老师今天很喜欢看书。', reason: 'longer than the cap of 10 characters (12)' },
+    ]);
+  });
+});
+
+describe('the order of the gaps', () => {
+  const gap = (word, hskLevel) => ({ word, hskLevel, needed: 1 });
+
+  it("lists the learner's words first, then HSK 1–3, then the other HSK words", () => {
+    const gaps = [gap('研究', 4), gap('经济', 3), gap('文', 7), gap('书', 1), gap('咖啡', 2), gap('居民', 4)];
+    const ordered = orderGaps(gaps, ['居民', '咖啡', '汤姆']);
+    expect(ordered.map((g) => [g.word, g.priority])).toEqual([
+      ['咖啡', 1],
+      ['居民', 1],
+      ['书', 2],
+      ['经济', 2],
+      ['研究', 3],
+      ['文', 3],
     ]);
   });
 });

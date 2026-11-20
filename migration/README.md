@@ -285,7 +285,7 @@ Claude Code writes the sentences for the HSK words that have fewer than 3 (#468)
 
 | Script | What it does |
 |---|---|
-| `sentence-gaps.js` | Writes `sentences/scratch/gaps.json`: each HSK word with fewer than 3 sentences, with its HSK level, its length cap and the number that it needs |
+| `sentence-gaps.js` | Writes `sentences/scratch/gaps.json`: each HSK word with fewer than 3 sentences, with its HSK level, its length cap and the number that it needs. The words of the learners' word lists come first, then HSK 1–3, then the other HSK words. The script reads the learners' words from Firestore, and `--no-learners` skips the read |
 | `sentence-accept.js <file>` | Grades the candidates in the file with the rules of the build. Adds the passes to `sentences/generated.json` and prints each reject with its reason |
 
 Both scripts run the build in memory, so they use the same rules as `npm run build:dict`. Git ignores `sentences/scratch/`.

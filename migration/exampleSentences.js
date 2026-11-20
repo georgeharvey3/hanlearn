@@ -51,6 +51,24 @@ const NOT_HSK = 7;
 /** The variety rule skips a sentence that overlaps a picked one by more than this. */
 const MAX_OVERLAP = 0.5;
 
+/**
+ * The frame of a sentence is its first FRAME_SEGMENTS Han segments, with the
+ * word itself as a slot. Model sentences repeat a few openings: in the first
+ * 22,452 generated sentences, 这 opened 16% and 他 13%, against 4% and 5% of
+ * the Tatoeba sentences, and 这个 alone opened 4% (#480).
+ */
+const FRAME_SEGMENTS = 2;
+
+/**
+ * The accept script rejects a candidate whose frame already opens more than
+ * this share of the generated sentences of all words. A tunable limit: at 1%,
+ * 7 frames were over it, among them 这个, 这家, 他的 and 他在.
+ */
+const FRAME_SHARE = 0.01;
+
+/** The frame rule applies only to a frame that opens at least this many generated sentences. */
+const FRAME_MIN = 20;
+
 const HAN = /\p{Script=Han}/u;
 const DIGIT = /\p{Nd}/u;
 /** A letter of any script other than Han. A sentence with one is rejected. */
@@ -568,6 +586,15 @@ function grade(sentence, word, wordLevel) {
   return { targetIndex, hskLevel, reason, set: new Set(counted.map((segment) => segment.text)) };
 }
 
+/** The frame of a prepared sentence for one word, for example 他 很 or 这 _. */
+const frameOf = (sentence, word) =>
+  sentence.segments
+    .map((segment) => segment.text)
+    .filter((text) => HAN.test(text))
+    .slice(0, FRAME_SEGMENTS)
+    .map((text) => (text === word ? '_' : text))
+    .join(' ');
+
 /** The Jaccard overlap of two sets of counted segments. */
 function overlap(a, b) {
   if (a.size === 0 && b.size === 0) return 1;
@@ -743,10 +770,15 @@ function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = []
   if (problems.length > 0) throw buildError(problems);
 
   const candidatesOf = new Map();
+  const frames = new Map();
   for (const sentence of sentences) {
     const { word } = sentence;
     const ready = prepare(sentence, index);
     if (word !== null) {
+      if (!ready.reason) {
+        const frame = frameOf(ready, word);
+        frames.set(frame, (frames.get(frame) ?? 0) + 1);
+      }
       // A generated sentence must pass the grader for its own word.
       const hskWord = index.hskBySimp.get(word);
       const graded = hskWord && !ready.reason ? grade(ready, word, hskWord.level) : null;
@@ -828,6 +860,7 @@ function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = []
     index,
     ids: new Set(sentences.map((sentence) => sentence.id)),
     chosenByWord,
+    frames,
   };
 }
 
@@ -849,7 +882,8 @@ function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = []
  */
 function acceptCandidates(inputs, candidates, rounds = {}) {
   const built = buildAll(inputs);
-  const { index } = built;
+  const { index, frames } = built;
+  let generatedCount = [...frames.values()].reduce((sum, count) => sum + count, 0);
   const needed = new Map(built.gaps.map((gap) => [gap.word, gap.needed]));
   const records = [];
   const rejects = [];
@@ -910,6 +944,16 @@ function acceptCandidates(inputs, candidates, rounds = {}) {
       reject(`too like ${like.simp}`);
       continue;
     }
+    // The frame rule, against the generated sentences of all words and the
+    // candidates that this round accepted.
+    const frame = frameOf(ready, word);
+    const opens = frames.get(frame) ?? 0;
+    if (opens >= FRAME_MIN && opens > FRAME_SHARE * generatedCount) {
+      reject(`the frame ${frame} opens ${opens} of ${generatedCount} generated sentences`);
+      continue;
+    }
+    frames.set(frame, opens + 1);
+    generatedCount++;
     seen.add(id);
     if (!kept.has(word)) kept.set(word, []);
     kept.get(word).push({ simp, set: graded.set });
@@ -947,6 +991,26 @@ function buildError(problems) {
   );
 }
 
+/** The highest HSK level of the second group of the gaps. */
+const EARLY_HSK = 3;
+
+/**
+ * The gaps in the order of generation, each with its priority (#480):
+ *   1  the words of the learner's word lists
+ *   2  the other HSK 1–3 words
+ *   3  the other HSK words
+ * Within a priority, the lower HSK level comes first, then the order of the
+ * build. learnerWords holds the simplified words of the learner's word lists.
+ */
+function orderGaps(gaps, learnerWords) {
+  const learner = new Set(learnerWords);
+  const priorityOf = (gap) => (learner.has(gap.word) ? 1 : gap.hskLevel <= EARLY_HSK ? 2 : 3);
+  return gaps
+    .map((gap, position) => ({ ...gap, priority: priorityOf(gap), position }))
+    .sort((a, b) => a.priority - b.priority || a.hskLevel - b.hskLevel || a.position - b.position)
+    .map(({ position, ...gap }) => gap);
+}
+
 /** The words of the generated file that failed MAX_ROUNDS rounds. */
 const unfilledOf = (generatedFile) =>
   Object.entries(generatedFile.rounds ?? {})
@@ -956,6 +1020,7 @@ const unfilledOf = (generatedFile) =>
 
 module.exports = {
   acceptCandidates,
+  orderGaps,
   unfilledOf,
   MAX_ROUNDS,
   buildExampleSentences,
