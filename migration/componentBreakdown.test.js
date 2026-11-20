@@ -295,6 +295,23 @@ describe('the origin of breakdownOf', () => {
     expect(breakdown('德').o).toEqual({ m: { c: '心', l: 'heart', s: [11, 12, 13, 14] } });
   });
 
+  it('finds a side by its character at any level when the entry gives it no strokes', () => {
+    // Make Me a Hanzi gives 塗 as 涂 over 土, so 氵 and 余 have no strokes of their own.
+    expect(breakdown('塗').o).toEqual({
+      m: { c: '氵', l: 'water', s: [0, 1, 2] },
+      n: { c: '余', y: 'yú', s: [3, 4, 5, 6, 7, 8, 9] },
+    });
+    // 膚 names ⺼, and the drawing has 月 inside 胃.
+    expect(breakdown('膚').o.m).toMatchObject({ c: '月', s: expect.any(Array) });
+  });
+
+  it('matches a character of the story to the variant form that the drawing has', () => {
+    // The story of 亲 names 木, and 亲 draws 朩.
+    expect(breakdown('亲').o.t).toContainEqual({ c: '木', s: [5, 6, 7, 8] });
+    // The story of 凶 names 乂, and 凶 draws 㐅.
+    expect(breakdown('凶').o.t).toContainEqual({ c: '乂', s: [0, 1] });
+  });
+
   it('gives no origin with no etymology, and none for a meaning-and-sound entry with no parts', () => {
     const context = breakdownContext({ ...sources, labels: {} });
     const plain = (etymology) => {
@@ -422,11 +439,13 @@ describe('the committed files', () => {
   const result = buildBreakdowns({ chars, ...sources, labels: committedLabels });
 
   it('split every part until it is one stroke', () => {
-    for (const file of Object.values(result.files)) {
-      for (const part of allParts(file.p)) {
-        expect(Boolean(part.p), `${file.c} > ${part.c}`).toBe(part.s.length > 1);
-      }
-    }
+    // One expect for the whole set: an expect for each of the many parts is too slow for the timeout.
+    const wrong = Object.values(result.files).flatMap((file) =>
+      allParts(file.p)
+        .filter((part) => Boolean(part.p) !== part.s.length > 1)
+        .map((part) => `${file.c} > ${part.c}`),
+    );
+    expect(wrong).toEqual([]);
   });
 
   it('give each part strokes of its parent, and every stroke of a part to one of its parts', () => {

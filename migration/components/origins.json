@@ -1,5 +1,27 @@
 {
   "origins": {
-    "学": { "type": "ideographic", "hint": "A building 冖 where children 子 study" }
+    "了": { "type": "pictographic", "hint": "A child swaddled in blankets; compare 子" },
+    "举": { "type": "ideographic", "hint": "Simplified form of 舉" },
+    "义": { "type": "pictophonetic", "phonetic": "乂" },
+    "俩": { "type": "ideographic", "hint": "A couple 两; 两 also provides the pronunciation" },
+    "养": { "type": "pictophonetic", "phonetic": "羊" },
+    "務": { "type": "pictophonetic", "phonetic": "敄", "semantic": "矛", "hint": "affairs" },
+    "厅": { "type": "pictophonetic", "phonetic": "丁", "semantic": "厂", "hint": "building" },
+    "历": { "type": "pictophonetic", "phonetic": "力" },
+    "学": { "type": "ideographic", "hint": "A building 冖 where children 子 study" },
+    "寬": { "type": "pictophonetic", "phonetic": "莧", "semantic": "宀", "hint": "roof" },
+    "島": { "type": "ideographic", "hint": "A bird 鳥 perched atop a mountain 山" },
+    "徹": null,
+    "惫": { "type": "pictophonetic", "phonetic": "备", "semantic": "心", "hint": "heart" },
+    "来": { "type": "ideographic", "hint": "Simplified form of 來, a wheat plant that has just borne fruit" },
+    "漲": { "type": "pictophonetic", "phonetic": "張", "semantic": "氵", "hint": "water" },
+    "舉": { "type": "pictophonetic", "phonetic": "與", "semantic": "扌", "hint": "hand" },
+    "貿": { "type": "pictophonetic", "phonetic": "卯", "semantic": "貝", "hint": "money" },
+    "賞": { "type": "pictophonetic", "phonetic": "尚", "semantic": "貝", "hint": "money" },
+    "賣": { "type": "pictophonetic", "phonetic": "買", "semantic": "貝", "hint": "money" },
+    "賴": { "type": "pictophonetic", "phonetic": "束", "semantic": "貝", "hint": "money" },
+    "鸟": { "type": "pictographic", "hint": "Simplified form of 鳥, a bird" },
+    "麦": { "type": "ideographic", "hint": "Simplified form of 麥; grains 來 ready to be harvested 夂" },
+    "黨": { "type": "pictophonetic", "phonetic": "尚", "semantic": "黑", "hint": "dark" }
   }
 }

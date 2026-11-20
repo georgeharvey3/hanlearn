@@ -29,6 +29,7 @@ The story names a character that is no part of the breakdown.
 | 丹 | 井 |
 | 丽 | 麗 |
 | 丽 | 鹿 |
+| 举 | 舉 |
 | 乃 | 孕 |
 | 之 | 止 |
 | 乌 | 烏 |
@@ -47,8 +48,6 @@ The story names a character that is no part of the breakdown.
 | 二 | 三 |
 | 亡 | 人 |
 | 亡 | 亾 |
-| 亲 | 木 |
-| 今 | 亼 |
 | 介 | 八 |
 | 仓 | 倉 |
 | 仓 | 食 |
@@ -58,17 +57,14 @@ The story names a character that is no part of the breakdown.
 | 侃 | 㐰 |
 | 侃 | 川 |
 | 來 | 来 |
-| 俩 | 寿 |
 | 倉 | 户 |
 | 儿 | 兒 |
 | 儿 | 人 |
 | 元 | 二 |
-| 兇 | 乂 |
 | 先 | 止 |
 | 光 | 火 |
 | 克 | 兄 |
 | 兌 | 丷 |
-| 全 | 玉 |
 | 全 | 入 |
 | 共 | 廾 |
 | 具 | 目 |
@@ -83,11 +79,9 @@ The story names a character that is no part of the breakdown.
 | 农 | 田 |
 | 农 | 辰 |
 | 几 | 丌 |
-| 凶 | 乂 |
 | 出 | 屮 |
 | 击 | 擊 |
 | 別 | 另 |
-| 区 | 乂 |
 | 卉 | 艹 |
 | 半 | 牛 |
 | 卑 | 又 |
@@ -98,7 +92,6 @@ The story names a character that is no part of the breakdown.
 | 即 | 皀 |
 | 即 | 既 |
 | 又 | 左 |
-| 反 | 厂 |
 | 叠 | 冝 |
 | 同 | 凡 |
 | 告 | 牛 |
@@ -125,8 +118,6 @@ The story names a character that is no part of the breakdown.
 | 姜 | 畺 |
 | 孙 | 孫 |
 | 孙 | 系 |
-| 定 | 疋 |
-| 寨 | 木 |
 | 寿 | 老 |
 | 局 | 尺 |
 | 层 | 層 |
@@ -134,7 +125,6 @@ The story names a character that is no part of the breakdown.
 | 屋 | 厂 |
 | 展 | 㠭 |
 | 岡 | 网 |
-| 島 | 烏 |
 | 川 | 巛 |
 | 左 | 又 |
 | 巨 | 工 |
@@ -148,14 +138,12 @@ The story names a character that is no part of the breakdown.
 | 异 | 異 |
 | 异 | 共 |
 | 异 | 田 |
-| 弄 | 玉 |
 | 归 | 歸 |
 | 归 | 帚 |
 | 归 | 追 |
 | 思 | 囟 |
 | 我 | 扌 |
 | 户 | 戶 |
-| 所 | 户 |
 | 扫 | 掃 |
 | 扫 | 帚 |
 | 承 | 了 |
@@ -164,15 +152,8 @@ The story names a character that is no part of the breakdown.
 | 既 | 皀 |
 | 既 | 即 |
 | 昔 | 廿 |
-| 是 | 疋 |
 | 曰 | 口 |
-| 曾 | 日 |
-| 替 | 日 |
-| 最 | 日 |
-| 會 | 日 |
 | 未 | 來 |
-| 杀 | 乂 |
-| 杀 | 木 |
 | 来 | 來 |
 | 東 | 西 |
 | 條 | 条 |
@@ -197,12 +178,10 @@ The story names a character that is no part of the breakdown.
 | 电 | 雨 |
 | 画 | 畫 |
 | 疊 | 冝 |
-| 疏 | 疋 |
 | 皮 | 攴 |
 | 益 | 水 |
 | 盡 | 聿 |
 | 直 | 目 |
-| 盾 | 厂 |
 | 真 | 直 |
 | 真 | 几 |
 | 石 | 厂 |
@@ -231,7 +210,6 @@ The story names a character that is no part of the breakdown.
 | 莹 | 瑩 |
 | 莹 | 火 |
 | 虐 | 彐 |
-| 虧 | 亏 |
 | 衡 | 角 |
 | 表 | 毛 |
 | 表 | 衣 |
@@ -242,7 +220,6 @@ The story names a character that is no part of the breakdown.
 | 賓 | 小 |
 | 贖 | 賣 |
 | 赤 | 火 |
-| 走 | 止 |
 | 軍 | 力 |
 | 輿 | 舁 |
 | 车 | 車 |
@@ -251,12 +228,12 @@ The story names a character that is no part of the breakdown.
 | 阳 | 阴 |
 | 阴 | 阳 |
 | 陽 | 阴 |
-| 隙 | 日 |
 | 香 | 甘 |
 | 騰 | 朕 |
 | 马 | 馬 |
-| 鸟 | 烏 |
+| 鸟 | 鳥 |
 | 麥 | 麦 |
+| 麦 | 麥 |
 | 麦 | 來 |
 | 龟 | 龜 |
 
@@ -266,28 +243,10 @@ The stroke match finds no part for the meaning part that the data names.
 
 | Character | Part |
 | --- | --- |
-| 举 | 扌 |
-| 义 | ⺷ |
-| 养 | 儿 |
-| 厅 | 广 |
-| 历 | 厤 |
 | 喬 | 高 |
-| 塗 | 氵 |
-| 廚 | 厂 |
-| 徹 | 切 |
-| 惫 | 思 |
-| 憂 | 忄 |
 | 旁 | 立 |
 | 眾 | 众 |
-| 膚 | ⺼ |
 | 荒 | 芒 |
-| 華 | 十 |
-| 貿 | 贝 |
-| 賞 | 贝 |
-| 賴 | 負 |
-| 雁 | 隹 |
-| 鬆 | 木 |
-| 黨 | 兄 |
 
 ## Sound
 
@@ -295,28 +254,22 @@ The stroke match finds no part for the sound part that the data names.
 
 | Character | Part |
 | --- | --- |
-| 举 | 舉 |
 | 产 | 厂 |
 | 修 | 攸 |
 | 候 | 矦 |
 | 凤 | 凡 |
 | 制 | 巾 |
-| 務 | 务 |
 | 原 | 泉 |
 | 哀 | 衣 |
 | 商 | 章 |
 | 嘗 | 尚 |
 | 囊 | 襄 |
 | 场 | 昜 |
-| 塗 | 余 |
 | 存 | 才 |
-| 寬 | 苋 |
 | 屬 | 禹 |
-| 嶺 | 令 |
 | 常 | 尚 |
 | 庄 | 壯 |
 | 廚 | 豆 |
-| 强 | 虫 |
 | 徵 | 正 |
 | 憂 | 頁 |
 | 敌 | 啇 |
@@ -325,7 +278,6 @@ The stroke match finds no part for the sound part that the data names.
 | 标 | 票 |
 | 淵 | 片 |
 | 满 | 㒼 |
-| 漲 | 张 |
 | 然 | 肰 |
 | 爷 | 耶 |
 | 瓣 | 
@@ -342,12 +294,10 @@ The stroke match finds no part for the sound part that the data names.
 | 瞒 | 㒼 |
 | 稳 | 㥯 |
 | 腾 | 朕 |
-| 舉 | 舉 |
 | 艰 | 堇 |
 | 苏 | 稣 |
 | 蛋 | 延 |
 | 豪 | 高 |
-| 賣 | 买 |
 | 赖 | 剌 |
 | 轍 | 徹 |
 | 边 | 臱 |
@@ -356,5 +306,4 @@ The stroke match finds no part for the sound part that the data names.
 | 释 | 睪 |
 | 釐 | 厘 |
 | 鐵 | 戜 |
-| 鬆 | 公 |
 | 鳳 | 凡 |

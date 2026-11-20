@@ -770,11 +770,13 @@ function* levelsOf(parts) {
 }
 
 /**
- * The part that a side names, by the stroke match: a top part that is the
- * character of the side or has its strokes, or a deeper part with its strokes. So the
- * 𧾷 of 跑 is the meaning part that the data calls 足, and the 心 of 德 is
- * found under 𢛳, which Make Me a Hanzi does not have as a step. Null when no
- * part matches.
+ * The part that a side names. The stroke match comes first: a top part that
+ * is the character of the side or has its strokes, or a deeper part with its
+ * strokes. So the 𧾷 of 跑 is the meaning part that the data calls 足, and
+ * the 心 of 德 is found under 𢛳, which Make Me a Hanzi does not have as a
+ * step. When the entry gives the side no strokes (塗 is 涂 over 土, so 氵 has
+ * none), partNamed finds the side by its character. Null when no part
+ * matches.
  */
 function sidePart(parts, side) {
   let depth = 0;
@@ -785,18 +787,35 @@ function sidePart(parts, side) {
     if (hit) return hit;
     depth += 1;
   }
-  return null;
+  return partNamed(parts, side.char);
 }
 
 /**
- * The part that a character of a story names: the part nearest the top with
- * that character, or with another form of it (人 names 亻). On one level, the
- * same character comes before another form. Null when no part matches.
+ * The forms that the text of an origin can name for a part that the drawing
+ * shows in another glyph: the story of 亲 names 木, and 亲 draws 朩. The
+ * first form of each group is the one that the text names. These groups
+ * apply to the origin only. SAME_PART stays strict, so that the Wiktionary
+ * comparison still lists a part that the breakdown names with a wrong form.
  */
-function storyPart(parts, char) {
+const ORIGIN_FORMS = ['木朩', '乂㐅', '玉王', '户戶', '疋𤴓𤴔', '厂𠂆', '亏亐', '止龰', '亼亽', '日曰'];
+const ORIGIN_FORM = new Map(ORIGIN_FORMS.flatMap((forms) => [...forms].map((form) => [form, [...forms][0]])));
+
+/** One name for each form of a part, as the text of an origin names it. */
+const originForm = (char) => {
+  const form = samePart(char);
+  return ORIGIN_FORM.get(form) ?? form;
+};
+
+/**
+ * The part that a character of an origin names: the part nearest the top with
+ * that character, or with another form of it (人 names 亻, 木 names 朩). On
+ * one level, the same character comes before another form. Null when no part
+ * matches.
+ */
+function partNamed(parts, char) {
   for (const level of levelsOf(parts)) {
     const hit =
-      level.find((part) => part.c === char) ?? level.find((part) => samePart(part.c) === samePart(char));
+      level.find((part) => part.c === char) ?? level.find((part) => originForm(part.c) === originForm(char));
     if (hit) return hit;
   }
   return null;
@@ -811,7 +830,7 @@ function storyPart(parts, char) {
 function storyOf(hint, top, parts, misses) {
   const segments = [];
   for (const c of hint) {
-    const part = HAN.test(c) ? storyPart(parts, c) : null;
+    const part = HAN.test(c) ? partNamed(parts, c) : null;
     if (part) segments.push({ c, s: part.s });
     else {
       if (HAN.test(c) && c !== top) misses.push(c);
