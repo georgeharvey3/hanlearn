@@ -14,6 +14,7 @@ vi.mock('howler', () => ({ Howl: vi.fn(), Howler: { ctx: null } }));
 // The audio ends at once, as a short clip does.
 vi.mock('../../services/ttsService', () => ({
   speak: vi.fn((_text: string, options?: { onEnd?: () => void }) => options?.onEnd?.()),
+  prefetch: vi.fn(),
   stopAll: vi.fn(),
 }));
 vi.mock('../../services/sentenceTabsService', async () => {
@@ -148,6 +149,7 @@ beforeEach(() => {
   localStorage.clear();
   vi.mocked(saveGrade).mockClear();
   vi.mocked(ttsService.speak).mockClear();
+  vi.mocked(ttsService.prefetch).mockClear();
   vi.mocked(getSegmentedSentence).mockImplementation(async (simp, _charSet, id) =>
     sentenceOf(simp, id ?? 'none'),
   );
@@ -165,6 +167,24 @@ describe('the Comprehend tab', () => {
 
     await user.click(screen.getByRole('button', { name: 'Show text' }));
     expect(screen.getByRole('button', { name: '中文: show meaning' })).toBeInTheDocument();
+  });
+
+  it('fetches the audio of the next sentence while the learner hears this one', async () => {
+    setQueue([STUDY, READ]);
+    renderTab('comprehend');
+
+    await screen.findByRole('button', { name: 'Play sentence' });
+    const played = vi.mocked(ttsService.speak).mock.calls[0][0];
+    const next = played === '我学习中文。' ? '我看书中文。' : '我学习中文。';
+    await waitFor(() => expect(ttsService.prefetch).toHaveBeenCalledWith(next, 1.0));
+  });
+
+  it('fetches no audio ahead with sound off', async () => {
+    setQueue([STUDY, READ]);
+    renderTab('comprehend', false);
+
+    await screen.findByRole('button', { name: '中文: show meaning' });
+    expect(ttsService.prefetch).not.toHaveBeenCalled();
   });
 
   it('shows the Chinese at once with sound off', async () => {
