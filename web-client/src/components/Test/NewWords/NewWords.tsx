@@ -79,7 +79,13 @@ const NewWords: React.FC<NewWordsProps> = ({ words, startTest }) => {
   useEffect(() => {
     setStep(0);
     setDone(NO_STEPS_DONE);
-    if (word && getAudioSettings().useSound) speak(word[charSet]);
+    if (word && getAudioSettings().useSound) {
+      speak(word[charSet]);
+      // The next word plays itself as it shows, so its audio is fetched now,
+      // while the learner reads this one (#576).
+      const next = words[index + 1];
+      if (next) ttsService.prefetch(next[charSet]);
+    }
     // Only a new word plays itself; a change of voice does not.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [word]);

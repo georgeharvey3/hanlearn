@@ -1106,12 +1106,6 @@ describe('useTestEngine — qNum effect with useAutoRecord', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Regression: showSentenceHint with useSound=true must set showHint=true
-// so that pressing hint a second time clears it (toggle behaviour).
-// Bug: the sound branch called setStateMerged({ hintLoading: false }) without
-// setting showHint: true, leaving showHint=false and breaking the toggle.
-// ---------------------------------------------------------------------------
 describe('useTestEngine — the audio of the next question', () => {
   const asked = { index: '0', aCategory: 'M' as any, qCategory: 'C' as any };
   const word2 = makeWord({ id: 2, simp: '再见', trad: '再見', pinyin: 'zài jiàn' });
@@ -1156,6 +1150,12 @@ describe('useTestEngine — the audio of the next question', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Regression: showSentenceHint with useSound=true must set showHint=true
+// so that pressing hint a second time clears it (toggle behaviour).
+// Bug: the sound branch called setStateMerged({ hintLoading: false }) without
+// setting showHint: true, leaving showHint=false and breaking the toggle.
+// ---------------------------------------------------------------------------
 describe('useTestEngine — showSentenceHint (regression: showHint set in sound branch)', () => {
   beforeEach(() => {
     vi.spyOn(window.speechSynthesis, 'cancel').mockImplementation(() => {});

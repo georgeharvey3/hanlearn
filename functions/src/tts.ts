@@ -33,17 +33,19 @@ export const textToSpeech = functions
     // The handler makes three network calls in sequence. The latency line
     // gives only their sum, so the time of each goes in one more line (#576).
     const timer = stepTimer();
-    const fields: { tokenCached?: boolean } = {};
+    let tokenCached: boolean | undefined;
     try {
       await timer.time('rateLimit', () =>
         checkRateLimit(uid, 'textToSpeech', RATE_LIMITS.textToSpeech)
       );
-      return await synthesize(data, timer, fields);
+      const synthesized = await synthesize(data, timer);
+      tokenCached = synthesized.tokenCached;
+      return { audioContent: synthesized.audioContent };
     } finally {
       logStructured('tts steps', {
         function: 'textToSpeech',
         steps: timer.steps(),
-        ...fields,
+        tokenCached,
       });
     }
   })
@@ -51,9 +53,8 @@ export const textToSpeech = functions
 
 async function synthesize(
   data: { text: string; speed?: number },
-  timer: StepTimer,
-  fields: { tokenCached?: boolean }
-): Promise<{ audioContent: string }> {
+  timer: StepTimer
+): Promise<{ audioContent: string; tokenCached: boolean }> {
   const { text, speed } = data;
 
   // Validate input
@@ -87,7 +88,6 @@ async function synthesize(
   try {
     // Use the Google Cloud TTS REST API directly (no extra dependency needed)
     const accessToken = await timer.time('token', getAccessToken);
-    fields.tokenCached = accessToken.cached;
 
     const requestBody = {
       input: { text: cleanText },
@@ -127,7 +127,7 @@ async function synthesize(
       }
 
       const result = await response.json() as { audioContent: string };
-      return { audioContent: result.audioContent };
+      return { audioContent: result.audioContent, tokenCached: accessToken.cached };
     });
   } catch (error) {
     if (error instanceof functions.https.HttpsError) {
