@@ -4,11 +4,15 @@ import { checkRateLimit, RATE_LIMITS } from './rateLimit';
 import { internalError, withErrorReporting } from './reporting';
 import { cachedAccessToken } from './accessToken';
 import { logStructured, stepTimer, StepTimer } from './latency';
+import { rateLimitHeadroom } from './rateLimitHeadroom';
 
 // One token for the instance, renewed before it expires (#576).
 const getAccessToken = cachedAccessToken(() =>
   admin.credential.applicationDefault().getAccessToken()
 );
+
+// Decides when the synthesis can start before the rate limit answers (#576).
+const headroom = rateLimitHeadroom(RATE_LIMITS.textToSpeech);
 
 /**
  * Cloud Function that proxies Google Cloud Text-to-Speech API requests.
@@ -34,11 +38,33 @@ export const textToSpeech = functions
     // gives only their sum, so the time of each goes in one more line (#576).
     const timer = stepTimer();
     let tokenCached: boolean | undefined;
+    const overlapped = headroom.canOverlap(uid);
     try {
-      await timer.time('rateLimit', () =>
-        checkRateLimit(uid, 'textToSpeech', RATE_LIMITS.textToSpeech)
-      );
-      const synthesized = await synthesize(data, timer);
+      const allowed = timer
+        .time('rateLimit', () =>
+          checkRateLimit(uid, 'textToSpeech', RATE_LIMITS.textToSpeech)
+        )
+        .then(
+          (state) => headroom.record(uid, state),
+          (error) => {
+            if (error instanceof functions.https.HttpsError && error.code === 'resource-exhausted') {
+              headroom.reject(uid);
+            }
+            throw error;
+          }
+        );
+
+      let synthesized: Awaited<ReturnType<typeof synthesize>>;
+      if (overlapped) {
+        // The limit still decides: its rejection wins over the audio.
+        const pending = synthesize(data, timer);
+        pending.catch(() => undefined);
+        await allowed;
+        synthesized = await pending;
+      } else {
+        await allowed;
+        synthesized = await synthesize(data, timer);
+      }
       tokenCached = synthesized.tokenCached;
       return { audioContent: synthesized.audioContent };
     } finally {
@@ -46,6 +72,7 @@ export const textToSpeech = functions
         function: 'textToSpeech',
         steps: timer.steps(),
         tokenCached,
+        overlapped,
       });
     }
   })
