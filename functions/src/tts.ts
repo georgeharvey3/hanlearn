@@ -2,6 +2,13 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { checkRateLimit, RATE_LIMITS } from './rateLimit';
 import { internalError, withErrorReporting } from './reporting';
+import { cachedAccessToken } from './accessToken';
+import { logStructured, stepTimer, StepTimer } from './latency';
+
+// One token for the instance, renewed before it expires (#576).
+const getAccessToken = cachedAccessToken(() =>
+  admin.credential.applicationDefault().getAccessToken()
+);
 
 /**
  * Cloud Function that proxies Google Cloud Text-to-Speech API requests.
@@ -22,62 +29,86 @@ export const textToSpeech = functions
     }
 
     const uid = context.auth.uid;
-    await checkRateLimit(uid, 'textToSpeech', RATE_LIMITS.textToSpeech);
 
-    const { text, speed } = data;
-
-    // Validate input
-    if (!text || typeof text !== 'string') {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'text is required and must be a string'
-      );
-    }
-
-    const cleanText = text.replace(/<[^>]*>/g, '').trim();
-
-    if (cleanText.length === 0) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'text must not be empty'
-      );
-    }
-
-    if (cleanText.length > 200) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'text must be 200 characters or fewer'
-      );
-    }
-
-    const speakingRate = typeof speed === 'number'
-      ? Math.max(0.25, Math.min(4.0, speed))
-      : 1.0;
-
+    // The handler makes three network calls in sequence. The latency line
+    // gives only their sum, so the time of each goes in one more line (#576).
+    const timer = stepTimer();
+    const fields: { tokenCached?: boolean } = {};
     try {
-      // Use the Google Cloud TTS REST API directly (no extra dependency needed)
-      const accessToken = await admin.credential
-        .applicationDefault()
-        .getAccessToken();
+      await timer.time('rateLimit', () =>
+        checkRateLimit(uid, 'textToSpeech', RATE_LIMITS.textToSpeech)
+      );
+      return await synthesize(data, timer, fields);
+    } finally {
+      logStructured('tts steps', {
+        function: 'textToSpeech',
+        steps: timer.steps(),
+        ...fields,
+      });
+    }
+  })
+);
 
-      const requestBody = {
-        input: { text: cleanText },
-        voice: {
-          languageCode: 'cmn-CN',
-          name: 'cmn-CN-Wavenet-A',
-        },
-        audioConfig: {
-          audioEncoding: 'MP3',
-          speakingRate,
-        },
-      };
+async function synthesize(
+  data: { text: string; speed?: number },
+  timer: StepTimer,
+  fields: { tokenCached?: boolean }
+): Promise<{ audioContent: string }> {
+  const { text, speed } = data;
 
+  // Validate input
+  if (!text || typeof text !== 'string') {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'text is required and must be a string'
+    );
+  }
+
+  const cleanText = text.replace(/<[^>]*>/g, '').trim();
+
+  if (cleanText.length === 0) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'text must not be empty'
+    );
+  }
+
+  if (cleanText.length > 200) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'text must be 200 characters or fewer'
+    );
+  }
+
+  const speakingRate = typeof speed === 'number'
+    ? Math.max(0.25, Math.min(4.0, speed))
+    : 1.0;
+
+  try {
+    // Use the Google Cloud TTS REST API directly (no extra dependency needed)
+    const accessToken = await timer.time('token', getAccessToken);
+    fields.tokenCached = accessToken.cached;
+
+    const requestBody = {
+      input: { text: cleanText },
+      voice: {
+        languageCode: 'cmn-CN',
+        name: 'cmn-CN-Wavenet-A',
+      },
+      audioConfig: {
+        audioEncoding: 'MP3',
+        speakingRate,
+      },
+    };
+
+    // The synthesis step holds the read of the body, which carries the audio.
+    return await timer.time('synthesis', async () => {
       const response = await fetch(
         'https://texttospeech.googleapis.com/v1/text:synthesize',
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${accessToken.access_token}`,
+            'Authorization': `Bearer ${accessToken.token}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(requestBody),
@@ -96,14 +127,13 @@ export const textToSpeech = functions
       }
 
       const result = await response.json() as { audioContent: string };
-
       return { audioContent: result.audioContent };
-    } catch (error) {
-      if (error instanceof functions.https.HttpsError) {
-        throw error;
-      }
-      console.error('TTS error:', error);
-      throw internalError('Text-to-speech synthesis failed', error);
+    });
+  } catch (error) {
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
     }
-  })
-);
+    console.error('TTS error:', error);
+    throw internalError('Text-to-speech synthesis failed', error);
+  }
+}

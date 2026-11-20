@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { LatencyLine, withLatencyLog } from './latency';
+import { LatencyLine, stepTimer, withLatencyLog } from './latency';
 
 /** A clock that moves on by the given steps, one per read. */
 function clock(...times: number[]) {
@@ -39,5 +39,29 @@ describe('withLatencyLog', () => {
     expect(lines).toEqual([
       { function: 'dictionaryAlternatives', ms: 75, outcome: 'error', firstCall: true, instanceAgeMs: 900 },
     ]);
+  });
+});
+
+describe('stepTimer', () => {
+  it('gives the time of each step, in the order the steps ran', async () => {
+    const timer = stepTimer(clock(0, 30, 30, 32, 40, 900));
+
+    expect(await timer.time('rateLimit', async () => 'allowed')).toBe('allowed');
+    await timer.time('token', async () => undefined);
+    await timer.time('synthesis', async () => undefined);
+
+    expect(timer.steps()).toEqual({ rateLimit: 30, token: 2, synthesis: 860 });
+  });
+
+  it('keeps the time of a step that fails', async () => {
+    const timer = stepTimer(clock(0, 1200));
+    const failure = new Error('quota');
+
+    await expect(
+      timer.time('synthesis', async () => {
+        throw failure;
+      })
+    ).rejects.toBe(failure);
+    expect(timer.steps()).toEqual({ synthesis: 1200 });
   });
 });
