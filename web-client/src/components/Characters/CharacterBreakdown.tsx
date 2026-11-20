@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Box, ButtonBase, CircularProgress } from '@mui/material';
 
 import { copy } from '../../copy';
-import { BreakdownPart } from '../../services/breakdownService';
+import { BreakdownPart, Origin } from '../../services/breakdownService';
 import { colors, fonts, partInk } from '../../theme';
 import { useBreakdown } from './useBreakdown';
 import ReportPartButton from './ReportPartButton';
@@ -48,23 +48,81 @@ const PartLine: React.FC<{ char: string; parent: string; part: BreakdownPart }> 
         {part.y}
       </Box>
     )}
-    {part.r && (
-      <Box
-        sx={{
-          fontSize: 12,
-          px: 0.75,
-          borderRadius: 0.5,
-          border: `1px solid ${colors.borderStrong}`,
-          color: colors.textSecondary,
-        }}
-      >
-        {part.r === 'meaning' ? copy.test.meaningClue : copy.test.soundClue}
-      </Box>
-    )}
     {!part.p && <Box sx={{ color: colors.textSecondary }}>{copy.test.smallestPart}</Box>}
     <ReportPartButton report={{ char, parent, part: part.c, strokes: part.s, label: part.l }} />
   </Box>
 );
+
+/**
+ * One character of the origin line. A character that is a part takes the ink
+ * of the top part that holds its strokes, the ink it has in the whole
+ * character. A character with no strokes matches no part: plain text.
+ */
+const OriginChar: React.FC<{ c: string; s?: number[]; parts: BreakdownPart[] }> = ({
+  c,
+  s,
+  parts,
+}) => {
+  const index = s ? parts.findIndex((part) => part.s.includes(s[0])) : -1;
+  if (index === -1) return <span lang="zh">{c}</span>;
+  return (
+    <Box
+      component="span"
+      lang="zh"
+      data-testid="origin-part"
+      sx={{ color: inkOf(index), fontWeight: 700 }}
+    >
+      {c}
+    </Box>
+  );
+};
+
+/**
+ * The origin of the character (#569), at once and with no tap: a story, or
+ * the meaning part and the sound part. The texts are data, not copy.
+ */
+const OriginLine: React.FC<{ origin: Origin; parts: BreakdownPart[] }> = ({ origin, parts }) => {
+  const sides: React.ReactNode[] = [];
+  if (origin.m) {
+    sides.push(
+      <span key="m">
+        {copy.test.originMeaning}: <OriginChar c={origin.m.c} s={origin.m.s} parts={parts} />
+        {origin.m.l && ` ${origin.m.l}`}
+      </span>,
+    );
+  }
+  if (origin.n) {
+    sides.push(
+      <span key="n">
+        {copy.test.originSound}: <OriginChar c={origin.n.c} s={origin.n.s} parts={parts} />
+        {origin.n.y && (
+          <Box component="span" lang="zh-Latn" sx={{ color: colors.primaryDark, fontWeight: 600 }}>
+            {` ${origin.n.y}`}
+          </Box>
+        )}
+      </span>,
+    );
+  }
+  return (
+    <Box
+      data-testid="origin"
+      sx={{ maxWidth: 360, textAlign: 'center', fontSize: 14, color: colors.text }}
+    >
+      <Box component="span" sx={{ fontWeight: 600, color: colors.textSecondary, mr: 1 }}>
+        {copy.test.origin}
+      </Box>
+      {origin.t
+        ? origin.t.map((segment, i) =>
+            typeof segment === 'string' ? (
+              segment
+            ) : (
+              <OriginChar key={i} c={segment.c} s={segment.s} parts={parts} />
+            ),
+          )
+        : sides.flatMap((side, i) => (i > 0 ? [' · ', side] : [side]))}
+    </Box>
+  );
+};
 
 /**
  * Where the learner is in the breakdown: the indices of the parts tapped on
@@ -95,8 +153,8 @@ const pathOfStroke = (top: BreakdownPart, path: Path, stroke: number): Path | nu
 /**
  * One missed character, drawn large and in place, split into its parts in up
  * to 4 inks (#529). A tap on a part, on the character or on its chip, shows
- * one line under it: the label, the pinyin, and the clue. Only the line of
- * the last part tapped shows.
+ * one line under it: the label and the pinyin. Only the line of the last
+ * part tapped shows. The origin line sits under the chips (#569).
  *
  * A tapped part that splits shows its own parts in the inks, and the rest of
  * the character fades (#530). A tap on a faded part jumps to it. A part that
@@ -216,6 +274,7 @@ const CharacterBreakdown: React.FC<{ char: string }> = ({ char }) => {
           </ButtonBase>
         ))}
       </Box>
+      {load.breakdown.o && <OriginLine origin={load.breakdown.o} parts={top.p!} />}
       {/* The key starts the report of each part unsent. */}
       {parent && (
         <PartLine key={path.join('.')} char={char} parent={parent.c ?? char} part={focus} />

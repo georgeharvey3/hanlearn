@@ -431,6 +431,16 @@ answer.
 The pinyin of a spoken `MP` question is not an aid. It is the same question in
 text, as the learner sees it with the sound off.
 
+## Origin
+
+The **origin** of a character tells how its form came to carry its meaning. A
+**story origin** is one sentence: "A person 亻 leaning against a tree 木". A
+**meaning-and-sound origin** names the part that gives the meaning and the part
+that gives the sound: "Meaning: 女 woman · Sound: 马 mǎ". The origin shows under
+the component breakdown. It gives the meaning away, so it stays under the cover
+of a word that is due soon. An origin is not a hint: **hint** is the name of the
+session aid only.
+
 ## Alternative answer
 
 An **alternative answer** is an answer that fits the question shown but belongs

@@ -86,7 +86,7 @@ const BREAKDOWNS: Record<string, Breakdown> = {
   脑: {
     c: '脑',
     p: [
-      { c: '⺼', s: [0, 1, 2, 3], l: 'flesh', r: 'meaning' },
+      { c: '⺼', s: [0, 1, 2, 3], l: 'flesh' },
       {
         c: '㐫',
         s: [4, 5, 6, 7, 8, 9],

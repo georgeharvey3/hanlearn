@@ -254,6 +254,7 @@ const COMPONENTS_DIR = path.join(__dirname, 'components');
  *   holds itself
  * - the definitions file holds a text that no breakdown uses
  * - the labels file gives a label to a part that is in no breakdown
+ * - the origins file gives an origin to a character with no breakdown file
  */
 function buildComponentBreakdowns(catalogue, outputDir) {
   const sourceDir = path.join(COMPONENTS_DIR, 'source');
@@ -269,6 +270,7 @@ function buildComponentBreakdowns(catalogue, outputDir) {
     animcjk: readJson(sourceDir, 'animcjk.json'),
     definitions: readJson(COMPONENTS_DIR, 'definitions.json').definitions,
     labels: readJson(COMPONENTS_DIR, 'labels.json'),
+    origins: readJson(COMPONENTS_DIR, 'origins.json').origins,
   });
   if (result.unresolved.length) {
     throw new Error(
@@ -292,6 +294,12 @@ function buildComponentBreakdowns(catalogue, outputDir) {
     throw new Error(
       'migration/components/labels.json labels parts that are in no breakdown: ' +
         result.unused.join(' '),
+    );
+  }
+  if (result.unknownOrigins.length) {
+    throw new Error(
+      'migration/components/origins.json gives an origin to characters with no breakdown file: ' +
+        result.unknownOrigins.join(' '),
     );
   }
 
@@ -332,6 +340,54 @@ function buildComponentBreakdowns(catalogue, outputDir) {
   console.log('Parts with no label in any source: ' + result.unlabelled.join(' '));
   console.log('Parts that still use the fallback label: ' + result.fallback.length);
   writeWiktionaryDifferences(Object.values(result.files));
+  writeOriginMismatches(result.originMismatches);
+}
+
+/** The report of the origins that do not fit their breakdown (#572). */
+const ORIGIN_MISMATCHES_PATH = path.join(COMPONENTS_DIR, 'origin-mismatches.md');
+
+/**
+ * Write the origins that do not fit their breakdown. A mismatch never fails
+ * the build: a person reads the report, then adds an override to
+ * origins.json or accepts the source. A local run writes the report. CI only
+ * prints the count.
+ */
+function writeOriginMismatches(mismatches) {
+  console.log('Origins that do not fit their breakdown: ' + mismatches.length);
+  if (process.env.CI) return;
+  const rows = (side) =>
+    mismatches.filter((m) => m.side === side).map((m) => `| ${m.char} | ${m.part} |`);
+  const table = (side) => ['| Character | Part |', '| --- | --- |', ...rows(side)];
+  const report = [
+    '# Origin mismatches',
+    '',
+    '`npm run build:dict` writes this file. Do not edit it.',
+    '',
+    'The tables list each origin that does not fit the component breakdown of',
+    'its character. For each row, add an override to `origins.json`, or accept',
+    'the source. The origin line shows a part that does not fit in plain text.',
+    '',
+    '## Story',
+    '',
+    'The story names a character that is no part of the breakdown.',
+    '',
+    ...table('story'),
+    '',
+    '## Meaning',
+    '',
+    'The stroke match finds no part for the meaning part that the data names.',
+    '',
+    ...table('meaning'),
+    '',
+    '## Sound',
+    '',
+    'The stroke match finds no part for the sound part that the data names.',
+    '',
+    ...table('sound'),
+    '',
+  ].join('\n');
+  fs.writeFileSync(ORIGIN_MISMATCHES_PATH, report);
+  console.log('Wrote the mismatches to: ' + ORIGIN_MISMATCHES_PATH);
 }
 
 /** The report of the parts whose own parts differ from Wiktionary (#563). */
@@ -419,10 +475,12 @@ const breakdownAttributionText = (animcjk, makeMeAHanzi) => [
   'dictionary files of AnimCJK (https://github.com/parsimonhi/animCJK) and from',
   'dictionary.txt of Make Me a Hanzi (https://github.com/skishore/makemeahanzi).',
   'HanLearn modified the data: each file holds the tree of the parts of one',
-  'character, the strokes of each part, its meaning or sound clue, and a label.',
-  'Some parts come from migration/components/definitions.json of HanLearn. The',
-  'labels come from migration/components/labels.json of HanLearn, then from the',
-  'definitions of Make Me a Hanzi and AnimCJK.',
+  'character, the strokes of each part, a label, and the origin of the',
+  'character. Some parts come from migration/components/definitions.json of',
+  'HanLearn. The labels come from migration/components/labels.json of HanLearn,',
+  'then from the definitions of Make Me a Hanzi and AnimCJK. The origins come',
+  'from the etymology of Make Me a Hanzi, and from',
+  'migration/components/origins.json of HanLearn.',
   '',
   'HanLearn checks the parts against the compositions of Wiktionary',
   '(https://en.wiktionary.org), CC BY-SA 4.0, through Wiktextract',
