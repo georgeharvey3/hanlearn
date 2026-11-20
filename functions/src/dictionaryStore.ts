@@ -1,7 +1,13 @@
 import { performance } from 'perf_hooks';
 import { AlternativeIndex, createAlternativeIndex } from './alternativeAnswers';
 import { createEntryIndex, EntryIndex } from './dictionaryEntry';
-import { createSearchIndex, DictionaryEntry, SearchIndex } from './dictionarySearch';
+import {
+  createEnglishIndex,
+  createSearchIndex,
+  DictionaryEntry,
+  EnglishIndex,
+  SearchIndex,
+} from './dictionarySearch';
 import { logStructured } from './latency';
 
 /**
@@ -11,11 +17,13 @@ import { logStructured } from './latency';
  * Each `dictionary*` callable is a separate 1st gen function, so each one pays
  * its own cold start. Before #498 every one of them built every index. The
  * search index is the slowest (about 0.4 s of the 1 s local cold start), and
- * only `dictionarySearch` reads it.
+ * only `dictionarySearch` reads it. Its English part is a separate index,
+ * built on the first English search or warm-up call only (#577).
  */
 export interface DictionaryStore {
   characterIndexes(): CharacterIndexes;
   searchIndex(): SearchIndex;
+  englishIndex(): EnglishIndex;
   entryIndex(): EntryIndex;
   alternativeIndex(): AlternativeIndex;
 }
@@ -28,7 +36,13 @@ export interface CharacterIndexes {
 
 /** One stage of the load, written to the log when it ends. */
 export interface LoadLine {
-  stage: 'entries' | 'character indexes' | 'search index' | 'entry index' | 'alternative index';
+  stage:
+    | 'entries'
+    | 'character indexes'
+    | 'search index'
+    | 'english index'
+    | 'entry index'
+    | 'alternative index';
   ms: number;
 }
 
@@ -79,6 +93,7 @@ export function createDictionaryStore(
   return {
     characterIndexes: once('character indexes', entries, createCharacterIndexes),
     searchIndex: once('search index', entries, createSearchIndex),
+    englishIndex: once('english index', entries, createEnglishIndex),
     entryIndex: once('entry index', entries, createEntryIndex),
     alternativeIndex: once('alternative index', entries, createAlternativeIndex),
   };

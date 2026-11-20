@@ -41,7 +41,13 @@ import {
   nextLapses,
   nextMemory,
 } from '../utils/scheduling';
-import { searchDictionary, lookupCharacter, lookupCharacterByTrad } from './dictionaryService';
+import {
+  searchDictionary,
+  lookupCharacter,
+  lookupCharacterByTrad,
+  warmEnglishSearch as warmEnglishSearchCall,
+} from './dictionaryService';
+import { SearchMode } from '../utils/searchMode';
 import { addSessionToBatch } from './retentionService';
 import { recordReviewLog, reviewEntry, type ReviewLogEntry } from './reviewLogService';
 import type { ReviewOutcome } from '../utils/retention';
@@ -664,9 +670,16 @@ export const finishTest = async (
  * The search of the Add Words screen: hanzi, pinyin or English, ranked by the
  * dictionarySearch Cloud Function.
  */
-export const searchWord = async (query: string, charSet: 'simp' | 'trad'): Promise<Word[]> => {
-  return searchDictionary(query, charSet);
+export const searchWord = async (
+  query: string,
+  charSet: 'simp' | 'trad',
+  mode: SearchMode,
+): Promise<Word[]> => {
+  return searchDictionary(query, charSet, mode);
 };
+
+/** Warm the English search of a function instance, without waiting for it. */
+export const warmEnglishSearch = (): void => warmEnglishSearchCall();
 
 /**
  * Add a custom word that isn't in the dictionary.

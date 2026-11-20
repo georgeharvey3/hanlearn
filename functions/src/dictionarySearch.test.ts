@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { createSearchIndex, searchDictionary, DictionaryEntry } from './dictionarySearch';
+import {
+  createEnglishIndex,
+  createSearchIndex,
+  searchDictionary,
+  DictionaryEntry,
+  SearchMode,
+} from './dictionarySearch';
 
 /** A few CC-CEDICT entries, numbered in file order as build-dictionary.js does. */
 const DICTIONARY: Omit<DictionaryEntry, 'id'>[] = [
@@ -24,11 +30,18 @@ const DICTIONARY: Omit<DictionaryEntry, 'id'>[] = [
   { trad: '扇子', simp: '扇子', pinyin: 'shan4 zi5', meaning: 'fan' },
 ];
 
-const index = createSearchIndex(DICTIONARY.map((entry, i) => ({ id: i + 1, ...entry })));
+const ENTRIES = DICTIONARY.map((entry, i) => ({ id: i + 1, ...entry }));
+const index = createSearchIndex(ENTRIES);
+const english = createEnglishIndex(ENTRIES);
 
 /** The results of a search, as "simp pinyin", in order. */
+const searchIn = (mode: SearchMode, query: string, charSet: 'simp' | 'trad' = 'simp') =>
+  searchDictionary(index, query, charSet, mode === 'english' ? { mode, english } : { mode }).map(
+    (w) => `${w.simp} ${w.pinyin}`,
+  );
 const search = (query: string, charSet: 'simp' | 'trad' = 'simp') =>
-  searchDictionary(index, query, charSet).map((w) => `${w.simp} ${w.pinyin}`);
+  searchIn('chinese', query, charSet);
+const searchEnglish = (query: string) => searchIn('english', query);
 
 describe('searchDictionary: hanzi', () => {
   it('gives the exact entries first, then the entries that start with the query', () => {
@@ -94,29 +107,37 @@ describe('searchDictionary: pinyin', () => {
 
 describe('searchDictionary: English', () => {
   it('ranks a gloss equal to the query, then one that starts with it, then one that holds it', () => {
-    expect(search('eat')).toEqual(['吃 chi1', '吃饭 chi1 fan4', '吃东西 chi1 dong1 xi5']);
-    expect(search('meal')).toEqual(['饭 fan4', '吃饭 chi1 fan4']);
+    expect(searchEnglish('eat')).toEqual(['吃 chi1', '吃饭 chi1 fan4', '吃东西 chi1 dong1 xi5']);
+    expect(searchEnglish('meal')).toEqual(['饭 fan4', '吃饭 chi1 fan4']);
   });
 
   it('ignores case, text in parentheses and a leading "to"', () => {
-    expect(search('To Eat')).toEqual(search('eat'));
-    expect(search('you')).toEqual(['你们 ni3 men5', '你 ni3']);
+    expect(searchEnglish('To Eat')).toEqual(searchEnglish('eat'));
+    expect(searchEnglish('you')).toEqual(['你们 ni3 men5', '你 ni3']);
   });
 
   it('does not match part of a word', () => {
-    expect(search('ate')).toEqual([]);
+    expect(searchEnglish('ate')).toEqual([]);
   });
 
   it('ranks the entries with only cross-reference glosses last', () => {
-    expect(search('variant')).toEqual(['吃 chi1']);
+    expect(searchEnglish('variant')).toEqual(['吃 chi1']);
+  });
+});
+
+describe('searchDictionary: search mode', () => {
+  it('reads a Latin query as pinyin only in Chinese mode', () => {
+    expect(search('fan')).toEqual(['饭 fan4']);
+    expect(search('eat')).toEqual([]);
   });
 
-  it('does not run for a query with a tone', () => {
-    expect(search('wei4')).toEqual([]);
-    expect(search('da wei')).toEqual(['大卫 Da4 wei4']);
+  it('reads a Latin query as English only in English mode', () => {
+    expect(searchEnglish('fan')).toEqual(['扇子 shan4 zi5']);
+    expect(searchEnglish('nihao')).toEqual([]);
   });
 
-  it('ranks the pinyin matches above the English ones', () => {
-    expect(search('fan')).toEqual(['饭 fan4', '扇子 shan4 zi5']);
+  it('gives the same results for a hanzi query in both modes', () => {
+    expect(searchEnglish('你')).toEqual(search('你'));
+    expect(searchEnglish('你')).toEqual(['你 ni3', '你好 ni3 hao3', '你们 ni3 men5']);
   });
 });

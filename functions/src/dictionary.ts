@@ -4,7 +4,7 @@ import * as functions from 'firebase-functions/v1';
 import { checkRateLimit, RATE_LIMITS } from './rateLimit';
 import { withErrorReporting } from './reporting';
 import { alternativeAnswers, readAlternativesRequest } from './alternativeAnswers';
-import { searchDictionary, WordResult } from './dictionarySearch';
+import { ModeOf, searchDictionary, SearchMode, WordResult } from './dictionarySearch';
 import { entryById } from './dictionaryEntry';
 import { createDictionaryStore } from './dictionaryStore';
 
@@ -170,20 +170,27 @@ export const dictionarySearchWord = dictionaryRuntime.https.onCall(
 /**
  * The search of the Add Words screen: hanzi, pinyin or English, ranked, at
  * most 30 entries. `dictionarySearchWord` stays for the exact lookups.
+ *
+ * An English call builds the English index first, so the client warms an
+ * instance with an empty English query when the learner switches to English
+ * (#577). A Chinese call never builds it.
  */
 export const dictionarySearch = dictionaryRuntime.https.onCall(
   withErrorReporting(
     'dictionarySearch',
-    (data: { query: string; charSet: 'simp' | 'trad' }) => {
-      const { query, charSet } = data;
+    (data: { query: string; charSet: 'simp' | 'trad'; mode: SearchMode }) => {
+      const { query, charSet, mode } = data;
       const validCharSet = charSet === 'simp' || charSet === 'trad';
-      if (typeof query !== 'string' || query.length > 100 || !validCharSet) {
+      const validMode = mode === 'chinese' || mode === 'english';
+      if (typeof query !== 'string' || query.length > 100 || !validCharSet || !validMode) {
         throw new functions.https.HttpsError(
           'invalid-argument',
-          'query and charSet are required'
+          'query, charSet and mode are required'
         );
       }
-      return searchDictionary(dictionary.searchIndex(), query, charSet);
+      const search: ModeOf =
+        mode === 'english' ? { mode, english: dictionary.englishIndex() } : { mode };
+      return searchDictionary(dictionary.searchIndex(), query, charSet, search);
     }
   )
 );

@@ -43,4 +43,15 @@ describe('createDictionaryStore', () => {
     expect(stages()).toEqual(['entries', 'character indexes', 'search index', 'alternative index']);
     expect(reads()).toBe(1);
   });
+
+  it('builds the English index apart from the search index, once', () => {
+    const { dictionary, stages } = store();
+
+    dictionary.searchIndex();
+    expect(stages()).toEqual(['entries', 'search index']);
+
+    expect(dictionary.englishIndex().glossWords.get('learn')).toEqual([2]);
+    dictionary.englishIndex();
+    expect(stages()).toEqual(['entries', 'search index', 'english index']);
+  });
 });

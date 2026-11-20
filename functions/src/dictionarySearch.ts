@@ -2,9 +2,15 @@
  * The search of the Add Words screen: one query in hanzi, pinyin or English,
  * and one ranked list of entries back. See issue #425.
  *
- * Pure: dictionary.ts loads the entries and builds the index once per
- * instance, and the callable asks it.
+ * The search mode decides how a Latin query reads: pinyin in Chinese mode,
+ * English in English mode (#577). A hanzi query reads the same in both.
+ *
+ * Pure: dictionaryStore.ts builds each index once per instance, and the
+ * callable asks them.
  */
+
+/** How the search reads a Latin query. */
+export type SearchMode = 'chinese' | 'english';
 
 export interface DictionaryEntry {
   id: number;
@@ -192,6 +198,15 @@ export interface SearchIndex {
   pinyin: SortedKeys;
   /** The first letters of the syllables of each entry, with ü folded to u. */
   initials: Map<string, number[]>;
+}
+
+/**
+ * The index of the English mode. It is apart from the search index because
+ * it is the slowest part of a cold start (about 320 ms of 500 ms locally,
+ * #498), and only an English search reads it.
+ */
+export interface EnglishIndex {
+  entries: DictionaryEntry[];
   /** The entries whose glosses hold each word. */
   glossWords: Map<string, number[]>;
 }
@@ -224,15 +239,10 @@ function withPrefix(sorted: SortedKeys, prefix: string): number[] {
 
 export function createSearchIndex(entries: DictionaryEntry[]): SearchIndex {
   const initials = new Map<string, number[]>();
-  const glossWords = new Map<string, number[]>();
   const pinyinKeys: string[] = [];
   entries.forEach((entry, i) => {
     const syllables = syllablesOf(entry.pinyin);
     pinyinKeys.push(fold(syllables.map((s) => s.letters).join('')));
-    for (const word of new Set(glossesOf(entry).flatMap(wordsOf))) {
-      if (!glossWords.has(word)) glossWords.set(word, []);
-      glossWords.get(word)!.push(i);
-    }
 
     const key = fold(syllables.map((s) => s.letters[0]).join(''));
     if (key.length < 2) return;
@@ -245,8 +255,18 @@ export function createSearchIndex(entries: DictionaryEntry[]): SearchIndex {
     trad: sortedKeys(entries, (entry) => entry.trad),
     pinyin: sortedKeys(entries, (_, i) => pinyinKeys[i]),
     initials,
-    glossWords,
   };
+}
+
+export function createEnglishIndex(entries: DictionaryEntry[]): EnglishIndex {
+  const glossWords = new Map<string, number[]>();
+  entries.forEach((entry, i) => {
+    for (const word of new Set(glossesOf(entry).flatMap(wordsOf))) {
+      if (!glossWords.has(word)) glossWords.set(word, []);
+      glossWords.get(word)!.push(i);
+    }
+  });
+  return { entries, glossWords };
 }
 
 /** The best tier of each entry that matched. */
@@ -297,7 +317,7 @@ const firstLetter = (s: Syllable): Syllable => ({ letters: s.letters[0], tone: s
  * An English query: the best gloss of each entry decides its tier. An entry
  * whose glosses are all cross-references ranks last.
  */
-function matchEnglish(index: SearchIndex, query: string, matches: Matches) {
+function matchEnglish(index: EnglishIndex, query: string, matches: Matches) {
   const words = wordsOf(query);
   if (words.length === 0) return;
   for (const entry of index.glossWords.get(words[0]) ?? []) {
@@ -333,21 +353,25 @@ function compare(index: SearchIndex, matches: Matches, charSet: 'simp' | 'trad')
   };
 }
 
+/** The search mode, with the English index that only the English mode reads. */
+export type ModeOf = { mode: 'chinese' } | { mode: 'english'; english: EnglishIndex };
+
 export function searchDictionary(
   index: SearchIndex,
   rawQuery: string,
   charSet: 'simp' | 'trad',
+  search: ModeOf,
 ): WordResult[] {
   const query = rawQuery.trim();
   if (!query) return [];
   const matches: Matches = new Map();
   if (HAN.test(query)) {
     matchHanzi(index, query, charSet, matches);
+  } else if (search.mode === 'english') {
+    matchEnglish(search.english, query, matches);
   } else {
-    // A tone in the query makes it pinyin, so the English match does not run.
     const pinyin = readPinyin(query);
     if (pinyin) matchPinyin(index, pinyin, matches);
-    if (!pinyin || pinyin.tones.length === 0) matchEnglish(index, query, matches);
   }
 
   return [...matches.keys()]
