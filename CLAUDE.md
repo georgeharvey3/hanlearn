@@ -175,6 +175,8 @@ Security rules in [firestore.rules](firestore.rules): users can only access thei
 - `dictionaryAlternatives` - The alternative answers of the questions of one session, from all of CC-CEDICT. The rules are pure, in [functions/src/alternativeAnswers.ts](functions/src/alternativeAnswers.ts) (#348)
 - `lookupChengyuChar` - Character details for chengyu quiz
 
+Each callable writes a `callable latency` log line for each call. Each `dictionary*` function builds only the indexes that it reads, on its first call. See the section "Latency log" of [functions/monitoring/README.md](functions/monitoring/README.md) (#498).
+
 #### Authentication
 
 [web-client/src/firebase/auth.ts](web-client/src/firebase/auth.ts) - Firebase Auth wrappers for register/login/logout. User documents created in Firestore on signup.

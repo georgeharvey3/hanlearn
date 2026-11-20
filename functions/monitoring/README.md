@@ -122,3 +122,37 @@ The five `dictionary*` functions reach 512 MB through
 [#323](https://github.com/georgeharvey3/hanlearn/pull/323). Until that lands
 they still run at the 1st gen default, so the 512 MB threshold policy would not
 fire for them before a kill. Apply the policies after both are deployed.
+
+## Latency log
+
+Each callable writes one structured log line for each call (#498). The line has
+the message `callable latency` and these fields:
+
+| Field | Value |
+|---|---|
+| `function` | The name of the callable |
+| `ms` | The time in the handler, in milliseconds |
+| `outcome` | `ok` or `error` |
+| `firstCall` | `true` on the first call that the instance serves |
+| `instanceAgeMs` | The first call only: the age of the process. It holds the module load |
+
+A `dictionary*` function also writes one `dictionary load` line for each stage of
+its first call, with the fields `stage` and `ms`. Each function builds only the
+indexes that it reads ([src/dictionaryStore.ts](../src/dictionaryStore.ts)).
+
+To see the cold calls of one function, use this filter in Cloud Logging:
+
+```
+resource.type="cloud_function"
+jsonPayload.message="callable latency"
+jsonPayload.function="dictionarySearch"
+jsonPayload.firstCall=true
+```
+
+To see the warm calls, change the last line to `jsonPayload.firstCall=false`.
+The time that the learner waits also holds the network and the start of the
+container. The web client measures that time: Sentry samples 10% of the page
+traces, and each callable request is an `http.client` span.
+
+`npm --prefix functions run measure:dictionary` gives the local time of each
+load stage. A 1st gen instance has less CPU, so its times are longer.

@@ -96,13 +96,18 @@ function getDaysSinceBase(): number {
 export const getDailyChengyu = standardRuntime.https.onCall(
   withErrorReporting('getDailyChengyu', async (data, context) => {
     const uid = verifyAuth(context);
-    await checkRateLimit(uid, 'getDailyChengyu', RATE_LIMITS.getDailyChengyu);
 
     const dateKey = getTodayKey();
     const cacheRef = db.collection('dailyChengyu').doc(dateKey);
 
-    // Try reading the cached document first (1 read instead of full scan)
-    const cacheDoc = await cacheRef.get();
+    // Try reading the cached document first (1 read instead of full scan). The
+    // read runs beside the rate-limit transaction, not after it, so the caller
+    // waits for one round trip and not two (#498). A rejected caller gets
+    // nothing from the read.
+    const [, cacheDoc] = await Promise.all([
+      checkRateLimit(uid, 'getDailyChengyu', RATE_LIMITS.getDailyChengyu),
+      cacheRef.get(),
+    ]);
     if (cacheDoc.exists) {
       return cacheDoc.data();
     }
@@ -216,7 +221,6 @@ export const getDailyChengyu = standardRuntime.https.onCall(
 export const lookupChengyuChar = standardRuntime.https.onCall(
   withErrorReporting('lookupChengyuChar', async (data: { char: string }, context) => {
     const uid = verifyAuth(context);
-    await checkRateLimit(uid, 'lookupChengyuChar', RATE_LIMITS.lookupChengyuChar);
 
     const { char } = data;
 
@@ -227,10 +231,11 @@ export const lookupChengyuChar = standardRuntime.https.onCall(
       );
     }
 
-    const wordsSnapshot = await db
-      .collection('words')
-      .where('simp', '==', char)
-      .get();
+    // The query runs beside the rate-limit transaction, as in getDailyChengyu.
+    const [, wordsSnapshot] = await Promise.all([
+      checkRateLimit(uid, 'lookupChengyuChar', RATE_LIMITS.lookupChengyuChar),
+      db.collection('words').where('simp', '==', char).get(),
+    ]);
 
     const trads: string[] = [];
     const pinyins: string[] = [];
