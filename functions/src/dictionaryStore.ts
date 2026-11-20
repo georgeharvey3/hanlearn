@@ -1,8 +1,8 @@
 import { performance } from 'perf_hooks';
-import * as logger from 'firebase-functions/logger';
 import { AlternativeIndex, createAlternativeIndex } from './alternativeAnswers';
 import { createEntryIndex, EntryIndex } from './dictionaryEntry';
 import { createSearchIndex, DictionaryEntry, SearchIndex } from './dictionarySearch';
+import { logStructured } from './latency';
 
 /**
  * The dictionary of one function instance, with each index built on its first
@@ -52,7 +52,7 @@ function createCharacterIndexes(entries: DictionaryEntry[]): CharacterIndexes {
 export function createDictionaryStore(
   readEntries: () => DictionaryEntry[],
   {
-    log = (line) => logger.info('dictionary load', line),
+    log = (line) => logStructured('dictionary load', line),
     now = () => performance.now(),
   }: LoadOptions = {}
 ): DictionaryStore {

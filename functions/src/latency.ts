@@ -1,5 +1,4 @@
 import { performance } from 'perf_hooks';
-import * as logger from 'firebase-functions/logger';
 
 /**
  * The latency log of the callables (#498).
@@ -30,8 +29,17 @@ export interface LatencyOptions {
   uptimeMs?: () => number;
 }
 
+/**
+ * Write one line as structured JSON. Cloud Logging reads a JSON line on stdout
+ * as jsonPayload, as `firebase-functions/logger` does. This module imports no
+ * Firebase package, so the test run needs no install of `functions/`.
+ */
+export function logStructured(message: string, fields: object): void {
+  console.log(JSON.stringify({ severity: 'INFO', message, ...fields }));
+}
+
 const defaults: Required<LatencyOptions> = {
-  log: (line) => logger.info('callable latency', line),
+  log: (line) => logStructured('callable latency', line),
   now: () => performance.now(),
   uptimeMs: () => process.uptime() * 1000,
 };
