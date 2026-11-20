@@ -14,6 +14,8 @@
  *   ../web-client/public/sentences/ (the example sentences, see #465)
  *   ../web-client/public/breakdowns/ (the component breakdowns, see #528)
  *   sentences/coverage.md (the coverage report, on a local run only)
+ *   components/wiktionary-differences.md (the parts that differ from
+ *     Wiktionary, see #563, on a local run only)
  *   dictionary/emptied-entries.md (the entries that the clean of #488 empties)
  */
 
@@ -23,7 +25,7 @@ const path = require('path');
 const { ranksOf, resolveCatalogue } = require('./premadeCatalogue');
 const { checkHskIndex, hskIndexOf } = require('./hskIndex');
 const { buildExampleSentences, unfilledOf } = require('./exampleSentences');
-const { buildBreakdowns, parseMakeMeAHanzi } = require('./componentBreakdown');
+const { buildBreakdowns, compareWithWiktionary, parseMakeMeAHanzi } = require('./componentBreakdown');
 const { cleanDictionary, isUnclean } = require('./cleanMeaning');
 
 /**
@@ -248,8 +250,11 @@ const COMPONENTS_DIR = path.join(__dirname, 'components');
  *
  * - a named part of 2 or more strokes has no definition, because the part
  *   then splits into strokes with no name. The definitions file needs it
+ * - a part has the name of a character above it, because a character never
+ *   holds itself
  * - the definitions file holds a text that no breakdown uses
  * - the labels file gives a label to a part that is in no breakdown
+ * - the origins file gives an origin to a character with no breakdown file
  */
 function buildComponentBreakdowns(catalogue, outputDir) {
   const sourceDir = path.join(COMPONENTS_DIR, 'source');
@@ -265,11 +270,18 @@ function buildComponentBreakdowns(catalogue, outputDir) {
     animcjk: readJson(sourceDir, 'animcjk.json'),
     definitions: readJson(COMPONENTS_DIR, 'definitions.json').definitions,
     labels: readJson(COMPONENTS_DIR, 'labels.json'),
+    origins: readJson(COMPONENTS_DIR, 'origins.json').origins,
   });
   if (result.unresolved.length) {
     throw new Error(
       'These parts have no definition with their stroke count. Add each one to ' +
         'migration/components/definitions.json: ' + result.unresolved.join(', '),
+    );
+  }
+  if (result.selfNamed.length) {
+    throw new Error(
+      'These parts have the name of a character above them, and a character never holds itself: ' +
+        result.selfNamed.join(', '),
     );
   }
   if (result.unusedDefinitions.length) {
@@ -282,6 +294,12 @@ function buildComponentBreakdowns(catalogue, outputDir) {
     throw new Error(
       'migration/components/labels.json labels parts that are in no breakdown: ' +
         result.unused.join(' '),
+    );
+  }
+  if (result.unknownOrigins.length) {
+    throw new Error(
+      'migration/components/origins.json gives an origin to characters with no breakdown file: ' +
+        result.unknownOrigins.join(' '),
     );
   }
 
@@ -321,6 +339,130 @@ function buildComponentBreakdowns(catalogue, outputDir) {
   console.log('AnimCJK texts in use with another operand count: ' + result.irregular.length);
   console.log('Parts with no label in any source: ' + result.unlabelled.join(' '));
   console.log('Parts that still use the fallback label: ' + result.fallback.length);
+  writeWiktionaryDifferences(Object.values(result.files));
+  writeOriginMismatches(result.originMismatches);
+}
+
+/** The report of the origins that do not fit their breakdown (#572). */
+const ORIGIN_MISMATCHES_PATH = path.join(COMPONENTS_DIR, 'origin-mismatches.md');
+
+/**
+ * Write the origins that do not fit their breakdown. A mismatch never fails
+ * the build: a person reads the report, then adds an override to
+ * origins.json or accepts the source. A local run writes the report. CI only
+ * prints the count.
+ */
+function writeOriginMismatches(mismatches) {
+  console.log('Origins that do not fit their breakdown: ' + mismatches.length);
+  if (process.env.CI) return;
+  const rows = (side) =>
+    mismatches.filter((m) => m.side === side).map((m) => `| ${m.char} | ${m.part} |`);
+  const table = (side) => ['| Character | Part |', '| --- | --- |', ...rows(side)];
+  const report = [
+    '# Origin mismatches',
+    '',
+    '`npm run build:dict` writes this file. Do not edit it.',
+    '',
+    'The tables list each origin that does not fit the component breakdown of',
+    'its character. For each row, add an override to `origins.json`, or accept',
+    'the source. The origin line shows a part that does not fit in plain text.',
+    '',
+    '## Story',
+    '',
+    'The story names a character that is no part of the breakdown.',
+    '',
+    ...table('story'),
+    '',
+    '## Meaning',
+    '',
+    'The stroke match finds no part for the meaning part that the data names.',
+    '',
+    ...table('meaning'),
+    '',
+    '## Sound',
+    '',
+    'The stroke match finds no part for the sound part that the data names.',
+    '',
+    ...table('sound'),
+    '',
+  ].join('\n');
+  fs.writeFileSync(ORIGIN_MISMATCHES_PATH, report);
+  console.log('Wrote the mismatches to: ' + ORIGIN_MISMATCHES_PATH);
+}
+
+/** The report of the parts whose own parts differ from Wiktionary (#563). */
+const WIKTIONARY_DIFFERENCES_PATH = path.join(COMPONENTS_DIR, 'wiktionary-differences.md');
+
+/**
+ * Compare each named part of each breakdown, at every level, with its
+ * Wiktionary composition. The differences never fail the build: a person reads them,
+ * then corrects definitions.json or accepts the source. A local run writes
+ * the report. CI only prints the count.
+ */
+function writeWiktionaryDifferences(breakdowns) {
+  const wiktionary = JSON.parse(
+    fs.readFileSync(path.join(COMPONENTS_DIR, 'source', 'wiktionary.json'), 'utf8'),
+  );
+  const result = compareWithWiktionary(breakdowns, wiktionary.compositions);
+  console.log(
+    'Splits that differ from Wiktionary: ' + result.differences.length +
+      ' (no composition: ' + result.absent.length + ', composition that does not parse: ' +
+      result.malformed.length + ')',
+  );
+  if (process.env.CI) return;
+  fs.writeFileSync(WIKTIONARY_DIFFERENCES_PATH, wiktionaryDifferencesReport(result, wiktionary.dump));
+  console.log('Wrote the differences to: ' + WIKTIONARY_DIFFERENCES_PATH);
+}
+
+/**
+ * The text of wiktionary-differences.md. The splits in the most characters
+ * come first, because one correction fixes all of them.
+ */
+function wiktionaryDifferencesReport(result, dump) {
+  const parts = (list) => list.map((c) => c ?? '？').join(' ');
+  const chars = (list) => (list.length ? list.join(' ') : 'none');
+  const tops = (list) =>
+    list.length > 8 ? list.slice(0, 8).join(' ') + ' and ' + (list.length - 8) + ' more' : list.join(' ');
+  const table = (strokes) => [
+    '| Part | Breakdown | Wiktionary | In |',
+    '| --- | --- | --- | --- |',
+    ...result.differences
+      .filter((d) => d.strokes === strokes)
+      .sort((a, b) => b.tops.length - a.tops.length)
+      .map((d) => `| ${d.char} | ${parts(d.parts)} | ${d.composition} | ${tops(d.tops)} |`),
+  ];
+  return [
+    '# Wiktionary differences',
+    '',
+    '`npm run build:dict` writes this file. Do not edit it.',
+    '',
+    'The table lists each named part, at any level of the component breakdown,',
+    'whose parts are not the parts of its Wiktionary composition. A top',
+    'character is a named part too. "In" gives the HSK characters that hold the',
+    'split. For each row, correct `definitions.json`, or accept the source.',
+    '',
+    'The compositions come from Wiktionary (https://en.wiktionary.org), through',
+    'Wiktextract (https://kaikki.org), from the dump dated ' + dump + '. They are',
+    'available under CC BY-SA 4.0: see `source/wiktionary-NOTICE.txt`.',
+    '',
+    '## Parts',
+    '',
+    'The breakdown splits the part into other parts than Wiktionary.',
+    '',
+    ...table(false),
+    '',
+    '## Strokes',
+    '',
+    'The breakdown splits the part into strokes, so it names no wrong part.',
+    'Wiktionary often writes the strokes as other forms.',
+    '',
+    ...table(true),
+    '',
+    'No composition: ' + chars(result.absent),
+    '',
+    'A composition that does not parse: ' + chars(result.malformed),
+    '',
+  ].join('\n');
 }
 
 /**
@@ -333,10 +475,16 @@ const breakdownAttributionText = (animcjk, makeMeAHanzi) => [
   'dictionary files of AnimCJK (https://github.com/parsimonhi/animCJK) and from',
   'dictionary.txt of Make Me a Hanzi (https://github.com/skishore/makemeahanzi).',
   'HanLearn modified the data: each file holds the tree of the parts of one',
-  'character, the strokes of each part, its meaning or sound clue, and a label.',
-  'Some parts come from migration/components/definitions.json of HanLearn. The',
-  'labels come from migration/components/labels.json of HanLearn, then from the',
-  'definitions of Make Me a Hanzi and AnimCJK.',
+  'character, the strokes of each part, a label, and the origin of the',
+  'character. Some parts come from migration/components/definitions.json of',
+  'HanLearn. The labels come from migration/components/labels.json of HanLearn,',
+  'then from the definitions of Make Me a Hanzi and AnimCJK. The origins come',
+  'from the etymology of Make Me a Hanzi, and from',
+  'migration/components/origins.json of HanLearn.',
+  '',
+  'HanLearn checks the parts against the compositions of Wiktionary',
+  '(https://en.wiktionary.org), CC BY-SA 4.0, through Wiktextract',
+  '(https://kaikki.org). These files hold no Wiktionary data.',
   '',
   'You can redistribute and/or modify these files under the terms of the GNU',
   'Lesser General Public License, version 3 or later (LICENSE.txt), which adds',

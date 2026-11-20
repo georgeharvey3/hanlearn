@@ -1,0 +1,18 @@
+wiktionary.json holds the "composition" field of the Translingual character
+entries of the English Wiktionary (https://en.wiktionary.org), by the
+Wiktionary contributors. The data comes from Wiktextract on kaikki.org
+(https://kaikki.org/dictionary/Translingual/). The file gives the date of the
+Wiktionary dump.
+
+HanLearn kept only the composition of each entry and changed nothing in it.
+
+The text of Wiktionary is available under the Creative Commons
+Attribution-ShareAlike 4.0 International License (CC BY-SA 4.0):
+https://creativecommons.org/licenses/by-sa/4.0/
+
+The build reads the file only to compare the component breakdowns with it.
+It writes no Wiktionary data into the published breakdown files.
+
+Wiktextract: Tatu Ylonen, "Wiktextract: Wiktionary as Machine-Readable
+Structured Data", Proceedings of the 13th Conference on Language Resources and
+Evaluation (LREC), pp. 1317-1325, Marseille, 2022.

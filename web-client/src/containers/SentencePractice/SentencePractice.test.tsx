@@ -14,6 +14,7 @@ vi.mock('howler', () => ({ Howl: vi.fn(), Howler: { ctx: null } }));
 // The audio ends at once, as a short clip does.
 vi.mock('../../services/ttsService', () => ({
   speak: vi.fn((_text: string, options?: { onEnd?: () => void }) => options?.onEnd?.()),
+  prefetch: vi.fn(),
   stopAll: vi.fn(),
 }));
 vi.mock('../../services/sentenceTabsService', async () => {
@@ -148,6 +149,7 @@ beforeEach(() => {
   localStorage.clear();
   vi.mocked(saveGrade).mockClear();
   vi.mocked(ttsService.speak).mockClear();
+  vi.mocked(ttsService.prefetch).mockClear();
   vi.mocked(getSegmentedSentence).mockImplementation(async (simp, _charSet, id) =>
     sentenceOf(simp, id ?? 'none'),
   );
@@ -165,6 +167,24 @@ describe('the Comprehend tab', () => {
 
     await user.click(screen.getByRole('button', { name: 'Show text' }));
     expect(screen.getByRole('button', { name: '中文: show meaning' })).toBeInTheDocument();
+  });
+
+  it('fetches the audio of the next sentence while the learner hears this one', async () => {
+    setQueue([STUDY, READ]);
+    renderTab('comprehend');
+
+    await screen.findByRole('button', { name: 'Play sentence' });
+    const played = vi.mocked(ttsService.speak).mock.calls[0][0];
+    const next = played === '我学习中文。' ? '我看书中文。' : '我学习中文。';
+    await waitFor(() => expect(ttsService.prefetch).toHaveBeenCalledWith(next, 1.0));
+  });
+
+  it('fetches no audio ahead with sound off', async () => {
+    setQueue([STUDY, READ]);
+    renderTab('comprehend', false);
+
+    await screen.findByRole('button', { name: '中文: show meaning' });
+    expect(ttsService.prefetch).not.toHaveBeenCalled();
   });
 
   it('shows the Chinese at once with sound off', async () => {
@@ -356,7 +376,7 @@ describe('the Compose tab', () => {
     expect(check).toBeEnabled();
   });
 
-  it('shows the answer above the reference, plays it, and saves the raw answer', async () => {
+  it('shows the answer above the reference, and saves the raw answer', async () => {
     const user = userEvent.setup();
     setQueue([STUDY]);
     renderTab('compose');
@@ -368,7 +388,6 @@ describe('the Compose tab', () => {
     expect(answer).toHaveTextContent('我在学习');
     const reference = screen.getByText('Original').nextElementSibling as HTMLElement;
     expect(within(reference).getByText(/wǒ xué xí/)).toBeInTheDocument();
-    expect(ttsService.speak).toHaveBeenCalledWith('我学习中文。', expect.anything());
 
     await user.click(screen.getByRole('button', { name: 'Right' }));
     expect(saveGrade).toHaveBeenCalledWith(
@@ -381,6 +400,30 @@ describe('the Compose tab', () => {
         answer: '我在学习',
       }),
     );
+  });
+
+  it('plays the reference only on request', async () => {
+    const user = userEvent.setup();
+    setQueue([STUDY]);
+    renderTab('compose');
+
+    await user.type(await screen.findByLabelText('Your answer'), '我在学习');
+    await user.click(screen.getByRole('button', { name: 'Check' }));
+    expect(ttsService.speak).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Play sentence' }));
+    expect(ttsService.speak).toHaveBeenCalledWith('我学习中文。', expect.anything());
+  });
+
+  it('offers no play button with sound off', async () => {
+    const user = userEvent.setup();
+    setQueue([STUDY]);
+    renderTab('compose', false);
+
+    await user.type(await screen.findByLabelText('Your answer'), '我在学习');
+    await user.click(screen.getByRole('button', { name: 'Check' }));
+    expect(screen.getByText('Original')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Play sentence' })).not.toBeInTheDocument();
   });
 
   it('reads the pinyin of a traditional sentence from its simplified text', async () => {

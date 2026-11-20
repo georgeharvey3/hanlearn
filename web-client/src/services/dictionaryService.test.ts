@@ -71,16 +71,35 @@ describe('dictionaryService', () => {
   // searchDictionary
   // ---------------------------------------------------------------------------
   describe('searchDictionary', () => {
-    it('passes the trimmed query and charSet to the Cloud Function', async () => {
+    it('passes the trimmed query, charSet and search mode to the Cloud Function', async () => {
       mockCallable.mockResolvedValue({ data: [SAMPLE_ENTRIES[0]] });
-      const results = await mod.searchDictionary('  ni hao ', 'trad');
-      expect(mockCallable).toHaveBeenCalledWith({ query: 'ni hao', charSet: 'trad' });
+      const results = await mod.searchDictionary('  ni hao ', 'trad', 'chinese');
+      expect(mockCallable).toHaveBeenCalledWith({
+        query: 'ni hao',
+        charSet: 'trad',
+        mode: 'chinese',
+      });
       expect(results).toEqual([SAMPLE_ENTRIES[0]]);
     });
 
     it('does not call the Cloud Function for empty input', async () => {
-      expect(await mod.searchDictionary('   ', 'simp')).toEqual([]);
+      expect(await mod.searchDictionary('   ', 'simp', 'english')).toEqual([]);
       expect(mockCallable).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('warmEnglishSearch', () => {
+    it('sends one empty English search, so the instance builds its English index', () => {
+      mockCallable.mockResolvedValue({ data: [] });
+      mod.warmEnglishSearch();
+      expect(mockCallable).toHaveBeenCalledTimes(1);
+      expect(mockCallable).toHaveBeenCalledWith({ query: '', charSet: 'simp', mode: 'english' });
+    });
+
+    it('does not reject when the call fails', async () => {
+      mockCallable.mockRejectedValue(new Error('offline'));
+      expect(() => mod.warmEnglishSearch()).not.toThrow();
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
   });
 

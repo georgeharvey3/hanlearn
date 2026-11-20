@@ -9,6 +9,7 @@ import { Point, animationLength, strokeTimings } from '../../utils/strokeAnimati
 import { reportError } from '../../services/errorReporting';
 import { hanziSx } from '../Test/Study/parts';
 import CharacterBreakdown from './CharacterBreakdown';
+import OriginLine from './OriginLine';
 import { CHAR_SIZE } from './size';
 import { useBreakdown } from './useBreakdown';
 
@@ -129,7 +130,8 @@ const ViewSwitch: React.FC<{ label: string; on: boolean; onChange: (on: boolean)
  * in the reveal after a CM lapse, or the character in one ink. "Animate" draws
  * the strokes in order in the inks of that view, then shows the view at rest
  * again. The parts take no tap while the strokes draw. A character with no
- * breakdown has no switch: it is always in one ink.
+ * breakdown has no switch: it is always in one ink. The origin shows in both
+ * views (#569): under the parts, or in plain text under the one ink.
  */
 const CharacterPanel: React.FC<{ char: string }> = ({ char }) => {
   const [load] = useBreakdown(char);
@@ -219,6 +221,9 @@ const CharacterPanel: React.FC<{ char: string }> = ({ char }) => {
           </Box>
         )}
       </Box>
+      {!showParts && load.status === 'done' && load.breakdown.o && (
+        <OriginLine origin={load.breakdown.o} parts={[]} />
+      )}
       {parts && (
         <ViewSwitch label={copy.wordPage.composition} on={composition} onChange={setComposition} />
       )}

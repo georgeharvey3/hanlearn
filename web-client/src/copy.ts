@@ -208,12 +208,15 @@ export const copy = {
     componentsFailed: "Couldn't load components",
     noComponents: 'No components',
     noPartName: 'no name of its own',
-    meaningClue: 'meaning clue',
-    soundClue: 'sound clue',
+    origin: 'Origin',
+    originMeaning: 'Meaning',
+    originSound: 'Sound',
     smallestPart: 'The smallest part here',
     backTo: (part: string) => `‹ Back to ${part}`,
     startAgain: 'Start again',
-    reportPart: 'Report meaning',
+    reportPart: 'Report breakdown',
+    partReportReason: 'Reason (optional)',
+    sendPartReport: 'Send',
     partReported: 'Reported',
     partReportFailed: 'Report failed',
     retry: 'Retry',
@@ -301,6 +304,13 @@ export const copy = {
   // words. A word due soon shows grey blocks until the learner taps it.
   wordBank: {
     search: 'Search a Chinese word',
+    searchEnglish: 'Search an English word',
+    // The toggle of the search mode: the visible label, then the name.
+    searchMode: 'Search mode',
+    modes: {
+      chinese: { short: '中', name: 'Chinese' },
+      english: { short: 'EN', name: 'English' },
+    },
     clear: 'Clear',
     searching: 'Searching…',
     searchFailed: 'Search failed',

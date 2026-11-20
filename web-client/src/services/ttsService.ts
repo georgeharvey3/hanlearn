@@ -23,6 +23,37 @@ function evictIfNeeded(): void {
   }
 }
 
+/**
+ * The Cloud calls in flight, by cache key. A play that comes while a prefetch
+ * of the same text is in flight waits for that call and makes no second one
+ * (#576). A call leaves the map when it settles, so a failed call is not kept.
+ */
+const pending = new Map<string, Promise<string>>();
+
+function cacheKeyOf(text: string, speed?: number): string {
+  // Include speed in cache key so different speeds are cached separately
+  return speed !== undefined && speed !== 1.0 ? `${text}::speed=${speed}` : text;
+}
+
+function fetchAudio(text: string, speed?: number): Promise<string> {
+  const key = cacheKeyOf(text, speed);
+  const inFlight = pending.get(key);
+  if (inFlight) return inFlight;
+
+  const call = textToSpeechFn({ text, speed })
+    .then((result) => {
+      const blobUrl = base64ToBlobUrl(result.data.audioContent);
+      evictIfNeeded();
+      cache.set(key, blobUrl);
+      return blobUrl;
+    })
+    .finally(() => {
+      pending.delete(key);
+    });
+  pending.set(key, call);
+  return call;
+}
+
 function base64ToBlobUrl(base64: string): string {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -156,12 +187,8 @@ function playFromBlobUrl(blobUrl: string, options: SpeakOptions): TtsHandle {
 }
 
 export function speak(text: string, options: SpeakOptions = {}): TtsHandle {
-  // Include speed in cache key so different speeds are cached separately
-  const cacheKey =
-    options.speed !== undefined && options.speed !== 1.0 ? `${text}::speed=${options.speed}` : text;
-
   // Check cache first
-  const cached = cache.get(cacheKey);
+  const cached = cache.get(cacheKeyOf(text, options.speed));
   if (cached) {
     options.onStart?.();
     const handle = playFromBlobUrl(cached, options);
@@ -175,18 +202,15 @@ export function speak(text: string, options: SpeakOptions = {}): TtsHandle {
 
   // One retry: the Cloud call fails now and then with `internal`, and a second
   // try usually succeeds, while the native fallback may not speak at all.
-  textToSpeechFn({ text, speed: options.speed })
+  fetchAudio(text, options.speed)
     .catch((error) => {
       if (stopped) throw error;
-      return textToSpeechFn({ text, speed: options.speed });
+      return fetchAudio(text, options.speed);
     })
-    .then((result) => {
+    .then((blobUrl) => {
       if (stopped) return;
 
       _googleTtsAvailable = true;
-      const blobUrl = base64ToBlobUrl(result.data.audioContent);
-      evictIfNeeded();
-      cache.set(cacheKey, blobUrl);
 
       options.onStart?.();
       const handle = playFromBlobUrl(blobUrl, options);
@@ -225,18 +249,13 @@ export function speak(text: string, options: SpeakOptions = {}): TtsHandle {
   };
 }
 
-export function prefetch(text: string): void {
-  if (cache.has(text)) return;
+/** Fetch the audio of a text into the cache, with no play. */
+export function prefetch(text: string, speed?: number): void {
+  if (cache.has(cacheKeyOf(text, speed))) return;
 
-  textToSpeechFn({ text })
-    .then((result) => {
-      const blobUrl = base64ToBlobUrl(result.data.audioContent);
-      evictIfNeeded();
-      cache.set(text, blobUrl);
-    })
-    .catch(() => {
-      // Prefetch failures are non-critical
-    });
+  fetchAudio(text, speed).catch(() => {
+    // Prefetch failures are non-critical
+  });
 }
 
 export function stopAll(): void {

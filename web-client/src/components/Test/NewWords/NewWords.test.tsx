@@ -86,7 +86,7 @@ const BREAKDOWNS: Record<string, Breakdown> = {
   脑: {
     c: '脑',
     p: [
-      { c: '⺼', s: [0, 1, 2, 3], l: 'flesh', r: 'meaning' },
+      { c: '⺼', s: [0, 1, 2, 3], l: 'flesh' },
       {
         c: '㐫',
         s: [4, 5, 6, 7, 8, 9],
@@ -165,6 +165,19 @@ beforeEach(() => {
   vi.mocked(loadCharData).mockImplementation((char, onLoad) =>
     onLoad({ strokes: Array.from({ length: STROKES[char] ?? 0 }, (_, i) => `M${i} 0`) }),
   );
+});
+
+describe('NewWords — the audio of the next word', () => {
+  it('fetches the audio of the next word while the learner reads this one', () => {
+    render([diannao, xiuxi]);
+    expect(ttsService.prefetch).toHaveBeenCalledWith('休息');
+  });
+
+  it('fetches nothing when the sound is off', () => {
+    localStorage.setItem('useSound', 'false');
+    render([diannao, xiuxi]);
+    expect(ttsService.prefetch).not.toHaveBeenCalled();
+  });
 });
 
 describe('NewWords — the session bar and the steps', () => {

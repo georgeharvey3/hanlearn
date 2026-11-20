@@ -1,6 +1,6 @@
 /**
  * The component breakdown of a character: its parts, the strokes of each
- * part, a label, and a meaning or sound clue (#527).
+ * part, a label (#527), and the origin of the character (#569).
  *
  * `npm run build:dict` writes one file for each HSK character to
  * `/breakdowns/` on Hosting (#528). The file name is the hex code point of
@@ -17,16 +17,38 @@ export interface BreakdownPart {
   l: string | null;
   /** The pinyin. */
   y?: string;
-  /** The role of the part in its parent: a meaning clue or a sound clue. */
-  r?: 'meaning' | 'sound';
   /** The parts of the part. */
   p?: BreakdownPart[];
+}
+
+/**
+ * A character of an origin that is a part of the breakdown: `s` holds the
+ * strokes of that part, which give it the ink of its part.
+ */
+export interface OriginPart {
+  c: string;
+  s: number[];
+}
+
+/**
+ * The origin of a character (#569), from its Make Me a Hanzi etymology. A
+ * story origin gives `t`: the text, with each character that is a part as an
+ * OriginPart. A meaning-and-sound origin gives `m` (the meaning part, with its
+ * gloss) or `n` (the sound part, with its pinyin), or both. A side with no
+ * `s` matches no part, and shows in plain text.
+ */
+export interface Origin {
+  t?: (string | OriginPart)[];
+  m?: { c: string; l?: string; s?: number[] };
+  n?: { c: string; y?: string; s?: number[] };
 }
 
 /** The breakdown of one character. `p` is null when the character does not split. */
 export interface Breakdown {
   c: string;
   p: BreakdownPart[] | null;
+  /** The origin; absent when the source has none. */
+  o?: Origin;
 }
 
 /**

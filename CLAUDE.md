@@ -78,7 +78,7 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 - [web-client/src/services/reviewLogService.ts](web-client/src/services/reviewLogService.ts) - Builds the `reviewLog` entry of each graded question. `finishTest` writes the document after its batch, and a failed write does not lose the session. `node migration/export-review-log.js --uid <userId>` exports the log of one learner to a CSV file for the FSRS optimizer
 - [web-client/src/services/sentenceService.ts](web-client/src/services/sentenceService.ts) - Reads the example sentences from the files in `/sentences/` on Hosting, and keeps each file in memory for the session. It makes no AI call, no Firestore read and no dictionary call (#469)
 - [web-client/src/services/sentenceReportService.ts](web-client/src/services/sentenceReportService.ts) - Saves the report of a bad example sentence to `sentenceReports`. The sentence service then leaves that sentence out on the same device. `node migration/export-sentence-reports.js` exports the reports of all learners to a CSV file
-- [web-client/src/services/partReportService.ts](web-client/src/services/partReportService.ts) - Saves the report of a wrong part meaning in the component breakdown to `partReports`. `node migration/export-part-reports.js` exports the reports of all learners to a CSV file, one row for each report (#533)
+- [web-client/src/services/partReportService.ts](web-client/src/services/partReportService.ts) - Saves the report of a wrong breakdown, with an optional reason, to `partReports`. `node migration/export-part-reports.js` exports the reports of all learners to a CSV file, one row for each report (#533)
 - [web-client/src/services/sentencePracticeService.ts](web-client/src/services/sentencePracticeService.ts) - Saves each grade of the Comprehend and Compose tabs: first the queue state in `sentencePractice`, then a write-once entry in `sentenceLog`. A failed log write does not reject the grade (#489)
 - [web-client/src/services/sentenceTabsService.ts](web-client/src/services/sentenceTabsService.ts) - Loads the words, the `sentencePractice` documents and the sentence ids that the two tabs need, and gives the status of each tab for the dot and the finish screen. The queue rules are pure, in [web-client/src/utils/sentenceQueue.ts](web-client/src/utils/sentenceQueue.ts)
 - [web-client/src/services/chengyuSentenceService.ts](web-client/src/services/chengyuSentenceService.ts) - Generates example sentences for chengyu display
@@ -140,7 +140,8 @@ users/{userId}/
   │   └── sentenceId, word, stage: 'read' | 'write', sentence, english, reportedAt
   ├── partReports/{reportId}     # One report of a wrong part meaning (#533). The id is
   │   │                          # the hex code point of the character, then the strokes
-  │   └── char, parent, part: string | null, strokes: number[], label: string | null, reportedAt
+  │   └── char, parent, part: string | null, strokes: number[], label: string | null,
+  │       reason?: string | null (#563), reportedAt
   └── reviewLog/{autoId}         # One document per saved session, write-once (#397)
       ├── version: 2, date: string, reviewedAt: Timestamp  # 1 before #396: `hint` was free
       ├── scheduler: string      # The weights in use: 'fsrs-6-default'
@@ -168,11 +169,13 @@ Security rules in [firestore.rules](firestore.rules): users can only access thei
 [functions/src/index.ts](functions/src/index.ts) - Callable functions for server-side operations:
 
 - `getDailyChengyu` - Rotates through chengyus daily
-- `dictionarySearch` - The search of the Add Words screen: hanzi, pinyin or English, ranked in tiers, at most 30 entries. The rules are pure, in [functions/src/dictionarySearch.ts](functions/src/dictionarySearch.ts) (#425)
+- `dictionarySearch` - The search of the Add Words screen: hanzi, pinyin or English, ranked in tiers, at most 30 entries. The **search mode** reads a Latin query as pinyin (Chinese) or as English, and only an English call builds the English index (#577). The rules are pure, in [functions/src/dictionarySearch.ts](functions/src/dictionarySearch.ts) (#425)
 - `dictionarySearchWord` - The exact lookup of an entry by its characters
 - `dictionaryEntry` - One entry by its id, for the word page of an entry that the learner does not have. The rule is pure, in [functions/src/dictionaryEntry.ts](functions/src/dictionaryEntry.ts) (#562)
 - `dictionaryAlternatives` - The alternative answers of the questions of one session, from all of CC-CEDICT. The rules are pure, in [functions/src/alternativeAnswers.ts](functions/src/alternativeAnswers.ts) (#348)
 - `lookupChengyuChar` - Character details for chengyu quiz
+
+Each callable writes a `callable latency` log line for each call. Each `dictionary*` function builds only the indexes that it reads, on its first call. See the section "Latency log" of [functions/monitoring/README.md](functions/monitoring/README.md) (#498).
 
 #### Authentication
 
@@ -190,7 +193,7 @@ The example sentences of #465 have two committed sources. `migration/sentences/t
 
 `build:dict` writes the example sentence files to `web-client/public/sentences/`, one file for each first character of a word (the hex code point, for example `5b66.json`). The Comprehend tab, the Compose tab and the hint read only these files, with `ATTRIBUTION.txt` (one credit line for each Tatoeba sentence) and `LICENSE.txt`. Each segment shows the pinyin and the first 3 useful senses of one CC-CEDICT entry (#479). `migration/sentences/gloss-overrides.json` sets the entry and the gloss of one segment text. The build also writes a coverage report to `migration/sentences/coverage.md`, which lists the HSK words with fewer than 3 sentences. The rules (splitter, entry choice, gloss, grader, pick) are pure, in [migration/exampleSentences.js](migration/exampleSentences.js). To add more sentences, follow [migration/sentences/GENERATE.md](migration/sentences/GENERATE.md) (#468). See [docs/adr/0019-example-sentences-are-a-committed-build.md](docs/adr/0019-example-sentences-are-a-committed-build.md), [docs/adr/0020-every-example-sentence-is-generated.md](docs/adr/0020-every-example-sentence-is-generated.md) and [migration/README.md](migration/README.md).
 
-`build:dict` also writes one component breakdown file for each HSK character to `web-client/public/breakdowns/`. The sources are the committed AnimCJK and Make Me a Hanzi data, the definitions file and the labels file in `migration/components/`. Every part splits until it is one stroke. The build finds no part by its shape: a part takes the definition of its character with the same stroke count. If a named part has no definition, the build fails, and `definitions.json` needs the form. The tree rules are pure, in [migration/componentBreakdown.js](migration/componentBreakdown.js) (#528). See the section "Component Breakdown Build" of [migration/README.md](migration/README.md).
+`build:dict` also writes one component breakdown file for each HSK character to `web-client/public/breakdowns/`. The sources are the committed AnimCJK and Make Me a Hanzi data, the definitions file and the labels file in `migration/components/`. Every part splits until it is one stroke. The build finds no part by its shape: a part takes the definition of its character with the same stroke count. If a named part has no definition, the build fails, and `definitions.json` needs the form. The tree rules are pure, in [migration/componentBreakdown.js](migration/componentBreakdown.js) (#528). The build also compares the parts of each named part, at every level, with the committed Wiktionary compositions and writes the differences to `migration/components/wiktionary-differences.md`. A difference does not fail the build (#563). Each file also holds the **origin** of its character, from the Make Me a Hanzi etymology: a story, or the meaning part and the sound part. `migration/components/origins.json` overrides one origin, and the build writes the origins that do not fit their breakdown to `migration/components/origin-mismatches.md` (#569). See the section "Component Breakdown Build" of [migration/README.md](migration/README.md).
 
 ### Spaced Repetition Algorithm
 

@@ -1551,6 +1551,15 @@ export const useTestEngine = (props: Props) => {
       onSpeak(current.chosenCharacter, current.useAutoRecord);
     }
 
+    // The next question plays its audio as it shows, so fetch that audio now:
+    // a play that waits for the Cloud call starts late (#576). The head of the
+    // queue is the question on screen, and the next one is behind it.
+    const next = current.queue[1];
+    const nextWord = next && current.testSet[parseInt(next.index)];
+    if (current.useSound && next?.qCategory === 'P' && nextWord) {
+      ttsService.prefetch(nextWord[current.charSet]);
+    }
+
     if (
       current.useAutoRecord &&
       props.speechAvailable &&
