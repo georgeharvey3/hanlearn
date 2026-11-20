@@ -246,10 +246,17 @@ describe('WordPage', () => {
 
   it('opens covered from search when the word is due soon, and one tap shows it', async () => {
     const user = userEvent.setup();
+    mockedBreakdownOf.mockImplementation(async (char: string) => ({
+      c: char,
+      p: [{ c: '子', s: [0, 1, 2], l: 'child' }],
+      o: { t: ['Children ', { c: '子', s: [0, 1, 2] }, ' study'] },
+    }));
     renderPage(101, { words: [studied({ due_date: ymd(0) })] });
 
     expect(screen.queryByRole('heading', { name: '學習' })).not.toBeInTheDocument();
     expect(screen.queryByText('to learn')).not.toBeInTheDocument();
+    // The origin gives the meaning away, so it stays under the cover too.
+    expect(screen.queryByTestId('origin')).not.toBeInTheDocument();
     expect(screen.getByText(copy.wordBank.dueSoon)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: new RegExp(copy.wordBank.showWord) }));

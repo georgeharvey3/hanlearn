@@ -141,8 +141,8 @@ describe('strokeOrder', () => {
 describe('breakdownOf', () => {
   it('splits every part of 續 until it is one stroke', () => {
     const { p } = breakdown('續');
-    expect(p[0]).toMatchObject({ c: '糹', r: 'meaning', l: 'silk', s: range(0, 5) });
-    expect(p[1]).toMatchObject({ c: '賣', r: 'sound', y: 'mài', s: range(6, 20) });
+    expect(p[0]).toMatchObject({ c: '糹', l: 'silk', s: range(0, 5) });
+    expect(p[1]).toMatchObject({ c: '賣', y: 'mài', s: range(6, 20) });
     expect(charsOf(p[1].p)).toEqual(['士', '買']);
     expect(charsOf(p[1].p[1].p)).toEqual(['罒', '貝']);
     for (const part of allParts(p)) expect(Boolean(part.p)).toBe(part.s.length > 1);
@@ -157,22 +157,21 @@ describe('breakdownOf', () => {
       ['𢆶', range(6, 11)],
       ['丱', range(12, 16)],
     ]);
-    // The 足 of 跑 keeps its role under the name of its side form.
-    expect(breakdown('跑').p[0]).toMatchObject({ c: '𧾷', r: 'meaning', l: 'foot' });
+    expect(breakdown('跑').p[0]).toMatchObject({ c: '𧾷', l: 'foot' });
   });
 
   it('gives a part the definition of its character with the same number of strokes', () => {
     // 朗 draws 良 with 6 strokes, and 良 alone has 7. The definitions file has the form.
     const [good] = breakdown('朗').p;
-    expect(good).toMatchObject({ c: '良', s: range(0, 5), r: 'sound' });
+    expect(good).toMatchObject({ c: '良', s: range(0, 5) });
     expect(charsOf(good.p)).toEqual(['丶', '𫜹', '𠄌', '丶']);
   });
 
   it('makes a group that the labels file names a step, and joins the pieces of any other group', () => {
     const [clay, bird] = breakdown('難').p;
-    expect(clay).toMatchObject({ c: '𦰩', l: 'clay (old form)', r: 'sound', s: range(0, 10) });
+    expect(clay).toMatchObject({ c: '𦰩', l: 'clay (old form)', s: range(0, 10) });
     expect(charsOf(clay.p)).toEqual(['廿', '口', '夫']);
-    expect(bird).toMatchObject({ c: '隹', r: 'meaning' });
+    expect(bird).toMatchObject({ c: '隹' });
     const plain = breakdownOf(breakdownContext({ ...sources, labels: {} }), '難');
     expect(charsOf(plain.p)).toEqual(['廿', '口', '夫', '隹']);
   });
@@ -192,7 +191,7 @@ describe('breakdownOf', () => {
   it('takes a definition of the file before the other sources', () => {
     // Make Me a Hanzi calls the right side of 嘆 堇, whose bottom is 土.
     const sigh = breakdown('嘆').p[1];
-    expect(sigh).toMatchObject({ c: '𦰩', r: 'sound', s: range(3, 13) });
+    expect(sigh).toMatchObject({ c: '𦰩', s: range(3, 13) });
     expect(charsOf(sigh.p)).toEqual(['廿', '口', '夫']);
   });
 
@@ -204,12 +203,6 @@ describe('breakdownOf', () => {
     ]);
     const wine = breakdown('酒').p.find((part) => part.c === '酉');
     expect(charsOf(wine.p)).toEqual(['兀', '日']);
-  });
-
-  it('gives the role of a clue to a part below a step that Make Me a Hanzi does not have', () => {
-    const [step, right] = breakdown('德').p;
-    expect(step.r).toBeUndefined();
-    expect(right.p.find((part) => part.c === '心')).toMatchObject({ r: 'meaning' });
   });
 
   it('gives a stroke that two parts share to both', () => {
@@ -246,12 +239,94 @@ describe('breakdownOf', () => {
   });
 
   it('gives a character of one stroke no parts', () => {
-    expect(breakdown('一')).toEqual({ c: '一', p: null });
+    expect(breakdown('一')).toMatchObject({ c: '一', p: null });
   });
 
   it('fails when the stroke data has no character', () => {
     const context = breakdownContext({ ...sources, strokeCounts: {}, labels: {} });
     expect(() => breakdownOf(context, '射')).toThrow(/no Hanzi Writer stroke data/);
+  });
+});
+
+describe('the origin of breakdownOf', () => {
+  it('gives a story origin, with the strokes of the part that each character of the story is', () => {
+    expect(breakdown('休').o).toEqual({
+      // The data puts a no-break space before each character, and the build keeps it.
+      t: ['A person\u00a0', { c: '亻', s: [0, 1] }, ' leaning against a tree\u00a0', { c: '木', s: [2, 3, 4, 5] }],
+    });
+  });
+
+  it('keeps a character of the story that is no part in the text', () => {
+    // 学 names ⺍, and the breakdown draws the top as 𭕄.
+    const { t } = breakdown('学').o;
+    expect(t).toContainEqual({ c: '冖', s: [3, 4] });
+    expect(t).toContainEqual({ c: '子', s: [5, 6, 7] });
+    expect(t[t.length - 1]).toBe('\u00a0study;\u00a0⺍ provides the pronunciation');
+  });
+
+  it('matches a character of the story to a deeper part, and to another form of it', () => {
+    const context = breakdownContext({ ...sources, labels: {} });
+    const entry = { ...entries.get('休'), etymology: { type: 'ideographic', hint: 'A man 人 by wood 十' } };
+    context.entries.set('休', entry);
+    expect(breakdownOf(context, '休').o.t).toEqual([
+      'A man ',
+      { c: '人', s: [0, 1] },
+      ' by wood ',
+      { c: '十', s: [2, 3] },
+    ]);
+  });
+
+  it('takes the origin of a traditional character from its own entry', () => {
+    expect(breakdown('媽').o.n).toMatchObject({ c: '馬' });
+    expect(breakdown('妈').o.n).toMatchObject({ c: '马' });
+  });
+
+  it('gives a meaning-and-sound origin, with the gloss and the pinyin of the sound part', () => {
+    expect(breakdown('妈').o).toEqual({
+      m: { c: '女', l: 'woman', s: [0, 1, 2] },
+      n: { c: '马', y: 'mǎ', s: [3, 4, 5] },
+    });
+  });
+
+  it('finds the meaning part by the stroke match, under the name of the form drawn', () => {
+    // The data names 足, and 跑 draws 𧾷.
+    expect(breakdown('跑').o.m).toEqual({ c: '𧾷', l: 'foot', s: [0, 1, 2, 3, 4, 5, 6] });
+    // 德 has no sound part, and its 心 is under 𢛳, a step that Make Me a Hanzi does not have.
+    expect(breakdown('德').o).toEqual({ m: { c: '心', l: 'heart', s: [11, 12, 13, 14] } });
+  });
+
+  it('finds a side by its character at any level when the entry gives it no strokes', () => {
+    // Make Me a Hanzi gives 塗 as 涂 over 土, so 氵 and 余 have no strokes of their own.
+    expect(breakdown('塗').o).toEqual({
+      m: { c: '氵', l: 'water', s: [0, 1, 2] },
+      n: { c: '余', y: 'yú', s: [3, 4, 5, 6, 7, 8, 9] },
+    });
+    // 膚 names ⺼, and the drawing has 月 inside 胃.
+    expect(breakdown('膚').o.m).toMatchObject({ c: '月', s: expect.any(Array) });
+  });
+
+  it('matches a character of the story to the variant form that the drawing has', () => {
+    // The story of 亲 names 木, and 亲 draws 朩.
+    expect(breakdown('亲').o.t).toContainEqual({ c: '木', s: [5, 6, 7, 8] });
+    // The story of 凶 names 乂, and 凶 draws 㐅.
+    expect(breakdown('凶').o.t).toContainEqual({ c: '乂', s: [0, 1] });
+  });
+
+  it('gives no origin with no etymology, and none for a meaning-and-sound entry with no parts', () => {
+    const context = breakdownContext({ ...sources, labels: {} });
+    const plain = (etymology) => {
+      context.entries.set('妈', { ...entries.get('妈'), etymology });
+      return breakdownOf(context, '妈');
+    };
+    expect(plain(undefined)).not.toHaveProperty('o');
+    expect(plain({ type: 'pictophonetic', hint: 'woman' })).not.toHaveProperty('o');
+    expect(plain({ type: 'ideographic' })).not.toHaveProperty('o');
+  });
+
+  it('writes no role on any part', () => {
+    for (const char of ['續', '跑', '德', '礙']) {
+      for (const part of allParts(breakdown(char).p)) expect(part).not.toHaveProperty('r');
+    }
   });
 });
 
@@ -325,6 +400,33 @@ describe('buildBreakdowns', () => {
     expect(labelled.fallback).not.toContain('身');
   });
 
+  it('replaces the origin of a character with its override, and removes one', () => {
+    const story = { type: 'ideographic', hint: 'A child 子 under a roof 冖' };
+    const result = build(['学', '妈'], { origins: { 学: story, 妈: null } });
+    expect(result.files[breakdownFileName('学')].o.t).toEqual([
+      'A child ',
+      { c: '子', s: [5, 6, 7] },
+      ' under a roof ',
+      { c: '冖', s: [3, 4] },
+    ]);
+    expect(result.files[breakdownFileName('妈')]).not.toHaveProperty('o');
+    expect(result.unknownOrigins).toEqual([]);
+  });
+
+  it('lists an override for a character with no breakdown file', () => {
+    expect(build(['妈'], { origins: { 妈: null, 㚢: null } }).unknownOrigins).toEqual(['㚢']);
+  });
+
+  it('lists each origin that does not fit its breakdown', () => {
+    const result = build(['学', '妈', '休'], {
+      origins: { 妈: { type: 'pictophonetic', semantic: '女', phonetic: '龘', hint: 'woman' } },
+    });
+    expect(result.originMismatches).toEqual([
+      { char: '妈', side: 'sound', part: '龘' },
+      { char: '学', side: 'story', part: '⺍' },
+    ]);
+  });
+
   it('lists the labels of parts that are in no tree', () => {
     const result = build(['射'], { labels: { labels: { 身: 'body', 龘: 'dragons' } } });
     expect(result.unused).toEqual(['龘']);
@@ -337,11 +439,13 @@ describe('the committed files', () => {
   const result = buildBreakdowns({ chars, ...sources, labels: committedLabels });
 
   it('split every part until it is one stroke', () => {
-    for (const file of Object.values(result.files)) {
-      for (const part of allParts(file.p)) {
-        expect(Boolean(part.p), `${file.c} > ${part.c}`).toBe(part.s.length > 1);
-      }
-    }
+    // One expect for the whole set: an expect for each of the many parts is too slow for the timeout.
+    const wrong = Object.values(result.files).flatMap((file) =>
+      allParts(file.p)
+        .filter((part) => Boolean(part.p) !== part.s.length > 1)
+        .map((part) => `${file.c} > ${part.c}`),
+    );
+    expect(wrong).toEqual([]);
   });
 
   it('give each part strokes of its parent, and every stroke of a part to one of its parts', () => {

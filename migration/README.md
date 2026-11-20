@@ -107,7 +107,7 @@ The build stops on a gloss override that names no entry, on a malformed record, 
 
 ## Component Breakdown Build
 
-`npm run build:dict` writes one component breakdown file for each character of the HSK words (#528). The file holds the tree of the parts of the character. Each part has its strokes, a label, and a meaning clue or a sound clue when the data has one.
+`npm run build:dict` writes one component breakdown file for each character of the HSK words (#528). The file holds the tree of the parts of the character. Each part has its strokes and a label. The file also holds the origin of the character when the data has one (#569).
 
 The build does not find a part by its shape, and it has no tolerance to tune. It reads definitions. A definition gives one character, drawn with a known number of strokes, as a list of parts. It gives each part its strokes.
 
@@ -171,9 +171,19 @@ Two strokes change places only on a proof that both are in the wrong place. Neit
 
 One stroke that does not fit its name proves nothing. A source can name a stroke loosely: AnimCJK calls the dot in 監 一. Such a stroke stays in its place. This rule has no tolerance. It compares the width of a stroke with its height.
 
-### Clues
+### Origin
 
-Make Me a Hanzi names the part that gives the meaning of a character and the part that gives its sound. A part has the role when it is that character. A part also has the role when it is the strokes that the Make Me a Hanzi entry gives that character. So the 𧾷 of 跑 is the meaning clue that the data calls 足. The 心 of 德 keeps its role below 𢛳, which Make Me a Hanzi does not have as a step.
+The origin of a character tells how its form came to carry its meaning (#569). It comes from the etymology of the Make Me a Hanzi entry of the character. A traditional character has its own entry. The `type` of the etymology gives the kind of origin:
+
+- `ideographic` and `pictographic` give a story origin: the `hint` sentence, "A person 亻 leaning against a tree 木". A character of the story takes the strokes of the part that it is, at any level. The part nearest the top wins, and another form of the character also matches (人 matches 亻). `ORIGIN_FORMS` in `componentBreakdown.js` adds the variant glyphs that a text names for a part, for example 木 for 朩 and 乂 for 㐅. These forms apply to the origin only, so the Wiktionary comparison stays strict. A character that is no part stays in the text. The build does not repair the text.
+- `pictophonetic` gives a meaning-and-sound origin. `semantic` names the meaning part, `hint` gives its gloss, and `phonetic` names the sound part. When the entry names only one of the two parts, the origin has only that side.
+- Any other type, or no etymology, gives no origin.
+
+The build finds the meaning part and the sound part with a stroke match. A top part matches when it is the character of the data. A part at any level matches when it has the strokes that the Make Me a Hanzi entry gives that character. So the meaning part of 跑 is 𧾷, though the data names 足. The 心 of 德 is below 𢛳, which Make Me a Hanzi does not have as a step. When the entry gives a part no strokes, the build finds the part by its character at any level, as for a story. Make Me a Hanzi gives 塗 as 涂 over 土, so 氵 has no strokes of its own. The sound part shows the pinyin of the part, or the pinyin of the data character.
+
+`components/origins.json` is the overrides file. It gives a character an etymology in the shape of Make Me a Hanzi, in place of its own, or `null` for no origin. The build stops when an override names a character with no breakdown file.
+
+The build writes `components/origin-mismatches.md`. The report lists each character of a story that is no part, and each meaning part or sound part that the stroke match does not find. A mismatch does not stop the build. For each row, add an override, or accept the source. Most rows are correct: a story can name another character ("Simplified form of 東", "compare 乒"). An override corrects a wrong part, a wrong form or a typo of the data. In CI, the build prints only the count.
 
 ### The definitions file
 
@@ -232,7 +242,9 @@ The build writes these files to `web-client/public/breakdowns/`. They are build 
 | `LICENSE.txt` | The licence of the files: LGPL 3.0, with the Unihan notice |
 | `GPL.txt` | The GPL 3.0, which the LGPL adds to |
 
-Each file is `{ c, p }`: the character and its parts. `p` is `null` for a character of one stroke. Each part is `{ c, s, l, y?, r?, p? }`. `c` is the character (`null` for a piece with no name), `s` the stroke indices in the top character, and `l` the label. `y` is the pinyin, `r` is `meaning` or `sound`, and `p` holds the parts of the part. Only a part of one stroke has no `p`. Two parts can share a stroke (the 田 and the 土 of 里).
+Each file is `{ c, p, o? }`: the character, its parts and its origin. `p` is `null` for a character of one stroke. Each part is `{ c, s, l, y?, p? }`. `c` is the character (`null` for a piece with no name), `s` the stroke indices in the top character, and `l` the label. `y` is the pinyin, and `p` holds the parts of the part. Only a part of one stroke has no `p`. Two parts can share a stroke (the 田 and the 土 of 里).
+
+A story origin is `{ t }`. `t` is a list of segments: a text, or `{ c, s }` for a character that is a part, with the strokes of that part. A meaning-and-sound origin is `{ m?, n? }`. `m` is `{ c, l?, s? }`: the meaning part and its gloss. `n` is `{ c, y?, s? }`: the sound part and its pinyin. A side with no `s` matches no part. The app shows a part of the origin in the ink of the top part that holds its strokes.
 
 ### Review
 

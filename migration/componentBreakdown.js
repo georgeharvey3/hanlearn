@@ -1,7 +1,7 @@
 /**
  * The component breakdown of a character (#527, #528): the tree of its parts,
- * the strokes of each part, the meaning clue and the sound clue, and a label
- * for each part. buildBreakdowns is pure: it reads and writes no file.
+ * the strokes of each part, a label for each part, and the origin of the
+ * character (#569). buildBreakdowns is pure: it reads and writes no file.
  * build-dictionary.js reads the sources and writes one breakdown file for
  * each HSK character.
  *
@@ -43,8 +43,14 @@ const OPERATORS = {
 /** The mark of an unnamed piece in a Make Me a Hanzi decomposition. */
 const UNNAMED = '？';
 
-/** The role of a part in the etymology of its parent. */
-const ROLE = { semantic: 'meaning', phonetic: 'sound' };
+/** The side of a meaning-and-sound origin that each etymology field gives, and its key in the file. */
+const SIDES = { semantic: { side: 'meaning', key: 'm' }, phonetic: { side: 'sound', key: 'n' } };
+
+/** The etymology types of Make Me a Hanzi that give a story origin. */
+const STORY_TYPES = new Set(['ideographic', 'pictographic']);
+
+/** A Han character, which a story can name as a part. */
+const HAN = /\p{Script=Han}/u;
 
 /**
  * The sources of a definition, in the order that a top character tries them.
@@ -422,6 +428,9 @@ function strokeOrder(own, reference) {
  *   a label and pinyin for a part that no source has an entry for) and
  *   `shapes` (the parts that a source names only for their shape: they show
  *   their label and no pinyin)
+ * - `origins`: the overrides file of the origins. It gives a character an
+ *   etymology in the shape of Make Me a Hanzi in place of its own, or null
+ *   for no origin
  */
 function breakdownContext({
   entries,
@@ -430,6 +439,7 @@ function breakdownContext({
   animcjk = {},
   definitions = [],
   labels = {},
+  origins = {},
 }) {
   const groupNames = groupNamesOf(entries);
   for (const [ids, char] of Object.entries(labels.groups ?? {})) groupNames.set(ids, char);
@@ -450,6 +460,8 @@ function breakdownContext({
     reordered: new Set(),
     strokeNames: new Map(),
     used: new Set(),
+    origins: new Map(Object.entries(origins)),
+    originMismatches: [],
   };
   const add = (definition) => {
     if (!context.definitions.has(definition.char)) context.definitions.set(definition.char, []);
@@ -538,12 +550,12 @@ function topDefinition(context, char) {
 }
 
 /**
- * The breakdown of one character: `{ c, p }`, where `p` is its parts, or
- * null for a character of one stroke. Each part is `{ c, s, l, y?, r?, p? }`:
- * the character (null for a piece with no name), the indices of its strokes
- * in the top character, its label (null with no name), its pinyin, its role
- * in its parent's etymology ('meaning' or 'sound') and its own parts. Only a
- * part of one stroke has no parts.
+ * The breakdown of one character: `{ c, p, o? }`, where `p` is its parts, or
+ * null for a character of one stroke, and `o` its origin: see originOf. Each
+ * part is `{ c, s, l, y?, p? }`: the character (null for a piece with no
+ * name), the indices of its strokes in the top character, its label (null
+ * with no name), its pinyin and its own parts. Only a part of one stroke has
+ * no parts.
  *
  * Throws when the Hanzi Writer stroke data has no character, because the
  * strokes of the file are the strokes of that data.
@@ -560,7 +572,10 @@ function breakdownOf(context, char) {
   const key = `${char}/${count}`;
   const map = top ? strokesFor(context, char, key, top.definition, top.map) : strokes;
   const p = splitOf(context, char, node, map, top?.definition.source ?? null, [key]);
-  return { c: char, p };
+  const breakdown = { c: char, p };
+  const origin = originOf(context, char, p, map);
+  if (origin) breakdown.o = origin;
+  return breakdown;
 }
 
 /**
@@ -574,7 +589,7 @@ function breakdownOf(context, char) {
  * parent's definition gives it, the definition of its character with the same
  * number of strokes, the pieces of a split component, and its strokes.
  */
-function splitOf(context, top, node, map, source, trail, clues = []) {
+function splitOf(context, top, node, map, source, trail) {
   if (node.s.length < 2) return null;
   let parts = node.parts;
   let from = source;
@@ -596,7 +611,7 @@ function splitOf(context, top, node, map, source, trail, clues = []) {
   // A part that is the same strokes under another name is not a step.
   if (parts && parts.length === 1 && parts[0].s.length === strokes.length) {
     const inner = { ...parts[0], c: parts[0].c ?? node.c };
-    return splitOf(context, top, inner, within, from, below, clues);
+    return splitOf(context, top, inner, within, from, below);
   }
   if (!parts) {
     if (node.c === null) context.unnamed.add(`${top} > a piece of ${strokes.length} strokes`);
@@ -604,13 +619,10 @@ function splitOf(context, top, node, map, source, trail, clues = []) {
     parts = strokes.map((_, i) => ({ c: null, s: [i], parts: null }));
     within = strokes;
   }
-  const own = cluesOf(context, node.c, strokes);
   return parts
     .map((part) => {
       const made = makePart(context, part, part.s.map((i) => within[i]));
-      const role = roleOf(made, own, clues);
-      if (role) made.r = role;
-      const inner = splitOf(context, top, part, within, from, below, [...own, ...clues]);
+      const inner = splitOf(context, top, part, within, from, below);
       if (inner) made.p = inner;
       return made;
     })
@@ -718,18 +730,18 @@ function makePart(context, part, s) {
 }
 
 /**
- * The clues of `char`: the part that gives its meaning and the part that
- * gives its sound, as Make Me a Hanzi names them. Each clue is
- * `{ char, role, strokes }`. `strokes` is the text of the strokes that the
- * Make Me a Hanzi entry gives the clue, in the top character, or null when
- * the entry does not count the strokes of the node or does not hold the clue.
- * `strokes` holds the strokes of the node, as in splitOf.
+ * The sides of a meaning-and-sound etymology of `char`: the part that gives
+ * its meaning and the part that gives its sound, as the etymology names them.
+ * Each side is `{ char, side, key, strokes }`. `strokes` is the text of the
+ * strokes that the Make Me a Hanzi entry gives the part, in the top
+ * character, or null when the entry does not count the strokes of the
+ * character or does not hold the part. `strokes[i]` is the stroke of the top
+ * character for stroke `i` of the entry.
  */
-function cluesOf(context, char, strokes) {
-  const entry = char === null ? undefined : context.entries.get(char);
-  if (!entry?.etymology) return [];
+function sidesOf(context, char, strokes, etymology) {
+  const entry = context.entries.get(char);
   const sets = new Map();
-  if (entry.matches.length === strokes.length && entry.decomposition) {
+  if (entry && entry.matches.length === strokes.length && entry.decomposition) {
     const walk = (node, path) => {
       const name = node.char ?? context.groupNames.get(node.ids);
       if (name && path.length) {
@@ -742,28 +754,141 @@ function cluesOf(context, char, strokes) {
     };
     walk(parseIds(entry.decomposition), []);
   }
-  return Object.entries(ROLE).flatMap(([key, role]) => {
-    const clue = entry.etymology[key];
-    return clue ? [{ char: clue, role, strokes: sets.get(clue) ?? null }] : [];
+  return Object.entries(SIDES).flatMap(([field, { side, key }]) => {
+    const part = etymology[field];
+    return part ? [{ char: part, side, key, strokes: sets.get(part) ?? null }] : [];
   });
 }
 
+/** The parts of a tree level by level: the top parts first, then their parts. */
+function* levelsOf(parts) {
+  let level = parts ?? [];
+  while (level.length) {
+    yield level.filter((part) => part.c !== null);
+    level = level.flatMap((part) => part.p ?? []);
+  }
+}
+
 /**
- * The role of a part: 'meaning' or 'sound', or null. `own` holds the clues
- * of the character directly above the part, and `above` the clues of the
- * characters higher up. A part has the role of a clue of its parent when it
- * is that character. It has the role of any clue when it is the strokes that
- * Make Me a Hanzi gives the clue. So the 𧾷 of 跑 is the meaning clue that
- * the data calls 足, and the 心 of 德 keeps its role under 𢛳, which Make Me
- * a Hanzi does not have as a step.
+ * The part that a side names. The stroke match comes first: a top part that
+ * is the character of the side or has its strokes, or a deeper part with its
+ * strokes. So the 𧾷 of 跑 is the meaning part that the data calls 足, and
+ * the 心 of 德 is found under 𢛳, which Make Me a Hanzi does not have as a
+ * step. When the entry gives the side no strokes (塗 is 涂 over 土, so 氵 has
+ * none), partNamed finds the side by its character. Null when no part
+ * matches.
  */
-function roleOf(made, own, above) {
-  if (made.c === null) return null;
-  const strokes = made.s.join(',');
-  const clue =
-    own.find((c) => c.char === made.c || c.strokes === strokes) ??
-    above.find((c) => c.strokes === strokes);
-  return clue?.role ?? null;
+function sidePart(parts, side) {
+  let depth = 0;
+  for (const level of levelsOf(parts)) {
+    const hit = level.find(
+      (part) => (depth === 0 && part.c === side.char) || part.s.join(',') === side.strokes,
+    );
+    if (hit) return hit;
+    depth += 1;
+  }
+  return partNamed(parts, side.char);
+}
+
+/**
+ * The forms that the text of an origin can name for a part that the drawing
+ * shows in another glyph: the story of 亲 names 木, and 亲 draws 朩. The
+ * first form of each group is the one that the text names. These groups
+ * apply to the origin only. SAME_PART stays strict, so that the Wiktionary
+ * comparison still lists a part that the breakdown names with a wrong form.
+ */
+const ORIGIN_FORMS = ['木朩', '乂㐅', '玉王', '户戶', '疋𤴓𤴔', '厂𠂆', '亏亐', '止龰', '亼亽', '日曰'];
+const ORIGIN_FORM = new Map(ORIGIN_FORMS.flatMap((forms) => [...forms].map((form) => [form, [...forms][0]])));
+
+/** One name for each form of a part, as the text of an origin names it. */
+const originForm = (char) => {
+  const form = samePart(char);
+  return ORIGIN_FORM.get(form) ?? form;
+};
+
+/**
+ * The part that a character of an origin names: the part nearest the top with
+ * that character, or with another form of it (人 names 亻, 木 names 朩). On
+ * one level, the same character comes before another form. Null when no part
+ * matches.
+ */
+function partNamed(parts, char) {
+  for (const level of levelsOf(parts)) {
+    const hit =
+      level.find((part) => part.c === char) ?? level.find((part) => originForm(part.c) === originForm(char));
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/**
+ * The text of a story as a list of segments: a text, or `{ c, s }` for a
+ * character of the story that is a part, with the strokes of that part. A
+ * character that is no part stays in the text, and `misses` takes it. The
+ * build does not repair the text.
+ */
+function storyOf(hint, top, parts, misses) {
+  const segments = [];
+  for (const c of hint) {
+    const part = HAN.test(c) ? partNamed(parts, c) : null;
+    if (part) segments.push({ c, s: part.s });
+    else {
+      if (HAN.test(c) && c !== top) misses.push(c);
+      if (typeof segments[segments.length - 1] === 'string') segments[segments.length - 1] += c;
+      else segments.push(c);
+    }
+  }
+  return segments;
+}
+
+/**
+ * The origin of a top character (#569): how its form came to carry its
+ * meaning. The etymology of its Make Me a Hanzi entry gives it. Gives null
+ * when there is none, or one of:
+ *
+ * - a story origin, `{ t }`, for an ideographic or pictographic character:
+ *   the segments of storyOf
+ * - a meaning-and-sound origin, `{ m?, n? }`, for a pictophonetic character.
+ *   `m` is the meaning part, `{ c, l?, s? }`, with the gloss of the entry.
+ *   `n` is the sound part, `{ c, y?, s? }`, with its pinyin. `s` holds the
+ *   strokes of the part that the stroke match finds (see sidePart), and `c`
+ *   its character. With no such part, `c` is the character of the data and
+ *   there is no `s`. A side that the entry does not name is not there
+ *
+ * `map` gives the stroke of the top character for each stroke of its entry.
+ * The overrides of `context.origins` come before the etymology of the entry.
+ * Each character of a story and each side that no part matches goes to
+ * `context.originMismatches`.
+ */
+function originOf(context, char, parts, map) {
+  const etymology = context.origins.has(char)
+    ? context.origins.get(char)
+    : context.entries.get(char)?.etymology;
+  if (!etymology) return null;
+  const mismatch = (side, part) => context.originMismatches.push({ char, side, part });
+  if (STORY_TYPES.has(etymology.type)) {
+    if (!etymology.hint) return null;
+    const misses = [];
+    const t = storyOf(etymology.hint, char, parts, misses);
+    for (const part of new Set(misses)) mismatch('story', part);
+    return { t };
+  }
+  if (etymology.type !== 'pictophonetic') return null;
+  const origin = {};
+  for (const side of sidesOf(context, char, map, etymology)) {
+    const part = sidePart(parts, side);
+    const made = { c: part?.c ?? side.char };
+    if (side.side === 'meaning') {
+      if (etymology.hint) made.l = etymology.hint;
+    } else {
+      const pinyin = part?.y ?? pinyinOf(context, side.char);
+      if (pinyin) made.y = pinyin;
+    }
+    if (part) made.s = part.s;
+    else mismatch(side.side, side.char);
+    origin[side.key] = made;
+  }
+  return Object.keys(origin).length ? origin : null;
 }
 
 /** The name of the breakdown file of a character: its code point in hex, "7919" for 礙. */
@@ -792,9 +917,15 @@ const breakdownFileName = (char) => char.codePointAt(0).toString(16);
  *   uses
  * - `selfNamed`: the parts that have the name of a character above them, as
  *   "top > part". A character never holds itself
+ * - `unknownOrigins`: the characters of the origin overrides that have no
+ *   breakdown file (a typo)
+ * - `originMismatches`: `{ char, side, part }` for each origin that does not
+ *   fit its breakdown. `side` is 'story' for a character of a story that is
+ *   no part, or 'meaning' or 'sound' for a side that the stroke match does
+ *   not find. `part` is the character that the data names
  */
-function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, animcjk, definitions, labels }) {
-  const context = breakdownContext({ entries, strokeCounts, strokeEnds, animcjk, definitions, labels });
+function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, animcjk, definitions, labels, origins }) {
+  const context = breakdownContext({ entries, strokeCounts, strokeEnds, animcjk, definitions, labels, origins });
   const files = {};
   const missing = [];
   const sources = {};
@@ -835,6 +966,10 @@ function buildBreakdowns({ chars, entries, strokeCounts, strokeEnds, animcjk, de
     unused: Object.keys(context.labels).filter((char) => !seen.has(char)).sort(),
     unusedDefinitions: fileDefinitions.filter((d) => !context.used.has(d)).map((d) => d.text),
     selfNamed: [...selfNamed].sort(),
+    unknownOrigins: [...context.origins.keys()].filter((char) => !files[breakdownFileName(char)]).sort(),
+    originMismatches: [...context.originMismatches].sort(
+      (a, b) => (a.char < b.char ? -1 : a.char > b.char ? 1 : 0),
+    ),
   };
 }
 

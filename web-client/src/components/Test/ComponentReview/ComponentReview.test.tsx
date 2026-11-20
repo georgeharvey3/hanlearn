@@ -35,6 +35,7 @@ import { Breakdown, breakdownOf } from '../../../services/breakdownService';
 import { searchWord } from '../../../services/dictionaryService';
 import { loadCharData } from '../../../utils/charDataLoader';
 import { reportPart } from '../../../services/partReportService';
+import { partInk } from '../../../theme';
 import { authenticatedState, createTestStore, renderWithProviders } from '../../../test/utils';
 import { Word } from '../../../types/models';
 
@@ -66,13 +67,12 @@ const YI: Breakdown = {
 const AI: Breakdown = {
   c: '礙',
   p: [
-    { c: '石', s: [0, 1, 2, 3, 4], l: 'stone', y: 'shí', r: 'meaning' },
+    { c: '石', s: [0, 1, 2, 3, 4], l: 'stone', y: 'shí' },
     {
       c: '疑',
       s: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
       l: 'to doubt',
       y: 'yí',
-      r: 'sound',
       p: [
         { c: '匕', s: [5, 6], l: 'spoon', y: 'bǐ' },
         { c: '矢', s: [7, 8, 9, 10, 11], l: 'arrow', y: 'shǐ' },
@@ -81,6 +81,10 @@ const AI: Breakdown = {
       ],
     },
   ],
+  o: {
+    m: { c: '石', l: 'stone', s: [0, 1, 2, 3, 4] },
+    n: { c: '疑', y: 'yí', s: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18] },
+  },
 };
 
 const strokesOf = (count: number) => ({
@@ -202,7 +206,7 @@ describe('ComponentReview', () => {
     expect(within(yi).getAllByRole('button')).toHaveLength(4);
   });
 
-  it('shows the label, pinyin and clue of a tapped chip', async () => {
+  it('shows the label and pinyin of a tapped chip, with no clue chip', async () => {
     renderWithProviders(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
 
     await userEvent.click(await screen.findByRole('button', { name: '石' }));
@@ -210,7 +214,7 @@ describe('ComponentReview', () => {
     const line = screen.getByTestId('part-line');
     expect(line).toHaveTextContent('stone');
     expect(line).toHaveTextContent('shí');
-    expect(line).toHaveTextContent('meaning clue');
+    expect(line).not.toHaveTextContent(/clue/);
   });
 
   it('replaces the line of the first part when a second part is tapped', async () => {
@@ -228,15 +232,46 @@ describe('ComponentReview', () => {
     expect(screen.getByRole('button', { name: '匕' })).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('shows the line of a part that splits, with its sound clue', async () => {
+  it('shows the line of a part that splits', async () => {
     renderWithProviders(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
 
     await userEvent.click(await screen.findByRole('button', { name: '疑' }));
 
     const line = screen.getByTestId('part-line');
     expect(line).toHaveTextContent('yí');
-    expect(line).toHaveTextContent('sound clue');
     expect(line).not.toHaveTextContent('The smallest part here');
+  });
+
+  it('shows the meaning-and-sound origin at once, each part in its ink', async () => {
+    renderWithProviders(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+
+    const origin = await screen.findByTestId('origin');
+    expect(origin).toHaveTextContent(copy.test.origin);
+    expect(origin).toHaveTextContent(
+      `${copy.test.originMeaning}: 石 stone · ${copy.test.originSound}: 疑 yí`,
+    );
+    const parts = within(origin).getAllByTestId('origin-part');
+    expect(parts.map((part) => part.textContent)).toEqual(['石', '疑']);
+    expect(parts[0]).toHaveStyle({ color: partInk[0] });
+    expect(parts[1]).toHaveStyle({ color: partInk[1] });
+  });
+
+  it('shows one side only, and a part that no stroke matches in plain text', async () => {
+    mockedBreakdownOf.mockResolvedValue({ ...AI, o: { n: { c: '矣', y: 'yǐ' } } });
+    renderWithProviders(<ComponentReview chars={['礙']} charSet="trad" open onToggle={vi.fn()} />);
+
+    const origin = await screen.findByTestId('origin');
+    expect(origin).toHaveTextContent(`${copy.test.originSound}: 矣 yǐ`);
+    expect(origin).not.toHaveTextContent(copy.test.originMeaning);
+    expect(within(origin).queryByTestId('origin-part')).not.toBeInTheDocument();
+  });
+
+  it('shows the origin of a character of one stroke under "No components"', async () => {
+    mockedBreakdownOf.mockResolvedValue({ c: '一', p: null, o: { t: ['The number 1'] } });
+    renderWithProviders(<ComponentReview chars={['一']} charSet="trad" open onToggle={vi.fn()} />);
+
+    expect(await screen.findByTestId('origin')).toHaveTextContent('The number 1');
+    expect(screen.getByText(copy.test.noComponents)).toBeInTheDocument();
   });
 
   it('shows the line of a part tapped on the character itself', async () => {
