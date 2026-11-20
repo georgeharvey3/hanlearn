@@ -44,6 +44,7 @@ import {
 import { premadePath } from '../../components/Navigation/navLinks';
 import { ALL_LISTS_ID, DEFAULT_LIST_ID } from '../../utils/activeList';
 import { searchKind } from '../../utils/searchQuery';
+import { getSearchMode, SearchMode, setSearchMode } from '../../utils/searchMode';
 import {
   customWordMeaningSchema,
   customWordTextSchema,
@@ -115,6 +116,11 @@ const AddWords: React.FC<Props> = ({
     () => (localStorage.getItem('charSet') as 'simp' | 'trad') || 'trad',
   );
 
+  const [mode, setMode] = useState<SearchMode>(getSearchMode);
+  // The search reads the mode from a ref, so a switch can search the same
+  // query again at once in the new mode.
+  const modeRef = useRef(mode);
+
   const [query, setQueryText] = useState('');
   const [status, setStatus] = useState<SearchStatus>('idle');
   const [results, setResults] = useState<Word[]>([]);
@@ -143,6 +149,11 @@ const AddWords: React.FC<Props> = ({
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
+  // A page that opens in English mode warms the English search, as a switch does.
+  useEffect(() => {
+    if (modeRef.current === 'english') wordService.warmEnglishSearch();
+  }, []);
+
   const runSearch = useCallback(
     async (text: string) => {
       clearTimeout(timer.current);
@@ -155,7 +166,7 @@ const AddWords: React.FC<Props> = ({
       }
       setStatus('searching');
       try {
-        const found = await wordService.searchWord(parsed.data, charSet);
+        const found = await wordService.searchWord(parsed.data, charSet, modeRef.current);
         if (seq !== searchSeq.current) return;
         setResults(found);
         setStatus('done');
@@ -184,6 +195,17 @@ const AddWords: React.FC<Props> = ({
       }
     },
     [runSearch],
+  );
+
+  const switchMode = useCallback(
+    (next: SearchMode) => {
+      modeRef.current = next;
+      setMode(next);
+      setSearchMode(next);
+      if (next === 'english') wordService.warmEnglishSearch();
+      if (searchKind(query) === 'latin') runSearch(query);
+    },
+    [query, runSearch],
   );
 
   const clearSearch = useCallback(() => {
@@ -430,6 +452,8 @@ const AddWords: React.FC<Props> = ({
         <SearchField
           query={query}
           busy={status === 'searching'}
+          mode={mode}
+          onMode={switchMode}
           onChange={setQuery}
           onSubmit={() => runSearch(query)}
           onClear={clearSearch}

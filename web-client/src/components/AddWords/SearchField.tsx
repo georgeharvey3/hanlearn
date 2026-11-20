@@ -1,14 +1,24 @@
 import React, { useEffect } from 'react';
-import { Box, CircularProgress, IconButton, InputBase } from '@mui/material';
+import {
+  Box,
+  CircularProgress,
+  IconButton,
+  InputBase,
+  ToggleButton,
+  ToggleButtonGroup,
+} from '@mui/material';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 
 import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
+import { SearchMode } from '../../utils/searchMode';
 
 interface Props {
   query: string;
   busy: boolean;
+  mode: SearchMode;
+  onMode: (mode: SearchMode) => void;
   onChange: (query: string) => void;
   /** Enter: search now, without the pause after typing. */
   onSubmit: () => void;
@@ -17,9 +27,18 @@ interface Props {
 
 /**
  * The one field of the word bank. It filters the bank and asks the dictionary.
- * Ctrl+B focuses it from anywhere on the page.
+ * Ctrl+B focuses it from anywhere on the page. The toggle at its end sets the
+ * search mode, as in Pleco (#577).
  */
-const SearchField: React.FC<Props> = ({ query, busy, onChange, onSubmit, onClear }) => {
+const SearchField: React.FC<Props> = ({
+  query,
+  busy,
+  mode,
+  onMode,
+  onChange,
+  onSubmit,
+  onClear,
+}) => {
   useEffect(() => {
     const onKeyUp = (event: KeyboardEvent) => {
       if (event.ctrlKey && event.key === 'b') document.getElementById('addInput')?.focus();
@@ -27,6 +46,8 @@ const SearchField: React.FC<Props> = ({ query, busy, onChange, onSubmit, onClear
     document.addEventListener('keyup', onKeyUp);
     return () => document.removeEventListener('keyup', onKeyUp);
   }, []);
+
+  const label = mode === 'chinese' ? copy.wordBank.search : copy.wordBank.searchEnglish;
 
   return (
     <Box
@@ -68,8 +89,8 @@ const SearchField: React.FC<Props> = ({ query, busy, onChange, onSubmit, onClear
         id="addInput"
         value={query}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={copy.wordBank.search}
-        inputProps={{ 'aria-label': copy.wordBank.search, maxLength: 100, lang: 'zh' }}
+        placeholder={label}
+        inputProps={{ 'aria-label': label, maxLength: 100, lang: mode === 'chinese' ? 'zh' : 'en' }}
         sx={{ flex: 1, minWidth: 0, fontFamily: fonts.body, fontSize: 17, color: colors.text }}
       />
       {query && (
@@ -81,6 +102,37 @@ const SearchField: React.FC<Props> = ({ query, busy, onChange, onSubmit, onClear
           <CloseRoundedIcon fontSize="small" />
         </IconButton>
       )}
+      <ToggleButtonGroup
+        exclusive
+        value={mode}
+        onChange={(_, next: SearchMode | null) => next && onMode(next)}
+        aria-label={copy.wordBank.searchMode}
+        sx={{ flex: 'none', height: 36, mr: 0.5 }}
+      >
+        {(['chinese', 'english'] as const).map((m) => (
+          <ToggleButton
+            key={m}
+            value={m}
+            aria-label={copy.wordBank.modes[m].name}
+            sx={{
+              minWidth: 40,
+              px: 1,
+              fontFamily: fonts.body,
+              fontSize: 14,
+              fontWeight: 600,
+              textTransform: 'none',
+              color: colors.textSecondary,
+              borderColor: colors.borderStrong,
+              '&.Mui-selected, &.Mui-selected:hover': {
+                bgcolor: colors.primaryDark,
+                color: colors.white,
+              },
+            }}
+          >
+            {copy.wordBank.modes[m].short}
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
     </Box>
   );
 };

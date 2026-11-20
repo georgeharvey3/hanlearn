@@ -304,6 +304,13 @@ export const copy = {
   // words. A word due soon shows grey blocks until the learner taps it.
   wordBank: {
     search: 'Search a Chinese word',
+    searchEnglish: 'Search an English word',
+    // The toggle of the search mode: the visible label, then the name.
+    searchMode: 'Search mode',
+    modes: {
+      chinese: { short: '中', name: 'Chinese' },
+      english: { short: 'EN', name: 'English' },
+    },
     clear: 'Clear',
     searching: 'Searching…',
     searchFailed: 'Search failed',

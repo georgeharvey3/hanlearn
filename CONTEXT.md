@@ -78,6 +78,14 @@ The **word page** shows one dictionary entry. When the entry is one of the
 learner's words, it also shows the progress of the learner. The word page
 manages nothing. The word row does that.
 
+## Search mode
+
+The **search mode** of the Add Words search is Chinese or English. It decides
+how the dictionary reads a query in Latin letters. In Chinese mode, the query
+is pinyin. In English mode, the query is an English meaning. A hanzi query
+reads the same in both modes. The device keeps the last search mode, and the
+first one is Chinese (#577).
+
 ## HSK coverage
 
 The **HSK coverage** of one HSK level is how the words of that level split across the learner's whole collection: the words not added, and the words at each level from 1 to 5. It has no threshold and no single percent. A word that the learner added by hand counts the same as one from a premade list. Each HSK word is in exactly one HSK level, so no word counts twice.

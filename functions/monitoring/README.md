@@ -139,6 +139,8 @@ the message `callable latency` and these fields:
 A `dictionary*` function also writes one `dictionary load` line for each stage of
 its first call, with the fields `stage` and `ms`. Each function builds only the
 indexes that it reads ([src/dictionaryStore.ts](../src/dictionaryStore.ts)).
+`dictionarySearch` builds the `english index` stage on its first English call,
+which can be a later call. A Chinese call does not build it (#577).
 
 `textToSpeech` also writes one `tts steps` line for each call (#576). The field
 `steps` gives the time of each network step in milliseconds: `rateLimit`,

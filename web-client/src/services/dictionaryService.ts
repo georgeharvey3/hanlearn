@@ -12,6 +12,8 @@ import { searchInputSchema } from '../validation/schemas';
 import { traceAsync } from './performanceService';
 import { retryTransient } from '../utils/retry';
 import { AlternativeDirection } from '../utils/alternativeAnswers';
+import { SearchMode } from '../utils/searchMode';
+import { CharSet } from '../utils/charSet';
 
 /**
  * Search for words by exact character match.
@@ -30,22 +32,41 @@ export async function searchWord(character: string, charSet: 'simp' | 'trad'): P
   });
 }
 
+interface SearchRequest {
+  query: string;
+  charSet: CharSet;
+  mode: SearchMode;
+}
+
+const searchCallable = () => httpsCallable<SearchRequest, Word[]>(functions, 'dictionarySearch');
+
 /**
  * The search of the Add Words screen: hanzi, pinyin or English, ranked on the
- * server, at most 30 entries.
+ * server, at most 30 entries. The search mode decides how a Latin query reads:
+ * pinyin in Chinese mode, English in English mode (#577).
  */
-export async function searchDictionary(query: string, charSet: 'simp' | 'trad'): Promise<Word[]> {
+export async function searchDictionary(
+  query: string,
+  charSet: CharSet,
+  mode: SearchMode,
+): Promise<Word[]> {
   const parsed = searchInputSchema.safeParse(query);
   if (!parsed.success || parsed.data.length === 0) return [];
 
   return traceAsync('dictionary_search', async () => {
-    const fn = httpsCallable<{ query: string; charSet: string }, Word[]>(
-      functions,
-      'dictionarySearch',
-    );
-    const result = await retryTransient(() => fn({ query: parsed.data, charSet }));
+    const fn = searchCallable();
+    const result = await retryTransient(() => fn({ query: parsed.data, charSet, mode }));
     return result.data;
   });
+}
+
+/**
+ * One empty English search, sent when the learner switches to English. The
+ * instance builds its English index before the first English query comes. A
+ * failure only means that the first query waits for the build.
+ */
+export function warmEnglishSearch(): void {
+  searchCallable()({ query: '', charSet: 'simp', mode: 'english' }).catch(() => undefined);
 }
 
 /**

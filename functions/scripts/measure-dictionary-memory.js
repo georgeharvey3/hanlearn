@@ -140,6 +140,9 @@ if (!fs.existsSync(searchModule)) {
 }
 const searched = time(() => require(searchModule).createSearchIndex(entries));
 record('build the search index', searched.elapsedMs);
+// Since #577 the English part is a separate index, built on English calls only.
+const englished = time(() => require(searchModule).createEnglishIndex(entries));
+record('build the English index', englished.elapsedMs);
 
 // Stage 3c: the two other indexes. Since #498 each function builds only the
 // indexes that it reads (src/dictionaryStore.ts), so the peak above is the

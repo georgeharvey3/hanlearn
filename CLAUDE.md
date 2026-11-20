@@ -169,7 +169,7 @@ Security rules in [firestore.rules](firestore.rules): users can only access thei
 [functions/src/index.ts](functions/src/index.ts) - Callable functions for server-side operations:
 
 - `getDailyChengyu` - Rotates through chengyus daily
-- `dictionarySearch` - The search of the Add Words screen: hanzi, pinyin or English, ranked in tiers, at most 30 entries. The rules are pure, in [functions/src/dictionarySearch.ts](functions/src/dictionarySearch.ts) (#425)
+- `dictionarySearch` - The search of the Add Words screen: hanzi, pinyin or English, ranked in tiers, at most 30 entries. The **search mode** reads a Latin query as pinyin (Chinese) or as English, and only an English call builds the English index (#577). The rules are pure, in [functions/src/dictionarySearch.ts](functions/src/dictionarySearch.ts) (#425)
 - `dictionarySearchWord` - The exact lookup of an entry by its characters
 - `dictionaryEntry` - One entry by its id, for the word page of an entry that the learner does not have. The rule is pure, in [functions/src/dictionaryEntry.ts](functions/src/dictionaryEntry.ts) (#562)
 - `dictionaryAlternatives` - The alternative answers of the questions of one session, from all of CC-CEDICT. The rules are pure, in [functions/src/alternativeAnswers.ts](functions/src/alternativeAnswers.ts) (#348)

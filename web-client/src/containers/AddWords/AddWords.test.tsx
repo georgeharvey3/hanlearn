@@ -96,6 +96,7 @@ const searchFor = async (text: string) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.removeItem('searchMode');
   mockedWordService.getUserWordLists.mockResolvedValue(LISTS);
   mockedWordService.searchWord.mockResolvedValue([]);
   mockedWordService.addWordToList.mockResolvedValue(null);
@@ -308,7 +309,7 @@ describe('AddWords — the search', () => {
 
     await searchFor('zzz');
     expect(await screen.findByText('No match')).toBeInTheDocument();
-    expect(mockedWordService.searchWord).toHaveBeenCalledWith('zzz', 'trad');
+    expect(mockedWordService.searchWord).toHaveBeenCalledWith('zzz', 'trad', 'chinese');
     expect(screen.queryByText(/No entry for/)).not.toBeInTheDocument();
   });
 
@@ -329,6 +330,47 @@ describe('AddWords — the search', () => {
     await searchFor('f');
     expect(await screen.findByText('In your bank')).toBeInTheDocument();
     expect(mockedWordService.searchWord).not.toHaveBeenCalled();
+  });
+
+  it('searches in Chinese mode first, with no warm-up call', async () => {
+    renderBank([farWord]);
+    await screen.findByText('附近');
+
+    expect(screen.getByRole('button', { name: 'Chinese' })).toHaveAttribute('aria-pressed', 'true');
+    expect(mockedWordService.warmEnglishSearch).not.toHaveBeenCalled();
+  });
+
+  it('sends one warm-up call on a switch to English, and searches the same query in English', async () => {
+    renderBank([farWord]);
+    await screen.findByText('附近');
+    await searchFor('fan');
+    expect(mockedWordService.searchWord).toHaveBeenLastCalledWith('fan', 'trad', 'chinese');
+
+    await userEvent.click(screen.getByRole('button', { name: 'English' }));
+    expect(mockedWordService.warmEnglishSearch).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('textbox', { name: 'Search an English word' })).toHaveValue('fan');
+    await waitFor(() =>
+      expect(mockedWordService.searchWord).toHaveBeenLastCalledWith('fan', 'trad', 'english'),
+    );
+  });
+
+  it('keeps the search mode on the device', async () => {
+    renderBank([farWord]);
+    await screen.findByText('附近');
+    await userEvent.click(screen.getByRole('button', { name: 'English' }));
+    expect(localStorage.getItem('searchMode')).toBe('english');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Chinese' }));
+    expect(localStorage.getItem('searchMode')).toBe('chinese');
+  });
+
+  it('starts in the kept English mode, and warms the English search', async () => {
+    localStorage.setItem('searchMode', 'english');
+    renderBank([farWord]);
+    await screen.findByText('附近');
+
+    expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true');
+    expect(mockedWordService.warmEnglishSearch).toHaveBeenCalledTimes(1);
   });
 
   it('focuses the search field on Ctrl+B', async () => {
@@ -497,7 +539,9 @@ describe('AddWords — empty, loading and error', () => {
     expect(await screen.findByText('No words yet')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: '你好' }));
-    await waitFor(() => expect(mockedWordService.searchWord).toHaveBeenCalledWith('你好', 'trad'));
+    await waitFor(() =>
+      expect(mockedWordService.searchWord).toHaveBeenCalledWith('你好', 'trad', 'chinese'),
+    );
   });
 
   it('links an empty bank to the premade lists', async () => {
