@@ -840,3 +840,59 @@ describe('TestWords — new words enabled stage', () => {
     expect(screen.queryByText('Learn')).not.toBeInTheDocument();
   });
 });
+
+describe('TestWords — the word page from the summary', () => {
+  const words = [dueWord(1, '你好', 2), dueWord(2, '学生', 2)];
+  const storeWith = () =>
+    createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words,
+        listStats: {},
+        loading: false,
+        error: false,
+      },
+    });
+  const scores = [
+    { char: '你好', direction: 'MC', result: 'pass' },
+    { char: '学生', direction: 'MC', result: 'fail' },
+  ];
+
+  beforeEach(() => {
+    sessionStorage.clear();
+    window.history.replaceState(null, '', '/test-words');
+  });
+
+  it('opens the word page uncovered, and Back shows the same summary again', async () => {
+    const first = renderWithProviders(<TestWords />, { store: storeWith() });
+    await reachSummary(scores);
+
+    act(() => (capturedSummaryProps.onOpenWord as (id: number) => void)(2));
+    expect(window.location.pathname).toBe('/word/2');
+    expect(window.history.state?.state).toEqual({ shown: true });
+    first.unmount();
+
+    // Back: the entry the summary left, which carries the summary mark.
+    window.history.replaceState({ key: 'back', state: { summary: true } }, '', '/test-words');
+    capturedSummaryProps = {};
+    renderWithProviders(<TestWords />, { store: storeWith() });
+
+    await waitFor(() => expect(screen.getByTestId('mock-test-summary')).toBeInTheDocument());
+    expect(screen.queryByTestId('mock-test')).not.toBeInTheDocument();
+    expect(capturedSummaryProps.scores).toEqual(scores);
+    expect((capturedSummaryProps.words as { id: number }[]).map((w) => w.id)).toEqual([1, 2]);
+  });
+
+  it('starts a session as usual when the entry has no summary mark', async () => {
+    const first = renderWithProviders(<TestWords />, { store: storeWith() });
+    await reachSummary(scores);
+    act(() => (capturedSummaryProps.onOpenWord as (id: number) => void)(2));
+    first.unmount();
+
+    window.history.replaceState(null, '', '/test-words');
+    renderWithProviders(<TestWords />, { store: storeWith() });
+    await waitFor(() => expect(screen.getByTestId('mock-test')).toBeInTheDocument());
+  });
+});

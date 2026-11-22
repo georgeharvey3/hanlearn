@@ -277,6 +277,8 @@ export const copy = {
     tile: (char: string, result: string) => `${char}, ${result}`,
     turnedTile: (char: string, result: string, pinyin: string, meaning: string) =>
       `${char}, ${result}: ${pinyin}, ${meaning}`,
+    detailsLabel: 'Details',
+    details: (char: string) => `Details of ${char}`,
     practiceMissed: 'Practise missed words',
     backToDashboard: 'Back to Dashboard',
   },

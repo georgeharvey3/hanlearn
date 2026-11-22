@@ -17,7 +17,8 @@ import NothingDue from '../../components/Test/NothingDue/NothingDue';
 import SessionLoading from '../../components/Test/NothingDue/SessionLoading';
 import { copy } from '../../copy';
 import { useSentenceTabs } from '../../hooks/useSentenceTabs';
-import { routes } from '../../components/Navigation/navLinks';
+import { routes, wordPath } from '../../components/Navigation/navLinks';
+import { WordPageLocationState } from '../WordPage/WordPage';
 import { SentenceTab } from '../../utils/sentenceSettings';
 
 import ErrorBoundary from '../../components/ErrorBoundary/ErrorBoundary';
@@ -39,6 +40,7 @@ import {
   RestoredSession,
   VocabProgress,
 } from '../../utils/savedSession';
+import { loadSummary, restoreSummary, saveSummary } from '../../utils/savedSummary';
 
 import { Box, Typography } from '@mui/material';
 
@@ -46,6 +48,12 @@ import { Box, Typography } from '@mui/material';
 const devConfig: DevTestConfig | null = getDevTestConfig();
 
 type Stage = 'new' | 'vocab' | 'summary';
+
+/**
+ * The router state of the Study screen. `summary` marks the entry that left
+ * the summary for the word page, so Back from there shows the summary again.
+ */
+type TestWordsLocationState = SessionLaunch & { summary?: boolean };
 
 interface TestWordsState {
   stage: Stage;
@@ -113,7 +121,7 @@ const TestWords: React.FC<Props> = ({
   history,
   location,
 }) => {
-  const launch = location.state as SessionLaunch | undefined;
+  const launch = location.state as TestWordsLocationState | undefined;
 
   const getInitialStage = (): Stage => {
     if (devConfig) {
@@ -140,6 +148,7 @@ const TestWords: React.FC<Props> = ({
   });
 
   const prevWordsLength = useRef(words.length);
+  const launchSummary = launch?.summary === true;
 
   /**
    * Every word of the learner, for the alternative answers of the session. The
@@ -295,6 +304,22 @@ const TestWords: React.FC<Props> = ({
           wordsInitialized: true,
         }));
       } else {
+        // Back from the word page: the summary it was opened from.
+        const savedSummary =
+          launchSummary && userId !== null ? loadSummary(userId, activeListId) : null;
+        const summary = savedSummary ? restoreSummary(savedSummary, words) : null;
+        if (summary) {
+          setState((prev) => ({
+            ...prev,
+            stage: 'summary',
+            selectedWords: summary.words,
+            wordScores: summary.scores,
+            practiceMode: summary.practiceMode,
+            wordsInitialized: true,
+          }));
+          return;
+        }
+
         // An unfinished session from earlier today is offered rather than
         // replaced: planning a new one here would throw away every answer it
         // collected. See issue #305.
@@ -332,6 +357,7 @@ const TestWords: React.FC<Props> = ({
   }, [
     activeListId,
     isDemo,
+    launchSummary,
     selectTestWords,
     setSelectedWords,
     words,
@@ -370,6 +396,7 @@ const TestWords: React.FC<Props> = ({
    * straight to the test, with no new-word steps.
    */
   const onPracticeMissed = (missed: MissedQuestion[]): void => {
+    dropSummaryMark();
     const plan = testLogic.planMissedPractice(missed);
     setState((prev) => ({
       ...prev,
@@ -382,6 +409,30 @@ const TestWords: React.FC<Props> = ({
       resume: null,
       vocabProgress: null,
     }));
+  };
+
+  /** The router state without the summary mark, so a reload starts afresh. */
+  const dropSummaryMark = (): void => {
+    if (!launch?.summary) return;
+    history.replace(location.pathname, { ...launch, summary: false });
+  };
+
+  /**
+   * Open the word page of one summary tile. The summary is kept, and this
+   * entry is marked, so Back on the word page comes back to the summary.
+   */
+  const onOpenWord = (wordId: number): void => {
+    if (userId === null) return;
+    saveSummary({
+      userId,
+      listId: activeListId,
+      practiceMode: state.practiceMode,
+      wordIds: state.selectedWords.map((word) => word.id),
+      scores: state.wordScores,
+    });
+    history.replace(location.pathname, { ...launch, summary: true });
+    // The learner has just seen the word, so the page shows it uncovered.
+    history.push(wordPath(wordId), { shown: true } as WordPageLocationState);
   };
 
   const goHome = (): void => {
@@ -580,6 +631,7 @@ const TestWords: React.FC<Props> = ({
             onPracticeMissed={onPracticeMissed}
             sentenceTabs={isDemo ? null : sentenceTabs}
             onSentenceTab={isDemo ? undefined : onSentenceTab}
+            onOpenWord={isDemo ? undefined : onOpenWord}
           />
         );
         break;

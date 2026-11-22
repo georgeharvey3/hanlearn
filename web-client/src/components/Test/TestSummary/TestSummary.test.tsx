@@ -204,3 +204,22 @@ describe('TestSummary — sentence tabs', () => {
     expect(screen.queryByRole('button', { name: 'Compose' })).not.toBeInTheDocument();
   });
 });
+
+describe('TestSummary — the word page', () => {
+  it('links the turned tile to its word page', async () => {
+    const onOpenWord = vi.fn();
+    renderSummary({ onOpenWord });
+    expect(screen.queryByRole('button', { name: /^Details of/ })).not.toBeInTheDocument();
+
+    const tile = tiles().find((t) => t.getAttribute('aria-label')?.startsWith('护照'))!;
+    await userEvent.click(tile);
+    await userEvent.click(screen.getByRole('button', { name: 'Details of 护照' }));
+    expect(onOpenWord).toHaveBeenCalledWith(2);
+  });
+
+  it('has no link without a handler', async () => {
+    renderSummary();
+    await userEvent.click(tiles()[0]);
+    expect(screen.queryByRole('button', { name: /^Details of/ })).not.toBeInTheDocument();
+  });
+});
