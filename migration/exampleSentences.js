@@ -13,8 +13,13 @@ const crypto = require('crypto');
 const { LICENCE: TATOEBA_LICENCE } = require('./tatoeba');
 const { isUnclean } = require('./cleanMeaning');
 
-/** The length cap of each HSK level, in Han characters and digits. HSK 7–9 has none. */
-const LENGTH_CAPS = { 1: 10, 2: 12, 3: 15, 4: 18, 5: 25, 6: 25 };
+/**
+ * The length cap of each HSK level, in Han characters and digits. A sentence
+ * must fit one line on a phone, so the learner can read it in one look and say
+ * or type it in Compose. The cap never decreases when the HSK level increases:
+ * HSK 5, HSK 6 and HSK 7–9 share the top cap (#583).
+ */
+const LENGTH_CAPS = { 1: 10, 2: 12, 3: 15, 4: 18, 5: 20, 6: 20, 7: 20 };
 
 /**
  * Each HSK word keeps this many sentences at most, and is filled when it has
@@ -575,10 +580,10 @@ function grade(sentence, word, wordLevel) {
   });
   const hskLevel = counted.reduce((max, segment) => Math.max(max, segment.level), 1);
   const cap = LENGTH_CAPS[wordLevel];
-  // An HSK 7–9 word has no cap and passes the level rule with any sentence.
+  // An HSK 7–9 word passes the level rule with any sentence.
   const above = wordLevel >= NOT_HSK ? [] : counted.filter((segment) => segment.level > wordLevel);
   let reason = null;
-  if (cap !== undefined && sentence.length > cap) {
+  if (sentence.length > cap) {
     reason = `longer than the cap of ${cap} characters (${sentence.length})`;
   } else if (above.length > 0) {
     reason = `segments above HSK ${wordLevel}: ${above.map((s) => `${s.text} (${s.level})`).join(', ')}`;
@@ -830,7 +835,7 @@ function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = []
       gaps.push({
         word,
         hskLevel: level,
-        lengthCap: LENGTH_CAPS[level] ?? null,
+        lengthCap: LENGTH_CAPS[level],
         needed: SENTENCE_TARGET - chosen.length,
       });
     }

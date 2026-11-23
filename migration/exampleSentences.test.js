@@ -22,7 +22,7 @@ const WORDS = [
   ...'我你他她是生在家看书的发行吃饭了很好大学三十去一下读请文课冷天今说汉语中国人们这那里张王长头',
   '学生', '在家', '看书', '喜欢', '汤姆', '第一', '北京', '头发', '今天', '经济', '研究', '课文',
   '下课', '一下', '中国', '汉语', '假发', '图书馆', '朋友', '我们', '他们', '老师', '电脑', '咖啡',
-  '居', '居住', '居民', '邻居', '信', '水', '水里', '游泳',
+  '居', '居住', '居民', '邻居', '信', '水', '水里', '游泳', '安慰', '表彰',
 ];
 const dictionary = cleanDictionary(allEntries.filter((entry) => WORDS.includes(entry.simp))).words;
 
@@ -84,6 +84,8 @@ const HSK = [
   hskWord('咖啡', 2, 5000),
   hskWord('经济', 3, 800),
   hskWord('研究', 4, 1000),
+  hskWord('安慰', 5, 6500),
+  hskWord('表彰', 6, 9000),
   hskWord('文', 7, 1391),
   hskWord('张', 2, 600),
   // 居 is not an HSK word, but these HSK words hold it.
@@ -382,7 +384,25 @@ describe('the grader', () => {
     expect(rejectOf('书', '我喜欢12345678书。')).toBe('longer than the cap of 10 characters (12)');
   });
 
-  it('gives an HSK 7–9 word no cap and no level rule', () => {
+  it('applies the cap of 20 characters to HSK 5 and HSK 6', () => {
+    expect(rejectOf('安慰', '我们安慰了他们，他们安慰了我们，我们安慰他们。')).toBeNull(); // 20
+    expect(rejectOf('安慰', '我们安慰了他们，他们安慰了我们，我们安慰了他们。')).toBe(
+      'longer than the cap of 20 characters (21)',
+    );
+    expect(rejectOf('表彰', '我们表彰了他们，他们表彰了我们，我们表彰他们。')).toBeNull(); // 20
+    expect(rejectOf('表彰', '我们表彰了他们，他们表彰了我们，我们表彰了他们。')).toBe(
+      'longer than the cap of 20 characters (21)',
+    );
+  });
+
+  it('applies the cap of 20 characters to an HSK 7–9 word', () => {
+    expect(rejectOf('文', '我们喜欢文，他们喜欢文，我们研究文，他们研究文。')).toBeNull(); // 20
+    expect(rejectOf('文', '我们喜欢文，他们喜欢文，我们研究文，他们研究了文。')).toBe(
+      'longer than the cap of 20 characters (21)',
+    );
+  });
+
+  it('gives an HSK 7–9 word no level rule', () => {
     expect(sentenceFor('文', '我们研究经济，他们研究文。').hskLevel).toBe(4);
   });
 
@@ -537,7 +557,7 @@ describe('the report and the gaps', () => {
     const result = build([generated('书', '我看书。')]);
     expect(result.gaps).toContainEqual({ word: '书', hskLevel: 1, lengthCap: 10, needed: 2 });
     expect(result.gaps).toContainEqual({ word: '研究', hskLevel: 4, lengthCap: 18, needed: 3 });
-    expect(result.gaps).toContainEqual({ word: '文', hskLevel: 7, lengthCap: null, needed: 3 });
+    expect(result.gaps).toContainEqual({ word: '文', hskLevel: 7, lengthCap: 20, needed: 3 });
   });
 
   it('does not fail on coverage', () => {
