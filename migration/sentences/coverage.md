@@ -10,16 +10,10 @@ The build of `npm run build:dict` writes this report. The sentences come from na
 | HSK 2 | 745 | 745 | 0 | 0 | 0 |
 | HSK 3 | 951 | 951 | 0 | 0 | 0 |
 | HSK 4 | 970 | 970 | 0 | 0 | 0 |
-| HSK 5 | 1058 | 1057 | 1 | 0 | 1 |
+| HSK 5 | 1058 | 1058 | 0 | 0 | 0 |
 | HSK 6 | 1120 | 637 | 483 | 127 | 0 |
 | HSK 7–9 | 5592 | 4475 | 1117 | 172 | 0 |
-| All | 10941 | 9340 | 1601 | 299 | 1 |
-
-## Unfilled after 3 rounds
-
-These words still have fewer than 3 sentences after 3 rounds of generation.
-
-- HSK 5: 伸
+| All | 10941 | 9341 | 1600 | 299 | 0 |
 
 ## Not filled
 
