@@ -39,7 +39,7 @@ Each line of `gaps.json` is one HSK word. The lines come in the order of
 |---|---|
 | `word` | The simplified word |
 | `hskLevel` | The HSK level of the word: 1 to 6, or 7 for HSK 7–9 |
-| `lengthCap` | The most Han characters and digits in a sentence. `null` is no limit. |
+| `lengthCap` | The most Han characters and digits in a sentence |
 | `needed` | The number of sentences that the word needs |
 | `pinyin`, `gloss` | The dictionary entry of the word. Use this sense of the word. |
 | `has` | The sentences that the word has now |
@@ -73,8 +73,8 @@ a sentence. Model sentences repeat a few frames, for example 他很… and
 这个…很…. The accept script rejects a candidate when its frame is already
 common across all words.
 
-A sentence for an HSK 7–9 word has no level limit and no length limit. Even
-so, use common words and keep the sentence short.
+A sentence for an HSK 7–9 word has no level limit. Its length limit is
+`lengthCap`, the same as for every other word. Even so, use common words.
 
 Do not write a sentence that is only the word. Do not write a sentence that is
 a list of words, a title, or a fragment.

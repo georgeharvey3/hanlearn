@@ -338,7 +338,7 @@ interval.
 
 The **grader** admits a sentence for a word when it has no counted segment
 above the HSK level of the word, and when it is within the length cap of that
-level. An HSK 7–9 word has no cap and no level rule.
+level. An HSK 7–9 word has a cap and no level rule.
 
 A word is **filled** when it has 3 sentences. The **coverage report** lists the
 HSK words that are not filled.
