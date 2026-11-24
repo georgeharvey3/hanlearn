@@ -5,6 +5,7 @@
   "scripts": {
     "import": "npx ts-node import_firestore.ts",
     "export:review-log": "node export-review-log.js",
+    "report:review-log": "node review-report.js",
     "seed:staging": "node seed-staging.js",
     "restore:missed-pass": "node restore-missed-pass.js",
     "fetch:tatoeba": "node fetch-tatoeba.js",
