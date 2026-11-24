@@ -17,7 +17,10 @@ export type SentenceResult = 'right' | 'wrong';
 export interface TabPractice {
   lastPractised: string;
   lastResult: SentenceResult;
-  /** When the learner last saw each sentence of the word, by sentence id. */
+  /**
+   * When the learner last saw each sentence of the word, by sentence id. The
+   * queue reads only whether the other tab showed the sentence today (#581).
+   */
   seen: Record<string, string>;
 }
 
@@ -26,8 +29,12 @@ export type WordPractice = Partial<Record<SentenceTab, TabPractice>>;
 /** The `sentencePractice` documents, by word id. */
 export type PracticeByWord = Record<string, WordPractice>;
 
-/** The ids of the example sentences of each word, by its simplified text, in file order. */
-export type SentenceIndex = Record<string, string[]>;
+/**
+ * The sentence id of each tab for each word, by its simplified text: the
+ * sentence of the pool of the tab, after borrowing (#581). A word with no
+ * sentence has no entry.
+ */
+export type SentenceIndex = Record<string, Record<SentenceTab, string>>;
 
 /** One task of a set: a word and the sentence to show with it. */
 export interface SentenceTask {
@@ -89,39 +96,29 @@ const OTHER_TAB: Record<SentenceTab, SentenceTab> = {
 };
 
 /**
- * Whether the other tab showed every sentence of the word today, the local
- * calendar day. The word then waits until tomorrow: the learner would recall
- * the sentence, not the words (#496). Only the other tab counts, and only the
- * sentences of the index.
+ * Whether the two tabs share the sentence of the word and the other tab showed
+ * it today, the local calendar day. Only a word that borrows can share a
+ * sentence (#581). The word waits, because the learner would recall the
+ * sentence, not the words (#496). It is eligible again on the next day.
  */
-function shownInOtherTabToday(
+function sharedAndShownToday(
   practice: PracticeByWord,
   word: Word,
-  sentenceIds: string[],
+  sentences: Record<SentenceTab, string>,
   tab: SentenceTab,
   now: Date,
 ): boolean {
-  const seen = practiceOf(practice, word, OTHER_TAB[tab])?.seen ?? {};
-  const today = startOfLocalDay(now);
-  return sentenceIds.every((id) => seen[id] !== undefined && new Date(seen[id]) >= today);
+  const other = OTHER_TAB[tab];
+  if (sentences[tab] !== sentences[other]) return false;
+  const seen = practiceOf(practice, word, other)?.seen[sentences[tab]];
+  return seen !== undefined && new Date(seen) >= startOfLocalDay(now);
 }
 
 const eligibleWords = ({ words, practice, index, tab, now }: QueueInput): Word[] =>
   gatedWords(words, tab, now).filter((word) => {
-    const sentenceIds = index[word.simp] ?? [];
-    return sentenceIds.length > 0 && !shownInOtherTabToday(practice, word, sentenceIds, tab, now);
+    const sentences = index[word.simp];
+    return sentences !== undefined && !sharedAndShownToday(practice, word, sentences, tab, now);
   });
-
-/**
- * The later of the two dates at which the tabs last showed the sentence, or ''
- * if neither tab showed it. A sentence that one tab showed primes the other tab
- * as much as its own (#496).
- */
-function lastViewInEitherTab(practice: PracticeByWord, word: Word, sentenceId: string): string {
-  const comprehend = practiceOf(practice, word, 'comprehend')?.seen[sentenceId] ?? '';
-  const compose = practiceOf(practice, word, 'compose')?.seen[sentenceId] ?? '';
-  return comprehend > compose ? comprehend : compose;
-}
 
 /**
  * The tasks of one set, in order.
@@ -133,8 +130,7 @@ function lastViewInEitherTab(practice: PracticeByWord, word: Word, sentenceId: s
  *    learns now, before the ones they already know well.
  * 3. A right last grade, the oldest practice first, so good words rotate.
  *
- * Inside a word, the sentence seen longest ago in either tab comes first, and
- * a sentence never seen counts as the oldest.
+ * Each task shows the sentence of the pool of its tab (#581).
  */
 export function buildSet(input: QueueInput & { size: number }): SentenceTask[] {
   const { practice, index, tab, size } = input;
@@ -162,14 +158,9 @@ export function buildSet(input: QueueInput & { size: number }): SentenceTask[] {
       return a.position - b.position;
     });
 
-  return ordered.slice(0, Math.max(0, size)).map(({ word }) => {
-    const sentenceIds = index[word.simp];
-    const lastView = (sentenceId: string) => lastViewInEitherTab(practice, word, sentenceId);
-    // A never-seen sentence sorts as '', before every date. The sort is stable,
-    // so a tie keeps the order of the file.
-    const [sentenceId] = [...sentenceIds].sort((a, b) => lastView(a).localeCompare(lastView(b)));
-    return { word, sentenceId };
-  });
+  return ordered
+    .slice(0, Math.max(0, size))
+    .map(({ word }) => ({ word, sentenceId: index[word.simp][tab] }));
 }
 
 /** Whether the tab holds an eligible word that the learner never practised there. */

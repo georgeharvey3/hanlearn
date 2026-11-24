@@ -112,7 +112,8 @@ const SentencePractice: React.FC<Props> = ({ tab }) => {
   // A word whose sentence does not load leaves the set.
   const onSkip = useCallback(() => advance(), [advance]);
 
-  const onGrade = (outcome: TaskOutcome) => {
+  /** Save a grade and count it, with no move to the next task. */
+  const record = (outcome: TaskOutcome) => {
     const task = set[position];
     if (!task || !userId || !data) return;
     const at = new Date();
@@ -138,6 +139,10 @@ const SentencePractice: React.FC<Props> = ({ tab }) => {
       }),
     });
     setTally((prev) => ({ ...prev, [outcome.grade]: prev[outcome.grade] + 1 }));
+  };
+
+  const onGrade = (outcome: TaskOutcome) => {
+    record(outcome);
     advance();
   };
 
@@ -222,7 +227,7 @@ const SentencePractice: React.FC<Props> = ({ tab }) => {
   }
 
   const task = set[position];
-  const Task = tab === 'comprehend' ? ComprehendTask : ComposeTask;
+  const key = task ? `${position}-${task.word.id}-${task.sentenceId}` : '';
 
   return (
     <StudyScreen>
@@ -233,12 +238,23 @@ const SentencePractice: React.FC<Props> = ({ tab }) => {
         total={set.length}
         onEnd={goHome}
       />
-      {task && (
-        <Task
-          key={`${position}-${task.word.id}-${task.sentenceId}`}
+      {task && tab === 'comprehend' && (
+        <ComprehendTask
+          key={key}
           word={task.word}
           sentenceId={task.sentenceId}
           onGrade={onGrade}
+          onSkip={onSkip}
+        />
+      )}
+      {task && tab === 'compose' && (
+        <ComposeTask
+          key={key}
+          word={task.word}
+          sentenceId={task.sentenceId}
+          onGrade={onGrade}
+          onCheck={record}
+          onNext={advance}
           onSkip={onSkip}
         />
       )}

@@ -89,9 +89,21 @@ The build uses no network and no AI. The rules are in `exampleSentences.js`, and
 
 Each sentence goes to every HSK word that it holds and passes the grader for. A generated sentence must pass the grader for its `headword`, or the build stops. The build drops a Tatoeba sentence with fewer than 6 Han characters or with a name. A word outside HSK gets no sentences. Each word keeps 3 sentences at most (#482).
 
+The build gives each sentence of a word one pool in the field `pool`: `intro`, `comprehend` or `compose` (#581). The intro pool serves the word page, the new word introduction and the hint. A shuffle orders the picked sentences, and the pools take them in the order intro, Comprehend, Compose. The word and the ids of its picked sentences seed the shuffle, so each build gives the same pools. A word with 2 sentences has no Compose pool, and a word with 1 sentence has only an intro pool. The client then borrows a sentence for each empty pool.
+
 Each segment shows the pinyin and the gloss of one CC-CEDICT entry (#479). An override always wins. Without one, an HSK word shows the entry of the premade-list resolver. A single character outside HSK shows the entry that the HSK words with this character read most often, so 居 is *jū* as in 居住. The gloss is the first 3 useful senses of the entry, divided by "; ".
 
 `sentences/gloss-overrides.json` sets the entry and the gloss of one segment text. Each override names the entry by its pinyin with tone numbers, and by `trad` when two entries have the same pinyin. If a person finds a wrong pinyin or gloss in use, add an override for it. The build stops on an override that names no entry.
+
+`sentences/near-miss-lists.json` holds the measure word list and the aspect word list of the tile mode of the Compose tab (#386). Each sentence of a word gets its tiles. First come the characters of the sentence, then the near-miss tiles. The total is twice the number of characters, and 28 at most. The near-miss tiles come in this order:
+
+1. The homophones of the characters of the target word.
+2. The other words of a list that holds a segment.
+3. The homophones of the other characters.
+
+A homophone is a character of an HSK word with the same syllable, in any tone. The build stops on a list word that is not one character.
+
+`sentences/blocked.json` blocks a bad Tatoeba sentence for every word, or one credit of a sentence to one word (#485). Each entry has a sentence id, an optional `word`, a `reason` and the sentence text `simp` for the review. The build stops on an entry with no Tatoeba sentence of its id, with no reason, or with a word outside HSK. It also stops on a credit entry for a word that the sentence does not hold. See Checked Tatoeba Credits.
 
 The build writes these files to `web-client/public/sentences/`. They are build output, and git ignores them:
 
@@ -103,7 +115,7 @@ The build writes these files to `web-client/public/sentences/`. They are build o
 
 The build also prints a coverage report. The report lists each HSK word that has fewer than 3 sentences. A local run writes the report to `sentences/coverage.md`. CI only prints it. Commit `coverage.md` when it changes, so that a pull request shows the change in coverage.
 
-The build stops on a gloss override that names no entry, on a malformed record, on a generated sentence that fails the grader, and on a sentence file over 2 MB. It does not stop on low coverage.
+The build stops on a gloss override that names no entry, on a bad block entry, on a malformed record, on a generated sentence that fails the grader, and on a sentence file over 2 MB. It does not stop on low coverage.
 
 ## Component Breakdown Build
 
@@ -279,13 +291,34 @@ A learner can report a bad sentence from the sentence stages (#469). Each report
 
 The script needs `service-account.json`, the same as `export-review-log.js`. Git ignores the CSV file.
 
+## Review Log Report
+
+The review log report shows the calibration of FSRS and the results of the study design for one learner (#446). It reads the CSV file of `export-review-log.js` and writes one Markdown file. It reads no Firestore, so it can run again on an old export.
+
+1. Run `node export-review-log.js --uid <userId>`.
+2. Run `npm run build:dict`, if `functions/data/dictionary.json` does not exist. Without the dictionary, the report shows word ids.
+3. Run `node review-report.js review-log-<userId>.csv`. It writes `review-log-<userId>.md`.
+4. Read the report. Open one issue for each finding that needs a change.
+
+The id of a `userWords` document is the id of its dictionary entry. `build:dict` gives the ids in the order of CC-CEDICT. Thus a new CC-CEDICT file can move the ids, and an old export then shows wrong words. The CSV file holds no characters, so the script cannot find this error.
+
+The options are `--out <file>`, `--since YYYY-MM-DD`, `--until YYYY-MM-DD` and `--scheduler <name>`. The dates are UTC days, and both days are in the range. With no `--scheduler`, the report uses the scheduler of the newest row.
+
+The report has eight sections: calibration, directions, answer modes, hints, reveals, fatigue and sibling directions, repeated errors, and leeches. A group with fewer than 20 reviews is in italics and has the mark "too few". The rules are pure, in `reviewReport.js`. Git ignores the report, because it holds typed answers.
+
+## Checked Tatoeba Credits
+
+A Claude Code session checks each shipped Tatoeba credit, and the developer reviews the flagged credits (#485). `sentences/CHECK.md` is the prompt and the procedure.
+
+`node sentence-check.js` prints the number of credits that are not checked, and writes the next batch to `sentences/scratch/check-batch.json`. The credits inside a longer CC-CEDICT word come first. `--list` prints every credit that is not checked. `--done` adds the blocks of the batch to `sentences/blocked.json` and marks its credits in `sentences/checked.json`. Only this script reads `checked.json`. The rules are pure, in `sentenceCheck.js`.
+
 ## Generated Sentences
 
 Claude Code writes the sentences for the HSK words that have fewer than 3 (#468). A developer starts the session. `sentences/GENERATE.md` is the prompt and the procedure.
 
 | Script | What it does |
 |---|---|
-| `sentence-gaps.js` | Writes `sentences/scratch/gaps.json`: each HSK word with fewer than 3 sentences, with its HSK level, its length cap and the number that it needs |
+| `sentence-gaps.js` | Writes `sentences/scratch/gaps.json`: each HSK word with fewer than 3 sentences, with its HSK level, its length cap and the number that it needs. The words of the learners' word lists come first, then HSK 1–3, then the other HSK words. The script reads the learners' words from Firestore, and `--no-learners` skips the read |
 | `sentence-accept.js <file>` | Grades the candidates in the file with the rules of the build. Adds the passes to `sentences/generated.json` and prints each reject with its reason |
 
 Both scripts run the build in memory, so they use the same rules as `npm run build:dict`. Git ignores `sentences/scratch/`.

@@ -147,6 +147,12 @@ which can be a later call. A Chinese call does not build it (#577).
 `token` and `synthesis`. A step that did not run is not in the field. The
 field `tokenCached` is `true` when the call used the access token of an earlier
 call. The function keeps the token until one minute before it expires.
+The field `overlapped` is `true` when the synthesis started before the rate
+limit answered. The call overlaps only when the last check of the same user on
+the instance left the count below half the limit
+([src/rateLimitHeadroom.ts](../src/rateLimitHeadroom.ts)). On an overlapped
+call, `rateLimit` and the other steps run at the same time, so their sum is
+more than the wait.
 
 To see the first calls of one function, use this filter in Cloud Logging:
 

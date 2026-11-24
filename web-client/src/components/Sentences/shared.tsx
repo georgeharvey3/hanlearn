@@ -6,7 +6,7 @@ import { colors } from '../../theme';
 import { CharSet } from '../../utils/charSet';
 import { SentenceResult } from '../../utils/sentenceQueue';
 import { SentenceWord, resolveSentence } from '../../utils/sentenceUtils';
-import { SentenceGrade } from '../../utils/sentencePracticeDocuments';
+import { ComposeInput, SentenceGrade } from '../../utils/sentencePracticeDocuments';
 import { StudyButton, hanziSx } from '../Test/Study/parts';
 import { StudyBody } from '../Test/Study/StudyScreen';
 import * as ttsService from '../../services/ttsService';
@@ -24,6 +24,13 @@ export const readCharSet = (): CharSet =>
 
 export const readUseSound = (synthAvailable: boolean): boolean =>
   synthAvailable && localStorage.getItem('useSound') !== 'false';
+
+/** The answer input of the Compose tab, kept between visits as the sound setting is (#386). */
+export const readComposeInput = (): ComposeInput =>
+  localStorage.getItem('composeInput') === 'tiles' ? 'tiles' : 'free';
+
+export const writeComposeInput = (input: ComposeInput): void =>
+  localStorage.setItem('composeInput', input);
 
 /** Speak a Chinese text, and report when the audio loads. */
 export function speak(

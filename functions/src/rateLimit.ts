@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
+import { RateLimitState } from './rateLimitHeadroom';
 
 export interface RateLimitConfig {
   maxRequests: number;
@@ -23,13 +24,14 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
  *
  * Uses Firestore to track request counts per user per function within
  * a sliding time window. Throws resource-exhausted (HTTP 429) when
- * the limit is exceeded.
+ * the limit is exceeded. Gives the count and the window start that the call
+ * left, which `textToSpeech` keeps to decide its next overlap (#576).
  */
 export async function checkRateLimit(
   uid: string,
   functionName: string,
   config: RateLimitConfig
-): Promise<void> {
+): Promise<RateLimitState> {
   const db = admin.firestore();
   const counterRef = db
     .collection('rateLimits')
@@ -37,13 +39,13 @@ export async function checkRateLimit(
     .collection('counters')
     .doc(functionName);
 
-  await db.runTransaction(async (transaction) => {
+  return db.runTransaction(async (transaction): Promise<RateLimitState> => {
     const doc = await transaction.get(counterRef);
     const now = Date.now();
 
     if (!doc.exists) {
       transaction.set(counterRef, { count: 1, windowStart: now });
-      return;
+      return { count: 1, windowStart: now };
     }
 
     const data = doc.data()!;
@@ -53,7 +55,7 @@ export async function checkRateLimit(
     // Window expired — reset counter
     if (now - windowStart >= config.windowMs) {
       transaction.set(counterRef, { count: 1, windowStart: now });
-      return;
+      return { count: 1, windowStart: now };
     }
 
     // Check limit
@@ -70,5 +72,6 @@ export async function checkRateLimit(
     transaction.update(counterRef, {
       count: count + 1,
     });
+    return { count: count + 1, windowStart };
   });
 }

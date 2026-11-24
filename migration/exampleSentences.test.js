@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { acceptCandidates, buildExampleSentences, sentenceId } from './exampleSentences';
+import { acceptCandidates, buildExampleSentences, orderGaps, sentenceId } from './exampleSentences';
 import { cleanDictionary } from './cleanMeaning';
 
 /**
@@ -22,7 +22,7 @@ const WORDS = [
   ...'我你他她是生在家看书的发行吃饭了很好大学三十去一下读请文课冷天今说汉语中国人们这那里张王长头',
   '学生', '在家', '看书', '喜欢', '汤姆', '第一', '北京', '头发', '今天', '经济', '研究', '课文',
   '下课', '一下', '中国', '汉语', '假发', '图书馆', '朋友', '我们', '他们', '老师', '电脑', '咖啡',
-  '居', '居住', '居民', '邻居', '信', '水', '水里', '游泳',
+  '居', '居住', '居民', '邻居', '信', '水', '水里', '游泳', '安慰', '表彰', '个', '输', '树', '过',
 ];
 const dictionary = cleanDictionary(allEntries.filter((entry) => WORDS.includes(entry.simp))).words;
 
@@ -84,6 +84,8 @@ const HSK = [
   hskWord('咖啡', 2, 5000),
   hskWord('经济', 3, 800),
   hskWord('研究', 4, 1000),
+  hskWord('安慰', 5, 6500),
+  hskWord('表彰', 6, 9000),
   hskWord('文', 7, 1391),
   hskWord('张', 2, 600),
   // 居 is not an HSK word, but these HSK words hold it.
@@ -96,7 +98,14 @@ const HSK = [
   hskWord('游泳', 2, 6000),
   // 好 is in two lists: the lower level counts.
   hskWord('好', 3, 15),
+  hskWord('个', 1, 11),
+  hskWord('过', 1, 60),
+  hskWord('输', 3, 2600),
+  hskWord('树', 3, 2200),
 ];
+
+/** The committed lists of the near-miss tiles (#386). */
+const NEAR_MISS = JSON.parse(fs.readFileSync(path.join(__dirname, 'sentences', 'near-miss-lists.json'), 'utf8'));
 
 let nextId = 1;
 /** A record of the generated file: a sentence for one HSK word. */
@@ -132,8 +141,20 @@ const tatoeba = (simp, overrides = {}) => {
   };
 };
 
-const build = (records, { hsk = HSK, unfilled = [], human = [], glossOverrides } = {}) =>
-  buildExampleSentences({ dictionary, hsk, generated: records, tatoeba: human, unfilled, glossOverrides });
+const build = (
+  records,
+  { hsk = HSK, unfilled = [], human = [], glossOverrides, blocked, nearMiss = NEAR_MISS } = {},
+) =>
+  buildExampleSentences({
+    dictionary,
+    hsk,
+    generated: records,
+    tatoeba: human,
+    unfilled,
+    glossOverrides,
+    blocked,
+    nearMiss,
+  });
 
 /** The sentences that a build gives a word. */
 const sentencesOf = (result, word) => {
@@ -364,8 +385,8 @@ describe('the grader', () => {
   });
 
   it('does not count names or numbers', () => {
-    // 个 is not in the fixture, so it counts at level 7.
-    expect(rejectOf('吃', '汤姆吃了三十个。', 'Tom ate thirty.')).toBe('segments above HSK 1: 个 (7)');
+    // 块 is not in the fixture, so it counts at level 7.
+    expect(rejectOf('吃', '汤姆吃了三十块。', 'Tom ate thirty.')).toBe('segments above HSK 1: 块 (7)');
     expect(sentenceFor('吃', '汤姆吃了三十。', { english: 'Tom ate thirty.' }).hskLevel).toBe(1);
     expect(sentenceFor('他', '他是第一。').hskLevel).toBe(1);
   });
@@ -382,7 +403,25 @@ describe('the grader', () => {
     expect(rejectOf('书', '我喜欢12345678书。')).toBe('longer than the cap of 10 characters (12)');
   });
 
-  it('gives an HSK 7–9 word no cap and no level rule', () => {
+  it('applies the cap of 20 characters to HSK 5 and HSK 6', () => {
+    expect(rejectOf('安慰', '我们安慰了他们，他们安慰了我们，我们安慰他们。')).toBeNull(); // 20
+    expect(rejectOf('安慰', '我们安慰了他们，他们安慰了我们，我们安慰了他们。')).toBe(
+      'longer than the cap of 20 characters (21)',
+    );
+    expect(rejectOf('表彰', '我们表彰了他们，他们表彰了我们，我们表彰他们。')).toBeNull(); // 20
+    expect(rejectOf('表彰', '我们表彰了他们，他们表彰了我们，我们表彰了他们。')).toBe(
+      'longer than the cap of 20 characters (21)',
+    );
+  });
+
+  it('applies the cap of 20 characters to an HSK 7–9 word', () => {
+    expect(rejectOf('文', '我们喜欢文，他们喜欢文，我们研究文，他们研究文。')).toBeNull(); // 20
+    expect(rejectOf('文', '我们喜欢文，他们喜欢文，我们研究文，他们研究了文。')).toBe(
+      'longer than the cap of 20 characters (21)',
+    );
+  });
+
+  it('gives an HSK 7–9 word no level rule', () => {
     expect(sentenceFor('文', '我们研究经济，他们研究文。').hskLevel).toBe(4);
   });
 
@@ -424,6 +463,42 @@ describe('the pick', () => {
   });
 });
 
+describe('the pools', () => {
+  const POOLS = ['intro', 'comprehend', 'compose'];
+  // Three lengths, so that the list order is the shortest-first order.
+  const threeFor = (word) => ['我', '我们', '他们很'].map((subject) => generated(word, `${subject}${word}了。`));
+  const poolsOf = (result, word) => sentencesOf(result, word).map((s) => s.pool);
+
+  it('gives each sentence of a filled word a different pool', () => {
+    const pools = poolsOf(build(threeFor('吃')), '吃');
+    expect([...pools].sort()).toEqual([...POOLS].sort());
+  });
+
+  it('gives a word with 2 sentences an intro pool and a Comprehend pool', () => {
+    const pools = poolsOf(build(threeFor('吃').slice(0, 2)), '吃');
+    expect([...pools].sort()).toEqual(['comprehend', 'intro']);
+  });
+
+  it('gives a word with 1 sentence an intro pool', () => {
+    expect(poolsOf(build(threeFor('吃').slice(0, 1)), '吃')).toEqual(['intro']);
+  });
+
+  it('gives the same pools on each build of the same input', () => {
+    const records = threeFor('吃');
+    expect(poolsOf(build(records), '吃')).toEqual(poolsOf(build(records), '吃'));
+  });
+
+  it('does not always put the shortest sentence in the intro pool', () => {
+    const words = ['吃', '看', '去', '读', '说', '喜欢', '冷', '好'];
+    const result = build(words.flatMap(threeFor));
+    const firstPools = words.map((word) => {
+      expect(sentencesOf(result, word)).toHaveLength(3);
+      return poolsOf(result, word)[0];
+    });
+    expect(firstPools.some((pool) => pool !== 'intro')).toBe(true);
+  });
+});
+
 describe('the output', () => {
   it('writes one file for each first character, in the shape of #465', () => {
     const result = build([generated('图书馆', '我在图书馆看书。')]);
@@ -445,8 +520,66 @@ describe('the output', () => {
       fill: 'generated',
       source: { name: 'generated', id: sentenceId('我在图书馆看书。') },
       origin: { chinese: 'machine', english: 'machine' },
+      pool: 'intro',
+      tiles: expect.any(Object),
     });
     expect(result.count).toBe(1);
+  });
+});
+
+describe('the tiles', () => {
+  /** The tiles of the one sentence that a build of one record gives its word. */
+  const tilesFor = (word, simp, options) => sentenceFor(word, simp, options).tiles;
+  /** The near-miss tiles: the tiles after the answer tiles. */
+  const nearMissOf = (tiles, answer) => ({
+    s: [...tiles.s].slice(answer).join(''),
+    t: [...tiles.t].slice(answer).join(''),
+  });
+
+  it('starts with the characters of the sentence, in both character sets, without punctuation', () => {
+    const tiles = tilesFor('图书馆', '我在图书馆看书。');
+    expect([...tiles.s].slice(0, 7).join('')).toBe('我在图书馆看书');
+    expect([...tiles.t].slice(0, 7).join('')).toBe('我在圖書館看書');
+  });
+
+  it('keeps a character that the sentence holds twice as two answer tiles', () => {
+    const tiles = tilesFor('书', '我看书，他看书。');
+    expect([...tiles.s].slice(0, 6).join('')).toBe('我看书他看书');
+  });
+
+  it('orders the near-miss tiles: the target word, then the lists, then the other characters', () => {
+    // 输 (shū) has the tone of 书 and comes before 树 (shù). 了 gives 过 and
+    // 着. 她 is the homophone of 他.
+    const tiles = tilesFor('书', '他们看了书。');
+    expect(nearMissOf(tiles, 5)).toEqual({ s: '输树过着她', t: '輸樹過著她' });
+  });
+
+  it('gives at most twice the answer tiles', () => {
+    const tiles = tilesFor('书', '他看了书。');
+    expect(nearMissOf(tiles, 4).s).toBe('输树过着');
+  });
+
+  it('gives at most 28 tiles, and the list words in sentence order', () => {
+    const tiles = tilesFor('安慰', '我们今天安慰了一个老师，他们很喜欢在家看书。');
+    expect([...tiles.s]).toHaveLength(28);
+    expect(nearMissOf(tiles, 20).s).toBe('过着本张只条件位');
+  });
+
+  it('gives fewer tiles when the near-miss kinds run out', () => {
+    const tiles = tilesFor('书', '我看书。');
+    expect(tiles.s).toBe('我看书输树');
+  });
+
+  it('never gives a near-miss tile that is a character of the answer', () => {
+    // 国 (guó, from 中国) is the homophone of 过. 过 and 了 are the answer, so
+    // the aspect list gives only 着.
+    const tiles = tilesFor('过', '我看过了书。');
+    expect(nearMissOf(tiles, 5).s).toBe('国着输树');
+  });
+
+  it('fails the build on a list word that is not one character', () => {
+    const nearMiss = { ...NEAR_MISS, aspectWords: [{ s: '了过', t: '了過' }] };
+    expect(() => build([generated('书', '我看书。')], { nearMiss })).toThrow(/near-miss list/);
   });
 });
 
@@ -501,6 +634,73 @@ describe('Tatoeba sentences', () => {
   });
 });
 
+describe('the block list', () => {
+  const textsOf = (result, word) => sentencesOf(result, word).map((s) => s.simp);
+  const books = ['我们喜欢看书。', '他们喜欢看书了。'];
+  const buildBlocked = (blocked, human = books.map((t) => tatoeba(t))) => build([], { human, blocked });
+
+  it('drops a blocked sentence for every word', () => {
+    const result = buildBlocked([{ id: sentenceId('我们喜欢看书。'), reason: 'rude' }]);
+    for (const word of ['喜欢', '看', '书']) expect(textsOf(result, word)).toEqual(['他们喜欢看书了。']);
+    expect(textsOf(result, '我们')).toEqual([]);
+  });
+
+  it('drops a blocked credit for its word only', () => {
+    const result = buildBlocked([{ id: sentenceId('我们喜欢看书。'), word: '看', reason: '看 is in 看书' }]);
+    expect(textsOf(result, '看')).toEqual(['他们喜欢看书了。']);
+    expect(textsOf(result, '书')).toEqual(['我们喜欢看书。', '他们喜欢看书了。']);
+    expect(textsOf(result, '我们')).toEqual(['我们喜欢看书。']);
+  });
+
+  it('fails the build on an entry with an unknown sentence id, or the id of a generated sentence', () => {
+    expect(() => buildBlocked([{ id: 'ffffffffff', reason: 'rude' }])).toThrow(
+      /blocked ffffffffff: no Tatoeba sentence has this id/,
+    );
+    const id = sentenceId('老师读书。');
+    expect(() => build([generated('书', '老师读书。')], { blocked: [{ id, reason: 'rude' }] })).toThrow(
+      new RegExp(`blocked ${id}: no Tatoeba sentence has this id`),
+    );
+  });
+
+  it('fails the build on a credit entry for a word that the sentence does not hold', () => {
+    const id = sentenceId('我们喜欢看书。');
+    expect(() => buildBlocked([{ id, word: '老师', reason: 'x' }])).toThrow(
+      new RegExp(`blocked ${id}: the sentence does not hold 老师 as a segment`),
+    );
+  });
+
+  it('fails the build on an entry with no reason, or with a word outside HSK', () => {
+    const id = sentenceId('我们喜欢看书。');
+    expect(() => buildBlocked([{ id }])).toThrow(new RegExp(`blocked ${id}: no reason`));
+    expect(() => buildBlocked([{ id, word: '看书', reason: 'x' }])).toThrow(
+      new RegExp(`blocked ${id}: 看书 is not an HSK word`),
+    );
+  });
+
+  it('counts the blocked sentences and credits in the report', () => {
+    const result = buildBlocked([
+      { id: sentenceId('我们喜欢看书。'), reason: 'rude' },
+      { id: sentenceId('他们喜欢看书了。'), word: '看', reason: '看 is in 看书' },
+    ]);
+    expect(result.report).toContain('The block list drops 1 sentences and 1 credits');
+  });
+});
+
+describe('the Tatoeba credits', () => {
+  const human = [tatoeba('我们喜欢看书。')];
+  const id = sentenceId('我们喜欢看书。');
+
+  it('lists each shipped Tatoeba credit with the longer CC-CEDICT word that holds its target', () => {
+    const { credits } = build([generated('书', '老师读书。')], { human });
+    const byWord = Object.fromEntries(credits.map((c) => [c.word, c]));
+    expect(Object.keys(byWord).sort()).toEqual(['书', '喜欢', '我们', '看'].sort());
+    expect(byWord['看']).toMatchObject({ id, simp: '我们喜欢看书。', longer: '看书' });
+    expect(byWord['书'].longer).toBe('看书');
+    expect(byWord['我们'].longer).toBeNull();
+    expect(byWord['看'].gloss).not.toBe('');
+  });
+});
+
 describe('the report and the gaps', () => {
   const forBook = ['我看书。', '你看书。', '他看书。'];
   const hsk1Words = new Set(HSK.filter((w) => w.level === 1).map((w) => w.simp)).size;
@@ -537,7 +737,7 @@ describe('the report and the gaps', () => {
     const result = build([generated('书', '我看书。')]);
     expect(result.gaps).toContainEqual({ word: '书', hskLevel: 1, lengthCap: 10, needed: 2 });
     expect(result.gaps).toContainEqual({ word: '研究', hskLevel: 4, lengthCap: 18, needed: 3 });
-    expect(result.gaps).toContainEqual({ word: '文', hskLevel: 7, lengthCap: null, needed: 3 });
+    expect(result.gaps).toContainEqual({ word: '文', hskLevel: 7, lengthCap: 20, needed: 3 });
   });
 
   it('does not fail on coverage', () => {
@@ -678,10 +878,58 @@ describe('accepting generated candidates', () => {
     expect(result.rounds).toEqual({ 书: 3 });
   });
 
+  it('rejects a candidate whose frame is common across the generated sentences of all words', () => {
+    // 24 sentences of 喜欢 open with 他很. Each candidate opens with the same
+    // frame once the word itself is a slot.
+    const objects = ['书', '饭', '老师', '朋友', '学生', '电脑', '中国', '汉语', '我们', '你', '她', '家'];
+    const gen = objects.flatMap((object) => [
+      generated('喜欢', `他很喜欢${object}。`),
+      generated('喜欢', `他很喜欢${object}了。`),
+    ]);
+    const result = accept(
+      [
+        { word: '吃', simp: '他很喜欢吃饭。', english: 'He likes to eat.' },
+        { word: '吃', simp: '我们去吃饭。', english: 'We go to eat.' },
+      ],
+      { gen },
+    );
+    expect(result.records.map((r) => r.simp)).toEqual(['我们去吃饭。']);
+    expect(result.rejects).toEqual([
+      {
+        word: '吃',
+        simp: '他很喜欢吃饭。',
+        reason: 'the frame 他 很 opens 24 of 24 generated sentences',
+      },
+    ]);
+  });
+
+  it('accepts a common frame while the generated sentences are few', () => {
+    const gen = ['书', '饭', '老师'].map((object) => generated('喜欢', `他很喜欢${object}。`));
+    const result = accept([{ word: '吃', simp: '他很喜欢吃饭。', english: 'a' }], { gen });
+    expect(result.records.map((r) => r.simp)).toEqual(['他很喜欢吃饭。']);
+  });
+
   it('rejects a candidate longer than the cap of its word', () => {
     const result = accept([{ word: '书', simp: '我们的老师今天很喜欢看书。', english: 'a' }]);
     expect(result.rejects).toEqual([
       { word: '书', simp: '我们的老师今天很喜欢看书。', reason: 'longer than the cap of 10 characters (12)' },
+    ]);
+  });
+});
+
+describe('the order of the gaps', () => {
+  const gap = (word, hskLevel) => ({ word, hskLevel, needed: 1 });
+
+  it("lists the learner's words first, then HSK 1–3, then the other HSK words", () => {
+    const gaps = [gap('研究', 4), gap('经济', 3), gap('文', 7), gap('书', 1), gap('咖啡', 2), gap('居民', 4)];
+    const ordered = orderGaps(gaps, ['居民', '咖啡', '汤姆']);
+    expect(ordered.map((g) => [g.word, g.priority])).toEqual([
+      ['咖啡', 1],
+      ['居民', 1],
+      ['书', 2],
+      ['经济', 2],
+      ['研究', 3],
+      ['文', 3],
     ]);
   });
 });

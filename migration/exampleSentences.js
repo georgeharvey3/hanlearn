@@ -13,15 +13,34 @@ const crypto = require('crypto');
 const { LICENCE: TATOEBA_LICENCE } = require('./tatoeba');
 const { isUnclean } = require('./cleanMeaning');
 
-/** The length cap of each HSK level, in Han characters and digits. HSK 7–9 has none. */
-const LENGTH_CAPS = { 1: 10, 2: 12, 3: 15, 4: 18, 5: 25, 6: 25 };
+/**
+ * The length cap of each HSK level, in Han characters and digits. A sentence
+ * must fit one line on a phone, so the learner can read it in one look and say
+ * or type it in Compose. The cap never decreases when the HSK level increases:
+ * HSK 5, HSK 6 and HSK 7–9 share the top cap (#583).
+ */
+const LENGTH_CAPS = { 1: 10, 2: 12, 3: 15, 4: 18, 5: 20, 6: 20, 7: 20 };
+
+/**
+ * The pools of the sentences of a word, in the order that the build fills them
+ * (#581). The intro pool serves the word page, the new word introduction and
+ * the hint. Each tab tests the sentence of its own pool, so it never shows the
+ * sentence that the learner met in the intro or in the other tab.
+ */
+const POOLS = ['intro', 'comprehend', 'compose'];
+
+/**
+ * The sentences of each pool. A tunable target: 1 needs no new sentences, and
+ * a later ticket can increase it (#581).
+ */
+const POOL_TARGET = 1;
 
 /**
  * Each HSK word keeps this many sentences at most, and is filled when it has
- * them. A tunable target: 3 fills most HSK 1–3 words from Tatoeba and the
- * generated sentences (#482).
+ * them: the target of each pool, for each pool. 3 fills most HSK 1–3 words
+ * from Tatoeba and the generated sentences (#482).
  */
-const SENTENCE_TARGET = 3;
+const SENTENCE_TARGET = POOLS.length * POOL_TARGET;
 
 /**
  * A Tatoeba sentence with fewer Han characters than this is dropped. Most
@@ -50,6 +69,34 @@ const NOT_HSK = 7;
 
 /** The variety rule skips a sentence that overlaps a picked one by more than this. */
 const MAX_OVERLAP = 0.5;
+
+/**
+ * The frame of a sentence is its first FRAME_SEGMENTS Han segments, with the
+ * word itself as a slot. Model sentences repeat a few openings: in the first
+ * 22,452 generated sentences, 这 opened 16% and 他 13%, against 4% and 5% of
+ * the Tatoeba sentences, and 这个 alone opened 4% (#480).
+ */
+const FRAME_SEGMENTS = 2;
+
+/**
+ * The accept script rejects a candidate whose frame already opens more than
+ * this share of the generated sentences of all words. A tunable limit: at 1%,
+ * 7 frames were over it, among them 这个, 这家, 他的 and 他在.
+ */
+const FRAME_SHARE = 0.01;
+
+/** The frame rule applies only to a frame that opens at least this many generated sentences. */
+const FRAME_MIN = 20;
+
+/**
+ * The most tiles that a sentence shows in tile mode, and the most answer
+ * tiles: a sentence with more characters has no tile mode (#386).
+ */
+const MAX_TILES = 28;
+const MAX_ANSWER_TILES = 20;
+
+/** The lists of the committed near-miss file, in the order that the tiles use them. */
+const NEAR_MISS_LISTS = ['measureWords', 'aspectWords'];
 
 const HAN = /\p{Script=Han}/u;
 const DIGIT = /\p{Nd}/u;
@@ -442,6 +489,134 @@ function splitSentence(simp, index, english = '') {
   return segments;
 }
 
+/**
+ * The committed near-miss lists of #386, as arrays of { s, t }. A word that is
+ * not one Han character in each form, or that is on two lists, is a problem
+ * of the build.
+ */
+function nearMissListsOf(nearMiss, problems) {
+  const seen = new Set();
+  const oneHan = (text) => typeof text === 'string' && [...text].length === 1 && HAN.test(text);
+  return NEAR_MISS_LISTS.map((name) =>
+    (nearMiss[name] ?? []).filter(({ s, t } = {}) => {
+      if (!oneHan(s) || !oneHan(t)) {
+        problems.push(`near-miss list ${name}: ${s}/${t} is not one character`);
+        return false;
+      }
+      if (seen.has(s)) {
+        problems.push(`near-miss list ${name}: ${s} is on a list twice`);
+        return false;
+      }
+      seen.add(s);
+      return true;
+    }),
+  );
+}
+
+/**
+ * The homophone candidates of #386: the characters of the HSK words, by their
+ * syllable with no tone, as { s, t, tone }. A character takes the traditional
+ * form of the HSK word that reads it so, and each list puts the character of
+ * the most common word first. A neutral tone does not count, as in
+ * readingsOf.
+ */
+function homophonesOf(hskBySimp) {
+  const best = new Map();
+  for (const { simp, entry, q } of hskBySimp.values()) {
+    const chars = [...simp];
+    const trads = [...entry.trad];
+    const syllables = entry.pinyin.toLowerCase().split(' ');
+    if (syllables.length !== chars.length || trads.length !== chars.length) continue;
+    chars.forEach((char, i) => {
+      if (!HAN.test(char) || !/[1-4]$/.test(syllables[i])) return;
+      const key = `${char}\n${syllables[i]}`;
+      const rank = q ?? Infinity;
+      if (!best.has(key) || rank < best.get(key).rank) {
+        best.set(key, { s: char, t: trads[i], syllable: syllables[i], rank });
+      }
+    });
+  }
+  const bySound = new Map();
+  for (const { s, t, syllable, rank } of best.values()) {
+    const sound = syllable.slice(0, -1);
+    if (!bySound.has(sound)) bySound.set(sound, []);
+    bySound.get(sound).push({ s, t, tone: syllable.slice(-1), rank });
+  }
+  for (const list of bySound.values()) {
+    list.sort((a, b) => a.rank - b.rank || a.s.codePointAt(0) - b.s.codePointAt(0));
+  }
+  return bySound;
+}
+
+/**
+ * The tiles of tile mode for one word of a sentence (#386), as two strings of
+ * equal length: { s, t }, one character per tile. First come the answer
+ * tiles, the characters of the sentence without punctuation. Then the
+ * near-miss tiles fill the space up to twice the answer tiles, at most 28:
+ *
+ *   1. the homophones of the characters of the target word
+ *   2. the other words of a near-miss list that holds a segment, in sentence order
+ *   3. the homophones of the other characters, in sentence order
+ *
+ * A homophone has the syllable of the character in any tone, the same tone
+ * first. The syllable comes from the entry of the segment, so a character
+ * with two readings uses the reading of this sentence. Each kind takes one
+ * homophone of each character in turn, so one character does not fill the
+ * space. A near-miss tile is never a character of the answer in either form.
+ *
+ * Null for a sentence with more than 20 answer tiles: it has no tile mode.
+ */
+function tilesOf(sentence, targetIndex, index) {
+  const simp = [...sentence.simp];
+  const trad = [...sentence.trad];
+  const answer = [];
+  simp.forEach((char, i) => {
+    if (HAN.test(char) || DIGIT.test(char)) answer.push({ s: char, t: trad[i] });
+  });
+  if (answer.length > MAX_ANSWER_TILES) return null;
+
+  const total = Math.min(2 * answer.length, MAX_TILES);
+  const usedS = new Set(answer.map((tile) => tile.s));
+  const usedT = new Set(answer.map((tile) => tile.t));
+  const nearMiss = [];
+  const add = (tile) => {
+    if (answer.length + nearMiss.length >= total || usedS.has(tile.s) || usedT.has(tile.t)) return;
+    nearMiss.push({ s: tile.s, t: tile.t });
+    usedS.add(tile.s);
+    usedT.add(tile.t);
+  };
+  // One candidate of each list in turn, until all are used.
+  const inTurn = (lists) => {
+    for (let i = 0; lists.some((list) => i < list.length); i++) {
+      for (const list of lists) if (i < list.length) add(list[i]);
+    }
+  };
+  const homophonesOfSegment = (segment) => {
+    const chars = [...segment.text];
+    const syllables = segment.entry ? segment.entry.pinyin.toLowerCase().split(' ') : [];
+    if (syllables.length !== chars.length) return [];
+    return chars.map((char, i) => {
+      const tone = syllables[i].slice(-1);
+      const candidates = index.homophones.get(syllables[i].slice(0, -1)) ?? [];
+      return [
+        ...candidates.filter((c) => c.tone === tone),
+        ...candidates.filter((c) => c.tone !== tone),
+      ].filter((c) => c.s !== char);
+    });
+  };
+
+  const segments = sentence.shown;
+  inTurn(homophonesOfSegment(segments[targetIndex]));
+  for (const segment of segments) {
+    const list = index.nearMissLists.find((words) => words.some((w) => w.s === segment.text));
+    if (list) list.forEach(add);
+  }
+  inTurn(segments.flatMap((segment, i) => (i === targetIndex ? [] : homophonesOfSegment(segment))));
+
+  const tiles = [...answer, ...nearMiss];
+  return { s: tiles.map((tile) => tile.s).join(''), t: tiles.map((tile) => tile.t).join('') };
+}
+
 /** The HSK level at which the grader counts a segment, or null when it does not count. */
 function levelOf(segment, index) {
   if (segment.kind === 'number' || segment.kind === 'name') return null;
@@ -530,6 +705,7 @@ function prepare(sentence, index) {
     ...sentence,
     trad,
     segments,
+    shown,
     output,
     levels: segments.map((segment) => levelOf(segment, index)),
     length: lengthOf(sentence.simp),
@@ -557,16 +733,25 @@ function grade(sentence, word, wordLevel) {
   });
   const hskLevel = counted.reduce((max, segment) => Math.max(max, segment.level), 1);
   const cap = LENGTH_CAPS[wordLevel];
-  // An HSK 7–9 word has no cap and passes the level rule with any sentence.
+  // An HSK 7–9 word passes the level rule with any sentence.
   const above = wordLevel >= NOT_HSK ? [] : counted.filter((segment) => segment.level > wordLevel);
   let reason = null;
-  if (cap !== undefined && sentence.length > cap) {
+  if (sentence.length > cap) {
     reason = `longer than the cap of ${cap} characters (${sentence.length})`;
   } else if (above.length > 0) {
     reason = `segments above HSK ${wordLevel}: ${above.map((s) => `${s.text} (${s.level})`).join(', ')}`;
   }
   return { targetIndex, hskLevel, reason, set: new Set(counted.map((segment) => segment.text)) };
 }
+
+/** The frame of a prepared sentence for one word, for example 他 很 or 这 _. */
+const frameOf = (sentence, word) =>
+  sentence.segments
+    .map((segment) => segment.text)
+    .filter((text) => HAN.test(text))
+    .slice(0, FRAME_SEGMENTS)
+    .map((text) => (text === word ? '_' : text))
+    .join(' ');
 
 /** The Jaccard overlap of two sets of counted segments. */
 function overlap(a, b) {
@@ -605,12 +790,31 @@ function pick(candidates) {
 }
 
 /**
- * The sentence of a word in the output shape of #465. `fill` names the source
- * of the sentence, for the readers of that shape (#386, #469).
+ * The pool of each picked sentence of a word, by sentence id (#581). A seeded
+ * shuffle of the picked sentences fills the pools in order, so a word with 2
+ * sentences has an intro and a Comprehend pool. The seed is the word and the
+ * ids of its picked sentences, so the same inputs give the same pools on each
+ * build (ADR 0019). The shuffle, not the length, decides, so that the intro
+ * pool does not always get the shortest sentence.
  */
-function outputOf({ sentence, grade: graded }) {
+function poolsOf(word, chosen) {
+  const seed = `${word}\n${chosen.map(({ sentence }) => sentence.id).join(',')}`;
+  const keyOf = (id) => crypto.createHash('sha1').update(`${seed}\n${id}`, 'utf8').digest('hex');
+  const shuffled = chosen
+    .map(({ sentence }) => ({ id: sentence.id, key: keyOf(sentence.id) }))
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  return new Map(shuffled.map(({ id }, i) => [id, POOLS[Math.floor(i / POOL_TARGET)]]));
+}
+
+/**
+ * The sentence of a word in the output shape of #465, with its pool (#581).
+ * `fill` names the source of the sentence, for the readers of that shape
+ * (#386, #469).
+ */
+function outputOf({ sentence, grade: graded }, pool, index) {
   const { record } = sentence;
   const tatoeba = record.source === 'tatoeba';
+  const tiles = tilesOf(sentence, graded.targetIndex, index);
   return {
     id: sentence.id,
     simp: sentence.simp,
@@ -622,6 +826,8 @@ function outputOf({ sentence, grade: graded }) {
     fill: record.source,
     source: tatoeba ? { name: 'tatoeba', id: Number(record.sourceId) } : { name: 'generated', id: sentence.id },
     origin: tatoeba ? { chinese: 'human', english: 'human' } : { chinese: 'machine', english: 'machine' },
+    pool,
+    ...(tiles ? { tiles } : {}),
   };
 }
 
@@ -630,6 +836,62 @@ function attributionOf({ id, record }) {
   const by = (owner) => (owner ? ` by ${owner}` : '');
   const english = record.englishId ? `; English: Tatoeba #${record.englishId}${by(record.englishOwner)}` : '';
   return `${id} Tatoeba #${record.sourceId}${by(record.owner)}${english}, ${TATOEBA_LICENCE.name}`;
+}
+
+/**
+ * The committed block list of #485, as the ids of the blocked sentences and
+ * the keys of the blocked credits. An entry with no word blocks the sentence
+ * for every word. An entry with a word blocks only that credit. An entry with
+ * no Tatoeba sentence of its id, no reason, or a word outside HSK is a problem
+ * of the build. The block list is for Tatoeba sentences only: a bad generated
+ * sentence is changed or removed in generated.json.
+ */
+function blocksOf(blocked, ids, hskBySimp, problems) {
+  const sentences = new Set();
+  const credits = new Set();
+  for (const entry of blocked) {
+    const { id, word, reason } = entry ?? {};
+    if (!ids.has(id)) {
+      problems.push(`blocked ${id}: no Tatoeba sentence has this id`);
+      continue;
+    }
+    if (typeof reason !== 'string' || reason.trim() === '') {
+      problems.push(`blocked ${id}: no reason`);
+      continue;
+    }
+    if (word === undefined || word === null) {
+      sentences.add(id);
+    } else if (!hskBySimp.has(word)) {
+      problems.push(`blocked ${id}: ${word} is not an HSK word`);
+    } else {
+      credits.add(creditKey(id, word));
+    }
+  }
+  return { sentences, credits };
+}
+
+/** The key of the credit of one sentence to one word. */
+const creditKey = (id, word) => `${id}\n${word}`;
+
+/**
+ * The longest CC-CEDICT word of a sentence that holds the target segment and
+ * more, or null. The splitter can cut a word outside HSK, such as 青花, into
+ * HSK words, and then 青 gets a sentence that does not really hold it (#485).
+ * Most of these credits are good (一 in 一点), so a person checks them.
+ */
+function longerWordOf(sentence, targetIndex, index) {
+  const chars = [...sentence.simp];
+  const target = sentence.segments[targetIndex];
+  const end = target.at + target.length;
+  let best = null;
+  for (let from = Math.max(0, end - index.longest); from <= target.at; from++) {
+    for (let to = Math.min(chars.length, from + index.longest); to >= end; to--) {
+      if (to - from <= target.length || (best && to - from <= [...best].length)) continue;
+      const text = chars.slice(from, to).join('');
+      if (index.bySimp.has(text)) best = text;
+    }
+  }
+  return best;
 }
 
 const LEVELS = [1, 2, 3, 4, 5, 6, 7];
@@ -646,11 +908,13 @@ function wordLines(rows, test) {
 }
 
 /** The text of the coverage report, in Markdown. */
-function reportOf(rows, largest) {
+function reportOf(rows, largest, blocks) {
   const lines = [
     '# Example sentence coverage',
     '',
     `The build of \`npm run build:dict\` writes this report. The sentences come from native writers on Tatoeba and from generation (ADR 0020). A word is filled when it has ${SENTENCE_TARGET} sentences.`,
+    '',
+    `The counts are after the block list of \`blocked.json\`. The block list drops ${blocks.sentences.size} sentences and ${blocks.credits.size} credits.`,
     '',
     '## HSK words',
     '',
@@ -710,43 +974,75 @@ function reportOf(rows, largest) {
  *   unfilled      the words that failed MAX_ROUNDS rounds
  *   glossOverrides  { [segment text]: { pinyin, trad?, gloss? } }: the entry and the
  *                 gloss that a segment shows, from sentences/gloss-overrides.json
+ *   blocked       [{ id, word?, reason }]: the block list of sentences/blocked.json
+ *   nearMiss      { measureWords, aspectWords }: the lists of [{ s, t }] of
+ *                 sentences/near-miss-lists.json, for the tiles (#386)
  *
  * Each sentence goes to every HSK word that it holds and passes the grader
  * for. A generated sentence must pass for its headword, or the build fails.
  * A Tatoeba sentence with fewer than 6 Han characters or a name is dropped.
  *
- * Returns { files, count, attribution, report, gaps }:
+ * Returns { files, count, attribution, report, gaps, credits }:
  *   files         { [hex code point]: { [simplified word]: sentence[] } }
  *   count         the number of sentences in the files, one for each word
  *   attribution   one line for each shipped Tatoeba sentence, in id order
  *   report        the coverage report, in Markdown
  *   gaps          each HSK word with fewer than 3 sentences that is not unfilled
+ *   credits       each shipped Tatoeba credit: { id, word, simp, english, gloss,
+ *                 longer }, where `longer` is the longest CC-CEDICT word
+ *                 of the sentence that holds the target and more, or null
  *
- * Throws on a bad gloss override, on a malformed record, on a generated
+ * Each sentence of a word carries the tiles of tile mode (see tilesOf).
+ *
+ * Throws on a bad gloss override, on a bad near-miss list, on a bad block entry, on a malformed record, on a generated
  * sentence that fails the grader, and on a sentence file over 2 MB. Never
  * throws on coverage.
  */
 function buildExampleSentences(inputs) {
-  const { files, count, attribution, report, gaps } = buildAll(inputs);
-  return { files, count, attribution, report, gaps };
+  const { files, count, attribution, report, gaps, credits } = buildAll(inputs);
+  return { files, count, attribution, report, gaps, credits };
 }
 
 /**
  * The build, with the parts of its state that acceptCandidates also reads:
  * the index, the ids of all sentences, and the chosen sentences of each word.
  */
-function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = [], glossOverrides = {} }) {
+function buildAll({
+  dictionary,
+  hsk,
+  generated = [],
+  tatoeba = [],
+  unfilled = [],
+  glossOverrides = {},
+  blocked = [],
+  nearMiss = {},
+}) {
   const problems = [];
   const index = indexInputs(dictionary, hsk);
   index.overrides = overridesOf(glossOverrides, index.bySimp, problems);
+  index.nearMissLists = nearMissListsOf(nearMiss, problems);
+  index.homophones = homophonesOf(index.hskBySimp);
   const sentences = uniqueSentences([...generated, ...tatoeba], problems);
+  const ids = new Set(sentences.map((sentence) => sentence.id));
+  const tatoebaIds = new Set(sentences.filter((s) => s.record.source === 'tatoeba').map((s) => s.id));
+  const blocks = blocksOf(blocked, tatoebaIds, index.hskBySimp, problems);
+  // The credit keys of the segments of each sentence, so that a credit entry
+  // for a word that its sentence does not hold fails the build.
+  const held = new Set();
   if (problems.length > 0) throw buildError(problems);
 
   const candidatesOf = new Map();
+  const frames = new Map();
   for (const sentence of sentences) {
     const { word } = sentence;
+    if (blocks.sentences.has(sentence.id)) continue;
     const ready = prepare(sentence, index);
+    for (const segment of ready.segments ?? []) held.add(creditKey(sentence.id, segment.text));
     if (word !== null) {
+      if (!ready.reason) {
+        const frame = frameOf(ready, word);
+        frames.set(frame, (frames.get(frame) ?? 0) + 1);
+      }
       // A generated sentence must pass the grader for its own word.
       const hskWord = index.hskBySimp.get(word);
       const graded = hskWord && !ready.reason ? grade(ready, word, hskWord.level) : null;
@@ -768,10 +1064,15 @@ function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = []
     for (const text of new Set(ready.segments.map((segment) => segment.text))) {
       const hskWord = index.hskBySimp.get(text);
       const graded = hskWord ? grade(ready, text, hskWord.level) : null;
-      if (!graded || graded.reason) continue;
+      if (!graded || graded.reason || blocks.credits.has(creditKey(ready.id, text))) continue;
       if (!candidatesOf.has(text)) candidatesOf.set(text, []);
       candidatesOf.get(text).push({ sentence: ready, grade: graded });
     }
+  }
+  for (const key of blocks.credits) {
+    if (held.has(key)) continue;
+    const [id, word] = key.split('\n');
+    problems.push(`blocked ${id}: the sentence does not hold ${word} as a segment`);
   }
   if (problems.length > 0) throw buildError(problems);
 
@@ -781,6 +1082,7 @@ function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = []
   const gaps = [];
   const chosenByWord = new Map();
   const shipped = new Map();
+  const credits = [];
   let count = 0;
   for (const [word, { level }] of [...index.hskBySimp].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
     const chosen = pick(candidatesOf.get(word) ?? []);
@@ -788,9 +1090,21 @@ function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = []
     if (chosen.length > 0) {
       const file = fileOf(word);
       files[file] ??= {};
-      files[file][word] = chosen.map(outputOf);
+      const pools = poolsOf(word, chosen);
+      files[file][word] = chosen.map((one) => outputOf(one, pools.get(one.sentence.id), index));
       count += chosen.length;
       chosen.forEach(({ sentence }) => shipped.set(sentence.id, sentence));
+      for (const { sentence, grade: graded } of chosen) {
+        if (sentence.record.source !== 'tatoeba') continue;
+        credits.push({
+          id: sentence.id,
+          word,
+          simp: sentence.simp,
+          english: sentence.english,
+          gloss: sentence.output[graded.targetIndex].e,
+          longer: longerWordOf(sentence, graded.targetIndex, index),
+        });
+      }
     }
     const short = chosen.length < SENTENCE_TARGET;
     rows.push({ level, word, count: chosen.length, unfilled: short && unfilledWords.has(word) });
@@ -798,7 +1112,7 @@ function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = []
       gaps.push({
         word,
         hskLevel: level,
-        lengthCap: LENGTH_CAPS[level] ?? null,
+        lengthCap: LENGTH_CAPS[level],
         needed: SENTENCE_TARGET - chosen.length,
       });
     }
@@ -823,11 +1137,13 @@ function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = []
     files,
     count,
     attribution,
-    report: reportOf(rows, largest),
+    report: reportOf(rows, largest, blocks),
     gaps,
+    credits,
     index,
-    ids: new Set(sentences.map((sentence) => sentence.id)),
+    ids,
     chosenByWord,
+    frames,
   };
 }
 
@@ -849,7 +1165,8 @@ function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = []
  */
 function acceptCandidates(inputs, candidates, rounds = {}) {
   const built = buildAll(inputs);
-  const { index } = built;
+  const { index, frames } = built;
+  let generatedCount = [...frames.values()].reduce((sum, count) => sum + count, 0);
   const needed = new Map(built.gaps.map((gap) => [gap.word, gap.needed]));
   const records = [];
   const rejects = [];
@@ -910,6 +1227,16 @@ function acceptCandidates(inputs, candidates, rounds = {}) {
       reject(`too like ${like.simp}`);
       continue;
     }
+    // The frame rule, against the generated sentences of all words and the
+    // candidates that this round accepted.
+    const frame = frameOf(ready, word);
+    const opens = frames.get(frame) ?? 0;
+    if (opens >= FRAME_MIN && opens > FRAME_SHARE * generatedCount) {
+      reject(`the frame ${frame} opens ${opens} of ${generatedCount} generated sentences`);
+      continue;
+    }
+    frames.set(frame, opens + 1);
+    generatedCount++;
     seen.add(id);
     if (!kept.has(word)) kept.set(word, []);
     kept.get(word).push({ simp, set: graded.set });
@@ -947,6 +1274,26 @@ function buildError(problems) {
   );
 }
 
+/** The highest HSK level of the second group of the gaps. */
+const EARLY_HSK = 3;
+
+/**
+ * The gaps in the order of generation, each with its priority (#480):
+ *   1  the words of the learner's word lists
+ *   2  the other HSK 1–3 words
+ *   3  the other HSK words
+ * Within a priority, the lower HSK level comes first, then the order of the
+ * build. learnerWords holds the simplified words of the learner's word lists.
+ */
+function orderGaps(gaps, learnerWords) {
+  const learner = new Set(learnerWords);
+  const priorityOf = (gap) => (learner.has(gap.word) ? 1 : gap.hskLevel <= EARLY_HSK ? 2 : 3);
+  return gaps
+    .map((gap, position) => ({ ...gap, priority: priorityOf(gap), position }))
+    .sort((a, b) => a.priority - b.priority || a.hskLevel - b.hskLevel || a.position - b.position)
+    .map(({ position, ...gap }) => gap);
+}
+
 /** The words of the generated file that failed MAX_ROUNDS rounds. */
 const unfilledOf = (generatedFile) =>
   Object.entries(generatedFile.rounds ?? {})
@@ -956,9 +1303,11 @@ const unfilledOf = (generatedFile) =>
 
 module.exports = {
   acceptCandidates,
+  orderGaps,
   unfilledOf,
   MAX_ROUNDS,
   buildExampleSentences,
+  creditKey,
   sentenceId,
   toneMarks,
   glossOf,

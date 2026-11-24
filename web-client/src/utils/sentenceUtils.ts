@@ -44,6 +44,12 @@ export interface SegmentedSentence {
     sentence: string;
     highlight: number[][];
   };
+  /**
+   * The tiles of tile mode in the character set, one character each, in the
+   * order of the build: the answer tiles, then the near-miss tiles. None for
+   * a sentence with no tile mode (#386).
+   */
+  tiles?: string[];
 }
 
 // Resolved sentence with full word data (used for rendering)

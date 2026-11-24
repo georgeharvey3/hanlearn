@@ -16,7 +16,8 @@
       "hskLevel": 1,
       "fill": "tatoeba",
       "source": { "name": "tatoeba", "id": 13138941 },
-      "origin": { "chinese": "human", "english": "human" }
+      "origin": { "chinese": "human", "english": "human" },
+      "pool": "intro"
     },
     {
       "id": "s2",
@@ -33,7 +34,8 @@
       "hskLevel": 1,
       "fill": "generated",
       "source": { "name": "generated", "id": "s2" },
-      "origin": { "chinese": "machine", "english": "machine" }
+      "origin": { "chinese": "machine", "english": "machine" },
+      "pool": "comprehend"
     }
   ],
   "学习": [
@@ -52,7 +54,8 @@
       "hskLevel": 1,
       "fill": "generated",
       "source": { "name": "generated", "id": "s3" },
-      "origin": { "chinese": "machine", "english": "machine" }
+      "origin": { "chinese": "machine", "english": "machine" },
+      "pool": "intro"
     }
   ]
 }

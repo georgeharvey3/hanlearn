@@ -123,7 +123,9 @@ function setQueue(words: Word[], practice: PracticeByWord = {}) {
   vi.mocked(loadQueueData).mockResolvedValue({
     words,
     practice,
-    index: Object.fromEntries(words.map((w) => [w.simp, [`s-${w.simp}`]])),
+    index: Object.fromEntries(
+      words.map((w) => [w.simp, { comprehend: `s-${w.simp}`, compose: `s-${w.simp}` }]),
+    ),
   });
 }
 
@@ -517,6 +519,146 @@ describe('the Compose tab', () => {
         'user-1',
         expect.objectContaining({ answer: '我在学习' }),
       );
+    });
+  });
+
+  describe('in tile mode', () => {
+    // The answer tiles of 我学习中文。, then the near-miss tiles.
+    const TILES = Array.from('我学习中文写字闻觉门');
+    const withTiles = () =>
+      vi.mocked(getSegmentedSentence).mockImplementation(async (simp, _charSet, id) => {
+        const found = sentenceOf(simp, id ?? 'none');
+        return { ...found, sentence: { ...found.sentence, tiles: TILES } };
+      });
+    const tileButton = (char: string) =>
+      within(screen.getByRole('group', { name: 'Tiles left' })).getByRole('button', {
+        name: char,
+      });
+    const placeTiles = async (user: ReturnType<typeof userEvent.setup>, text: string) => {
+      for (const char of Array.from(text)) await user.click(tileButton(char));
+    };
+
+    it('grades an exact match right at the check, and saves the tiles shown', async () => {
+      const user = userEvent.setup();
+      withTiles();
+      setQueue([STUDY]);
+      renderTab('compose', false);
+
+      await user.click(await screen.findByRole('button', { name: 'Tiles' }));
+      // Tile mode gives no help: the English words open nothing.
+      expect(screen.queryByRole('button', { name: 'I: show Chinese' })).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Your answer')).not.toBeInTheDocument();
+      const check = screen.getByRole('button', { name: 'Check' });
+
+      await placeTiles(user, '我学习中文');
+      await user.click(check);
+
+      expect(screen.getByRole('status')).toHaveTextContent('Right');
+      const reference = screen.getByText('Original').nextElementSibling as HTMLElement;
+      expect(reference).toHaveTextContent('我学习中文。');
+      expect(screen.queryByRole('button', { name: 'Wrong' })).not.toBeInTheDocument();
+      expect(saveGrade).toHaveBeenCalledTimes(1);
+      const saved = vi.mocked(saveGrade).mock.calls[0][1];
+      expect(saved).toMatchObject({
+        tab: 'compose',
+        grade: 'right',
+        input: 'tiles',
+        answer: '我学习中文',
+        lookups: 0,
+      });
+      expect([...(saved.tiles ?? [])].sort()).toEqual([...TILES].sort());
+
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+      expect(await screen.findByText(/1 right/)).toBeInTheDocument();
+      expect(saveGrade).toHaveBeenCalledTimes(1);
+    });
+
+    it('grades the right characters in another order wrong', async () => {
+      const user = userEvent.setup();
+      withTiles();
+      setQueue([STUDY]);
+      renderTab('compose', false);
+
+      await user.click(await screen.findByRole('button', { name: 'Tiles' }));
+      await placeTiles(user, '学习我中文');
+      await user.click(screen.getByRole('button', { name: 'Check' }));
+
+      expect(screen.getByRole('status')).toHaveTextContent('Wrong');
+      expect(saveGrade).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ grade: 'wrong', answer: '学习我中文' }),
+      );
+    });
+
+    it('puts a placed tile back when the learner taps it', async () => {
+      const user = userEvent.setup();
+      withTiles();
+      setQueue([STUDY]);
+      renderTab('compose', false);
+
+      await user.click(await screen.findByRole('button', { name: 'Tiles' }));
+      await placeTiles(user, '我');
+      await user.click(screen.getByRole('button', { name: 'Remove 我' }));
+
+      expect(tileButton('我')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Remove 我' })).not.toBeInTheDocument();
+    });
+
+    it('lets a learner who is stuck check with no tile, and grades it wrong', async () => {
+      const user = userEvent.setup();
+      withTiles();
+      setQueue([STUDY]);
+      renderTab('compose', false);
+
+      await user.click(await screen.findByRole('button', { name: 'Tiles' }));
+      await user.click(screen.getByRole('button', { name: 'Check' }));
+
+      expect(screen.getByRole('status')).toHaveTextContent('Wrong');
+      expect(saveGrade).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ grade: 'wrong', input: 'tiles', answer: '' }),
+      );
+    });
+
+    it('keeps the choice between visits', async () => {
+      const user = userEvent.setup();
+      withTiles();
+      setQueue([STUDY]);
+      const first = renderTab('compose', false);
+      await user.click(await screen.findByRole('button', { name: 'Tiles' }));
+      first.unmount();
+
+      renderTab('compose', false);
+      expect(await screen.findByRole('group', { name: 'Tiles left' })).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Free answer' }));
+      expect(screen.getByLabelText('Your answer')).toBeInTheDocument();
+      expect(localStorage.getItem('composeInput')).toBe('free');
+    });
+
+    it('shows only the free answer for a sentence with no tiles', async () => {
+      localStorage.setItem('composeInput', 'tiles');
+      setQueue([STUDY]);
+      renderTab('compose', false);
+
+      expect(await screen.findByLabelText('Your answer')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Tiles' })).not.toBeInTheDocument();
+    });
+
+    it('logs the free answer as free', async () => {
+      const user = userEvent.setup();
+      withTiles();
+      setQueue([STUDY]);
+      renderTab('compose', false);
+
+      await user.type(await screen.findByLabelText('Your answer'), '我学习');
+      await user.click(screen.getByRole('button', { name: 'Check' }));
+      await user.click(screen.getByRole('button', { name: 'Right' }));
+
+      expect(saveGrade).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ input: 'free', answer: '我学习' }),
+      );
+      expect(vi.mocked(saveGrade).mock.calls[0][1]).not.toHaveProperty('tiles');
     });
   });
 

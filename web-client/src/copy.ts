@@ -84,6 +84,12 @@ export const copy = {
     writePlaceholder: '用中文写',
     original: 'Original',
     englishWord: (word: string) => `${word}: show Chinese`,
+    // The switch of the Compose answer: keyboard or mic, or tiles (#386)
+    answerInput: 'Answer input',
+    freeAnswer: 'Free answer',
+    tiles: 'Tiles',
+    tilesLeft: 'Tiles left',
+    removeTile: (tile: string) => `Remove ${tile}`,
   },
   settings: {
     title: 'Settings',
