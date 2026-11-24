@@ -242,7 +242,7 @@ describe('reviewReport hints', () => {
         position: 2,
       }),
     ]);
-    const [row] = result.hints.recall;
+    const [row] = result.hints.pinyinAndMeaning;
 
     expect(row).toMatchObject({
       direction: 'PM',
@@ -271,7 +271,7 @@ describe('reviewReport hints', () => {
       hintedLapses: 2,
       hintedFails: 1,
     });
-    expect(result.hints.recall).toEqual([]);
+    expect(result.hints.pinyinAndMeaning).toEqual([]);
   });
 });
 
@@ -429,6 +429,15 @@ describe('reviewReport leeches', () => {
 
     expect(result.leeches).toEqual([{ direction: 'PC', mode: 'input', leeches: 1, words: ['1'] }]);
   });
+
+  it('does not count a failed retrieval of a direction that was never passed', () => {
+    const result = report([
+      ...many(7, { card_id: '1_PC', grade: 'lapse' }),
+      review({ card_id: '1_PC', grade: 'fail', retrievability: '', position: 7 }),
+    ]);
+
+    expect(result.leeches).toEqual([]);
+  });
 });
 
 describe('toMarkdown', () => {
@@ -477,9 +486,25 @@ describe('reviewReport legacy rows', () => {
       passRate: 0.5,
       medianAnswerMs: null,
     });
-    expect(result.hints).toEqual({ recall: [], characters: [] });
+    expect(result.hints).toEqual({ pinyinAndMeaning: [], characters: [] });
     expect(result.fatigue).toEqual([]);
     expect(result.siblings).toEqual([]);
     expect(result.hardWords.misses).toEqual([]);
+  });
+
+  it('gives the reveal and hint rates of only the rows that hold the field', () => {
+    const [row] = report([
+      review({ revealed: true, hint: true, grade: 'fail', position: 0 }),
+      review({ revealed: false, hint: false, position: 1 }),
+      review({ revealed: '', hint: '', log_version: 1, position: 2 }),
+      review({ revealed: '', hint: '', log_version: 1, position: 3 }),
+    ]).directions;
+
+    expect(row.revealRate).toBe(0.5);
+    expect(row.hintRate).toBe(0.5);
+  });
+
+  it('gives an empty report for an empty file', () => {
+    expect(reviewReport('').header.reviews).toBe(0);
   });
 });

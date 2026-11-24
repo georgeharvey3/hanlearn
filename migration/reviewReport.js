@@ -8,8 +8,6 @@
  * two reports can be compared. See issue #446.
  */
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
 /**
  * A group with fewer reviews than this shows its numbers as "too few". A
  * tunable limit, not a design decision: change it here.
@@ -27,7 +25,7 @@ const TOP = 20;
 
 /**
  * The failed retrievals that make a direction a leech, as in ADR 0010 and
- * `LEECH_LAPSES` in web-client/src/utils/scheduling.ts.
+ * `LEECH_THRESHOLD` in web-client/src/utils/scheduling.ts.
  */
 const LEECH_LAPSES = 8;
 
@@ -100,7 +98,7 @@ function readRows(csv) {
         grade: cells.grade,
         mode: cells.mode || null,
         time,
-        // The UTC day. The export holds no time zone, and the learner is in the UK.
+        // The UTC day: the export holds no time zone.
         date: new Date(time).toISOString().slice(0, 10),
         retrievability: number(cells.retrievability),
         scheduler: cells.scheduler,
@@ -142,6 +140,9 @@ function reviewReport(csv, { since, until, scheduler, words = new Map() } = {}) 
   const filtered = filterRows(readRows(csv), { since, until, scheduler });
   const { rows } = filtered;
   const dates = rows.map((row) => row.date).sort();
+  const modeGroups = byDirection(rows).flatMap(([direction, group]) =>
+    byMode(group).map(([mode, modeGroup]) => ({ direction, mode, rows: modeGroup })),
+  );
   const wordOf = (id) => {
     const entry = words.get(id);
     return entry ? `${entry.simp} ${entry.pinyin}` : id;
@@ -166,23 +167,19 @@ function reviewReport(csv, { since, until, scheduler, words = new Map() } = {}) 
       direction,
       ...rates(group),
     })),
-    modes: byDirection(rows).flatMap(([direction, group]) =>
-      byMode(group).map(([mode, modeGroup]) => ({
-        direction,
-        mode,
-        ...rates(modeGroup),
-      })),
-    ),
+    modes: modeGroups.map(({ direction, mode, rows: group }) => ({
+      direction,
+      mode,
+      ...rates(group),
+    })),
     hints: hints(rows),
     reveals: {
-      modes: byDirection(rows).flatMap(([direction, group]) =>
-        byMode(group).map(([mode, modeGroup]) => ({
-          direction,
-          mode,
-          ...passRate(modeGroup),
-          revealRate: share(modeGroup, (row) => row.revealed === true),
-        })),
-      ),
+      modes: modeGroups.map(({ direction, mode, rows: group }) => ({
+        direction,
+        mode,
+        ...passRate(group),
+        revealRate: flagRate(group, 'revealed'),
+      })),
       fails: revealedFails(rows),
     },
     fatigue: fatigue(rows),
@@ -203,7 +200,7 @@ function reviewReport(csv, { since, until, scheduler, words = new Map() } = {}) 
  * pass after a hint cannot occur. A row with no `hint` predates #397.
  */
 function hints(rows) {
-  const recall = [];
+  const pinyinAndMeaning = [];
   const characters = [];
   for (const [direction, group] of byDirection(rows)) {
     const versions = [
@@ -225,16 +222,16 @@ function hints(rows) {
         hintedLapses: hinted.filter((entry) => entry.grade === 'lapse').length,
         hintedFails: hinted.filter((entry) => entry.grade === 'fail').length,
       };
-      (row.answer === 'character' ? characters : recall).push(row);
+      (row.answer === 'character' ? characters : pinyinAndMeaning).push(row);
     }
   }
-  return { recall, characters };
+  return { pinyinAndMeaning, characters };
 }
 
 /** How many `fail` grades came from a reveal. */
 function revealedFails(rows) {
   const fails = rows.filter((row) => row.grade === 'fail');
-  const revealed = fails.filter((row) => row.revealed === true).length;
+  const revealed = fails.filter((row) => row.revealed).length;
   return {
     fails: fails.length,
     revealed,
@@ -299,15 +296,16 @@ function hardWords(rows, wordOf, countOf) {
 
 /**
  * The leeches of the log, grouped by direction and answer mode. A direction
- * (a card) with LEECH_LAPSES or more `lapse` and `fail` grades in the range is
- * a leech. Its mode is the mode of most of its failed retrievals. A direction
- * that was a leech before the review log counts fewer lapses here than in the
- * app.
+ * with LEECH_LAPSES or more `lapse` and `fail` grades in the range is a leech.
+ * As in `nextLapses`, a direction that was never passed counts no lapse: its
+ * row has no predicted recall. Its mode is the mode of most of its failed
+ * retrievals. A direction that was a leech before the review log counts fewer
+ * lapses here than in the app.
  */
 function leeches(rows, wordOf) {
   const cards = new Map();
   for (const row of rows) {
-    if (isPass(row)) continue;
+    if (isPass(row) || row.retrievability === null) continue;
     const key = `${row.wordId}_${row.direction}`;
     const card = cards.get(key) ?? {
       wordId: row.wordId,
@@ -343,6 +341,16 @@ const share = (rows, test) => (rows.length === 0 ? null : rows.filter(test).leng
 const mean = (values) =>
   values.length === 0 ? null : values.reduce((sum, value) => sum + value, 0) / values.length;
 const isPass = (row) => row.grade === 'pass';
+
+/**
+ * The share of the rows that hold a true flag. A row from a session saved
+ * before #397 does not hold the flag, so it is left out, not counted as false.
+ */
+const flagRate = (rows, field) =>
+  share(
+    rows.filter((row) => row[field] !== null),
+    (row) => row[field],
+  );
 
 /** The rows of each direction that has some, in the order of DIRECTIONS. */
 function byDirection(rows) {
@@ -395,8 +403,8 @@ function rates(rows) {
     ...passRate(rows),
     lapseRate: share(rows, (row) => row.grade === 'lapse'),
     failRate: share(rows, (row) => row.grade === 'fail'),
-    revealRate: share(rows, (row) => row.revealed === true),
-    hintRate: share(rows, (row) => row.hint === true),
+    revealRate: flagRate(rows, 'revealed'),
+    hintRate: flagRate(rows, 'hint'),
     meanMisses: mean(rows.map((row) => row.misses).filter((misses) => misses !== null)),
     ...answerTime(rows),
   };
@@ -513,19 +521,19 @@ const rateColumns = [
   value('Times left out', (row) => row.answerMsLeftOut),
 ];
 
-/** Flatten a nested pass rate into the columns of a with/without table. */
-const pair = (prefix, group) => ({
-  [`${prefix}Reviews`]: group.reviews,
-  [`${prefix}Pass`]: group.passRate,
-  [`${prefix}TooFew`]: group.tooFew,
-});
-const italicIf = (tooFew, text) => (tooFew ? `_${text} (too few)_` : String(text));
-const withWithout = (first, second) => [
-  value(`${first} reviews`, (row) => italicIf(row.aTooFew, row.aReviews)),
-  value(`${first} pass`, (row) => (row.aTooFew ? `_${percent(row.aPass)}_` : percent(row.aPass))),
-  value(`${second} reviews`, (row) => italicIf(row.bTooFew, row.bReviews)),
-  value(`${second} pass`, (row) => (row.bTooFew ? `_${percent(row.bPass)}_` : percent(row.bPass))),
-];
+/**
+ * The reviews and pass columns of a group inside a row, such as `withHint`. The
+ * group has its own size, so it carries its own "too few" mark, as `table` does.
+ */
+const groupColumns = (title, field) => {
+  const italic = (group, text) => (group.tooFew ? `_${text}_` : text);
+  return [
+    value(`${title} reviews`, (row) =>
+      italic(row[field], `${row[field].reviews}${row[field].tooFew ? ' (too few)' : ''}`),
+    ),
+    value(`${title} pass`, (row) => italic(row[field], percent(row[field].passRate))),
+  ];
+};
 
 function calibrationTable(calibrationResult) {
   return [
@@ -591,12 +599,6 @@ function toMarkdown(report) {
     ),
   );
 
-  const hintRows = (rows) =>
-    rows.map((row) => ({
-      ...row,
-      ...pair('a', row.withHint),
-      ...pair('b', row.withoutHint),
-    }));
   add(
     '## 4. Hints',
     'The learner asks for a hint when a question is hard, so a lower pass rate after a hint does not prove that the hint has no effect. In log version 1, a hint was free. From version 2, every hint caps the grade at lapse, so a pass after a hint cannot occur.',
@@ -608,15 +610,16 @@ function toMarkdown(report) {
         label('Log version', (row) => row.logVersion),
         reviewsColumn,
         value('Hint rate', (row) => percent(row.hintRate)),
-        ...withWithout('With hint', 'Without hint'),
+        ...groupColumns('With hint', 'withHint'),
+        ...groupColumns('Without hint', 'withoutHint'),
         value('Hinted lapse', (row) => row.hintedLapses),
         value('Hinted fail', (row) => row.hintedFails),
       ],
-      hintRows(report.hints.recall),
+      report.hints.pinyinAndMeaning,
     ),
     '',
     '### Character answers',
-    'The stroke outline is the answer, so a hinted question ends as a lapse or a fail.',
+    'The stroke outline is the answer. From log version 2, a hinted question ends as a lapse or a fail. In version 1, a hinted question can also pass.',
     table(
       [
         label('Direction', (row) => row.direction),
@@ -663,13 +666,10 @@ function toMarkdown(report) {
     table(
       [
         label('Direction', (row) => row.direction),
-        ...withWithout('With sibling', 'Without sibling'),
+        ...groupColumns('With sibling', 'withSibling'),
+        ...groupColumns('Without sibling', 'withoutSibling'),
       ],
-      report.siblings.map((row) => ({
-        ...row,
-        ...pair('a', row.withSibling),
-        ...pair('b', row.withoutSibling),
-      })),
+      report.siblings,
     ),
   );
 

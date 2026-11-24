@@ -300,6 +300,8 @@ The review log report shows the calibration of FSRS and the results of the study
 3. Run `node review-report.js review-log-<userId>.csv`. It writes `review-log-<userId>.md`.
 4. Read the report. Open one issue for each finding that needs a change.
 
+The id of a `userWords` document is the id of its dictionary entry. `build:dict` gives the ids in the order of CC-CEDICT. Thus a new CC-CEDICT file can move the ids, and an old export then shows wrong words. The CSV file holds no characters, so the script cannot find this error.
+
 The options are `--out <file>`, `--since YYYY-MM-DD`, `--until YYYY-MM-DD` and `--scheduler <name>`. The dates are UTC days, and both days are in the range. With no `--scheduler`, the report uses the scheduler of the newest row.
 
 The report has eight sections: calibration, directions, answer modes, hints, reveals, fatigue and sibling directions, repeated errors, and leeches. A group with fewer than 20 reviews is in italics and has the mark "too few". The rules are pure, in `reviewReport.js`. Git ignores the report, because it holds typed answers.

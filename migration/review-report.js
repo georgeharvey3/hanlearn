@@ -6,7 +6,8 @@
  * old export. The words show as characters and pinyin from
  * functions/data/dictionary.json (`npm run build:dict` writes it): the id of a
  * `userWords` document is the id of its dictionary entry, and a custom word,
- * with a negative id, shows its id.
+ * with a negative id, shows its id. build:dict numbers the entries in the order
+ * of CC-CEDICT, so a new CC-CEDICT file can move the ids under an old export.
  *
  * Usage:
  *   node review-report.js <review-log.csv> [--out <file>]
