@@ -77,7 +77,7 @@ describe('saveGrade', () => {
     const [logRef, log] = setDocSpy.mock.calls[1];
     expect(logRef.path).toBe('users/user-1/sentenceLog/auto');
     expect(log).toEqual({
-      version: 1,
+      version: 2,
       date: '2026-11-04',
       reviewedAt: expect.objectContaining({ __ts: NOW.toISOString() }),
       wordId: 42,
@@ -97,7 +97,30 @@ describe('saveGrade', () => {
     await saveGrade('user-1', grade({ tab: 'compose', answer: '我学中文' }));
 
     expect(setDocSpy.mock.calls[0][1]).toHaveProperty('compose');
-    expect(setDocSpy.mock.calls[1][1]).toMatchObject({ tab: 'compose', answer: '我学中文' });
+    expect(setDocSpy.mock.calls[1][1]).toMatchObject({
+      tab: 'compose',
+      input: 'free',
+      answer: '我学中文',
+    });
+    expect(setDocSpy.mock.calls[1][1]).not.toHaveProperty('tiles');
+  });
+
+  it('logs the answer and the tiles shown of a tile answer', async () => {
+    setDocSpy.mockResolvedValue(undefined);
+    const tiles = ['书', '我', '输', '看', '树', '吃'];
+
+    await saveGrade('user-1', grade({ tab: 'compose', input: 'tiles', answer: '我看书', tiles }));
+
+    expect(setDocSpy.mock.calls[1][1]).toMatchObject({ input: 'tiles', answer: '我看书', tiles });
+  });
+
+  it('gives a Comprehend entry no input', async () => {
+    setDocSpy.mockResolvedValue(undefined);
+
+    await saveGrade('user-1', grade({ input: 'tiles', tiles: ['我'] }));
+
+    expect(setDocSpy.mock.calls[1][1]).not.toHaveProperty('input');
+    expect(setDocSpy.mock.calls[1][1]).not.toHaveProperty('tiles');
   });
 
   it('resolves when the log write fails, and reports the failure', async () => {

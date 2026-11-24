@@ -6,10 +6,14 @@ import { dayKey } from './retention';
 import type { SentenceTab } from './sentenceSettings';
 import type { SentenceResult } from './sentenceQueue';
 
-export const SENTENCE_LOG_VERSION = 1;
+/** 2 since #386: a Compose entry names its input, and a tile answer logs its tiles. */
+export const SENTENCE_LOG_VERSION = 2;
 
 /** Whether the task played the sentence (`audio`) or showed it (`text`). */
 export type SentenceMode = 'audio' | 'text';
+
+/** How the learner gave a Compose answer: keyboard or mic (`free`), or tiles (#386). */
+export type ComposeInput = 'free' | 'tiles';
 
 /** One grade of one task, as the tab records it. */
 export interface SentenceGrade {
@@ -18,8 +22,15 @@ export interface SentenceGrade {
   tab: SentenceTab;
   grade: SentenceResult;
   mode: SentenceMode;
-  /** The raw answer of a Compose task. */
+  /** The raw answer of a Compose task: the placed characters of a tile answer. */
   answer?: string;
+  /** The input of a Compose task. `free` when not given. */
+  input?: ComposeInput;
+  /**
+   * The tiles of a tile answer, in screen order. A rebuild can change the
+   * tile set of a sentence, so only the log keeps the tiles that the learner saw.
+   */
+  tiles?: string[];
   /** The time from the start of the task to the reveal. */
   answerMs: number;
   /** Whether the Chinese text showed before the reveal. */
@@ -44,6 +55,16 @@ export function sentencePracticeUpdate<T>(grade: SentenceGrade, at: T) {
   };
 }
 
+/** The fields that only a Compose entry has. */
+function composeFields(grade: SentenceGrade) {
+  const input = grade.input ?? 'free';
+  return {
+    input,
+    ...(grade.answer !== undefined ? { answer: grade.answer } : {}),
+    ...(input === 'tiles' && grade.tiles !== undefined ? { tiles: grade.tiles } : {}),
+  };
+}
+
 /** The write-once document of `users/{uid}/sentenceLog/{autoId}`. */
 export function sentenceLogDocument<T>(grade: SentenceGrade, at: T) {
   return {
@@ -55,7 +76,7 @@ export function sentenceLogDocument<T>(grade: SentenceGrade, at: T) {
     tab: grade.tab,
     grade: grade.grade,
     mode: grade.mode,
-    ...(grade.tab === 'compose' && grade.answer !== undefined ? { answer: grade.answer } : {}),
+    ...(grade.tab === 'compose' ? composeFields(grade) : {}),
     answerMs: grade.answerMs,
     revealed: grade.revealed,
     lookups: grade.lookups,

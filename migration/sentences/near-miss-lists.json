@@ -1,0 +1,30 @@
+{
+  "about": "The near-miss tiles of tile mode (#386). When a segment of a sentence is a word of a list, the other words of the same list become near-miss tiles. Each word gives its simplified form `s` and its traditional form `t`.",
+  "measureWords": [
+    { "s": "个", "t": "個" },
+    { "s": "本", "t": "本" },
+    { "s": "张", "t": "張" },
+    { "s": "只", "t": "隻" },
+    { "s": "条", "t": "條" },
+    { "s": "件", "t": "件" },
+    { "s": "位", "t": "位" },
+    { "s": "辆", "t": "輛" },
+    { "s": "把", "t": "把" },
+    { "s": "双", "t": "雙" },
+    { "s": "杯", "t": "杯" },
+    { "s": "次", "t": "次" },
+    { "s": "块", "t": "塊" },
+    { "s": "家", "t": "家" },
+    { "s": "种", "t": "種" },
+    { "s": "口", "t": "口" },
+    { "s": "头", "t": "頭" },
+    { "s": "篇", "t": "篇" },
+    { "s": "首", "t": "首" },
+    { "s": "台", "t": "臺" }
+  ],
+  "aspectWords": [
+    { "s": "了", "t": "了" },
+    { "s": "过", "t": "過" },
+    { "s": "着", "t": "著" }
+  ]
+}

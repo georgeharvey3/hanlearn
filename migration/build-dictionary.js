@@ -136,6 +136,9 @@ const GLOSS_OVERRIDES_PATH = path.join(__dirname, 'sentences', 'gloss-overrides.
  */
 const BLOCKED_PATH = path.join(__dirname, 'sentences', 'blocked.json');
 
+/** The committed measure word and aspect word lists of the near-miss tiles (#386). */
+const NEAR_MISS_PATH = path.join(__dirname, 'sentences', 'near-miss-lists.json');
+
 /**
  * The inputs of buildExampleSentences, from the committed generated and
  * Tatoeba sentences and the resolved HSK lists. Also gives the generated file
@@ -148,6 +151,7 @@ function sentenceInputs(words, catalogue, ranks) {
   const tatoebaFile = JSON.parse(fs.readFileSync(TATOEBA_PATH, 'utf8'));
   const glossOverrides = JSON.parse(fs.readFileSync(GLOSS_OVERRIDES_PATH, 'utf8')).overrides;
   const blocked = JSON.parse(fs.readFileSync(BLOCKED_PATH, 'utf8')).entries;
+  const nearMiss = JSON.parse(fs.readFileSync(NEAR_MISS_PATH, 'utf8'));
 
   const hsk = catalogue.flatMap((list, i) =>
     list.entries.map((entry) => ({
@@ -166,6 +170,7 @@ function sentenceInputs(words, catalogue, ranks) {
       unfilled: unfilledOf(generatedFile),
       glossOverrides,
       blocked,
+      nearMiss,
     },
     generatedFile,
     tatoebaFile,

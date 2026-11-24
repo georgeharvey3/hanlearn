@@ -282,6 +282,18 @@ The input of each follows `useSound`. With sound on, Comprehend plays the
 sentence and hides the Chinese, and Compose takes the mic and the keyboard. With
 sound off, Comprehend shows the Chinese, and Compose takes the keyboard.
 
+In **tile mode**, the learner builds the Compose answer from **tiles**. A
+switch on the Compose screen selects the **free answer** (keyboard or mic) or
+tile mode, and `localStorage` keeps the choice. A **tile** holds one character
+in the character set of the learner. The build writes the tiles of each
+sentence. A sentence with more than 20 characters, not counting punctuation, has no tile mode.
+
+The **answer tiles** are the characters of the sentence. A **near-miss tile**
+is a character that the answer does not hold: a homophone, or another word of
+the measure word list or the aspect word list. The app grades a tile answer at
+the check. The answer is right only when it is an exact match with the
+reference sentence, with no punctuation. A free answer keeps the self-grade.
+
 A **set** is the tasks of one visit to a tab. Each tab has a setting for its
 size: "Comprehend set size" and "Compose set size".
 

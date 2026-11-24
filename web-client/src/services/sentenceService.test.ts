@@ -65,6 +65,25 @@ describe('sentenceService', () => {
       expect(result.sentence?.chinese.highlight).toEqual([[0, 2]]);
     });
 
+    it('gives the tiles of tile mode in the character set, and none when the build wrote none', async () => {
+      const withTiles = {
+        学生: [{ ...fixture['学生'][0], tiles: { s: '学生们听好了门', t: '學生們聽好了門' } }],
+      };
+      fetchMock.mockImplementation(async () => jsonResponse(withTiles));
+      const { getSegmentedSentence } = await loadService();
+
+      expect((await getSegmentedSentence('学生', 'simp')).sentence?.tiles).toEqual(
+        Array.from('学生们听好了门'),
+      );
+      expect((await getSegmentedSentence('学生', 'trad')).sentence?.tiles).toEqual(
+        Array.from('學生們聽好了門'),
+      );
+
+      fetchMock.mockImplementation(async () => jsonResponse(fixture));
+      const fresh = await loadService();
+      expect((await fresh.getSegmentedSentence('学生', 'simp')).sentence?.tiles).toBeUndefined();
+    });
+
     it('keeps the punctuation between segments as segments with no entry', async () => {
       const { getSegmentedSentence } = await loadService();
 
