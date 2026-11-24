@@ -27,6 +27,8 @@ interface FileSentence {
   segments: SentenceSegment[];
   targetIndex: number;
   pool: SentencePool;
+  /** The tiles of tile mode, one character each, in both character sets (#386). */
+  tiles?: { s: string; t: string };
 }
 
 /** One file: the sentences of each word that starts with its character. */
@@ -224,6 +226,9 @@ export async function getSegmentedSentence(
       id: example.id,
       chinese: { sentence: text, simplified: example.simp, highlight, segments, targetIndex },
       english: { sentence: example.english, highlight: [] },
+      ...(example.tiles
+        ? { tiles: Array.from(charSet === 'trad' ? example.tiles.t : example.tiles.s) }
+        : {}),
     },
     totalCount: kept.length,
   };

@@ -857,11 +857,36 @@ describe("sentenceLog", () => {
     );
   });
 
+  it("accepts the version 2 entry of a tile answer, with its input and its tiles", async () => {
+    const tiles = "书我输看树吃".split("");
+    const tileEntry = entry({ tab: "compose", input: "tiles", answer: "我看书", tiles });
+    expect(tileEntry).toMatchObject({ version: 2, input: "tiles", tiles });
+    await assertSucceeds(setDoc(ref(db, path), tileEntry));
+  });
+
+  it("rejects a bad input, tiles of a free answer, or more than 28 tiles", async () => {
+    const compose = entry({ tab: "compose", input: "free", answer: "我" });
+    await assertFails(setDoc(ref(db, path), { ...compose, input: "voice" }));
+    await assertFails(setDoc(ref(db, path), { ...compose, tiles: ["我"] }));
+    await assertFails(
+      setDoc(ref(db, path), {
+        ...compose,
+        input: "tiles",
+        tiles: Array.from({ length: 29 }, () => "我"),
+      }),
+    );
+    // A Compose entry names its input, and a version 1 entry is refused.
+    const { input: _input, ...noInput } = compose;
+    await assertFails(setDoc(ref(db, path), noInput));
+    await assertFails(setDoc(ref(db, path), { ...compose, version: 1 }));
+  });
+
   it("rejects an unknown tab or an extra field", async () => {
     await assertFails(setDoc(ref(db, path), { ...entry(), tab: "listen" }));
     await assertFails(setDoc(ref(db, path), { ...entry(), score: 80 }));
     // Only a Compose task has an answer.
     await assertFails(setDoc(ref(db, path), { ...entry(), answer: '我' }));
+    await assertFails(setDoc(ref(db, path), { ...entry(), input: 'free' }));
   });
 
   it("is write-once", async () => {

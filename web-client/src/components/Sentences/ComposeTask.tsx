@@ -1,6 +1,6 @@
 import React, { KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
-import { Box } from '@mui/material';
+import { Box, ToggleButton, ToggleButtonGroup } from '@mui/material';
 
 import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
@@ -28,6 +28,8 @@ import {
   resolveSentence,
 } from '../../utils/sentenceUtils';
 import { SentenceResult } from '../../utils/sentenceQueue';
+import { ComposeInput } from '../../utils/sentencePracticeDocuments';
+import { MAX_ANSWER_TILES, answerTileCount, gradeTiles, shuffleTiles } from '../../utils/tiles';
 import { toCharSet } from '../../utils/charSet';
 import {
   GradeButtons,
@@ -35,8 +37,10 @@ import {
   TaskLoading,
   TaskOutcome,
   readCharSet,
+  readComposeInput,
   readUseSound,
   speak,
+  writeComposeInput,
 } from './shared';
 
 const mapStateToProps = (state: RootState) => ({
@@ -51,7 +55,12 @@ const connector = connect(mapStateToProps);
 interface OwnProps {
   word: Word;
   sentenceId: string;
+  /** Save a self-grade and go to the next task. */
   onGrade: (outcome: TaskOutcome) => void;
+  /** Save the grade of a tile answer at its check, and stay on the task. */
+  onCheck: (outcome: TaskOutcome) => void;
+  /** Go to the next task after a tile answer. */
+  onNext: () => void;
   /** Leave the word out of the set, when its sentence does not load. */
   onSkip: () => void;
 }
@@ -66,7 +75,37 @@ interface Loaded {
   english: string;
   /** The words of the sentence with an entry, for the hints of the English words. */
   words: SentenceWord[];
+  /** The tiles in screen order, or null for a sentence with no tile mode. */
+  tiles: string[] | null;
 }
+
+const switchSx = {
+  px: 1.5,
+  fontFamily: fonts.body,
+  fontSize: 14,
+  fontWeight: 600,
+  textTransform: 'none',
+  color: colors.textSecondary,
+  borderColor: colors.borderStrong,
+  '&.Mui-selected, &.Mui-selected:hover': { bgcolor: colors.primaryDark, color: colors.white },
+} as const;
+
+const tileRowSx = { display: 'flex', flexWrap: 'wrap', gap: 0.75 } as const;
+
+/** One tile: a character on a key, large enough to tap. */
+const tileSx = {
+  width: 44,
+  height: 44,
+  p: 0,
+  border: `1px solid ${colors.borderStrong}`,
+  borderRadius: 1,
+  bgcolor: colors.white,
+  color: colors.text,
+  fontFamily: fonts.hanzi,
+  fontSize: 24,
+  lineHeight: 1,
+  cursor: 'pointer',
+} as const;
 
 /** Strip the punctuation at each end of an English word, to match it. */
 const stripPunctuation = (text: string): string =>
@@ -81,6 +120,11 @@ const stripPunctuation = (text: string): string =>
  * With sound on, the mic and the keyboard both take the answer, and the
  * reference plays from a button after the reveal. It does not play by
  * itself, so the learner reads it first (#564).
+ *
+ * In tile mode the learner builds the sentence from the tiles of the build,
+ * and the check grades it: right only for an exact match (#386). Tile mode
+ * gives no help, so the English words open nothing, and the check is the
+ * only way out.
  */
 const ComposeTask: React.FC<Props> = ({
   synthAvailable,
@@ -90,6 +134,8 @@ const ComposeTask: React.FC<Props> = ({
   word,
   sentenceId,
   onGrade,
+  onCheck,
+  onNext,
   onSkip,
 }) => {
   const [charSet] = useState(readCharSet);
@@ -99,6 +145,11 @@ const ComposeTask: React.FC<Props> = ({
   const [entered, setEntered] = useState('');
   const [revealed, setRevealed] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [input, setInput] = useState<ComposeInput>(readComposeInput);
+  /** The placed tiles, as indices into the tiles, in answer order. */
+  const [placed, setPlaced] = useState<number[]>([]);
+  /** The grade of a checked tile answer. */
+  const [tileGrade, setTileGrade] = useState<SentenceResult | null>(null);
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState('');
   const [synthLoading, setSynthLoading] = useState(false);
@@ -123,12 +174,17 @@ const ComposeTask: React.FC<Props> = ({
         return;
       }
       const resolved = resolveSentence(found, charSet);
+      const { tiles } = found;
+      const hasTiles =
+        tiles !== undefined && answerTileCount(found.chinese.sentence) <= MAX_ANSWER_TILES;
       setSentence({
         id: found.id,
         chinese: found.chinese.sentence,
         pinyin: resolved.chinese.pinyin,
         english: found.english.sentence,
         words: resolved.chinese.words.filter((w): w is SentenceWord => typeof w !== 'string'),
+        // A new order on each visit.
+        tiles: hasTiles ? shuffleTiles(tiles) : null,
       });
       setLoad('ready');
       shownAt.current = Date.now();
@@ -194,6 +250,35 @@ const ComposeTask: React.FC<Props> = ({
     });
   };
 
+  const tiles = sentence?.tiles ?? null;
+  const tileMode = input === 'tiles' && tiles !== null;
+  const tileAnswer = tiles ? placed.map((i) => tiles[i]).join('') : '';
+
+  const onInput = (next: ComposeInput) => {
+    setInput(next);
+    writeComposeInput(next);
+  };
+
+  const onCheckTiles = () => {
+    if (placed.length === 0 || !sentence || !tiles) return;
+    recognition.current?.abort();
+    revealedAt.current = Date.now();
+    const result = gradeTiles(tileAnswer, sentence.chinese);
+    setTileGrade(result);
+    setRevealed(true);
+    setMessage('');
+    onCheck({
+      grade: result,
+      mode: useSound ? 'audio' : 'text',
+      revealed: false,
+      lookups: lookups.current,
+      answerMs: revealedAt.current - shownAt.current,
+      input: 'tiles',
+      answer: tileAnswer,
+      tiles,
+    });
+  };
+
   const onReveal = () => {
     if (entered.trim() === '' || !sentence) return;
     recognition.current?.abort();
@@ -216,6 +301,7 @@ const ComposeTask: React.FC<Props> = ({
       revealed: false,
       lookups: lookups.current,
       answerMs: revealedAt.current - shownAt.current,
+      input: 'free',
       answer: entered,
     });
   };
@@ -281,7 +367,7 @@ const ComposeTask: React.FC<Props> = ({
           </Box>
           <Overline sx={{ mt: 2.75, mb: 0.75 }}>{copy.sentence.yourAnswer}</Overline>
           <Box lang="zh" sx={answerBox}>
-            {withTarget(entered)}
+            {withTarget(tileGrade === null ? entered : tileAnswer)}
           </Box>
           <Overline sx={{ mt: 2, mb: 0.75 }}>{copy.sentence.original}</Overline>
           <Box sx={{ ...answerBox, display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
@@ -322,8 +408,22 @@ const ComposeTask: React.FC<Props> = ({
               english: sentence.english,
             }}
           />
+          {tileGrade !== null && (
+            <StatusLine
+              tone={tileGrade === 'right' ? 'success' : 'error'}
+              icon={tileGrade === 'right' ? 'check' : undefined}
+            >
+              {copy.sentenceTabs[tileGrade]}
+            </StatusLine>
+          )}
         </StudyBody>
-        <GradeButtons onGrade={grade} />
+        {tileGrade === null ? (
+          <GradeButtons onGrade={grade} />
+        ) : (
+          <StudyButton variant="primary" onClick={onNext}>
+            {copy.test.continue}
+          </StudyButton>
+        )}
       </>
     );
   }
@@ -341,35 +441,37 @@ const ComposeTask: React.FC<Props> = ({
       <StudyBody>
         <StudyCard height={240} sx={{ mt: 3, px: 2.75, pt: 3.5, pb: 2.75, gap: 2.25 }}>
           <Box component="p" sx={{ m: 0, fontSize: 24, lineHeight: 1.6 }}>
-            {englishWords.map((english, index) => {
-              const on = selected.has(index);
-              return (
-                <React.Fragment key={index}>
-                  {index > 0 && ' '}
-                  <Box
-                    component="button"
-                    type="button"
-                    aria-label={copy.sentence.englishWord(english)}
-                    aria-pressed={on}
-                    onClick={() => onToggleWord(index)}
-                    sx={{
-                      border: 'none',
-                      p: on ? '0 6px' : '0 2px',
-                      font: 'inherit',
-                      cursor: 'pointer',
-                      borderRadius: '3px',
-                      bgcolor: on ? colors.primaryDark : 'transparent',
-                      color: on ? colors.white : 'inherit',
-                      borderBottom: on ? 'none' : `1px dotted ${colors.borderStrong}`,
-                    }}
-                  >
-                    {english}
-                  </Box>
-                </React.Fragment>
-              );
-            })}
+            {tileMode && sentence.english}
+            {!tileMode &&
+              englishWords.map((english, index) => {
+                const on = selected.has(index);
+                return (
+                  <React.Fragment key={index}>
+                    {index > 0 && ' '}
+                    <Box
+                      component="button"
+                      type="button"
+                      aria-label={copy.sentence.englishWord(english)}
+                      aria-pressed={on}
+                      onClick={() => onToggleWord(index)}
+                      sx={{
+                        border: 'none',
+                        p: on ? '0 6px' : '0 2px',
+                        font: 'inherit',
+                        cursor: 'pointer',
+                        borderRadius: '3px',
+                        bgcolor: on ? colors.primaryDark : 'transparent',
+                        color: on ? colors.white : 'inherit',
+                        borderBottom: on ? 'none' : `1px dotted ${colors.borderStrong}`,
+                      }}
+                    >
+                      {english}
+                    </Box>
+                  </React.Fragment>
+                );
+              })}
           </Box>
-          {selected.size > 0 && (
+          {!tileMode && selected.size > 0 && (
             <Box
               sx={{
                 alignSelf: 'stretch',
@@ -430,7 +532,73 @@ const ComposeTask: React.FC<Props> = ({
             </Box>
           </Box>
         </StudyCard>
-        {useSound && speechAvailable && (
+        {tiles && (
+          <ToggleButtonGroup
+            exclusive
+            value={input}
+            onChange={(_, next: ComposeInput | null) => next && onInput(next)}
+            aria-label={copy.sentence.answerInput}
+            sx={{ mt: 2, alignSelf: 'center', height: 36 }}
+          >
+            {(['free', 'tiles'] as const).map((value) => (
+              <ToggleButton key={value} value={value} sx={switchSx}>
+                {value === 'free' ? copy.sentence.freeAnswer : copy.sentence.tiles}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        )}
+        {tileMode && (
+          <>
+            <Overline sx={{ mt: 2.5 }}>{copy.sentence.yourAnswer}</Overline>
+            <Box
+              lang="zh"
+              sx={{
+                ...tileRowSx,
+                mt: 1,
+                minHeight: 60,
+                boxSizing: 'border-box',
+                p: 0.75,
+                border: `1px solid ${colors.borderStrong}`,
+                borderRadius: 1,
+                bgcolor: colors.card,
+              }}
+            >
+              {placed.map((index, at) => (
+                <Box
+                  key={index}
+                  component="button"
+                  type="button"
+                  aria-label={copy.sentence.removeTile(tiles[index])}
+                  onClick={() => setPlaced((prev) => prev.filter((_, i) => i !== at))}
+                  sx={tileSx}
+                >
+                  {tiles[index]}
+                </Box>
+              ))}
+            </Box>
+            <Box
+              role="group"
+              aria-label={copy.sentence.tilesLeft}
+              lang="zh"
+              sx={{ ...tileRowSx, mt: 2, justifyContent: 'center' }}
+            >
+              {tiles.map((tile, index) =>
+                placed.includes(index) ? null : (
+                  <Box
+                    key={index}
+                    component="button"
+                    type="button"
+                    onClick={() => setPlaced((prev) => [...prev, index])}
+                    sx={tileSx}
+                  >
+                    {tile}
+                  </Box>
+                ),
+              )}
+            </Box>
+          </>
+        )}
+        {!tileMode && useSound && speechAvailable && (
           <MicButton
             listening={listening}
             onClick={() => (listening ? recognition.current?.abort() : onListen())}
@@ -445,42 +613,52 @@ const ComposeTask: React.FC<Props> = ({
             {message}
           </StatusLine>
         )}
-        <Overline component="label" htmlFor="answerInput" sx={{ mt: 2.5 }}>
-          {copy.sentence.yourAnswer}
-        </Overline>
-        <Box
-          component="input"
-          id="answerInput"
-          lang="zh"
-          autoComplete="off"
-          value={entered}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-            pendingSpeech.current = null;
-            setEntered(e.target.value);
-            setMessage('');
-          }}
-          onKeyDown={onKeyDown}
-          placeholder={copy.sentence.writePlaceholder}
-          sx={{
-            mt: 1,
-            height: 48,
-            boxSizing: 'border-box',
-            borderRadius: 1,
-            border: `1px solid ${colors.borderStrong}`,
-            bgcolor: colors.card,
-            px: 1.75,
-            fontFamily: fonts.hanzi,
-            fontSize: 22,
-            color: colors.text,
-            outline: 'none',
-            '&:focus': { border: `2px solid ${colors.primaryDark}`, px: '13px' },
-            '&::placeholder': { color: colors.placeholder },
-          }}
-        />
+        {!tileMode && (
+          <Overline component="label" htmlFor="answerInput" sx={{ mt: 2.5 }}>
+            {copy.sentence.yourAnswer}
+          </Overline>
+        )}
+        {!tileMode && (
+          <Box
+            component="input"
+            id="answerInput"
+            lang="zh"
+            autoComplete="off"
+            value={entered}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              pendingSpeech.current = null;
+              setEntered(e.target.value);
+              setMessage('');
+            }}
+            onKeyDown={onKeyDown}
+            placeholder={copy.sentence.writePlaceholder}
+            sx={{
+              mt: 1,
+              height: 48,
+              boxSizing: 'border-box',
+              borderRadius: 1,
+              border: `1px solid ${colors.borderStrong}`,
+              bgcolor: colors.card,
+              px: 1.75,
+              fontFamily: fonts.hanzi,
+              fontSize: 22,
+              color: colors.text,
+              outline: 'none',
+              '&:focus': { border: `2px solid ${colors.primaryDark}`, px: '13px' },
+              '&::placeholder': { color: colors.placeholder },
+            }}
+          />
+        )}
       </StudyBody>
-      <StudyButton variant="primary" disabled={entered.trim() === ''} onClick={onReveal}>
-        {copy.test.check}
-      </StudyButton>
+      {tileMode ? (
+        <StudyButton variant="primary" disabled={placed.length === 0} onClick={onCheckTiles}>
+          {copy.test.check}
+        </StudyButton>
+      ) : (
+        <StudyButton variant="primary" disabled={entered.trim() === ''} onClick={onReveal}>
+          {copy.test.check}
+        </StudyButton>
+      )}
     </>
   );
 };

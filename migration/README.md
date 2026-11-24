@@ -95,6 +95,8 @@ Each segment shows the pinyin and the gloss of one CC-CEDICT entry (#479). An ov
 
 `sentences/gloss-overrides.json` sets the entry and the gloss of one segment text. Each override names the entry by its pinyin with tone numbers, and by `trad` when two entries have the same pinyin. If a person finds a wrong pinyin or gloss in use, add an override for it. The build stops on an override that names no entry.
 
+`sentences/near-miss-lists.json` holds the measure word list and the aspect word list of the tile mode of the Compose tab (#386). Each sentence of a word gets its tiles: the characters of the sentence, then the near-miss tiles, to twice the number of characters and 28 at most. The near-miss tiles come in this order: the homophones of the target word, the other words of a list that holds a segment, and the homophones of the other characters. A homophone is a character of an HSK word with the same syllable, in any tone. The build stops on a list word that is not one character.
+
 `sentences/blocked.json` blocks a bad Tatoeba sentence for every word, or one credit of a sentence to one word (#485). Each entry has a sentence id, an optional `word`, a `reason` and the sentence text `simp` for the review. The build stops on an entry with no Tatoeba sentence of its id, with no reason, or with a word outside HSK. It also stops on a credit entry for a word that the sentence does not hold. See Checked Tatoeba Credits.
 
 The build writes these files to `web-client/public/sentences/`. They are build output, and git ignores them:

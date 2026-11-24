@@ -88,6 +88,16 @@ const FRAME_SHARE = 0.01;
 /** The frame rule applies only to a frame that opens at least this many generated sentences. */
 const FRAME_MIN = 20;
 
+/**
+ * The most tiles that a sentence shows in tile mode, and the most answer
+ * tiles: a sentence with more characters has no tile mode (#386).
+ */
+const MAX_TILES = 28;
+const MAX_ANSWER_TILES = 20;
+
+/** The lists of the committed near-miss file, in the order that the tiles use them. */
+const NEAR_MISS_LISTS = ['measureWords', 'aspectWords'];
+
 const HAN = /\p{Script=Han}/u;
 const DIGIT = /\p{Nd}/u;
 /** A letter of any script other than Han. A sentence with one is rejected. */
@@ -479,6 +489,134 @@ function splitSentence(simp, index, english = '') {
   return segments;
 }
 
+/**
+ * The committed near-miss lists of #386, as arrays of { s, t }. A word that is
+ * not one Han character in each form, or that is on two lists, is a problem
+ * of the build.
+ */
+function nearMissListsOf(nearMiss, problems) {
+  const seen = new Set();
+  const oneHan = (text) => typeof text === 'string' && [...text].length === 1 && HAN.test(text);
+  return NEAR_MISS_LISTS.map((name) =>
+    (nearMiss[name] ?? []).filter(({ s, t } = {}) => {
+      if (!oneHan(s) || !oneHan(t)) {
+        problems.push(`near-miss list ${name}: ${s}/${t} is not one character`);
+        return false;
+      }
+      if (seen.has(s)) {
+        problems.push(`near-miss list ${name}: ${s} is on a list twice`);
+        return false;
+      }
+      seen.add(s);
+      return true;
+    }),
+  );
+}
+
+/**
+ * The homophone candidates of #386: the characters of the HSK words, by their
+ * syllable with no tone, as { s, t, tone }. A character takes the traditional
+ * form of the HSK word that reads it so, and each list puts the character of
+ * the most common word first. A neutral tone does not count, as in
+ * readingsOf.
+ */
+function homophonesOf(hskBySimp) {
+  const best = new Map();
+  for (const { simp, entry, q } of hskBySimp.values()) {
+    const chars = [...simp];
+    const trads = [...entry.trad];
+    const syllables = entry.pinyin.toLowerCase().split(' ');
+    if (syllables.length !== chars.length || trads.length !== chars.length) continue;
+    chars.forEach((char, i) => {
+      if (!HAN.test(char) || !/[1-4]$/.test(syllables[i])) return;
+      const key = `${char}\n${syllables[i]}`;
+      const rank = q ?? Infinity;
+      if (!best.has(key) || rank < best.get(key).rank) {
+        best.set(key, { s: char, t: trads[i], syllable: syllables[i], rank });
+      }
+    });
+  }
+  const bySound = new Map();
+  for (const { s, t, syllable, rank } of best.values()) {
+    const sound = syllable.slice(0, -1);
+    if (!bySound.has(sound)) bySound.set(sound, []);
+    bySound.get(sound).push({ s, t, tone: syllable.slice(-1), rank });
+  }
+  for (const list of bySound.values()) {
+    list.sort((a, b) => a.rank - b.rank || a.s.codePointAt(0) - b.s.codePointAt(0));
+  }
+  return bySound;
+}
+
+/**
+ * The tiles of tile mode for one word of a sentence (#386), as two strings of
+ * equal length: { s, t }, one character per tile. First come the answer
+ * tiles, the characters of the sentence without punctuation. Then the
+ * near-miss tiles fill the space up to twice the answer tiles, at most 28:
+ *
+ *   1. the homophones of the characters of the target word
+ *   2. the other words of a near-miss list that holds a segment, in sentence order
+ *   3. the homophones of the other characters, in sentence order
+ *
+ * A homophone has the syllable of the character in any tone, the same tone
+ * first. The syllable comes from the entry of the segment, so a character
+ * with two readings uses the reading of this sentence. Each kind takes one
+ * homophone of each character in turn, so one character does not fill the
+ * space. A near-miss tile is never a character of the answer in either form.
+ *
+ * Null for a sentence with more than 20 answer tiles: it has no tile mode.
+ */
+function tilesOf(sentence, targetIndex, index) {
+  const simp = [...sentence.simp];
+  const trad = [...sentence.trad];
+  const answer = [];
+  simp.forEach((char, i) => {
+    if (HAN.test(char) || DIGIT.test(char)) answer.push({ s: char, t: trad[i] });
+  });
+  if (answer.length > MAX_ANSWER_TILES) return null;
+
+  const total = Math.min(2 * answer.length, MAX_TILES);
+  const usedS = new Set(answer.map((tile) => tile.s));
+  const usedT = new Set(answer.map((tile) => tile.t));
+  const nearMiss = [];
+  const add = (tile) => {
+    if (answer.length + nearMiss.length >= total || usedS.has(tile.s) || usedT.has(tile.t)) return;
+    nearMiss.push({ s: tile.s, t: tile.t });
+    usedS.add(tile.s);
+    usedT.add(tile.t);
+  };
+  // One candidate of each list in turn, until all are used.
+  const inTurn = (lists) => {
+    for (let i = 0; lists.some((list) => i < list.length); i++) {
+      for (const list of lists) if (i < list.length) add(list[i]);
+    }
+  };
+  const homophonesOfSegment = (segment) => {
+    const chars = [...segment.text];
+    const syllables = segment.entry ? segment.entry.pinyin.toLowerCase().split(' ') : [];
+    if (syllables.length !== chars.length) return [];
+    return chars.map((char, i) => {
+      const tone = syllables[i].slice(-1);
+      const candidates = index.homophones.get(syllables[i].slice(0, -1)) ?? [];
+      return [
+        ...candidates.filter((c) => c.tone === tone),
+        ...candidates.filter((c) => c.tone !== tone),
+      ].filter((c) => c.s !== char);
+    });
+  };
+
+  const segments = sentence.shown;
+  inTurn(homophonesOfSegment(segments[targetIndex]));
+  for (const segment of segments) {
+    const list = index.nearMissLists.find((words) => words.some((w) => w.s === segment.text));
+    if (list) list.forEach(add);
+  }
+  inTurn(segments.flatMap((segment, i) => (i === targetIndex ? [] : homophonesOfSegment(segment))));
+
+  const tiles = [...answer, ...nearMiss];
+  return { s: tiles.map((tile) => tile.s).join(''), t: tiles.map((tile) => tile.t).join('') };
+}
+
 /** The HSK level at which the grader counts a segment, or null when it does not count. */
 function levelOf(segment, index) {
   if (segment.kind === 'number' || segment.kind === 'name') return null;
@@ -567,6 +705,7 @@ function prepare(sentence, index) {
     ...sentence,
     trad,
     segments,
+    shown,
     output,
     levels: segments.map((segment) => levelOf(segment, index)),
     length: lengthOf(sentence.simp),
@@ -672,9 +811,10 @@ function poolsOf(word, chosen) {
  * `fill` names the source of the sentence, for the readers of that shape
  * (#386, #469).
  */
-function outputOf({ sentence, grade: graded }, pool) {
+function outputOf({ sentence, grade: graded }, pool, index) {
   const { record } = sentence;
   const tatoeba = record.source === 'tatoeba';
+  const tiles = tilesOf(sentence, graded.targetIndex, index);
   return {
     id: sentence.id,
     simp: sentence.simp,
@@ -687,6 +827,7 @@ function outputOf({ sentence, grade: graded }, pool) {
     source: tatoeba ? { name: 'tatoeba', id: Number(record.sourceId) } : { name: 'generated', id: sentence.id },
     origin: tatoeba ? { chinese: 'human', english: 'human' } : { chinese: 'machine', english: 'machine' },
     pool,
+    ...(tiles ? { tiles } : {}),
   };
 }
 
@@ -834,6 +975,8 @@ function reportOf(rows, largest, blocks) {
  *   glossOverrides  { [segment text]: { pinyin, trad?, gloss? } }: the entry and the
  *                 gloss that a segment shows, from sentences/gloss-overrides.json
  *   blocked       [{ id, word?, reason }]: the block list of sentences/blocked.json
+ *   nearMiss      { measureWords, aspectWords }: the lists of [{ s, t }] of
+ *                 sentences/near-miss-lists.json, for the tiles (#386)
  *
  * Each sentence goes to every HSK word that it holds and passes the grader
  * for. A generated sentence must pass for its headword, or the build fails.
@@ -849,7 +992,9 @@ function reportOf(rows, largest, blocks) {
  *                 longer }, where `longer` is the longest CC-CEDICT word
  *                 of the sentence that holds the target and more, or null
  *
- * Throws on a bad gloss override, on a bad block entry, on a malformed record, on a generated
+ * Each sentence of a word carries the tiles of tile mode (see tilesOf).
+ *
+ * Throws on a bad gloss override, on a bad near-miss list, on a bad block entry, on a malformed record, on a generated
  * sentence that fails the grader, and on a sentence file over 2 MB. Never
  * throws on coverage.
  */
@@ -870,10 +1015,13 @@ function buildAll({
   unfilled = [],
   glossOverrides = {},
   blocked = [],
+  nearMiss = {},
 }) {
   const problems = [];
   const index = indexInputs(dictionary, hsk);
   index.overrides = overridesOf(glossOverrides, index.bySimp, problems);
+  index.nearMissLists = nearMissListsOf(nearMiss, problems);
+  index.homophones = homophonesOf(index.hskBySimp);
   const sentences = uniqueSentences([...generated, ...tatoeba], problems);
   const ids = new Set(sentences.map((sentence) => sentence.id));
   const tatoebaIds = new Set(sentences.filter((s) => s.record.source === 'tatoeba').map((s) => s.id));
@@ -943,7 +1091,7 @@ function buildAll({
       const file = fileOf(word);
       files[file] ??= {};
       const pools = poolsOf(word, chosen);
-      files[file][word] = chosen.map((one) => outputOf(one, pools.get(one.sentence.id)));
+      files[file][word] = chosen.map((one) => outputOf(one, pools.get(one.sentence.id), index));
       count += chosen.length;
       chosen.forEach(({ sentence }) => shipped.set(sentence.id, sentence));
       for (const { sentence, grade: graded } of chosen) {

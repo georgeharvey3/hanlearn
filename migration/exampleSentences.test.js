@@ -22,7 +22,7 @@ const WORDS = [
   ...'我你他她是生在家看书的发行吃饭了很好大学三十去一下读请文课冷天今说汉语中国人们这那里张王长头',
   '学生', '在家', '看书', '喜欢', '汤姆', '第一', '北京', '头发', '今天', '经济', '研究', '课文',
   '下课', '一下', '中国', '汉语', '假发', '图书馆', '朋友', '我们', '他们', '老师', '电脑', '咖啡',
-  '居', '居住', '居民', '邻居', '信', '水', '水里', '游泳', '安慰', '表彰',
+  '居', '居住', '居民', '邻居', '信', '水', '水里', '游泳', '安慰', '表彰', '个', '输', '树', '过',
 ];
 const dictionary = cleanDictionary(allEntries.filter((entry) => WORDS.includes(entry.simp))).words;
 
@@ -98,7 +98,14 @@ const HSK = [
   hskWord('游泳', 2, 6000),
   // 好 is in two lists: the lower level counts.
   hskWord('好', 3, 15),
+  hskWord('个', 1, 11),
+  hskWord('过', 1, 60),
+  hskWord('输', 3, 2600),
+  hskWord('树', 3, 2200),
 ];
+
+/** The committed lists of the near-miss tiles (#386). */
+const NEAR_MISS = JSON.parse(fs.readFileSync(path.join(__dirname, 'sentences', 'near-miss-lists.json'), 'utf8'));
 
 let nextId = 1;
 /** A record of the generated file: a sentence for one HSK word. */
@@ -134,8 +141,20 @@ const tatoeba = (simp, overrides = {}) => {
   };
 };
 
-const build = (records, { hsk = HSK, unfilled = [], human = [], glossOverrides, blocked } = {}) =>
-  buildExampleSentences({ dictionary, hsk, generated: records, tatoeba: human, unfilled, glossOverrides, blocked });
+const build = (
+  records,
+  { hsk = HSK, unfilled = [], human = [], glossOverrides, blocked, nearMiss = NEAR_MISS } = {},
+) =>
+  buildExampleSentences({
+    dictionary,
+    hsk,
+    generated: records,
+    tatoeba: human,
+    unfilled,
+    glossOverrides,
+    blocked,
+    nearMiss,
+  });
 
 /** The sentences that a build gives a word. */
 const sentencesOf = (result, word) => {
@@ -366,8 +385,8 @@ describe('the grader', () => {
   });
 
   it('does not count names or numbers', () => {
-    // 个 is not in the fixture, so it counts at level 7.
-    expect(rejectOf('吃', '汤姆吃了三十个。', 'Tom ate thirty.')).toBe('segments above HSK 1: 个 (7)');
+    // 块 is not in the fixture, so it counts at level 7.
+    expect(rejectOf('吃', '汤姆吃了三十块。', 'Tom ate thirty.')).toBe('segments above HSK 1: 块 (7)');
     expect(sentenceFor('吃', '汤姆吃了三十。', { english: 'Tom ate thirty.' }).hskLevel).toBe(1);
     expect(sentenceFor('他', '他是第一。').hskLevel).toBe(1);
   });
@@ -502,8 +521,65 @@ describe('the output', () => {
       source: { name: 'generated', id: sentenceId('我在图书馆看书。') },
       origin: { chinese: 'machine', english: 'machine' },
       pool: 'intro',
+      tiles: expect.any(Object),
     });
     expect(result.count).toBe(1);
+  });
+});
+
+describe('the tiles', () => {
+  /** The tiles of the one sentence that a build of one record gives its word. */
+  const tilesFor = (word, simp, options) => sentenceFor(word, simp, options).tiles;
+  /** The near-miss tiles: the tiles after the answer tiles. */
+  const nearMissOf = (tiles, answer) => ({
+    s: [...tiles.s].slice(answer).join(''),
+    t: [...tiles.t].slice(answer).join(''),
+  });
+
+  it('starts with the characters of the sentence, in both character sets, without punctuation', () => {
+    const tiles = tilesFor('图书馆', '我在图书馆看书。');
+    expect([...tiles.s].slice(0, 7).join('')).toBe('我在图书馆看书');
+    expect([...tiles.t].slice(0, 7).join('')).toBe('我在圖書館看書');
+  });
+
+  it('keeps a character that the sentence holds twice as two answer tiles', () => {
+    const tiles = tilesFor('书', '我看书，他看书。');
+    expect([...tiles.s].slice(0, 6).join('')).toBe('我看书他看书');
+  });
+
+  it('orders the near-miss tiles: the target word, then the lists, then the other characters', () => {
+    // 输 (shū) has the tone of 书 and comes before 树 (shù). 了 gives 过 and
+    // 着. 她 is the homophone of 他.
+    const tiles = tilesFor('书', '他们看了书。');
+    expect(nearMissOf(tiles, 5)).toEqual({ s: '输树过着她', t: '輸樹過著她' });
+  });
+
+  it('gives at most twice the answer tiles', () => {
+    const tiles = tilesFor('书', '他看了书。');
+    expect(nearMissOf(tiles, 4).s).toBe('输树过着');
+  });
+
+  it('gives at most 28 tiles, and the list words in sentence order', () => {
+    const tiles = tilesFor('安慰', '我们今天安慰了一个老师，他们很喜欢在家看书。');
+    expect([...tiles.s]).toHaveLength(28);
+    expect(nearMissOf(tiles, 20).s).toBe('过着本张只条件位');
+  });
+
+  it('gives fewer tiles when the near-miss kinds run out', () => {
+    const tiles = tilesFor('书', '我看书。');
+    expect(tiles.s).toBe('我看书输树');
+  });
+
+  it('never gives a near-miss tile that is a character of the answer', () => {
+    // 国 (guó, from 中国) is the homophone of 过. 过 and 了 are the answer, so
+    // the aspect list gives only 着.
+    const tiles = tilesFor('过', '我看过了书。');
+    expect(nearMissOf(tiles, 5).s).toBe('国着输树');
+  });
+
+  it('fails the build on a list word that is not one character', () => {
+    const nearMiss = { ...NEAR_MISS, aspectWords: [{ s: '了过', t: '了過' }] };
+    expect(() => build([generated('书', '我看书。')], { nearMiss })).toThrow(/near-miss list/);
   });
 });
 
