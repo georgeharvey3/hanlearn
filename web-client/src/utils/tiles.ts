@@ -5,9 +5,6 @@
  */
 import type { SentenceResult } from './sentenceQueue';
 
-/** The longest sentence, in answer tiles, that has tile mode. The build uses the same cap. */
-export const MAX_ANSWER_TILES = 20;
-
 /**
  * The characters that a tile can hold: Han characters and digits. A
  * constructor, because the compile target does not allow the `u` flag in a
@@ -19,9 +16,6 @@ const tileChars = (text: string): string =>
   Array.from(text)
     .filter((c) => TILE_CHAR.test(c))
     .join('');
-
-/** The number of answer tiles of a sentence: its characters without punctuation. */
-export const answerTileCount = (sentence: string): number => tileChars(sentence).length;
 
 /**
  * The grade of a tile answer: right only for an exact match with the

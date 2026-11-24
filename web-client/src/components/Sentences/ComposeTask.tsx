@@ -29,7 +29,7 @@ import {
 } from '../../utils/sentenceUtils';
 import { SentenceResult } from '../../utils/sentenceQueue';
 import { ComposeInput } from '../../utils/sentencePracticeDocuments';
-import { MAX_ANSWER_TILES, answerTileCount, gradeTiles, shuffleTiles } from '../../utils/tiles';
+import { gradeTiles, shuffleTiles } from '../../utils/tiles';
 import { toCharSet } from '../../utils/charSet';
 import {
   GradeButtons,
@@ -124,7 +124,7 @@ const stripPunctuation = (text: string): string =>
  * In tile mode the learner builds the sentence from the tiles of the build,
  * and the check grades it: right only for an exact match (#386). Tile mode
  * gives no help, so the English words open nothing, and the check is the
- * only way out.
+ * only way out: with no tile placed, it grades the task wrong.
  */
 const ComposeTask: React.FC<Props> = ({
   synthAvailable,
@@ -175,16 +175,15 @@ const ComposeTask: React.FC<Props> = ({
       }
       const resolved = resolveSentence(found, charSet);
       const { tiles } = found;
-      const hasTiles =
-        tiles !== undefined && answerTileCount(found.chinese.sentence) <= MAX_ANSWER_TILES;
       setSentence({
         id: found.id,
         chinese: found.chinese.sentence,
         pinyin: resolved.chinese.pinyin,
         english: found.english.sentence,
         words: resolved.chinese.words.filter((w): w is SentenceWord => typeof w !== 'string'),
-        // A new order on each visit.
-        tiles: hasTiles ? shuffleTiles(tiles) : null,
+        // A new order on each visit. The build writes no tiles for a sentence
+        // with more than 20 characters.
+        tiles: tiles ? shuffleTiles(tiles) : null,
       });
       setLoad('ready');
       shownAt.current = Date.now();
@@ -260,7 +259,7 @@ const ComposeTask: React.FC<Props> = ({
   };
 
   const onCheckTiles = () => {
-    if (placed.length === 0 || !sentence || !tiles) return;
+    if (!sentence || !tiles) return;
     recognition.current?.abort();
     revealedAt.current = Date.now();
     const result = gradeTiles(tileAnswer, sentence.chinese);
@@ -651,7 +650,7 @@ const ComposeTask: React.FC<Props> = ({
         )}
       </StudyBody>
       {tileMode ? (
-        <StudyButton variant="primary" disabled={placed.length === 0} onClick={onCheckTiles}>
+        <StudyButton variant="primary" onClick={onCheckTiles}>
           {copy.test.check}
         </StudyButton>
       ) : (

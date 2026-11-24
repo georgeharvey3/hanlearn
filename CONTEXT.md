@@ -286,7 +286,7 @@ In **tile mode**, the learner builds the Compose answer from **tiles**. A
 switch on the Compose screen selects the **free answer** (keyboard or mic) or
 tile mode, and `localStorage` keeps the choice. A **tile** holds one character
 in the character set of the learner. The build writes the tiles of each
-sentence. A sentence with more than 20 characters has no tile mode.
+sentence. A sentence with more than 20 characters, not counting punctuation, has no tile mode.
 
 The **answer tiles** are the characters of the sentence. A **near-miss tile**
 is a character that the answer does not hold: a homophone, or another word of

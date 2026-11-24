@@ -549,7 +549,6 @@ describe('the Compose tab', () => {
       expect(screen.queryByRole('button', { name: 'I: show Chinese' })).not.toBeInTheDocument();
       expect(screen.queryByLabelText('Your answer')).not.toBeInTheDocument();
       const check = screen.getByRole('button', { name: 'Check' });
-      expect(check).toBeDisabled();
 
       await placeTiles(user, '我学习中文');
       await user.click(check);
@@ -599,11 +598,26 @@ describe('the Compose tab', () => {
 
       await user.click(await screen.findByRole('button', { name: 'Tiles' }));
       await placeTiles(user, '我');
-      expect(screen.getByRole('button', { name: 'Check' })).toBeEnabled();
       await user.click(screen.getByRole('button', { name: 'Remove 我' }));
 
       expect(tileButton('我')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Check' })).toBeDisabled();
+      expect(screen.queryByRole('button', { name: 'Remove 我' })).not.toBeInTheDocument();
+    });
+
+    it('lets a learner who is stuck check with no tile, and grades it wrong', async () => {
+      const user = userEvent.setup();
+      withTiles();
+      setQueue([STUDY]);
+      renderTab('compose', false);
+
+      await user.click(await screen.findByRole('button', { name: 'Tiles' }));
+      await user.click(screen.getByRole('button', { name: 'Check' }));
+
+      expect(screen.getByRole('status')).toHaveTextContent('Wrong');
+      expect(saveGrade).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ grade: 'wrong', input: 'tiles', answer: '' }),
+      );
     });
 
     it('keeps the choice between visits', async () => {
