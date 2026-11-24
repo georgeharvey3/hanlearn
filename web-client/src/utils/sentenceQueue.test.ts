@@ -4,6 +4,7 @@ import { DIRECTIONS, Direction, Word } from '../types/models';
 import { makeDirections } from './directions';
 import {
   PracticeByWord,
+  SentenceIndex,
   buildSet,
   gatedWords,
   hasNeverPractised,
@@ -47,10 +48,13 @@ const word = (
   };
 };
 
+/** The index entry of a word whose two tabs share one sentence. */
+const both = (id: string) => ({ comprehend: id, compose: id });
+
 const at = (days: number, hour = 9): string => new Date(2026, 10, 4 + days, hour).toISOString();
 
 describe('the words a tab may use', () => {
-  const index = { 学: ['a'], 书: ['b'], 吃: ['c'], 喝: ['d'] };
+  const index = { 学: both('a'), 书: both('b'), 吃: both('c'), 喝: both('d') };
 
   it('keeps the words that pass the gate of the tab', () => {
     const one = word('学', 1);
@@ -106,7 +110,7 @@ describe('the order of a set', () => {
     const set = buildSet({
       words: [right, fresh, wrong],
       practice,
-      index: { 学: ['a'], 书: ['b'], 吃: ['c'] },
+      index: { 学: both('a'), 书: both('b'), 吃: both('c') },
       tab: 'comprehend',
       size: 5,
       now: NOW,
@@ -129,7 +133,7 @@ describe('the order of a set', () => {
     const set = buildSet({
       words,
       practice,
-      index: { 一: ['a'], 二: ['b'], 三: ['c'], 四: ['d'] },
+      index: { 一: both('a'), 二: both('b'), 三: both('c'), 四: both('d') },
       tab: 'comprehend',
       size: 5,
       now: NOW,
@@ -145,7 +149,7 @@ describe('the order of a set', () => {
     const set = buildSet({
       words: [high, low, mid],
       practice: {},
-      index: { 一: ['a'], 二: ['b'], 三: ['c'] },
+      index: { 一: both('a'), 二: both('b'), 三: both('c') },
       tab: 'comprehend',
       size: 5,
       now: NOW,
@@ -156,8 +160,8 @@ describe('the order of a set', () => {
   it('keeps a miss first after a big import of new words', () => {
     const missed = word('错', 3);
     const imported = Array.from({ length: 50 }, (_, i) => word(`新${i}`, 2));
-    const index: Record<string, string[]> = { 错: ['x'] };
-    for (const w of imported) index[w.simp] = [`s-${w.simp}`];
+    const index: SentenceIndex = { 错: both('x') };
+    for (const w of imported) index[w.simp] = both(`s-${w.simp}`);
     const practice: PracticeByWord = {
       [missed.id]: { comprehend: { lastPractised: at(-1), lastResult: 'wrong', seen: {} } },
     };
@@ -183,7 +187,7 @@ describe('the order of a set', () => {
     const set = buildSet({
       words: [composedWrong, fresh],
       practice,
-      index: { 学: ['a'], 书: ['b'] },
+      index: { 学: both('a'), 书: both('b') },
       tab: 'comprehend',
       size: 5,
       now: NOW,
@@ -197,7 +201,7 @@ describe('the order of a set', () => {
     const set = buildSet({
       words,
       practice: {},
-      index: { 一: ['a'], 二: ['b'], 三: ['c'] },
+      index: { 一: both('a'), 二: both('b'), 三: both('c') },
       tab: 'compose',
       size: 2,
       now: NOW,
@@ -206,51 +210,8 @@ describe('the order of a set', () => {
   });
 });
 
-describe('the sentence of a task', () => {
-  const study = word('学', 3);
-  const index = { 学: ['first', 'second', 'third'] };
-
-  it('takes a sentence never seen before one that was seen', () => {
-    const practice: PracticeByWord = {
-      [study.id]: {
-        comprehend: { lastPractised: at(-1), lastResult: 'right', seen: { first: at(-1) } },
-      },
-    };
-    const [task] = buildSet({
-      words: [study],
-      practice,
-      index,
-      tab: 'comprehend',
-      size: 1,
-      now: NOW,
-    });
-    expect(task.sentenceId).toBe('second');
-  });
-
-  it('takes the sentence seen longest ago when every one was seen', () => {
-    const practice: PracticeByWord = {
-      [study.id]: {
-        comprehend: {
-          lastPractised: at(-1),
-          lastResult: 'right',
-          seen: { first: at(-1), second: at(-9), third: at(-3) },
-        },
-      },
-    };
-    const [task] = buildSet({
-      words: [study],
-      practice,
-      index,
-      tab: 'comprehend',
-      size: 1,
-      now: NOW,
-    });
-    expect(task.sentenceId).toBe('second');
-  });
-});
-
 describe('whether a tab has a word never practised there', () => {
-  const index = { 学: ['a'], 书: ['b'] };
+  const index = { 学: both('a'), 书: both('b') };
 
   it('is true for an eligible word with no practice in the tab', () => {
     const study = word('学', 3);
@@ -280,56 +241,70 @@ describe('whether a tab has a word never practised there', () => {
   });
 });
 
-describe('the sentence pick across the two tabs', () => {
-  const index = { 学: ['A', 'B'] };
+describe('the sentence of a task', () => {
+  const study = word('学', 3);
+  const index = { 学: { comprehend: 'read', compose: 'write' } };
 
-  const pick = (practice: PracticeByWord, study: Word, tab: 'comprehend' | 'compose') =>
-    buildSet({ words: [study], practice, index, tab, size: 1, now: NOW })[0]?.sentenceId;
-
-  it('takes B in Compose when Comprehend showed A today', () => {
-    const study = word('学', 3);
-    const practice: PracticeByWord = {
-      [study.id]: { comprehend: { lastPractised: at(0), lastResult: 'right', seen: { A: at(0) } } },
-    };
-    expect(pick(practice, study, 'compose')).toBe('B');
-  });
-
-  it('takes B in Comprehend when Compose showed A today', () => {
-    const study = word('学', 3);
-    const practice: PracticeByWord = {
-      [study.id]: { compose: { lastPractised: at(0), lastResult: 'right', seen: { A: at(0) } } },
-    };
-    expect(pick(practice, study, 'comprehend')).toBe('B');
-  });
-
-  it('takes the sentence whose last view in either tab is oldest', () => {
-    const study = word('学', 3);
+  it('gives each tab the sentence id of its pool, whatever the tabs saw before', () => {
     const practice: PracticeByWord = {
       [study.id]: {
-        compose: { lastPractised: at(-7), lastResult: 'right', seen: { A: at(-7) } },
-        comprehend: { lastPractised: at(-1), lastResult: 'right', seen: { B: at(-1) } },
+        comprehend: { lastPractised: at(-1), lastResult: 'right', seen: { read: at(-1) } },
       },
     };
-    expect(pick(practice, study, 'compose')).toBe('A');
+    const sentenceOf = (tab: 'comprehend' | 'compose') =>
+      buildSet({ words: [study], practice, index, tab, size: 1, now: NOW })[0]?.sentenceId;
+
+    expect(sentenceOf('comprehend')).toBe('read');
+    expect(sentenceOf('compose')).toBe('write');
   });
 });
 
 describe('a word that the other tab showed today', () => {
-  const index = { 学: ['only'] };
   const TOMORROW = new Date(2026, 10, 5, 10, 0);
+  const shared = { 学: both('only') };
 
-  const seenToday = (study: Word, tab: 'comprehend' | 'compose'): PracticeByWord => ({
-    [study.id]: { [tab]: { lastPractised: at(0), lastResult: 'right', seen: { only: at(0) } } },
+  const seenToday = (study: Word, tab: 'comprehend' | 'compose', id = 'only'): PracticeByWord => ({
+    [study.id]: { [tab]: { lastPractised: at(0), lastResult: 'right', seen: { [id]: at(0) } } },
   });
 
-  it('waits until tomorrow when the other tab showed all of its sentences today', () => {
+  it('waits until tomorrow when the two tabs share the sentence that the other tab showed today', () => {
     const study = word('学', 3);
     const practice = seenToday(study, 'comprehend');
     const set = (now: Date) =>
-      buildSet({ words: [study], practice, index, tab: 'compose', size: 5, now });
+      buildSet({ words: [study], practice, index: shared, tab: 'compose', size: 5, now });
 
     expect(set(NOW)).toEqual([]);
     expect(set(TOMORROW)).toEqual([{ word: study, sentenceId: 'only' }]);
+  });
+
+  it('does not wait when the two tabs have different sentences', () => {
+    const study = word('学', 3);
+    const index = { 学: { comprehend: 'read', compose: 'write' } };
+    const [task] = buildSet({
+      words: [study],
+      practice: seenToday(study, 'comprehend', 'read'),
+      index,
+      tab: 'compose',
+      size: 1,
+      now: NOW,
+    });
+    expect(task?.sentenceId).toBe('write');
+  });
+
+  it('does not wait when the other tab showed this sentence today but the tabs no longer share it', () => {
+    // Before the pools, the rotation of a tab could show what is now the
+    // sentence of the other tab.
+    const study = word('学', 3);
+    const index = { 学: { comprehend: 'read', compose: 'write' } };
+    const [task] = buildSet({
+      words: [study],
+      practice: seenToday(study, 'comprehend', 'write'),
+      index,
+      tab: 'compose',
+      size: 1,
+      now: NOW,
+    });
+    expect(task?.sentenceId).toBe('write');
   });
 
   it('reads the local calendar day, so a view just before midnight does not count', () => {
@@ -346,7 +321,7 @@ describe('a word that the other tab showed today', () => {
     const set = buildSet({
       words: [study],
       practice,
-      index,
+      index: shared,
       tab: 'compose',
       size: 1,
       now: new Date(2026, 10, 4, 0, 1),
@@ -359,7 +334,7 @@ describe('a word that the other tab showed today', () => {
     const input = {
       words: [study],
       practice: seenToday(study, 'comprehend'),
-      index,
+      index: shared,
       tab: 'compose' as const,
       now: NOW,
     };
@@ -368,12 +343,12 @@ describe('a word that the other tab showed today', () => {
     expect(hasNeverPractised(input)).toBe(false);
   });
 
-  it('does not wait when the same tab showed all of its sentences today', () => {
+  it('does not wait when the same tab showed the sentence today', () => {
     const study = word('学', 3);
     const [task] = buildSet({
       words: [study],
       practice: seenToday(study, 'compose'),
-      index,
+      index: shared,
       tab: 'compose',
       size: 1,
       now: NOW,
@@ -381,14 +356,16 @@ describe('a word that the other tab showed today', () => {
     expect(task?.sentenceId).toBe('only');
   });
 
-  it('counts only the sentences of the index', () => {
+  it('does not wait for a sentence that the other tab showed and that is not its sentence now', () => {
     const study = word('学', 3);
-    const practice: PracticeByWord = {
-      [study.id]: {
-        comprehend: { lastPractised: at(0), lastResult: 'right', seen: { gone: at(0) } },
-      },
-    };
-    const [task] = buildSet({ words: [study], practice, index, tab: 'compose', size: 1, now: NOW });
+    const [task] = buildSet({
+      words: [study],
+      practice: seenToday(study, 'comprehend', 'gone'),
+      index: shared,
+      tab: 'compose',
+      size: 1,
+      now: NOW,
+    });
     expect(task?.sentenceId).toBe('only');
   });
 });

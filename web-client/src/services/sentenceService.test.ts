@@ -1,6 +1,7 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 import fixture from './fixtures/sentences-5b66.json';
+import type { SentencePool } from './sentenceService';
 
 type Service = typeof import('./sentenceService');
 
@@ -99,6 +100,7 @@ describe('sentenceService', () => {
                 { s: '哪儿', t: '哪兒', p: 'nǎ r', e: 'where?' },
               ],
               targetIndex: 1,
+              pool: 'intro',
             },
           ],
         }),
@@ -173,6 +175,7 @@ describe('sentenceService', () => {
                 { s: '去', t: '去', p: 'qù', e: 'to go' },
               ],
               targetIndex: 2,
+              pool: 'intro',
             },
           ],
         }),
@@ -209,7 +212,7 @@ describe('sentenceService', () => {
   });
 
   describe('getHintSentence', () => {
-    it('gives the simplified text and the English of one sentence of the word', async () => {
+    it('gives the simplified text and the English of the intro sentence of the word', async () => {
       const { getHintSentence } = await loadService();
 
       const hint = await getHintSentence('学习');
@@ -225,14 +228,119 @@ describe('sentenceService', () => {
   });
 
   describe('sentenceIndexOf', () => {
-    it('gives the ids of the sentences of each word, and none for a word with none', async () => {
+    it('gives the sentence id of each tab, and no entry for a word with none', async () => {
       const { sentenceIndexOf } = await loadService();
 
       expect(await sentenceIndexOf(['学生', '学习', '学校', '电脑', '学生'])).toEqual({
-        学生: ['s1', 's2'],
-        学习: ['s3'],
-        学校: [],
-        电脑: [],
+        学生: { comprehend: 's2', compose: 's2' },
+        学习: { comprehend: 's3', compose: 's3' },
+      });
+    });
+  });
+
+  describe('the pools', () => {
+    /** A sentence of 你 in one pool. */
+    const inPool = (id: string, pool: SentencePool) => ({
+      id,
+      simp: `你${id}。`,
+      trad: `你${id}。`,
+      english: `English of ${id}`,
+      segments: [{ s: '你', t: '你', p: 'nǐ', e: 'you' }],
+      targetIndex: 0,
+      pool,
+    });
+
+    /** What each place of the app gets for 你, after the given reports. */
+    async function placesOf(records: unknown[], reported: string[] = []) {
+      fetchMock.mockImplementation(async () => jsonResponse({ 你: records }));
+      const service = await loadService();
+      const { markSentenceReported } = await import('../utils/reportedSentences');
+      reported.forEach(markSentenceReported);
+      const index = await service.sentenceIndexOf(['你']);
+      return {
+        intro: (await service.getSegmentedSentence('你', 'simp')).sentence?.id ?? null,
+        hint: (await service.getHintSentence('你'))?.english ?? null,
+        comprehend: index['你']?.comprehend ?? null,
+        compose: index['你']?.compose ?? null,
+      };
+    }
+
+    const filled = [inPool('a', 'compose'), inPool('b', 'intro'), inPool('c', 'comprehend')];
+
+    it('gives the word page, the hint and each tab the sentence of its pool', async () => {
+      expect(await placesOf(filled)).toEqual({
+        intro: 'b',
+        hint: 'English of b',
+        comprehend: 'c',
+        compose: 'a',
+      });
+    });
+
+    it('gives the hint the same sentence each time', async () => {
+      fetchMock.mockImplementation(async () => jsonResponse({ 你: filled }));
+      const { getHintSentence } = await loadService();
+
+      for (let i = 0; i < 10; i++) {
+        expect((await getHintSentence('你'))?.english).toBe('English of b');
+      }
+    });
+
+    it('shares the Comprehend sentence of a word with 2 sentences with the Compose tab', async () => {
+      const two = [inPool('a', 'intro'), inPool('b', 'comprehend')];
+      expect(await placesOf(two)).toMatchObject({ intro: 'a', comprehend: 'b', compose: 'b' });
+    });
+
+    it('shows the one sentence of a word in the intro and in both tabs', async () => {
+      const one = [inPool('a', 'intro')];
+      expect(await placesOf(one)).toMatchObject({ intro: 'a', comprehend: 'a', compose: 'a' });
+    });
+
+    it('borrows the Comprehend sentence, then the Compose one, for a reported intro sentence', async () => {
+      expect(await placesOf(filled, ['b'])).toMatchObject({
+        intro: 'c',
+        hint: 'English of c',
+        comprehend: 'c',
+        compose: 'a',
+      });
+      expect(await placesOf(filled, ['b', 'c'])).toMatchObject({
+        intro: 'a',
+        comprehend: 'a',
+        compose: 'a',
+      });
+    });
+
+    it('borrows the Compose sentence, then the intro one, for a reported Comprehend sentence', async () => {
+      expect(await placesOf(filled, ['c'])).toMatchObject({
+        intro: 'b',
+        comprehend: 'a',
+        compose: 'a',
+      });
+      expect(await placesOf(filled, ['c', 'a'])).toMatchObject({
+        intro: 'b',
+        comprehend: 'b',
+        compose: 'b',
+      });
+    });
+
+    it('borrows the Comprehend sentence, then the intro one, for a reported Compose sentence', async () => {
+      expect(await placesOf(filled, ['a'])).toMatchObject({
+        intro: 'b',
+        comprehend: 'c',
+        compose: 'c',
+      });
+      expect(await placesOf(filled, ['a', 'c'])).toMatchObject({
+        intro: 'b',
+        comprehend: 'b',
+        compose: 'b',
+      });
+    });
+
+    it('gives no sentence anywhere when every sentence of the word is reported', async () => {
+      expect(await placesOf(filled, ['a', 'b', 'c'])).toEqual({
+        intro: null,
+        hint: null,
+        comprehend: null,
+        compose: null,
       });
     });
   });

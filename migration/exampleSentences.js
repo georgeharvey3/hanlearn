@@ -22,11 +22,25 @@ const { isUnclean } = require('./cleanMeaning');
 const LENGTH_CAPS = { 1: 10, 2: 12, 3: 15, 4: 18, 5: 20, 6: 20, 7: 20 };
 
 /**
- * Each HSK word keeps this many sentences at most, and is filled when it has
- * them. A tunable target: 3 fills most HSK 1–3 words from Tatoeba and the
- * generated sentences (#482).
+ * The pools of the sentences of a word, in the order that the build fills them
+ * (#581). The intro pool serves the word page, the new word introduction and
+ * the hint. Each tab tests the sentence of its own pool, so it never shows the
+ * sentence that the learner met in the intro or in the other tab.
  */
-const SENTENCE_TARGET = 3;
+const POOLS = ['intro', 'comprehend', 'compose'];
+
+/**
+ * The sentences of each pool. A tunable target: 1 needs no new sentences, and
+ * a later ticket can increase it (#581).
+ */
+const POOL_TARGET = 1;
+
+/**
+ * Each HSK word keeps this many sentences at most, and is filled when it has
+ * them: the target of each pool, for each pool. 3 fills most HSK 1–3 words
+ * from Tatoeba and the generated sentences (#482).
+ */
+const SENTENCE_TARGET = POOLS.length * POOL_TARGET;
 
 /**
  * A Tatoeba sentence with fewer Han characters than this is dropped. Most
@@ -637,10 +651,28 @@ function pick(candidates) {
 }
 
 /**
- * The sentence of a word in the output shape of #465. `fill` names the source
- * of the sentence, for the readers of that shape (#386, #469).
+ * The pool of each picked sentence of a word, by sentence id (#581). A seeded
+ * shuffle of the picked sentences fills the pools in order, so a word with 2
+ * sentences has an intro and a Comprehend pool. The seed is the word and the
+ * ids of its picked sentences, so the same inputs give the same pools on each
+ * build (ADR 0019). The shuffle, not the length, decides, so that the intro
+ * pool does not always get the shortest sentence.
  */
-function outputOf({ sentence, grade: graded }) {
+function poolsOf(word, chosen) {
+  const seed = `${word}\n${chosen.map(({ sentence }) => sentence.id).join(',')}`;
+  const keyOf = (id) => crypto.createHash('sha1').update(`${seed}\n${id}`, 'utf8').digest('hex');
+  const shuffled = chosen
+    .map(({ sentence }) => ({ id: sentence.id, key: keyOf(sentence.id) }))
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  return new Map(shuffled.map(({ id }, i) => [id, POOLS[Math.floor(i / POOL_TARGET)]]));
+}
+
+/**
+ * The sentence of a word in the output shape of #465, with its pool (#581).
+ * `fill` names the source of the sentence, for the readers of that shape
+ * (#386, #469).
+ */
+function outputOf({ sentence, grade: graded }, pool) {
   const { record } = sentence;
   const tatoeba = record.source === 'tatoeba';
   return {
@@ -654,6 +686,7 @@ function outputOf({ sentence, grade: graded }) {
     fill: record.source,
     source: tatoeba ? { name: 'tatoeba', id: Number(record.sourceId) } : { name: 'generated', id: sentence.id },
     origin: tatoeba ? { chinese: 'human', english: 'human' } : { chinese: 'machine', english: 'machine' },
+    pool,
   };
 }
 
@@ -825,7 +858,8 @@ function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = []
     if (chosen.length > 0) {
       const file = fileOf(word);
       files[file] ??= {};
-      files[file][word] = chosen.map(outputOf);
+      const pools = poolsOf(word, chosen);
+      files[file][word] = chosen.map((one) => outputOf(one, pools.get(one.sentence.id)));
       count += chosen.length;
       chosen.forEach(({ sentence }) => shipped.set(sentence.id, sentence));
     }

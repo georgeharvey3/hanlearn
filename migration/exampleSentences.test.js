@@ -444,6 +444,42 @@ describe('the pick', () => {
   });
 });
 
+describe('the pools', () => {
+  const POOLS = ['intro', 'comprehend', 'compose'];
+  // Three lengths, so that the list order is the shortest-first order.
+  const threeFor = (word) => ['我', '我们', '他们很'].map((subject) => generated(word, `${subject}${word}了。`));
+  const poolsOf = (result, word) => sentencesOf(result, word).map((s) => s.pool);
+
+  it('gives each sentence of a filled word a different pool', () => {
+    const pools = poolsOf(build(threeFor('吃')), '吃');
+    expect([...pools].sort()).toEqual([...POOLS].sort());
+  });
+
+  it('gives a word with 2 sentences an intro pool and a Comprehend pool', () => {
+    const pools = poolsOf(build(threeFor('吃').slice(0, 2)), '吃');
+    expect([...pools].sort()).toEqual(['comprehend', 'intro']);
+  });
+
+  it('gives a word with 1 sentence an intro pool', () => {
+    expect(poolsOf(build(threeFor('吃').slice(0, 1)), '吃')).toEqual(['intro']);
+  });
+
+  it('gives the same pools on each build of the same input', () => {
+    const records = threeFor('吃');
+    expect(poolsOf(build(records), '吃')).toEqual(poolsOf(build(records), '吃'));
+  });
+
+  it('does not always put the shortest sentence in the intro pool', () => {
+    const words = ['吃', '看', '去', '读', '说', '喜欢', '冷', '好'];
+    const result = build(words.flatMap(threeFor));
+    const firstPools = words.map((word) => {
+      expect(sentencesOf(result, word)).toHaveLength(3);
+      return poolsOf(result, word)[0];
+    });
+    expect(firstPools.some((pool) => pool !== 'intro')).toBe(true);
+  });
+});
+
 describe('the output', () => {
   it('writes one file for each first character, in the shape of #465', () => {
     const result = build([generated('图书馆', '我在图书馆看书。')]);
@@ -465,6 +501,7 @@ describe('the output', () => {
       fill: 'generated',
       source: { name: 'generated', id: sentenceId('我在图书馆看书。') },
       origin: { chinese: 'machine', english: 'machine' },
+      pool: 'intro',
     });
     expect(result.count).toBe(1);
   });

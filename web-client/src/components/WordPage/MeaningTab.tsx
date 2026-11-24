@@ -20,8 +20,8 @@ import * as ttsService from '../../services/ttsService';
 
 type CharSet = 'simp' | 'trad';
 
-/** The first sentence of the word, in file order. Null when it has none. */
-const useFirstSentence = (word: Word, charSet: CharSet) => {
+/** The sentence of the intro pool of the word (#581). Null when it has none. */
+const useIntroSentence = (word: Word, charSet: CharSet) => {
   const key = `${word.simp}:${charSet}`;
   const [loaded, setLoaded] = useState<{ key: string; sentence: ResolvedSentence | null }>({
     key: '',
@@ -152,7 +152,7 @@ const MeaningTab: React.FC<Props> = ({
   voice,
   lang,
 }) => {
-  const sentence = useFirstSentence(word, charSet);
+  const sentence = useIntroSentence(word, charSet);
   const custom = isCustomWord(word);
   // A custom word has one meaning, the learner's, so it is not a numbered list.
   const own = custom ? word.meaning : owned?.ammended_meaning;

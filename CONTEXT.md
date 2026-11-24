@@ -288,12 +288,11 @@ size: "Comprehend set size" and "Compose set size".
 A word is **eligible** for a tab when it has an example sentence, passes the
 gate of the tab, and has no direction due within 2 days, today included. A
 sentence primes the answer of a card review. A `fail` from today is due
-tomorrow, so the 2-day rule also keeps today's misses out. A word is also not
-eligible when the other tab showed all of its sentences today. It is eligible
-again on the next day.
+tomorrow, so the 2-day rule also keeps today's misses out. When the two tabs
+share a sentence, a word is also not eligible when the other tab showed that
+sentence today. It is eligible again on the next day.
 
-Each tab picks the sentence that either tab showed longest ago. A sentence that
-neither tab showed comes first.
+Each tab shows the sentence of its pool.
 
 | Tab        | Gate                                             |
 | ---------- | ------------------------------------------------ |
@@ -322,9 +321,17 @@ Compose tab.
 An **example sentence** is one Chinese sentence that holds a word, with its
 English translation. An example sentence comes from a native Mandarin writer
 on Tatoeba, or Claude Code generates it (ADR 0020). Each sentence goes to every
-HSK word that it holds and passes the grader for. The Comprehend tab, the
-Compose tab and the hint show example sentences. Do not call the set of them a "sentence bank": a **bank** is
-the band of an interval.
+HSK word that it holds and passes the grader for. The word page, the new word
+introduction, the Comprehend tab, the Compose tab and the hint show example
+sentences. Do not call the set of them a "sentence bank": a **bank** is the
+band of an interval.
+
+A word's example sentences split into three **pools**: the **intro pool** (word
+page, new word introduction, hint), the **Comprehend pool** and the **Compose
+pool**. Each sentence of a word is in one pool. A pool with no sentence
+**borrows** the sentence of its nearest pool. The intro pool borrows from the
+Comprehend pool, then the Compose pool. Each tab pool borrows from the pool of
+the other tab, then the intro pool.
 
 A **segment** is one word of an example sentence, as the splitter cuts it. The
 **target segment** is the segment that is the word under study. A sentence
@@ -340,8 +347,8 @@ The **grader** admits a sentence for a word when it has no counted segment
 above the HSK level of the word, and when it is within the length cap of that
 level. An HSK 7–9 word has a cap and no level rule.
 
-A word is **filled** when it has 3 sentences. The **coverage report** lists the
-HSK words that are not filled.
+A word is **filled** when it has 3 sentences. A filled word has one sentence in
+each pool. The **coverage report** lists the HSK words that are not filled.
 
 The **origin** of a sentence says whether a person or a machine wrote its
 Chinese and its English. A Tatoeba sentence has the origin `human` for both,
