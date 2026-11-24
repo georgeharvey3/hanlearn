@@ -89,6 +89,8 @@ The build uses no network and no AI. The rules are in `exampleSentences.js`, and
 
 Each sentence goes to every HSK word that it holds and passes the grader for. A generated sentence must pass the grader for its `headword`, or the build stops. The build drops a Tatoeba sentence with fewer than 6 Han characters or with a name. A word outside HSK gets no sentences. Each word keeps 3 sentences at most (#482).
 
+The build gives each sentence of a word one pool in the field `pool`: `intro`, `comprehend` or `compose` (#581). The intro pool serves the word page, the new word introduction and the hint. A shuffle orders the picked sentences, and the pools take them in the order intro, Comprehend, Compose. The word and the ids of its picked sentences seed the shuffle, so each build gives the same pools. A word with 2 sentences has no Compose pool, and a word with 1 sentence has only an intro pool. The client then borrows a sentence for each empty pool.
+
 Each segment shows the pinyin and the gloss of one CC-CEDICT entry (#479). An override always wins. Without one, an HSK word shows the entry of the premade-list resolver. A single character outside HSK shows the entry that the HSK words with this character read most often, so 居 is *jū* as in 居住. The gloss is the first 3 useful senses of the entry, divided by "; ".
 
 `sentences/gloss-overrides.json` sets the entry and the gloss of one segment text. Each override names the entry by its pinyin with tone numbers, and by `trad` when two entries have the same pinyin. If a person finds a wrong pinyin or gloss in use, add an override for it. The build stops on an override that names no entry.

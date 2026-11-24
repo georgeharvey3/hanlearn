@@ -17,4 +17,4 @@ The build of `npm run build:dict` writes this report. The sentences come from na
 
 ## Files
 
-The largest sentence file is `4e0d.json` (the words that start with 不), at 261 KB. The limit is 2 MB.
+The largest sentence file is `4e0d.json` (the words that start with 不), at 267 KB. The limit is 2 MB.

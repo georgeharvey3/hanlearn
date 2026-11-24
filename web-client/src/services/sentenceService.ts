@@ -1,5 +1,6 @@
 /**
- * The example sentences of the Comprehend and Compose tabs, and of the hint.
+ * The example sentences of the word page, the new word introduction, the hint,
+ * and the Comprehend and Compose tabs.
  *
  * `npm run build:dict` writes them to `/sentences/` on Hosting, one file for
  * each first character of a word (#465, #469). A sentence costs one fetch of
@@ -9,6 +10,13 @@
 
 import { SegmentedSentence, SentenceSegment } from '../utils/sentenceUtils';
 import { reportedSentenceIds } from '../utils/reportedSentences';
+import { SentenceTab } from '../utils/sentenceSettings';
+
+/**
+ * The pool of a sentence in the list of one word (#581). The intro pool serves
+ * the word page, the new word introduction and the hint.
+ */
+export type SentencePool = 'intro' | SentenceTab;
 
 /** One sentence of a word, as the build writes it. */
 interface FileSentence {
@@ -18,6 +26,7 @@ interface FileSentence {
   english: string;
   segments: SentenceSegment[];
   targetIndex: number;
+  pool: SentencePool;
 }
 
 /** One file: the sentences of each word that starts with its character. */
@@ -62,24 +71,66 @@ function fileOf(word: string): Promise<SentenceFile> {
   return file;
 }
 
-async function sentencesOf(word: string): Promise<FileSentence[]> {
-  if (!word) return [];
-  const file = await fileOf(word);
+/**
+ * The pools that an empty pool borrows from, nearest first. A word with 1 or
+ * 2 sentences, or with a reported one, still shows a sentence in each place.
+ * A tab that borrows shows a sentence that the learner met elsewhere: the
+ * trade of priming for coverage, which a word with a sentence in each pool
+ * never makes. The order is a rule to tune, not an ADR (#581).
+ */
+const BORROW: Record<SentencePool, SentencePool[]> = {
+  intro: ['intro', 'comprehend', 'compose'],
+  comprehend: ['comprehend', 'compose', 'intro'],
+  compose: ['compose', 'comprehend', 'intro'],
+};
+
+/**
+ * The one sentence of each pool of a word, after borrowing, or null when the
+ * word has none left. The split comes before the reports leave, so a report
+ * never moves a sentence into another pool. Pure.
+ */
+export function poolSentences<T extends { id: string; pool: SentencePool }>(
+  sentences: T[],
+  reported: ReadonlySet<string>,
+): Record<SentencePool, T | null> {
+  const own = (pool: SentencePool): T | undefined =>
+    sentences.find((sentence) => sentence.pool === pool && !reported.has(sentence.id));
+  const of = (pool: SentencePool): T | null =>
+    BORROW[pool].map(own).find((sentence) => sentence !== undefined) ?? null;
+  return { intro: of('intro'), comprehend: of('comprehend'), compose: of('compose') };
+}
+
+interface WordSentences {
+  /** The sentences of the word that the learner did not report, in file order. */
+  kept: FileSentence[];
+  pools: Record<SentencePool, FileSentence | null>;
+}
+
+async function sentencesOf(word: string): Promise<WordSentences> {
+  const all = word ? ((await fileOf(word))[word] ?? []) : [];
   const reported = reportedSentenceIds();
-  return (file[word] ?? []).filter((sentence) => !reported.has(sentence.id));
+  return {
+    kept: all.filter((sentence) => !reported.has(sentence.id)),
+    pools: poolSentences(all, reported),
+  };
 }
 
 /**
- * The ids of the sentences of each word, by its text, in file order. A word
- * with no sentence has an empty list. The Comprehend and Compose tabs build
- * their queue from it (#489).
+ * The sentence id of each tab for each word, by its text, after borrowing. A
+ * word with no sentence has no entry. The Comprehend and Compose tabs build
+ * their queue from it (#489, #581).
  */
-export async function sentenceIndexOf(words: string[]): Promise<Record<string, string[]>> {
+export async function sentenceIndexOf(
+  words: string[],
+): Promise<Record<string, Record<SentenceTab, string>>> {
   const unique = Array.from(new Set(words));
-  const lists = await Promise.all(unique.map((word) => sentencesOf(word)));
-  return Object.fromEntries(
-    unique.map((word, i) => [word, lists[i].map((sentence) => sentence.id)]),
-  );
+  const all = await Promise.all(unique.map((word) => sentencesOf(word)));
+  const index: Record<string, Record<SentenceTab, string>> = {};
+  unique.forEach((word, i) => {
+    const { comprehend, compose } = all[i].pools;
+    if (comprehend && compose) index[word] = { comprehend: comprehend.id, compose: compose.id };
+  });
+  return index;
 }
 
 function calculateHighlightIndices(sentence: string, word: string): number[][] {
@@ -143,22 +194,21 @@ function withGaps(sentence: FileSentence): { segments: SentenceSegment[]; target
 }
 
 /**
- * One sentence of a word: the one with the id, or the first one when no id is
- * given. No sentence when the word has none, or none with the id.
+ * One sentence of a word: the one with the id, or the sentence of the intro
+ * pool when no id is given. No sentence when the word has none, or none with
+ * the id.
  */
 export async function getSegmentedSentence(
   word: string,
   charSet: 'simp' | 'trad',
   sentenceId?: string,
 ): Promise<SegmentedSentenceResult> {
-  const examples = await sentencesOf(word);
+  const { kept, pools } = await sentencesOf(word);
   const example =
-    sentenceId === undefined
-      ? examples[0]
-      : examples.find((candidate) => candidate.id === sentenceId);
+    sentenceId === undefined ? pools.intro : kept.find((candidate) => candidate.id === sentenceId);
 
   if (!example) {
-    return { sentence: null, totalCount: examples.length };
+    return { sentence: null, totalCount: kept.length };
   }
 
   const { segments, targetIndex } = withGaps(example);
@@ -175,15 +225,14 @@ export async function getSegmentedSentence(
       chinese: { sentence: text, simplified: example.simp, highlight, segments, targetIndex },
       english: { sentence: example.english, highlight: [] },
     },
-    totalCount: examples.length,
+    totalCount: kept.length,
   };
 }
 
+/** The sentence of the intro pool, so that the hint never shows a sentence that a tab tests. */
 export async function getHintSentence(
   word: string,
 ): Promise<{ chinese: string; english: string } | null> {
-  const examples = await sentencesOf(word);
-  if (examples.length === 0) return null;
-  const selected = examples[Math.floor(Math.random() * examples.length)];
-  return { chinese: selected.simp, english: selected.english };
+  const { intro } = (await sentencesOf(word)).pools;
+  return intro ? { chinese: intro.simp, english: intro.english } : null;
 }

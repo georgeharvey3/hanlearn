@@ -123,7 +123,9 @@ function setQueue(words: Word[], practice: PracticeByWord = {}) {
   vi.mocked(loadQueueData).mockResolvedValue({
     words,
     practice,
-    index: Object.fromEntries(words.map((w) => [w.simp, [`s-${w.simp}`]])),
+    index: Object.fromEntries(
+      words.map((w) => [w.simp, { comprehend: `s-${w.simp}`, compose: `s-${w.simp}` }]),
+    ),
   });
 }
 

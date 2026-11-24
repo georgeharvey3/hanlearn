@@ -248,7 +248,7 @@ describe('NewWords — Understand: the example sentence', () => {
   const example = () =>
     screen.findByLabelText('Example', { selector: '[role="group"]' }, { timeout: 5000 });
 
-  it('shows the first sentence of the word, the word highlighted, and its English', async () => {
+  it('shows the intro sentence of the word, the word highlighted, and its English', async () => {
     localStorage.setItem('charSet', 'simp');
     vi.mocked(getSegmentedSentence).mockResolvedValue(diannaoSentence);
     render([diannao]);
