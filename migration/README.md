@@ -95,7 +95,7 @@ Each segment shows the pinyin and the gloss of one CC-CEDICT entry (#479). An ov
 
 `sentences/gloss-overrides.json` sets the entry and the gloss of one segment text. Each override names the entry by its pinyin with tone numbers, and by `trad` when two entries have the same pinyin. If a person finds a wrong pinyin or gloss in use, add an override for it. The build stops on an override that names no entry.
 
-`sentences/blocked.json` blocks a bad Tatoeba sentence for every word, or one credit of a sentence to one word (#485). Each entry has a sentence id, an optional `word` and a `reason`. The build stops on an entry with an unknown id, with no reason, or with a word outside HSK. `sentences/checked.json` holds the credits that a check session read. See Checked Tatoeba Credits.
+`sentences/blocked.json` blocks a bad Tatoeba sentence for every word, or one credit of a sentence to one word (#485). Each entry has a sentence id, an optional `word`, a `reason` and the sentence text `simp` for the review. The build stops on an entry with no Tatoeba sentence of its id, with no reason, or with a word outside HSK. It also stops on a credit entry for a word that the sentence does not hold. See Checked Tatoeba Credits.
 
 The build writes these files to `web-client/public/sentences/`. They are build output, and git ignores them:
 
@@ -287,7 +287,7 @@ The script needs `service-account.json`, the same as `export-review-log.js`. Git
 
 A Claude Code session checks each shipped Tatoeba credit, and the developer reviews the flagged credits (#485). `sentences/CHECK.md` is the prompt and the procedure.
 
-`node sentence-check.js` prints the number of credits that are not checked, and writes the next batch to `sentences/scratch/check-batch.json`. The credits inside a longer CC-CEDICT word come first. `--list` prints every credit that is not checked. `--done` adds the flags of the batch to `sentences/blocked.json` and marks its credits in `sentences/checked.json`. The rules are pure, in `sentenceCheck.js`.
+`node sentence-check.js` prints the number of credits that are not checked, and writes the next batch to `sentences/scratch/check-batch.json`. The credits inside a longer CC-CEDICT word come first. `--list` prints every credit that is not checked. `--done` adds the blocks of the batch to `sentences/blocked.json` and marks its credits in `sentences/checked.json`. Only this script reads `checked.json`. The rules are pure, in `sentenceCheck.js`.
 
 ## Generated Sentences
 

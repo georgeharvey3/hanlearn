@@ -2,16 +2,16 @@
  * The hand check of the shipped Tatoeba credits (#485). See
  * sentences/CHECK.md for the procedure.
  *
- * Runs the build of build-dictionary.js in memory, with the block list and
- * the checked credits so far. A change to the pick or the split gives new
- * credits, and this script lists only those.
+ * Runs the build of build-dictionary.js in memory, with the block list so
+ * far, and leaves out the credits of checked.json. A change to the pick or
+ * the split gives new credits, and this script lists only those.
  *
  * Usage:
  *   node sentence-check.js [--limit <n>]   print the counts, and write the next
  *                                          batch of unchecked credits (150 by default)
  *   node sentence-check.js --list          print every unchecked credit, one on each line
  *   node sentence-check.js --done          apply the finished batch: mark its credits
- *                                          checked, and add its flags to blocked.json
+ *                                          checked, and add its blocks to blocked.json
  *
  * Output (git ignores sentences/scratch/):
  *   sentences/scratch/check-batch.json     [{ id, word, simp, english, gloss, longer }]
@@ -19,13 +19,12 @@
 
 const fs = require('fs');
 const path = require('path');
-const { readCleanCedict, resolveHsk, sentenceInputs } = require('./build-dictionary');
+const { readCleanCedict, resolveHsk, sentenceInputs, BLOCKED_PATH } = require('./build-dictionary');
 const { buildExampleSentences } = require('./exampleSentences');
 const { applyBatch, formatBlocked, formatChecked, uncheckedCredits } = require('./sentenceCheck');
 
 const SENTENCES = path.join(__dirname, 'sentences');
 const BATCH_PATH = path.join(SENTENCES, 'scratch', 'check-batch.json');
-const BLOCKED_PATH = path.join(SENTENCES, 'blocked.json');
 const CHECKED_PATH = path.join(SENTENCES, 'checked.json');
 const DEFAULT_LIMIT = 150;
 
@@ -37,15 +36,15 @@ function argument(flag) {
 
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 
-/** The shipped Tatoeba credits of the build, with the block list and the checked state. */
-function credits() {
+/** The shipped Tatoeba credits of the build, with the block list. */
+function shippedCredits() {
   const { words } = readCleanCedict();
   const { catalogue, ranks } = resolveHsk(words);
   const { inputs } = sentenceInputs(words, catalogue, ranks);
   return buildExampleSentences(inputs).credits;
 }
 
-function done() {
+function applyFinishedBatch() {
   if (!fs.existsSync(BATCH_PATH)) throw new Error(`No batch to apply: ${BATCH_PATH}`);
   const batch = readJson(BATCH_PATH);
   const result = applyBatch(readJson(CHECKED_PATH).credits, readJson(BLOCKED_PATH).entries, batch);
@@ -61,9 +60,9 @@ function done() {
   console.log(`Wrote: ${BLOCKED_PATH}`);
 }
 
-function next() {
-  const all = credits();
-  const unchecked = uncheckedCredits(all);
+function writeNextBatch() {
+  const all = shippedCredits();
+  const unchecked = uncheckedCredits(all, readJson(CHECKED_PATH).credits);
   if (process.argv.includes('--list')) {
     for (const c of unchecked) console.log([c.id, c.word, c.longer ?? '', c.simp, c.english].join('\t'));
     return;
@@ -76,15 +75,15 @@ function next() {
     throw new Error(`A batch is not applied yet. Run --done, or delete ${BATCH_PATH}.`);
   }
   const limit = Number(argument('--limit') ?? DEFAULT_LIMIT);
-  const batch = unchecked.slice(0, limit).map(({ checked, ...credit }) => credit);
+  const batch = unchecked.slice(0, limit);
   fs.mkdirSync(path.dirname(BATCH_PATH), { recursive: true });
   fs.writeFileSync(BATCH_PATH, '[\n' + batch.map((credit) => JSON.stringify(credit)).join(',\n') + '\n]\n');
   console.log(`Wrote ${batch.length} credits to: ${BATCH_PATH}`);
 }
 
 try {
-  if (process.argv.includes('--done')) done();
-  else next();
+  if (process.argv.includes('--done')) applyFinishedBatch();
+  else writeNextBatch();
 } catch (error) {
   console.error(error.message);
   process.exit(1);

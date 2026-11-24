@@ -1,17 +1,19 @@
 # Check the Tatoeba credits
 
 This file is the prompt for a Claude Code session that checks the shipped
-Tatoeba credits. A credit is the gift of one Tatoeba sentence to one HSK
-word. The build gives a sentence to every HSK word that it holds, and no rule
-of the build finds every bad sentence or every bad credit. See issue #485.
+Tatoeba credits. A credit is one Tatoeba sentence of one HSK word. The build
+gives a sentence to every HSK word that it holds. No rule of the build finds
+every bad sentence or every bad credit. See issue #485.
 
-The build reads two files that this check writes:
+The check writes two files:
 
-- `blocked.json`: the blocked sentences and credits, each with a reason.
-- `checked.json`: the credits that a session checked, by sentence id.
+- `blocked.json`: the blocked sentences and credits, each with a reason and
+  the sentence text. The build reads this file.
+- `checked.json`: the credits that a session checked, by sentence id. Only
+  the check script reads this file.
 
-The build stays a committed build (ADR 0019). It reads these files and makes
-no network call and no AI call.
+The build stays a committed build (ADR 0019). It makes no network call and
+no AI call.
 
 ## Start the session
 

@@ -8,7 +8,6 @@ const credit = (id, word, overrides = {}) => ({
   english: 'English',
   gloss: 'gloss',
   longer: null,
-  checked: false,
   ...overrides,
 });
 
@@ -17,10 +16,10 @@ describe('the unchecked credits', () => {
     const credits = [
       credit('b', '书'),
       credit('a', '青', { longer: '青花' }),
-      credit('c', '看', { checked: true }),
+      credit('c', '看'),
       credit('a', '书'),
     ];
-    expect(uncheckedCredits(credits).map((c) => `${c.id} ${c.word}`)).toEqual(['a 青', 'a 书', 'b 书']);
+    expect(uncheckedCredits(credits, { c: ['看'] }).map((c) => `${c.id} ${c.word}`)).toEqual(['a 青', 'a 书', 'b 书']);
   });
 });
 

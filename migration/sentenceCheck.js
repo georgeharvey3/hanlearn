@@ -1,23 +1,27 @@
 /**
  * The pure rules of the hand check of the Tatoeba credits (#485). A credit is
- * the gift of one shipped Tatoeba sentence to one HSK word. sentence-check.js
+ * one shipped Tatoeba sentence of one HSK word. sentence-check.js
  * writes the unchecked credits in batches, a Claude Code session flags the bad
  * ones, and the finished batch goes into sentences/checked.json and
  * sentences/blocked.json. See sentences/CHECK.md.
  */
+
+const { creditKey } = require('./exampleSentences');
 
 const BLOCK_SCOPES = ['credit', 'sentence'];
 
 const compareText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
- * The shipped Tatoeba credits that no pass checked, in the order of the pass:
- * the credits whose target is inside a longer CC-CEDICT word first, because
- * about 1 in 5 of them is bad. Then by sentence id and word.
+ * The shipped Tatoeba credits that no session checked, in the order of the
+ * check: the credits whose target is inside a longer CC-CEDICT word first,
+ * because about 1 in 5 of them is bad. Then by sentence id and word.
+ * `checked` is { [sentence id]: word[] }, from sentences/checked.json.
  */
-function uncheckedCredits(credits) {
+function uncheckedCredits(credits, checked) {
+  const isChecked = (credit) => (checked[credit.id] ?? []).includes(credit.word);
   return credits
-    .filter((credit) => !credit.checked)
+    .filter((credit) => !isChecked(credit))
     .sort(
       (a, b) =>
         (a.longer === null) - (b.longer === null) || compareText(a.id, b.id) || compareText(a.word, b.word),
@@ -37,7 +41,7 @@ function applyBatch(checked, blocked, batch) {
   const problems = [];
   const nextChecked = Object.fromEntries(Object.entries(checked).map(([id, words]) => [id, [...words]]));
   const nextBlocked = [...blocked];
-  const keyOf = (entry) => `${entry.id}\n${entry.word ?? ''}`;
+  const keyOf = (entry) => creditKey(entry.id, entry.word ?? '');
   const known = new Set(nextBlocked.map(keyOf));
   for (const credit of batch) {
     const name = `${credit.id} ${credit.word}`;

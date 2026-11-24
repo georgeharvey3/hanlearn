@@ -136,9 +136,6 @@ const GLOSS_OVERRIDES_PATH = path.join(__dirname, 'sentences', 'gloss-overrides.
  */
 const BLOCKED_PATH = path.join(__dirname, 'sentences', 'blocked.json');
 
-/** The Tatoeba credits that a Claude Code pass checked (#485). */
-const CHECKED_PATH = path.join(__dirname, 'sentences', 'checked.json');
-
 /**
  * The inputs of buildExampleSentences, from the committed generated and
  * Tatoeba sentences and the resolved HSK lists. Also gives the generated file
@@ -151,7 +148,6 @@ function sentenceInputs(words, catalogue, ranks) {
   const tatoebaFile = JSON.parse(fs.readFileSync(TATOEBA_PATH, 'utf8'));
   const glossOverrides = JSON.parse(fs.readFileSync(GLOSS_OVERRIDES_PATH, 'utf8')).overrides;
   const blocked = JSON.parse(fs.readFileSync(BLOCKED_PATH, 'utf8')).entries;
-  const checked = JSON.parse(fs.readFileSync(CHECKED_PATH, 'utf8')).credits;
 
   const hsk = catalogue.flatMap((list, i) =>
     list.entries.map((entry) => ({
@@ -170,7 +166,6 @@ function sentenceInputs(words, catalogue, ranks) {
       unfilled: unfilledOf(generatedFile),
       glossOverrides,
       blocked,
-      checked,
     },
     generatedFile,
     tatoebaFile,
@@ -781,4 +776,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { readCedict, readCleanCedict, emptiedReport, chengyuRowsOf, resolveHsk, sentenceInputs, GENERATED_PATH };
+module.exports = { readCedict, readCleanCedict, emptiedReport, chengyuRowsOf, resolveHsk, sentenceInputs, GENERATED_PATH, BLOCKED_PATH };

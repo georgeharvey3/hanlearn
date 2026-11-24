@@ -701,7 +701,9 @@ function attributionOf({ id, record }) {
  * The committed block list of #485, as the ids of the blocked sentences and
  * the keys of the blocked credits. An entry with no word blocks the sentence
  * for every word. An entry with a word blocks only that credit. An entry with
- * an unknown id, no reason, or a word outside HSK is a problem of the build.
+ * no Tatoeba sentence of its id, no reason, or a word outside HSK is a problem
+ * of the build. The block list is for Tatoeba sentences only: a bad generated
+ * sentence is changed or removed in generated.json.
  */
 function blocksOf(blocked, ids, hskBySimp, problems) {
   const sentences = new Set();
@@ -709,7 +711,7 @@ function blocksOf(blocked, ids, hskBySimp, problems) {
   for (const entry of blocked) {
     const { id, word, reason } = entry ?? {};
     if (!ids.has(id)) {
-      problems.push(`blocked ${id}: no sentence has this id`);
+      problems.push(`blocked ${id}: no Tatoeba sentence has this id`);
       continue;
     }
     if (typeof reason !== 'string' || reason.trim() === '') {
@@ -832,8 +834,6 @@ function reportOf(rows, largest, blocks) {
  *   glossOverrides  { [segment text]: { pinyin, trad?, gloss? } }: the entry and the
  *                 gloss that a segment shows, from sentences/gloss-overrides.json
  *   blocked       [{ id, word?, reason }]: the block list of sentences/blocked.json
- *   checked       { [sentence id]: word[] }: the Tatoeba credits that a pass
- *                 checked, from sentences/checked.json
  *
  * Each sentence goes to every HSK word that it holds and passes the grader
  * for. A generated sentence must pass for its headword, or the build fails.
@@ -846,7 +846,7 @@ function reportOf(rows, largest, blocks) {
  *   report        the coverage report, in Markdown
  *   gaps          each HSK word with fewer than 3 sentences that is not unfilled
  *   credits       each shipped Tatoeba credit: { id, word, simp, english, gloss,
- *                 longer, checked }, where `longer` is the longest CC-CEDICT word
+ *                 longer }, where `longer` is the longest CC-CEDICT word
  *                 of the sentence that holds the target and more, or null
  *
  * Throws on a bad gloss override, on a bad block entry, on a malformed record, on a generated
@@ -870,14 +870,17 @@ function buildAll({
   unfilled = [],
   glossOverrides = {},
   blocked = [],
-  checked = {},
 }) {
   const problems = [];
   const index = indexInputs(dictionary, hsk);
   index.overrides = overridesOf(glossOverrides, index.bySimp, problems);
   const sentences = uniqueSentences([...generated, ...tatoeba], problems);
   const ids = new Set(sentences.map((sentence) => sentence.id));
-  const blocks = blocksOf(blocked, ids, index.hskBySimp, problems);
+  const tatoebaIds = new Set(sentences.filter((s) => s.record.source === 'tatoeba').map((s) => s.id));
+  const blocks = blocksOf(blocked, tatoebaIds, index.hskBySimp, problems);
+  // The credit keys of the segments of each sentence, so that a credit entry
+  // for a word that its sentence does not hold fails the build.
+  const held = new Set();
   if (problems.length > 0) throw buildError(problems);
 
   const candidatesOf = new Map();
@@ -886,6 +889,7 @@ function buildAll({
     const { word } = sentence;
     if (blocks.sentences.has(sentence.id)) continue;
     const ready = prepare(sentence, index);
+    for (const segment of ready.segments ?? []) held.add(creditKey(sentence.id, segment.text));
     if (word !== null) {
       if (!ready.reason) {
         const frame = frameOf(ready, word);
@@ -917,6 +921,11 @@ function buildAll({
       candidatesOf.get(text).push({ sentence: ready, grade: graded });
     }
   }
+  for (const key of blocks.credits) {
+    if (held.has(key)) continue;
+    const [id, word] = key.split('\n');
+    problems.push(`blocked ${id}: the sentence does not hold ${word} as a segment`);
+  }
   if (problems.length > 0) throw buildError(problems);
 
   const unfilledWords = new Set(unfilled);
@@ -926,7 +935,6 @@ function buildAll({
   const chosenByWord = new Map();
   const shipped = new Map();
   const credits = [];
-  const isChecked = (id, word) => Array.isArray(checked[id]) && checked[id].includes(word);
   let count = 0;
   for (const [word, { level }] of [...index.hskBySimp].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
     const chosen = pick(candidatesOf.get(word) ?? []);
@@ -947,7 +955,6 @@ function buildAll({
           english: sentence.english,
           gloss: sentence.output[graded.targetIndex].e,
           longer: longerWordOf(sentence, graded.targetIndex, index),
-          checked: isChecked(sentence.id, word),
         });
       }
     }
@@ -1152,6 +1159,7 @@ module.exports = {
   unfilledOf,
   MAX_ROUNDS,
   buildExampleSentences,
+  creditKey,
   sentenceId,
   toneMarks,
   glossOf,
