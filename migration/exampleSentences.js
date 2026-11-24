@@ -697,6 +697,62 @@ function attributionOf({ id, record }) {
   return `${id} Tatoeba #${record.sourceId}${by(record.owner)}${english}, ${TATOEBA_LICENCE.name}`;
 }
 
+/**
+ * The committed block list of #485, as the ids of the blocked sentences and
+ * the keys of the blocked credits. An entry with no word blocks the sentence
+ * for every word. An entry with a word blocks only that credit. An entry with
+ * no Tatoeba sentence of its id, no reason, or a word outside HSK is a problem
+ * of the build. The block list is for Tatoeba sentences only: a bad generated
+ * sentence is changed or removed in generated.json.
+ */
+function blocksOf(blocked, ids, hskBySimp, problems) {
+  const sentences = new Set();
+  const credits = new Set();
+  for (const entry of blocked) {
+    const { id, word, reason } = entry ?? {};
+    if (!ids.has(id)) {
+      problems.push(`blocked ${id}: no Tatoeba sentence has this id`);
+      continue;
+    }
+    if (typeof reason !== 'string' || reason.trim() === '') {
+      problems.push(`blocked ${id}: no reason`);
+      continue;
+    }
+    if (word === undefined || word === null) {
+      sentences.add(id);
+    } else if (!hskBySimp.has(word)) {
+      problems.push(`blocked ${id}: ${word} is not an HSK word`);
+    } else {
+      credits.add(creditKey(id, word));
+    }
+  }
+  return { sentences, credits };
+}
+
+/** The key of the credit of one sentence to one word. */
+const creditKey = (id, word) => `${id}\n${word}`;
+
+/**
+ * The longest CC-CEDICT word of a sentence that holds the target segment and
+ * more, or null. The splitter can cut a word outside HSK, such as 青花, into
+ * HSK words, and then 青 gets a sentence that does not really hold it (#485).
+ * Most of these credits are good (一 in 一点), so a person checks them.
+ */
+function longerWordOf(sentence, targetIndex, index) {
+  const chars = [...sentence.simp];
+  const target = sentence.segments[targetIndex];
+  const end = target.at + target.length;
+  let best = null;
+  for (let from = Math.max(0, end - index.longest); from <= target.at; from++) {
+    for (let to = Math.min(chars.length, from + index.longest); to >= end; to--) {
+      if (to - from <= target.length || (best && to - from <= [...best].length)) continue;
+      const text = chars.slice(from, to).join('');
+      if (index.bySimp.has(text)) best = text;
+    }
+  }
+  return best;
+}
+
 const LEVELS = [1, 2, 3, 4, 5, 6, 7];
 const levelName = (level) => (level === 7 ? 'HSK 7–9' : `HSK ${level}`);
 
@@ -711,11 +767,13 @@ function wordLines(rows, test) {
 }
 
 /** The text of the coverage report, in Markdown. */
-function reportOf(rows, largest) {
+function reportOf(rows, largest, blocks) {
   const lines = [
     '# Example sentence coverage',
     '',
     `The build of \`npm run build:dict\` writes this report. The sentences come from native writers on Tatoeba and from generation (ADR 0020). A word is filled when it has ${SENTENCE_TARGET} sentences.`,
+    '',
+    `The counts are after the block list of \`blocked.json\`. The block list drops ${blocks.sentences.size} sentences and ${blocks.credits.size} credits.`,
     '',
     '## HSK words',
     '',
@@ -775,43 +833,63 @@ function reportOf(rows, largest) {
  *   unfilled      the words that failed MAX_ROUNDS rounds
  *   glossOverrides  { [segment text]: { pinyin, trad?, gloss? } }: the entry and the
  *                 gloss that a segment shows, from sentences/gloss-overrides.json
+ *   blocked       [{ id, word?, reason }]: the block list of sentences/blocked.json
  *
  * Each sentence goes to every HSK word that it holds and passes the grader
  * for. A generated sentence must pass for its headword, or the build fails.
  * A Tatoeba sentence with fewer than 6 Han characters or a name is dropped.
  *
- * Returns { files, count, attribution, report, gaps }:
+ * Returns { files, count, attribution, report, gaps, credits }:
  *   files         { [hex code point]: { [simplified word]: sentence[] } }
  *   count         the number of sentences in the files, one for each word
  *   attribution   one line for each shipped Tatoeba sentence, in id order
  *   report        the coverage report, in Markdown
  *   gaps          each HSK word with fewer than 3 sentences that is not unfilled
+ *   credits       each shipped Tatoeba credit: { id, word, simp, english, gloss,
+ *                 longer }, where `longer` is the longest CC-CEDICT word
+ *                 of the sentence that holds the target and more, or null
  *
- * Throws on a bad gloss override, on a malformed record, on a generated
+ * Throws on a bad gloss override, on a bad block entry, on a malformed record, on a generated
  * sentence that fails the grader, and on a sentence file over 2 MB. Never
  * throws on coverage.
  */
 function buildExampleSentences(inputs) {
-  const { files, count, attribution, report, gaps } = buildAll(inputs);
-  return { files, count, attribution, report, gaps };
+  const { files, count, attribution, report, gaps, credits } = buildAll(inputs);
+  return { files, count, attribution, report, gaps, credits };
 }
 
 /**
  * The build, with the parts of its state that acceptCandidates also reads:
  * the index, the ids of all sentences, and the chosen sentences of each word.
  */
-function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = [], glossOverrides = {} }) {
+function buildAll({
+  dictionary,
+  hsk,
+  generated = [],
+  tatoeba = [],
+  unfilled = [],
+  glossOverrides = {},
+  blocked = [],
+}) {
   const problems = [];
   const index = indexInputs(dictionary, hsk);
   index.overrides = overridesOf(glossOverrides, index.bySimp, problems);
   const sentences = uniqueSentences([...generated, ...tatoeba], problems);
+  const ids = new Set(sentences.map((sentence) => sentence.id));
+  const tatoebaIds = new Set(sentences.filter((s) => s.record.source === 'tatoeba').map((s) => s.id));
+  const blocks = blocksOf(blocked, tatoebaIds, index.hskBySimp, problems);
+  // The credit keys of the segments of each sentence, so that a credit entry
+  // for a word that its sentence does not hold fails the build.
+  const held = new Set();
   if (problems.length > 0) throw buildError(problems);
 
   const candidatesOf = new Map();
   const frames = new Map();
   for (const sentence of sentences) {
     const { word } = sentence;
+    if (blocks.sentences.has(sentence.id)) continue;
     const ready = prepare(sentence, index);
+    for (const segment of ready.segments ?? []) held.add(creditKey(sentence.id, segment.text));
     if (word !== null) {
       if (!ready.reason) {
         const frame = frameOf(ready, word);
@@ -838,10 +916,15 @@ function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = []
     for (const text of new Set(ready.segments.map((segment) => segment.text))) {
       const hskWord = index.hskBySimp.get(text);
       const graded = hskWord ? grade(ready, text, hskWord.level) : null;
-      if (!graded || graded.reason) continue;
+      if (!graded || graded.reason || blocks.credits.has(creditKey(ready.id, text))) continue;
       if (!candidatesOf.has(text)) candidatesOf.set(text, []);
       candidatesOf.get(text).push({ sentence: ready, grade: graded });
     }
+  }
+  for (const key of blocks.credits) {
+    if (held.has(key)) continue;
+    const [id, word] = key.split('\n');
+    problems.push(`blocked ${id}: the sentence does not hold ${word} as a segment`);
   }
   if (problems.length > 0) throw buildError(problems);
 
@@ -851,6 +934,7 @@ function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = []
   const gaps = [];
   const chosenByWord = new Map();
   const shipped = new Map();
+  const credits = [];
   let count = 0;
   for (const [word, { level }] of [...index.hskBySimp].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
     const chosen = pick(candidatesOf.get(word) ?? []);
@@ -862,6 +946,17 @@ function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = []
       files[file][word] = chosen.map((one) => outputOf(one, pools.get(one.sentence.id)));
       count += chosen.length;
       chosen.forEach(({ sentence }) => shipped.set(sentence.id, sentence));
+      for (const { sentence, grade: graded } of chosen) {
+        if (sentence.record.source !== 'tatoeba') continue;
+        credits.push({
+          id: sentence.id,
+          word,
+          simp: sentence.simp,
+          english: sentence.english,
+          gloss: sentence.output[graded.targetIndex].e,
+          longer: longerWordOf(sentence, graded.targetIndex, index),
+        });
+      }
     }
     const short = chosen.length < SENTENCE_TARGET;
     rows.push({ level, word, count: chosen.length, unfilled: short && unfilledWords.has(word) });
@@ -894,10 +989,11 @@ function buildAll({ dictionary, hsk, generated = [], tatoeba = [], unfilled = []
     files,
     count,
     attribution,
-    report: reportOf(rows, largest),
+    report: reportOf(rows, largest, blocks),
     gaps,
+    credits,
     index,
-    ids: new Set(sentences.map((sentence) => sentence.id)),
+    ids,
     chosenByWord,
     frames,
   };
@@ -1063,6 +1159,7 @@ module.exports = {
   unfilledOf,
   MAX_ROUNDS,
   buildExampleSentences,
+  creditKey,
   sentenceId,
   toneMarks,
   glossOf,

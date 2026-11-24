@@ -134,8 +134,8 @@ const tatoeba = (simp, overrides = {}) => {
   };
 };
 
-const build = (records, { hsk = HSK, unfilled = [], human = [], glossOverrides } = {}) =>
-  buildExampleSentences({ dictionary, hsk, generated: records, tatoeba: human, unfilled, glossOverrides });
+const build = (records, { hsk = HSK, unfilled = [], human = [], glossOverrides, blocked } = {}) =>
+  buildExampleSentences({ dictionary, hsk, generated: records, tatoeba: human, unfilled, glossOverrides, blocked });
 
 /** The sentences that a build gives a word. */
 const sentencesOf = (result, word) => {
@@ -555,6 +555,73 @@ describe('Tatoeba sentences', () => {
     expect(() => buildHuman([tatoeba('我们喜欢看书。', { english: '' })])).toThrow(
       /malformed tatoeba record \(no English\)/,
     );
+  });
+});
+
+describe('the block list', () => {
+  const textsOf = (result, word) => sentencesOf(result, word).map((s) => s.simp);
+  const books = ['我们喜欢看书。', '他们喜欢看书了。'];
+  const buildBlocked = (blocked, human = books.map((t) => tatoeba(t))) => build([], { human, blocked });
+
+  it('drops a blocked sentence for every word', () => {
+    const result = buildBlocked([{ id: sentenceId('我们喜欢看书。'), reason: 'rude' }]);
+    for (const word of ['喜欢', '看', '书']) expect(textsOf(result, word)).toEqual(['他们喜欢看书了。']);
+    expect(textsOf(result, '我们')).toEqual([]);
+  });
+
+  it('drops a blocked credit for its word only', () => {
+    const result = buildBlocked([{ id: sentenceId('我们喜欢看书。'), word: '看', reason: '看 is in 看书' }]);
+    expect(textsOf(result, '看')).toEqual(['他们喜欢看书了。']);
+    expect(textsOf(result, '书')).toEqual(['我们喜欢看书。', '他们喜欢看书了。']);
+    expect(textsOf(result, '我们')).toEqual(['我们喜欢看书。']);
+  });
+
+  it('fails the build on an entry with an unknown sentence id, or the id of a generated sentence', () => {
+    expect(() => buildBlocked([{ id: 'ffffffffff', reason: 'rude' }])).toThrow(
+      /blocked ffffffffff: no Tatoeba sentence has this id/,
+    );
+    const id = sentenceId('老师读书。');
+    expect(() => build([generated('书', '老师读书。')], { blocked: [{ id, reason: 'rude' }] })).toThrow(
+      new RegExp(`blocked ${id}: no Tatoeba sentence has this id`),
+    );
+  });
+
+  it('fails the build on a credit entry for a word that the sentence does not hold', () => {
+    const id = sentenceId('我们喜欢看书。');
+    expect(() => buildBlocked([{ id, word: '老师', reason: 'x' }])).toThrow(
+      new RegExp(`blocked ${id}: the sentence does not hold 老师 as a segment`),
+    );
+  });
+
+  it('fails the build on an entry with no reason, or with a word outside HSK', () => {
+    const id = sentenceId('我们喜欢看书。');
+    expect(() => buildBlocked([{ id }])).toThrow(new RegExp(`blocked ${id}: no reason`));
+    expect(() => buildBlocked([{ id, word: '看书', reason: 'x' }])).toThrow(
+      new RegExp(`blocked ${id}: 看书 is not an HSK word`),
+    );
+  });
+
+  it('counts the blocked sentences and credits in the report', () => {
+    const result = buildBlocked([
+      { id: sentenceId('我们喜欢看书。'), reason: 'rude' },
+      { id: sentenceId('他们喜欢看书了。'), word: '看', reason: '看 is in 看书' },
+    ]);
+    expect(result.report).toContain('The block list drops 1 sentences and 1 credits');
+  });
+});
+
+describe('the Tatoeba credits', () => {
+  const human = [tatoeba('我们喜欢看书。')];
+  const id = sentenceId('我们喜欢看书。');
+
+  it('lists each shipped Tatoeba credit with the longer CC-CEDICT word that holds its target', () => {
+    const { credits } = build([generated('书', '老师读书。')], { human });
+    const byWord = Object.fromEntries(credits.map((c) => [c.word, c]));
+    expect(Object.keys(byWord).sort()).toEqual(['书', '喜欢', '我们', '看'].sort());
+    expect(byWord['看']).toMatchObject({ id, simp: '我们喜欢看书。', longer: '看书' });
+    expect(byWord['书'].longer).toBe('看书');
+    expect(byWord['我们'].longer).toBeNull();
+    expect(byWord['看'].gloss).not.toBe('');
   });
 });
 

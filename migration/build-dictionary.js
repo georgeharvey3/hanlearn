@@ -131,6 +131,12 @@ const TATOEBA_PATH = path.join(__dirname, 'sentences', 'tatoeba.json');
 const GLOSS_OVERRIDES_PATH = path.join(__dirname, 'sentences', 'gloss-overrides.json');
 
 /**
+ * The committed block list of #485: the bad Tatoeba sentences, and the credits
+ * of a sentence to a word that it does not really hold.
+ */
+const BLOCKED_PATH = path.join(__dirname, 'sentences', 'blocked.json');
+
+/**
  * The inputs of buildExampleSentences, from the committed generated and
  * Tatoeba sentences and the resolved HSK lists. Also gives the generated file
  * as it is on disk, which the gaps and accept scripts read and write.
@@ -141,6 +147,7 @@ function sentenceInputs(words, catalogue, ranks) {
     : { source: 'generated', records: [], rounds: {} };
   const tatoebaFile = JSON.parse(fs.readFileSync(TATOEBA_PATH, 'utf8'));
   const glossOverrides = JSON.parse(fs.readFileSync(GLOSS_OVERRIDES_PATH, 'utf8')).overrides;
+  const blocked = JSON.parse(fs.readFileSync(BLOCKED_PATH, 'utf8')).entries;
 
   const hsk = catalogue.flatMap((list, i) =>
     list.entries.map((entry) => ({
@@ -158,6 +165,7 @@ function sentenceInputs(words, catalogue, ranks) {
       tatoeba: tatoebaFile.records,
       unfilled: unfilledOf(generatedFile),
       glossOverrides,
+      blocked,
     },
     generatedFile,
     tatoebaFile,
@@ -169,8 +177,8 @@ function sentenceInputs(words, catalogue, ranks) {
  * sentences, with no network and no AI. A local run also writes the coverage
  * report to sentences/coverage.md. CI only prints it.
  *
- * Fails the build on a malformed record, on a generated sentence that fails
- * the grader, and on a sentence file over 2 MB.
+ * Fails the build on a malformed record, on a bad block entry, on a generated
+ * sentence that fails the grader, and on a sentence file over 2 MB.
  */
 function buildSentences(words, catalogue, ranks, outputDir) {
   const { inputs, tatoebaFile } = sentenceInputs(words, catalogue, ranks);
@@ -768,4 +776,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { readCedict, readCleanCedict, emptiedReport, chengyuRowsOf, resolveHsk, sentenceInputs, GENERATED_PATH };
+module.exports = { readCedict, readCleanCedict, emptiedReport, chengyuRowsOf, resolveHsk, sentenceInputs, GENERATED_PATH, BLOCKED_PATH };
