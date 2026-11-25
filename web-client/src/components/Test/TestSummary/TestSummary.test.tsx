@@ -118,6 +118,18 @@ describe('TestSummary — tiles', () => {
     expect(screen.queryByText('passport')).not.toBeInTheDocument();
   });
 
+  it('opens the word page of a turned tile on a second tap', async () => {
+    const user = userEvent.setup();
+    const onOpenWord = vi.fn();
+    renderSummary({ onOpenWord });
+    await user.click(screen.getByRole('button', { name: '护照, Not known' }));
+    expect(onOpenWord).not.toHaveBeenCalled();
+    await user.click(
+      screen.getByRole('button', { name: '护照, Not known: hù zhào, passport. Open details' }),
+    );
+    expect(onOpenWord).toHaveBeenCalledWith(2);
+  });
+
   it('filters the tiles by a count, and shows all again on a second tap', async () => {
     const user = userEvent.setup();
     renderSummary();
