@@ -17,7 +17,10 @@ import { Word } from '../../types/models';
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
 /** What a task reports when the learner grades it: the grade, less what the tab knows. */
-export type TaskOutcome = DistributiveOmit<SentenceGrade, 'wordId' | 'sentenceId' | 'tab' | 'at'>;
+export type TaskOutcome = DistributiveOmit<
+  SentenceGrade,
+  'wordId' | 'sentenceId' | 'tab' | 'at' | 'lapses'
+>;
 
 export const SLOW_SPEED = 0.7;
 

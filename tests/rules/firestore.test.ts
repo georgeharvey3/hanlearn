@@ -792,6 +792,7 @@ describe("sentencePractice", () => {
     revealed: false,
     lookups: 1,
     at: new Date(),
+    lapses: { MC: 2, MP: 0 },
     ...over,
   });
   const write = (d: Firestore, g: SentenceGrade) =>
@@ -801,9 +802,31 @@ describe("sentencePractice", () => {
 
   it("accepts the update of each tab, and a second grade of the same word", async () => {
     await assertSucceeds(write(db, grade()));
-    await assertSucceeds(write(db, grade({ tab: "compose", grade: "wrong" })));
+    await assertSucceeds(
+      write(db, grade({ tab: "compose", grade: "wrong", lapses: { PM: 0, CM: 1 } })),
+    );
     await assertSucceeds(write(db, grade({ sentenceId: "other" })));
     await assertSucceeds(getDoc(ref(db, path)));
+  });
+
+  it("accepts an entry with no lapse snapshot, as the app wrote before it", async () => {
+    const at = Timestamp.now();
+    await assertSucceeds(
+      setDoc(ref(db, path), {
+        comprehend: { lastPractised: at, lastResult: "right", seen: { s: at } },
+      }),
+    );
+  });
+
+  it("rejects a lapse snapshot with an unknown direction or a count that is not a whole number", async () => {
+    const at = Timestamp.now();
+    const entry = (lapses: unknown) => ({
+      comprehend: { lastPractised: at, lastResult: "right", seen: { s: at }, lapses },
+    });
+    await assertFails(setDoc(ref(db, path), entry({ PC: 1 })));
+    await assertFails(setDoc(ref(db, path), entry({ MC: 1.5 })));
+    await assertFails(setDoc(ref(db, path), entry({ MC: -1 })));
+    await assertFails(setDoc(ref(db, path), entry("none")));
   });
 
   it("rejects an unknown tab, an unknown result or an extra field", async () => {

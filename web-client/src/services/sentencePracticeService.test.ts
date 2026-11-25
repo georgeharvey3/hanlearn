@@ -48,6 +48,7 @@ const grade = (over: Partial<SentenceGrade> = {}): SentenceGrade => ({
   revealed: true,
   lookups: 2,
   at: NOW,
+  lapses: { MC: 1, MP: 0 },
   ...over,
 });
 
@@ -71,6 +72,7 @@ describe('saveGrade', () => {
         lastPractised: expect.objectContaining({ __ts: NOW.toISOString() }),
         lastResult: 'wrong',
         seen: { s1: expect.objectContaining({ __ts: NOW.toISOString() }) },
+        lapses: { MC: 1, MP: 0 },
       },
     });
 
@@ -102,6 +104,7 @@ describe('saveGrade', () => {
       wordId: 42,
       sentenceId: 's1',
       tab: 'compose',
+      lapses: { PM: 0, CM: 0 },
       grade: 'wrong',
       mode: 'text',
       gaveUp: false,
@@ -154,6 +157,7 @@ describe('saveGrade', () => {
       wordId: 42,
       sentenceId: 's1',
       tab: 'compose',
+      lapses: { PM: 0, CM: 0 },
       grade: 'right',
       mode: 'text',
       gaveUp: false,

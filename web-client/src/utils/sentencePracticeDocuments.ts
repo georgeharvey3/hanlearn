@@ -3,6 +3,7 @@
  * import so that the rules tests write the same shapes as the app.
  */
 import { dayKey } from './retention';
+import type { Direction } from '../types/models';
 import type { SentenceTab } from './sentenceSettings';
 import type { SentenceResult } from './sentenceQueue';
 
@@ -46,6 +47,8 @@ interface GradeBase {
   /** The lookups of the task: segments tapped (Comprehend), English words (Compose). */
   lookups: number;
   at: Date;
+  /** The lapse count of each trigger direction of the tab at the grade. */
+  lapses: Partial<Record<Direction, number>>;
 }
 
 /** The grade of a Compose task: right only when the first attempt matches. */
@@ -84,6 +87,7 @@ export function sentencePracticeUpdate<T>(grade: SentenceGrade, at: T) {
       lastPractised: at,
       lastResult: grade.grade,
       seen: { [grade.sentenceId]: at },
+      lapses: grade.lapses,
     },
   };
 }

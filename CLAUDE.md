@@ -132,7 +132,9 @@ users/{userId}/
                                     # as the day's last session left them (Dashboard progress chart)
   ├── sentencePractice/{wordId}  # Queue state of the Comprehend and Compose tabs (#489)
   │   └── comprehend?, compose?: { lastPractised: Timestamp,
-  │         lastResult: 'right' | 'wrong', seen: { [sentenceId]: Timestamp } }
+  │         lastResult: 'right' | 'wrong', seen: { [sentenceId]: Timestamp },
+  │         lapses?: { [direction]: number } }  # Lapse counts of the trigger directions
+  │                                # at the grade. A right word comes back only when one rises
   ├── sentenceLog/{autoId}       # One write-once entry per sentence grade (#489)
   │   ├── version: 2 (Comprehend): date, reviewedAt, wordId, sentenceId,
   │   │   tab: 'comprehend', grade, mode: 'audio' | 'text', answerMs, revealed, lookups

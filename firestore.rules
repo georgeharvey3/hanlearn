@@ -259,9 +259,20 @@ service cloud.firestore {
       // SentencePractice subcollection: the queue state of the Comprehend and
       // Compose tabs, one document per word (#489). It lives outside
       // userWords, so the scheduler's documents carry no sentence state.
+      // The lapse count of each trigger direction of the tab at the grade.
+      function validLapseSnapshot(l) {
+        return l is map
+          && l.keys().hasOnly(['MC', 'MP', 'PM', 'CM'])
+          && (!('MC' in l) || (l.MC is int && l.MC >= 0))
+          && (!('MP' in l) || (l.MP is int && l.MP >= 0))
+          && (!('PM' in l) || (l.PM is int && l.PM >= 0))
+          && (!('CM' in l) || (l.CM is int && l.CM >= 0));
+      }
+
       function validTabPractice(p) {
         return p is map
-          && p.keys().hasOnly(['lastPractised', 'lastResult', 'seen'])
+          && p.keys().hasOnly(['lastPractised', 'lastResult', 'seen', 'lapses'])
+          && (!('lapses' in p) || validLapseSnapshot(p.lapses))
           && p.keys().hasAll(['lastPractised', 'lastResult', 'seen'])
           && p.lastPractised is timestamp
           && p.lastResult in ['right', 'wrong']

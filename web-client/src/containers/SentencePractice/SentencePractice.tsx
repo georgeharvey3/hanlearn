@@ -25,7 +25,7 @@ import { QueueData, loadQueueData } from '../../services/sentenceTabsService';
 import { saveGrade } from '../../services/sentencePracticeService';
 import { reportError } from '../../services/errorReporting';
 import { refreshSentenceTabs } from '../../hooks/useSentenceTabs';
-import { SentenceTask, buildSet, recordPractice } from '../../utils/sentenceQueue';
+import { SentenceTask, buildSet, lapseSnapshot, recordPractice } from '../../utils/sentenceQueue';
 import { SentenceTab, readSetSize } from '../../utils/sentenceSettings';
 
 interface Props {
@@ -117,12 +117,14 @@ const SentencePractice: React.FC<Props> = ({ tab }) => {
     const task = set[position];
     if (!task || !userId || !data) return;
     const at = new Date();
+    const lapses = lapseSnapshot(task.word, tab);
     saveGrade(userId, {
       ...outcome,
       wordId: task.word.id,
       sentenceId: task.sentenceId,
       tab,
       at,
+      lapses,
     }).catch((error) => {
       reportError(error, { feature: 'sentence-save', context: { tab } });
       dispatch(wordActions.showNotification(copy.sentenceTabs.saveFailed, 'error'));
@@ -136,6 +138,7 @@ const SentencePractice: React.FC<Props> = ({ tab }) => {
         sentenceId: task.sentenceId,
         result: outcome.grade,
         at,
+        lapses,
       }),
     });
     setTally((prev) => ({ ...prev, [outcome.grade]: prev[outcome.grade] + 1 }));
