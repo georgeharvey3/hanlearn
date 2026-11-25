@@ -6,7 +6,7 @@
  * A sentence grade never changes the schedule of a word. It only orders the
  * queue of its tab. See docs/adr/0021-sentence-tasks-are-a-separate-practice.md.
  */
-import { DIRECTIONS, Word } from '../types/models';
+import { DIRECTIONS, Direction, Word } from '../types/models';
 import { readyForComprehend, readyForCompose } from './directions';
 import { parseDueDate } from './dueDate';
 import { SentenceTab } from './sentenceSettings';
@@ -22,6 +22,12 @@ export interface TabPractice {
    * queue reads only whether the other tab showed the sentence today (#581).
    */
   seen: Record<string, string>;
+  /**
+   * The lapse count of each trigger direction of the tab at the grade. A right
+   * word comes back only when one of these counts goes up. A document written
+   * before this field reads as 0 for each direction.
+   */
+  lapses?: Partial<Record<Direction, number>>;
 }
 
 export type WordPractice = Partial<Record<SentenceTab, TabPractice>>;
@@ -49,6 +55,34 @@ export interface SentenceTask {
  * tomorrow, so this rule also keeps today's misses out, with no rule of its own.
  */
 export const REVIEW_CLEARANCE_DAYS = 2;
+
+/**
+ * The directions whose lapse brings a right word back to a tab. Comprehend
+ * reads the meaning from the Chinese, so its trigger is a lapse of a direction
+ * that answers with the meaning. Compose writes the Chinese from the meaning,
+ * so its trigger is a lapse of a direction that asks for the Chinese.
+ */
+export const TRIGGER_DIRECTIONS: Record<SentenceTab, readonly Direction[]> = {
+  comprehend: ['MC', 'MP'],
+  compose: ['PM', 'CM'],
+};
+
+const lapsesOf = (word: Word, direction: Direction): number =>
+  word.directions?.[direction]?.lapses ?? 0;
+
+/** The lapse count of each trigger direction of the tab, for the snapshot of a grade. */
+export function lapseSnapshot(word: Word, tab: SentenceTab): Partial<Record<Direction, number>> {
+  return Object.fromEntries(
+    TRIGGER_DIRECTIONS[tab].map((direction) => [direction, lapsesOf(word, direction)]),
+  );
+}
+
+/** Whether a trigger direction of the tab lapsed after the grade of the entry. */
+function lapsedSince(word: Word, entry: TabPractice, tab: SentenceTab): boolean {
+  return TRIGGER_DIRECTIONS[tab].some(
+    (direction) => lapsesOf(word, direction) > (entry.lapses?.[direction] ?? 0),
+  );
+}
 
 const GATES: Record<SentenceTab, (word: Word) => boolean> = {
   comprehend: readyForComprehend,
@@ -114,10 +148,24 @@ function sharedAndShownToday(
   return seen !== undefined && new Date(seen) >= startOfLocalDay(now);
 }
 
+/**
+ * Whether a right grade keeps the word out of the tab: no trigger direction of
+ * the tab lapsed after it. The learner knows the sentence, so it comes back
+ * only when the word itself slips.
+ */
+function retired(practice: PracticeByWord, word: Word, tab: SentenceTab): boolean {
+  const entry = practiceOf(practice, word, tab);
+  return entry?.lastResult === 'right' && !lapsedSince(word, entry, tab);
+}
+
 const eligibleWords = ({ words, practice, index, tab, now }: QueueInput): Word[] =>
   gatedWords(words, tab, now).filter((word) => {
     const sentences = index[word.simp];
-    return sentences !== undefined && !sharedAndShownToday(practice, word, sentences, tab, now);
+    return (
+      sentences !== undefined &&
+      !retired(practice, word, tab) &&
+      !sharedAndShownToday(practice, word, sentences, tab, now)
+    );
   });
 
 /**
@@ -128,7 +176,8 @@ const eligibleWords = ({ words, practice, index, tab, now }: QueueInput): Word[]
  *    and a big import of new words does not push them back.
  * 2. No practice in this tab, the lowest level first: the words the learner
  *    learns now, before the ones they already know well.
- * 3. A right last grade, the oldest practice first, so good words rotate.
+ * 3. A right last grade whose word lapsed since, the oldest practice first. A
+ *    right word with no lapse since its grade never comes back.
  *
  * Each task shows the sentence of the pool of its tab (#581).
  */
@@ -177,6 +226,7 @@ export function recordPractice(
     sentenceId: string;
     result: SentenceResult;
     at: Date;
+    lapses: Partial<Record<Direction, number>>;
   },
 ): PracticeByWord {
   const key = String(grade.wordId);
@@ -190,6 +240,7 @@ export function recordPractice(
         lastPractised: when,
         lastResult: grade.result,
         seen: { ...before?.seen, [grade.sentenceId]: when },
+        lapses: grade.lapses,
       },
     },
   };

@@ -13,8 +13,14 @@ import * as ttsService from '../../services/ttsService';
 import { getSegmentedSentence } from '../../services/sentenceService';
 import { Word } from '../../types/models';
 
+/** `Omit` on each member of a union, so that each member keeps its own fields. */
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
 /** What a task reports when the learner grades it: the grade, less what the tab knows. */
-export type TaskOutcome = Omit<SentenceGrade, 'wordId' | 'sentenceId' | 'tab' | 'at'>;
+export type TaskOutcome = DistributiveOmit<
+  SentenceGrade,
+  'wordId' | 'sentenceId' | 'tab' | 'at' | 'lapses'
+>;
 
 export const SLOW_SPEED = 0.7;
 

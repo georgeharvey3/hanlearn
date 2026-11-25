@@ -1,6 +1,8 @@
 import React, { KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
-import { Box, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Box, Theme, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
+import { SystemStyleObject } from '@mui/system';
 
 import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
@@ -20,19 +22,26 @@ import { Word } from '../../types/models';
 import { getSegmentedSentence } from '../../services/sentenceService';
 import { reportError } from '../../services/errorReporting';
 import * as ttsService from '../../services/ttsService';
-import { toneMarks } from '../../utils/pinyinMarks';
+import { sentencePinyin, toneMarks } from '../../utils/pinyinMarks';
 import { parseMeanings } from '../../utils/meaningUtils';
 import {
   SentenceWord,
   matchEnglishToSentenceWords,
   resolveSentence,
 } from '../../utils/sentenceUtils';
-import { SentenceResult } from '../../utils/sentenceQueue';
-import { ComposeInput } from '../../utils/sentencePracticeDocuments';
-import { gradeTiles, shuffleTiles } from '../../utils/tiles';
+import { ComposeAttempt, ComposeInput } from '../../utils/sentencePracticeDocuments';
+import { AttemptMark, checkAttempt } from '../../utils/answerCompare';
+import {
+  dropSlot,
+  insertAtSlot,
+  insideBox,
+  moveToSlot,
+  shuffleTiles,
+  slotKeepsOrder,
+  slotLine,
+} from '../../utils/tiles';
 import { toCharSet } from '../../utils/charSet';
 import {
-  GradeButtons,
   TaskLoadError,
   TaskLoading,
   TaskOutcome,
@@ -55,11 +64,9 @@ const connector = connect(mapStateToProps);
 interface OwnProps {
   word: Word;
   sentenceId: string;
-  /** Save a self-grade and go to the next task. */
-  onGrade: (outcome: TaskOutcome) => void;
-  /** Save the grade of a tile answer at its check, and stay on the task. */
+  /** Save the grade at the reveal, and stay on the task. */
   onCheck: (outcome: TaskOutcome) => void;
-  /** Go to the next task after a tile answer. */
+  /** Go to the next task after the reveal. */
   onNext: () => void;
   /** Leave the word out of the set, when its sentence does not load. */
   onSkip: () => void;
@@ -77,6 +84,8 @@ interface Loaded {
   words: SentenceWord[];
   /** The tiles in screen order, or null for a sentence with no tile mode. */
   tiles: string[] | null;
+  /** The segments in order, for the pinyin over each word after a match. */
+  segments: { text: string; pinyin: string; isTarget: boolean }[];
 }
 
 const switchSx = {
@@ -90,7 +99,19 @@ const switchSx = {
   '&.Mui-selected, &.Mui-selected:hover': { bgcolor: colors.primaryDark, color: colors.white },
 } as const;
 
-const tileRowSx = { display: 'flex', flexWrap: 'wrap', gap: 0.75 } as const;
+/**
+ * Where a dragged tile comes from: `placed` (`at` is its position in the
+ * answer) or `left` (`at` is its index in the tiles).
+ */
+type TileSource = 'placed' | 'left';
+
+/** The distance in pixels around the answer row that still drops into it. */
+const DROP_MARGIN = 24;
+
+/** The space in pixels between two tiles. */
+const TILE_GAP = 6;
+
+const tileRowSx = { display: 'flex', flexWrap: 'wrap', gap: `${TILE_GAP}px` } as const;
 
 /** One tile: a character on a key, large enough to tap. */
 const tileSx = {
@@ -107,24 +128,61 @@ const tileSx = {
   cursor: 'pointer',
 } as const;
 
+/** The look of each mark: a colour, and a shape that does not need the colour. */
+const markSx: Record<Exclude<AttemptMark['kind'], 'gap'>, SystemStyleObject<Theme>> = {
+  placed: { bgcolor: colors.successSurface, color: colors.success },
+  misplaced: {
+    bgcolor: colors.warningSurface,
+    color: colors.warningText,
+    borderBottom: `2px dashed ${colors.warningText}`,
+  },
+  extra: { bgcolor: colors.errorSurface, color: colors.error, textDecoration: 'line-through' },
+};
+
+const markBoxSx = {
+  minWidth: 32,
+  height: 40,
+  boxSizing: 'border-box',
+  px: 0.5,
+  borderRadius: '3px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  ...hanziSx(26, { lineHeight: 1 }),
+} as const;
+
+const gapSx = {
+  ...markBoxSx,
+  border: `2px dashed ${colors.borderStrong}`,
+} as const;
+
+/** The distance in pixels that a pointer moves before a press becomes a drag. */
+const DRAG_START = 6;
+
+/** A Han character. A constructor: the compile target does not allow the `u` flag in a literal. */
+const HAN = new RegExp('\\p{Script=Han}', 'u');
+
 /** Strip the punctuation at each end of an English word, to match it. */
 const stripPunctuation = (text: string): string =>
   text.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '');
 
 /**
  * One Compose task: the learner says or types a Chinese sentence for an
- * English prompt, reveals the reference sentence, and grades their answer
- * (#489). No model scores the answer, so the task works offline.
+ * English prompt (#489), and the app compares each attempt with the
+ * reference sentence (#597). A wrong attempt stays in the input, and its
+ * marks show above it. The task ends at a match, or when the learner gives
+ * up after the first attempt. Only a first-attempt match is right. No model
+ * scores the answer, so the task works offline.
  *
- * An answer is necessary before the reveal, so each task is a real attempt.
  * With sound on, the mic and the keyboard both take the answer, and the
  * reference plays from a button after the reveal. It does not play by
  * itself, so the learner reads it first (#564).
  *
- * In tile mode the learner builds the sentence from the tiles of the build,
- * and the check grades it: right only for an exact match (#386). Tile mode
- * gives no help, so the English words open nothing, and the check is the
- * only way out: with no tile placed, it grades the task wrong.
+ * In tile mode the learner builds the sentence from the tiles of the build
+ * (#386), and the attempts work in the same way: the placed tiles stay after
+ * a wrong check. Tile mode gives no help, so the English words open nothing.
+ * A check with no tile placed is an attempt too, so a stuck learner can give up.
+ * The input switch hides after the first attempt, so one task has one input.
  */
 const ComposeTask: React.FC<Props> = ({
   synthAvailable,
@@ -133,7 +191,6 @@ const ComposeTask: React.FC<Props> = ({
   lang,
   word,
   sentenceId,
-  onGrade,
   onCheck,
   onNext,
   onSkip,
@@ -148,8 +205,38 @@ const ComposeTask: React.FC<Props> = ({
   const [input, setInput] = useState<ComposeInput>(readComposeInput);
   /** The placed tiles, as indices into the tiles, in answer order. */
   const [placed, setPlaced] = useState<number[]>([]);
-  /** The grade of a checked tile answer. */
-  const [tileGrade, setTileGrade] = useState<SentenceResult | null>(null);
+  /** The marks of the latest wrong attempt, or null before the first check. */
+  const [marks, setMarks] = useState<AttemptMark[] | null>(null);
+  const [checking, setChecking] = useState(false);
+  /** The last attempt, which the reveal shows. */
+  const [lastAttempt, setLastAttempt] = useState('');
+  /** The attempt that matched, or null before a match and after Give up. */
+  const [matchedOn, setMatchedOn] = useState<number | null>(null);
+  /** The placed tile that the learner drags, with its offset and its drop slot. */
+  const [drag, setDrag] = useState<{
+    source: TileSource;
+    at: number;
+    dx: number;
+    dy: number;
+    /** The drop line, in the answer row, or null where the order stays. */
+    line: { left: number; top: number; height: number } | null;
+  } | null>(null);
+  /** The answer row, for the boxes of its tiles at the start of a drag. */
+  const answerRow = useRef<HTMLDivElement | null>(null);
+  /** The press on a placed tile: a drag after DRAG_START pixels, else a tap. */
+  const press = useRef<{
+    source: TileSource;
+    at: number;
+    x: number;
+    y: number;
+    /** The boxes of the placed tiles and of the answer row, from the start of the drag. */
+    boxes: DOMRect[] | null;
+    row: DOMRect | null;
+    /** The drop slot in the answer, or null outside the answer row. */
+    slot: number | null;
+  } | null>(null);
+  /** True after a drag ends, so the click that follows does not move the tile. */
+  const dragEnded = useRef(false);
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState('');
   const [synthLoading, setSynthLoading] = useState(false);
@@ -161,8 +248,10 @@ const ComposeTask: React.FC<Props> = ({
   const skip = useRef(onSkip);
   skip.current = onSkip;
   const lookups = useRef(0);
+  /** The lookups when the previous attempt was checked. */
+  const lookupsAtCheck = useRef(0);
+  const attempts = useRef<ComposeAttempt[]>([]);
   const shownAt = useRef(0);
-  const revealedAt = useRef(0);
 
   const fetchSentence = useCallback(async () => {
     setLoad('loading');
@@ -184,6 +273,12 @@ const ComposeTask: React.FC<Props> = ({
         // A new order on each visit. The build writes no tiles for a sentence
         // with more than 20 characters.
         tiles: tiles ? shuffleTiles(tiles) : null,
+        segments: found.chinese.segments.map((segment, i) => ({
+          text: charSet === 'trad' ? segment.t : segment.s,
+          // A name or a number has no entry, so its pinyin comes from its text.
+          pinyin: segment.p || (HAN.test(segment.s) ? sentencePinyin(segment.s) : ''),
+          isTarget: i === found.chinese.targetIndex,
+        })),
       });
       setLoad('ready');
       shownAt.current = Date.now();
@@ -258,51 +353,51 @@ const ComposeTask: React.FC<Props> = ({
     writeComposeInput(next);
   };
 
-  const onCheckTiles = () => {
-    if (!sentence || !tiles) return;
+  /** End the task: save the grade, and show the reference sentence. */
+  const finish = (gaveUp: boolean) => {
     recognition.current?.abort();
-    revealedAt.current = Date.now();
-    const result = gradeTiles(tileAnswer, sentence.chinese);
-    setTileGrade(result);
+    pendingSpeech.current = null;
+    const list = attempts.current;
+    setLastAttempt(list[list.length - 1]?.answer ?? '');
+    setMatchedOn(gaveUp ? null : list.length);
     setRevealed(true);
     setMessage('');
     onCheck({
-      grade: result,
+      grade: !gaveUp && list.length === 1 ? 'right' : 'wrong',
       mode: useSound ? 'audio' : 'text',
-      revealed: false,
+      gaveUp,
       lookups: lookups.current,
-      answerMs: revealedAt.current - shownAt.current,
-      input: 'tiles',
-      answer: tileAnswer,
-      tiles,
+      attempts: list,
+      ...(tileMode && tiles ? { input: 'tiles' as const, tiles } : {}),
     });
   };
 
-  const onReveal = () => {
-    if (entered.trim() === '' || !sentence) return;
+  const onCheckAnswer = async () => {
+    if ((!tileMode && entered.trim() === '') || !sentence || checking) return;
     recognition.current?.abort();
     pendingSpeech.current = null;
-    revealedAt.current = Date.now();
-    setRevealed(true);
+    const answer = tileMode ? tileAnswer : entered;
+    attempts.current = [
+      ...attempts.current,
+      {
+        answer,
+        answerMs: Date.now() - shownAt.current,
+        lookups: lookups.current - lookupsAtCheck.current,
+      },
+    ];
+    lookupsAtCheck.current = lookups.current;
+    setChecking(true);
+    // The first compare loads the converter of the traditional set.
+    const check = await checkAttempt(answer, sentence.chinese, charSet);
+    if (!mounted.current) return;
+    setChecking(false);
     setMessage('');
+    if (check.match) finish(false);
+    else setMarks(check.marks);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') onReveal();
-  };
-
-  const grade = (result: SentenceResult) => {
-    ttsService.stopAll();
-    onGrade({
-      grade: result,
-      mode: useSound ? 'audio' : 'text',
-      // The task shows no Chinese before the reveal.
-      revealed: false,
-      lookups: lookups.current,
-      answerMs: revealedAt.current - shownAt.current,
-      input: 'free',
-      answer: entered,
-    });
+    if (event.key === 'Enter') onCheckAnswer();
   };
 
   const target = word[charSet];
@@ -345,7 +440,21 @@ const ComposeTask: React.FC<Props> = ({
     minHeight: 48,
   };
 
-  if (revealed) {
+  const reportButton = (
+    <ReportSentenceButton
+      key={`${word.id}-${sentence.id}`}
+      report={{
+        sentenceId: sentence.id,
+        word: word.simp,
+        stage: 'write',
+        sentence: sentence.chinese,
+        english: sentence.english,
+      }}
+    />
+  );
+
+  // After Give up: the last attempt, then the reference.
+  if (revealed && matchedOn === null) {
     return (
       <>
         <StudyBody>
@@ -366,7 +475,7 @@ const ComposeTask: React.FC<Props> = ({
           </Box>
           <Overline sx={{ mt: 2.75, mb: 0.75 }}>{copy.sentence.yourAnswer}</Overline>
           <Box lang="zh" sx={answerBox}>
-            {withTarget(tileGrade === null ? entered : tileAnswer)}
+            {withTarget(lastAttempt)}
           </Box>
           <Overline sx={{ mt: 2, mb: 0.75 }}>{copy.sentence.original}</Overline>
           <Box sx={{ ...answerBox, display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
@@ -397,36 +506,19 @@ const ComposeTask: React.FC<Props> = ({
               />
             )}
           </Box>
-          <ReportSentenceButton
-            key={`${word.id}-${sentence.id}`}
-            report={{
-              sentenceId: sentence.id,
-              word: word.simp,
-              stage: 'write',
-              sentence: sentence.chinese,
-              english: sentence.english,
-            }}
-          />
-          {tileGrade !== null && (
-            <StatusLine
-              tone={tileGrade === 'right' ? 'success' : 'error'}
-              icon={tileGrade === 'right' ? 'check' : undefined}
-            >
-              {copy.sentenceTabs[tileGrade]}
-            </StatusLine>
-          )}
+          {reportButton}
         </StudyBody>
-        {tileGrade === null ? (
-          <GradeButtons onGrade={grade} />
-        ) : (
-          <StudyButton variant="primary" onClick={onNext}>
-            {copy.test.continue}
-          </StudyButton>
-        )}
+        <StudyButton variant="primary" onClick={onNext}>
+          {copy.sentence.next}
+        </StudyButton>
       </>
     );
   }
 
+  // After a match the screen keeps its layout: the answer turns green, with
+  // the pinyin over each word, and the English opens nothing.
+  const matched = matchedOn !== null;
+  const plainEnglish = tileMode || matched;
   const englishWords = sentence.english.split(/\s+/);
   const selectedText = Array.from(selected)
     .sort((a, b) => a - b)
@@ -435,13 +527,144 @@ const ComposeTask: React.FC<Props> = ({
     .join(' ');
   const hints = selected.size > 0 ? matchEnglishToSentenceWords(selectedText, sentence.words) : [];
 
+  /**
+   * The pointer handlers of a tile. A tap calls `onTap`. A press that moves
+   * DRAG_START pixels drags the tile, and a drop in the answer row puts it in
+   * the slot under the pointer: a placed tile moves, and a tile left goes in.
+   */
+  const dragHandlers = (source: TileSource, at: number, onTap: () => void) => ({
+    onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
+      if (e.button !== 0) return;
+      dragEnded.current = false;
+      // Optional: jsdom has no pointer capture.
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      press.current = {
+        source,
+        at,
+        x: e.clientX,
+        y: e.clientY,
+        boxes: null,
+        row: null,
+        slot: null,
+      };
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLButtonElement>) => {
+      const p = press.current;
+      const row = answerRow.current;
+      if (!p || !row) return;
+      const dx = e.clientX - p.x;
+      const dy = e.clientY - p.y;
+      if (!p.boxes || !p.row) {
+        if (Math.hypot(dx, dy) < DRAG_START) return;
+        // The boxes stay fixed for the drag: only a transform moves the tile.
+        p.boxes = Array.from(row.querySelectorAll(':scope > button')).map((c) =>
+          c.getBoundingClientRect(),
+        );
+        p.row = row.getBoundingClientRect();
+      }
+      p.slot = insideBox(p.row, e.clientX, e.clientY, DROP_MARGIN)
+        ? dropSlot(p.boxes, e.clientX, e.clientY)
+        : null;
+      const origin = p.row;
+      let found: { x: number; top: number; bottom: number } | null = null;
+      if (p.slot !== null && !(source === 'placed' && slotKeepsOrder(at, p.slot))) {
+        // An empty answer row has no tile to stand beside: the line goes at its start.
+        const inner = origin.left + row.clientLeft + TILE_GAP;
+        const top = origin.top + row.clientTop + TILE_GAP;
+        found = slotLine(p.boxes, p.slot, e.clientY, TILE_GAP) ?? {
+          x: inner,
+          top,
+          bottom: top + tileSx.height,
+        };
+      }
+      const line = found
+        ? {
+            left: found.x - origin.left - row.clientLeft - 1,
+            top: found.top - origin.top - row.clientTop,
+            height: found.bottom - found.top,
+          }
+        : null;
+      setDrag({ source, at, dx, dy, line });
+    },
+    onPointerUp: () => {
+      const p = press.current;
+      press.current = null;
+      if (!p?.boxes) return;
+      dragEnded.current = true;
+      setDrag(null);
+      const { slot } = p;
+      if (slot === null) return;
+      setPlaced((prev) =>
+        source === 'placed' ? moveToSlot(prev, at, slot) : insertAtSlot(prev, slot, at),
+      );
+    },
+    onPointerCancel: () => {
+      press.current = null;
+      setDrag(null);
+    },
+    onClick: () => {
+      if (dragEnded.current) {
+        dragEnded.current = false;
+        return;
+      }
+      onTap();
+    },
+  });
+
+  /** The look of a tile, which follows the pointer while it is dragged. */
+  const dragSx = (dragged: boolean) => ({
+    ...tileSx,
+    // The browser must not scroll the page under a drag.
+    touchAction: 'none',
+    userSelect: 'none',
+    ...(dragged &&
+      drag && {
+        position: 'relative',
+        zIndex: 1,
+        cursor: 'grabbing',
+        transform: `translate(${drag.dx}px, ${drag.dy}px)`,
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+      }),
+  });
+
+  // The marks of the latest wrong attempt, above the input or the placed tiles.
+  const marksView = marks && (
+    <>
+      <Overline component="span" sx={{ mt: 2.5 }}>
+        {copy.sentence.lastAttempt}
+      </Overline>
+      <Box
+        role="group"
+        aria-label={copy.sentence.lastAttempt}
+        lang="zh"
+        sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}
+      >
+        {marks.map((mark, i) =>
+          mark.kind === 'gap' ? (
+            <Box key={i} component="span" role="img" aria-label={copy.sentence.gap} sx={gapSx} />
+          ) : (
+            <Box
+              key={i}
+              component="span"
+              role="img"
+              aria-label={copy.sentence[mark.kind](mark.char)}
+              sx={{ ...markBoxSx, ...markSx[mark.kind] }}
+            >
+              {mark.char}
+            </Box>
+          ),
+        )}
+      </Box>
+    </>
+  );
+
   return (
     <>
       <StudyBody>
         <StudyCard height={240} sx={{ mt: 3, px: 2.75, pt: 3.5, pb: 2.75, gap: 2.25 }}>
           <Box component="p" sx={{ m: 0, fontSize: 24, lineHeight: 1.6 }}>
-            {tileMode && sentence.english}
-            {!tileMode &&
+            {plainEnglish && sentence.english}
+            {!plainEnglish &&
               englishWords.map((english, index) => {
                 const on = selected.has(index);
                 return (
@@ -470,7 +693,7 @@ const ComposeTask: React.FC<Props> = ({
                 );
               })}
           </Box>
-          {!tileMode && selected.size > 0 && (
+          {!plainEnglish && selected.size > 0 && (
             <Box
               sx={{
                 alignSelf: 'stretch',
@@ -531,7 +754,7 @@ const ComposeTask: React.FC<Props> = ({
             </Box>
           </Box>
         </StudyCard>
-        {tiles && (
+        {tiles && !marks && !matched && (
           <ToggleButtonGroup
             exclusive
             value={input}
@@ -546,13 +769,16 @@ const ComposeTask: React.FC<Props> = ({
             ))}
           </ToggleButtonGroup>
         )}
-        {tileMode && (
+        {!matched && tileMode && (
           <>
+            {marksView}
             <Overline sx={{ mt: 2.5 }}>{copy.sentence.yourAnswer}</Overline>
             <Box
+              ref={answerRow}
               lang="zh"
               sx={{
                 ...tileRowSx,
+                position: 'relative',
                 mt: 1,
                 minHeight: 60,
                 boxSizing: 'border-box',
@@ -562,18 +788,38 @@ const ComposeTask: React.FC<Props> = ({
                 bgcolor: colors.card,
               }}
             >
-              {placed.map((index, at) => (
+              {placed.map((index, at) => {
+                const dragged = drag?.source === 'placed' && drag.at === at;
+                return (
+                  <Box
+                    key={index}
+                    component="button"
+                    type="button"
+                    aria-label={copy.sentence.removeTile(tiles[index])}
+                    {...dragHandlers('placed', at, () =>
+                      setPlaced((prev) => prev.filter((_, i) => i !== at)),
+                    )}
+                    sx={dragSx(dragged)}
+                  >
+                    {tiles[index]}
+                  </Box>
+                );
+              })}
+              {drag?.line && (
                 <Box
-                  key={index}
-                  component="button"
-                  type="button"
-                  aria-label={copy.sentence.removeTile(tiles[index])}
-                  onClick={() => setPlaced((prev) => prev.filter((_, i) => i !== at))}
-                  sx={tileSx}
-                >
-                  {tiles[index]}
-                </Box>
-              ))}
+                  aria-hidden
+                  sx={{
+                    position: 'absolute',
+                    left: drag.line.left,
+                    top: drag.line.top,
+                    width: 2,
+                    height: drag.line.height,
+                    borderRadius: 1,
+                    bgcolor: colors.placeholder,
+                    pointerEvents: 'none',
+                  }}
+                />
+              )}
             </Box>
             <Box
               role="group"
@@ -587,8 +833,8 @@ const ComposeTask: React.FC<Props> = ({
                     key={index}
                     component="button"
                     type="button"
-                    onClick={() => setPlaced((prev) => [...prev, index])}
-                    sx={tileSx}
+                    {...dragHandlers('left', index, () => setPlaced((prev) => [...prev, index]))}
+                    sx={dragSx(drag?.source === 'left' && drag.at === index)}
                   >
                     {tile}
                   </Box>
@@ -597,7 +843,7 @@ const ComposeTask: React.FC<Props> = ({
             </Box>
           </>
         )}
-        {!tileMode && useSound && speechAvailable && (
+        {!matched && !tileMode && useSound && speechAvailable && (
           <MicButton
             listening={listening}
             onClick={() => (listening ? recognition.current?.abort() : onListen())}
@@ -612,12 +858,13 @@ const ComposeTask: React.FC<Props> = ({
             {message}
           </StatusLine>
         )}
-        {!tileMode && (
+        {!matched && !tileMode && marksView}
+        {!matched && !tileMode && (
           <Overline component="label" htmlFor="answerInput" sx={{ mt: 2.5 }}>
             {copy.sentence.yourAnswer}
           </Overline>
         )}
-        {!tileMode && (
+        {!matched && !tileMode && (
           <Box
             component="input"
             id="answerInput"
@@ -648,15 +895,116 @@ const ComposeTask: React.FC<Props> = ({
             }}
           />
         )}
+        {matched && (
+          <>
+            <Overline sx={{ mt: 2.5 }}>{copy.sentence.yourAnswer}</Overline>
+            <Box
+              sx={{
+                mt: 1,
+                px: 1.75,
+                pt: 1.5,
+                pb: 1.25,
+                border: `1px solid ${colors.borderStrong}`,
+                borderRadius: 1,
+                bgcolor: colors.card,
+              }}
+            >
+              <Box
+                lang="zh"
+                sx={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  justifyContent: 'center',
+                  alignItems: 'flex-end',
+                  columnGap: 0.75,
+                  rowGap: 1,
+                }}
+              >
+                {sentence.segments.map((segment, i) => (
+                  <Box
+                    key={i}
+                    sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+                  >
+                    <Box
+                      lang="zh-Latn"
+                      sx={{
+                        minHeight: 18,
+                        fontFamily: fonts.body,
+                        fontSize: 13,
+                        color: colors.textSecondary,
+                      }}
+                    >
+                      {segment.pinyin}
+                    </Box>
+                    <Box
+                      sx={hanziSx(28, {
+                        lineHeight: 1.2,
+                        color: segment.isTarget ? colors.primaryDark : colors.text,
+                      })}
+                    >
+                      {segment.text}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+              <Box
+                sx={{
+                  mt: 1.25,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  minHeight: 40,
+                }}
+              >
+                <Box
+                  role="status"
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.75,
+                    color: colors.success,
+                    fontSize: 15,
+                    fontWeight: 600,
+                  }}
+                >
+                  <CheckRoundedIcon sx={{ fontSize: 18 }} />
+                  {matchedOn === 1 ? copy.sentenceTabs.right : copy.sentence.rightOn(matchedOn)}
+                </Box>
+                {useSound && (
+                  <PlayButton
+                    size={40}
+                    loading={synthLoading}
+                    onClick={() =>
+                      speak(sentence.chinese, { slow: false, voice, lang }, setSynthLoading)
+                    }
+                    label={copy.sentence.playSentence}
+                  />
+                )}
+              </Box>
+            </Box>
+            {reportButton}
+          </>
+        )}
       </StudyBody>
-      {tileMode ? (
-        <StudyButton variant="primary" onClick={onCheckTiles}>
-          {copy.test.check}
+      {matched ? (
+        <StudyButton variant="primary" onClick={onNext}>
+          {copy.sentence.next}
         </StudyButton>
       ) : (
-        <StudyButton variant="primary" disabled={entered.trim() === ''} onClick={onReveal}>
-          {copy.test.check}
-        </StudyButton>
+        <Box sx={{ display: 'flex', gap: 1.25 }}>
+          {marks && (
+            <StudyButton onClick={() => finish(true)} disabled={checking}>
+              {copy.sentence.giveUp}
+            </StudyButton>
+          )}
+          <StudyButton
+            variant="primary"
+            disabled={(!tileMode && entered.trim() === '') || checking}
+            onClick={onCheckAnswer}
+          >
+            {copy.test.check}
+          </StudyButton>
+        </Box>
       )}
     </>
   );

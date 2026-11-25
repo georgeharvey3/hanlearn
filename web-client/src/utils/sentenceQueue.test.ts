@@ -8,6 +8,7 @@ import {
   buildSet,
   gatedWords,
   hasNeverPractised,
+  lapseSnapshot,
   recordPractice,
 } from './sentenceQueue';
 
@@ -50,6 +51,15 @@ const word = (
 
 /** The index entry of a word whose two tabs share one sentence. */
 const both = (id: string) => ({ comprehend: id, compose: id });
+
+/** The word with these lapse counts on its directions. */
+const withLapses = (w: Word, lapses: Partial<Record<Direction, number>>): Word => {
+  const directions = { ...w.directions! };
+  for (const [direction, count] of Object.entries(lapses) as [Direction, number][]) {
+    directions[direction] = { ...directions[direction], lapses: count };
+  }
+  return { ...w, directions };
+};
 
 const at = (days: number, hour = 9): string => new Date(2026, 10, 4 + days, hour).toISOString();
 
@@ -98,8 +108,8 @@ describe('the words a tab may use', () => {
 });
 
 describe('the order of a set', () => {
-  it('puts a wrong last grade first, then never practised, then a right last grade', () => {
-    const right = word('学', 3);
+  it('puts a wrong last grade first, then never practised, then a right last grade that lapsed since', () => {
+    const right = withLapses(word('学', 3), { MC: 1 });
     const fresh = word('书', 3);
     const wrong = word('吃', 3);
     const practice: PracticeByWord = {
@@ -119,7 +129,7 @@ describe('the order of a set', () => {
   });
 
   it('takes the oldest practice first among the wrong and among the right', () => {
-    const words = ['一', '二', '三', '四'].map((simp) => word(simp, 3));
+    const words = ['一', '二', '三', '四'].map((simp) => withLapses(word(simp, 3), { MP: 1 }));
     const entry = (days: number, lastResult: 'right' | 'wrong') => ({
       comprehend: { lastPractised: at(days), lastResult, seen: {} },
     });
@@ -248,7 +258,7 @@ describe('the sentence of a task', () => {
   it('gives each tab the sentence id of its pool, whatever the tabs saw before', () => {
     const practice: PracticeByWord = {
       [study.id]: {
-        comprehend: { lastPractised: at(-1), lastResult: 'right', seen: { read: at(-1) } },
+        comprehend: { lastPractised: at(-1), lastResult: 'wrong', seen: { read: at(-1) } },
       },
     };
     const sentenceOf = (tab: 'comprehend' | 'compose') =>
@@ -264,7 +274,7 @@ describe('a word that the other tab showed today', () => {
   const shared = { 学: both('only') };
 
   const seenToday = (study: Word, tab: 'comprehend' | 'compose', id = 'only'): PracticeByWord => ({
-    [study.id]: { [tab]: { lastPractised: at(0), lastResult: 'right', seen: { [id]: at(0) } } },
+    [study.id]: { [tab]: { lastPractised: at(0), lastResult: 'wrong', seen: { [id]: at(0) } } },
   });
 
   it('waits until tomorrow when the two tabs share the sentence that the other tab showed today', () => {
@@ -384,15 +394,82 @@ describe('recording a grade', () => {
       sentenceId: 'b',
       result: 'wrong',
       at: NOW,
+      lapses: { MC: 2, MP: 0 },
     });
 
     expect(after['7'].comprehend).toEqual({
       lastPractised: NOW.toISOString(),
       lastResult: 'wrong',
       seen: { a: at(-3), b: NOW.toISOString() },
+      lapses: { MC: 2, MP: 0 },
     });
     expect(after['7'].compose).toBe(before['7'].compose);
     // The state before is left as it was.
     expect(before['7'].comprehend?.lastResult).toBe('right');
+  });
+});
+
+describe('a word graded right', () => {
+  const index = { 学: both('a') };
+  const right = (lapses?: Partial<Record<Direction, number>>) => ({
+    lastPractised: at(-5),
+    lastResult: 'right' as const,
+    seen: { a: at(-5) },
+    ...(lapses ? { lapses } : {}),
+  });
+  const setOf = (w: Word, practice: PracticeByWord, tab: 'comprehend' | 'compose') =>
+    buildSet({ words: [w], practice, index, tab, size: 5, now: NOW });
+
+  it('never comes back while no trigger direction lapses', () => {
+    const w = withLapses(word('学', 3), { MC: 1, PM: 2 });
+    const practice: PracticeByWord = {
+      [w.id]: { comprehend: right({ MC: 1, MP: 0 }), compose: right({ PM: 2, CM: 0 }) },
+    };
+
+    expect(setOf(w, practice, 'comprehend')).toEqual([]);
+    expect(setOf(w, practice, 'compose')).toEqual([]);
+  });
+
+  it('comes back to Comprehend after an MC or MP lapse, and not after a PM or CM lapse', () => {
+    const w = word('学', 3);
+    const practice: PracticeByWord = { [w.id]: { comprehend: right({ MC: 0, MP: 0 }) } };
+
+    expect(setOf(withLapses(w, { MP: 1 }), practice, 'comprehend')).toHaveLength(1);
+    expect(setOf(withLapses(w, { MC: 1 }), practice, 'comprehend')).toHaveLength(1);
+    expect(setOf(withLapses(w, { PM: 1, CM: 1, PC: 1 }), practice, 'comprehend')).toEqual([]);
+  });
+
+  it('comes back to Compose after a PM or CM lapse, and not after an MC or MP lapse', () => {
+    const w = word('学', 3);
+    const practice: PracticeByWord = { [w.id]: { compose: right({ PM: 0, CM: 0 }) } };
+
+    expect(setOf(withLapses(w, { PM: 1 }), practice, 'compose')).toHaveLength(1);
+    expect(setOf(withLapses(w, { CM: 1 }), practice, 'compose')).toHaveLength(1);
+    expect(setOf(withLapses(w, { MC: 1, MP: 1, PC: 1 }), practice, 'compose')).toEqual([]);
+  });
+
+  it('reads a grade with no snapshot as 0 lapses', () => {
+    const w = word('学', 3);
+    const practice: PracticeByWord = { [w.id]: { comprehend: right() } };
+
+    expect(setOf(w, practice, 'comprehend')).toEqual([]);
+    expect(setOf(withLapses(w, { MC: 1 }), practice, 'comprehend')).toHaveLength(1);
+  });
+
+  it('makes the tab neither ready nor fresh when it is the only word', () => {
+    const w = word('学', 3);
+    const practice: PracticeByWord = { [w.id]: { comprehend: right({ MC: 0, MP: 0 }) } };
+
+    expect(setOf(w, practice, 'comprehend')).toEqual([]);
+    expect(hasNeverPractised({ words: [w], practice, index, tab: 'comprehend', now: NOW })).toBe(
+      false,
+    );
+  });
+
+  it('snapshots the lapse counts of the trigger directions of the tab', () => {
+    const w = withLapses(word('学', 3), { MC: 3, PC: 4, CM: 1 });
+
+    expect(lapseSnapshot(w, 'comprehend')).toEqual({ MC: 3, MP: 0 });
+    expect(lapseSnapshot(w, 'compose')).toEqual({ PM: 0, CM: 1 });
   });
 });

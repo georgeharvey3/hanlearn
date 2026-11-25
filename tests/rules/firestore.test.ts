@@ -27,6 +27,8 @@ import {
   partReportId,
 } from "../../web-client/src/utils/partReports";
 import {
+  AnswerGrade,
+  AttemptsGrade,
   SentenceGrade,
   sentenceLogDocument,
   sentencePracticeUpdate,
@@ -790,6 +792,7 @@ describe("sentencePractice", () => {
     revealed: false,
     lookups: 1,
     at: new Date(),
+    lapses: { MC: 2, MP: 0 },
     ...over,
   });
   const write = (d: Firestore, g: SentenceGrade) =>
@@ -799,9 +802,31 @@ describe("sentencePractice", () => {
 
   it("accepts the update of each tab, and a second grade of the same word", async () => {
     await assertSucceeds(write(db, grade()));
-    await assertSucceeds(write(db, grade({ tab: "compose", grade: "wrong" })));
+    await assertSucceeds(
+      write(db, grade({ tab: "compose", grade: "wrong", lapses: { PM: 0, CM: 1 } })),
+    );
     await assertSucceeds(write(db, grade({ sentenceId: "other" })));
     await assertSucceeds(getDoc(ref(db, path)));
+  });
+
+  it("accepts an entry with no lapse snapshot, as the app wrote before it", async () => {
+    const at = Timestamp.now();
+    await assertSucceeds(
+      setDoc(ref(db, path), {
+        comprehend: { lastPractised: at, lastResult: "right", seen: { s: at } },
+      }),
+    );
+  });
+
+  it("rejects a lapse snapshot with an unknown direction or a count that is not a whole number", async () => {
+    const at = Timestamp.now();
+    const entry = (lapses: unknown) => ({
+      comprehend: { lastPractised: at, lastResult: "right", seen: { s: at }, lapses },
+    });
+    await assertFails(setDoc(ref(db, path), entry({ PC: 1 })));
+    await assertFails(setDoc(ref(db, path), entry({ MC: 1.5 })));
+    await assertFails(setDoc(ref(db, path), entry({ MC: -1 })));
+    await assertFails(setDoc(ref(db, path), entry("none")));
   });
 
   it("rejects an unknown tab, an unknown result or an extra field", async () => {
@@ -830,7 +855,7 @@ describe("sentencePractice", () => {
 
 describe("sentenceLog", () => {
   const path = "users/user-1/sentenceLog/log-1";
-  const entry = (over: Partial<SentenceGrade> = {}) =>
+  const entry = (over: Partial<AnswerGrade> = {}) =>
     sentenceLogDocument(
       {
         wordId: 42,
@@ -847,46 +872,143 @@ describe("sentenceLog", () => {
       Timestamp.now(),
     );
 
-  it("accepts the entry of a Comprehend grade and of a Compose grade", async () => {
+  /** The version 3 entry of a free Compose answer (#597). */
+  const attemptsEntry = (over: Partial<AttemptsGrade> = {}) =>
+    sentenceLogDocument(
+      {
+        wordId: 42,
+        sentenceId: "4abe78e382",
+        tab: "compose",
+        grade: "wrong",
+        mode: "audio",
+        gaveUp: false,
+        lookups: 1,
+        attempts: [
+          { answer: "我在学中文", answerMs: 8200, lookups: 1 },
+          { answer: "我学中文。", answerMs: 14100, lookups: 0 },
+        ],
+        at: new Date(),
+        ...over,
+      },
+      Timestamp.now(),
+    );
+
+  it("accepts the version 2 entry of a Comprehend grade", async () => {
+    expect(entry()).toMatchObject({ version: 2 });
     await assertSucceeds(setDoc(ref(db, path), entry()));
+  });
+
+  it("accepts the version 3 entry of a free Compose answer, with its attempts", async () => {
+    const free = attemptsEntry();
+    expect(free).toMatchObject({ version: 3, gaveUp: false });
+    expect(free).not.toHaveProperty("answer");
+    await assertSucceeds(setDoc(ref(db, path), free));
     await assertSucceeds(
       setDoc(
         ref(db, "users/user-1/sentenceLog/log-2"),
-        entry({ tab: "compose", mode: "audio", answer: "我在学中文。" }),
+        attemptsEntry({
+          gaveUp: true,
+          attempts: Array.from({ length: 10 }, () => ({
+            answer: "我",
+            answerMs: 1,
+            lookups: 0,
+          })),
+        }),
       ),
     );
   });
 
-  it("accepts the version 2 entry of a tile answer, with its input and its tiles", async () => {
-    const tiles = "书我输看树吃".split("");
-    const tileEntry = entry({ tab: "compose", input: "tiles", answer: "我看书", tiles });
-    expect(tileEntry).toMatchObject({ version: 2, input: "tiles", tiles });
-    await assertSucceeds(setDoc(ref(db, path), tileEntry));
+  it("rejects a version 2 entry of a free Compose answer", async () => {
+    const free = { ...entry({ tab: "compose" }), input: "free", answer: "我" };
+    await assertFails(setDoc(ref(db, path), free));
+    const { input: _input, ...noInput } = free;
+    await assertFails(setDoc(ref(db, path), noInput));
   });
 
-  it("rejects a bad input, tiles of a free answer, or more than 28 tiles", async () => {
-    const compose = entry({ tab: "compose", input: "free", answer: "我" });
-    await assertFails(setDoc(ref(db, path), { ...compose, input: "voice" }));
-    await assertFails(setDoc(ref(db, path), { ...compose, tiles: ["我"] }));
+  it("rejects a version 3 entry with no attempt, too many, or a bad attempt", async () => {
+    const free = attemptsEntry();
+    const attempt = { answer: "我", answerMs: 1200, lookups: 0 };
+    await assertFails(setDoc(ref(db, path), { ...free, attempts: [] }));
     await assertFails(
       setDoc(ref(db, path), {
-        ...compose,
-        input: "tiles",
+        ...free,
+        attempts: Array.from({ length: 11 }, () => attempt),
+      }),
+    );
+    await assertFails(
+      setDoc(ref(db, path), {
+        ...free,
+        attempts: [attempt, { ...attempt, answer: "我".repeat(501) }],
+      }),
+    );
+    await assertFails(
+      setDoc(ref(db, path), {
+        ...free,
+        attempts: [{ ...attempt, lookups: "0" }],
+      }),
+    );
+    await assertFails(
+      setDoc(ref(db, path), { ...free, attempts: [{ ...attempt, score: 1 }] }),
+    );
+    await assertFails(setDoc(ref(db, path), { ...free, attempts: ["我"] }));
+  });
+
+  it("rejects a version 3 entry with a wrong field type, an old field, or another tab", async () => {
+    const free = attemptsEntry();
+    await assertFails(setDoc(ref(db, path), { ...free, gaveUp: "no" }));
+    await assertFails(setDoc(ref(db, path), { ...free, lookups: 1.5 }));
+    await assertFails(setDoc(ref(db, path), { ...free, answer: "我" }));
+    await assertFails(setDoc(ref(db, path), { ...free, tab: "comprehend" }));
+    await assertFails(setDoc(ref(db, path), { ...free, version: 2 }));
+  });
+
+  it("accepts the version 3 entry of a tile answer, with its input and its tiles", async () => {
+    const tiles = "书我输看树吃".split("");
+    const tileEntry = attemptsEntry({ input: "tiles", tiles });
+    expect(tileEntry).toMatchObject({ version: 3, input: "tiles", tiles });
+    await assertSucceeds(setDoc(ref(db, path), tileEntry));
+    // The longest entry stays inside the limit of 1000 expressions.
+    await assertSucceeds(
+      setDoc(
+        ref(db, "users/user-1/sentenceLog/log-2"),
+        attemptsEntry({
+          input: "tiles",
+          tiles: Array.from({ length: 28 }, () => "我"),
+          attempts: Array.from({ length: 10 }, () => ({ answer: "我".repeat(20), answerMs: 1, lookups: 0 })),
+        }),
+      ),
+    );
+  });
+
+  it("rejects a bad input, tiles with no input, more than 28 tiles, or a version 2 tile answer", async () => {
+    const tileEntry = attemptsEntry({ input: "tiles", tiles: ["我"] });
+    await assertFails(setDoc(ref(db, path), { ...tileEntry, input: "voice" }));
+    const { input: _input, ...noInput } = tileEntry;
+    await assertFails(setDoc(ref(db, path), noInput));
+    const { tiles: _tiles, ...noTiles } = tileEntry;
+    await assertFails(setDoc(ref(db, path), noTiles));
+    await assertFails(
+      setDoc(ref(db, path), {
+        ...tileEntry,
         tiles: Array.from({ length: 29 }, () => "我"),
       }),
     );
-    // A Compose entry names its input, and a version 1 entry is refused.
-    const { input: _input, ...noInput } = compose;
-    await assertFails(setDoc(ref(db, path), noInput));
-    await assertFails(setDoc(ref(db, path), { ...compose, version: 1 }));
+    await assertFails(
+      setDoc(ref(db, path), {
+        ...entry({ tab: "compose" }),
+        input: "tiles",
+        answer: "我",
+        tiles: ["我"],
+      }),
+    );
   });
 
   it("rejects an unknown tab or an extra field", async () => {
     await assertFails(setDoc(ref(db, path), { ...entry(), tab: "listen" }));
     await assertFails(setDoc(ref(db, path), { ...entry(), score: 80 }));
     // Only a Compose task has an answer.
-    await assertFails(setDoc(ref(db, path), { ...entry(), answer: '我' }));
-    await assertFails(setDoc(ref(db, path), { ...entry(), input: 'free' }));
+    await assertFails(setDoc(ref(db, path), { ...entry(), answer: "我" }));
+    await assertFails(setDoc(ref(db, path), { ...entry(), input: "free" }));
   });
 
   it("is write-once", async () => {

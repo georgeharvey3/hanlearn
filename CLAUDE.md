@@ -80,7 +80,7 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 - [web-client/src/services/sentenceReportService.ts](web-client/src/services/sentenceReportService.ts) - Saves the report of a bad example sentence to `sentenceReports`. The sentence service then leaves that sentence out on the same device. `node migration/export-sentence-reports.js` exports the reports of all learners to a CSV file
 - [web-client/src/services/partReportService.ts](web-client/src/services/partReportService.ts) - Saves the report of a wrong breakdown, with an optional reason, to `partReports`. `node migration/export-part-reports.js` exports the reports of all learners to a CSV file, one row for each report (#533)
 - [web-client/src/services/sentencePracticeService.ts](web-client/src/services/sentencePracticeService.ts) - Saves each grade of the Comprehend and Compose tabs: first the queue state in `sentencePractice`, then a write-once entry in `sentenceLog`. A failed log write does not reject the grade (#489)
-- [web-client/src/services/sentenceTabsService.ts](web-client/src/services/sentenceTabsService.ts) - Loads the words, the `sentencePractice` documents and the sentence ids that the two tabs need, and gives the status of each tab for the dot and the finish screen. The queue rules are pure, in [web-client/src/utils/sentenceQueue.ts](web-client/src/utils/sentenceQueue.ts)
+- [web-client/src/services/sentenceTabsService.ts](web-client/src/services/sentenceTabsService.ts) - Loads the words, the `sentencePractice` documents and the sentence ids that the two tabs need, and gives the status of each tab for the dot and the finish screen. The queue rules are pure, in [web-client/src/utils/sentenceQueue.ts](web-client/src/utils/sentenceQueue.ts). The Compose tab compares each attempt with the reference sentence and marks its characters, with the pure rules of [web-client/src/utils/answerCompare.ts](web-client/src/utils/answerCompare.ts) (#597)
 - [web-client/src/services/chengyuSentenceService.ts](web-client/src/services/chengyuSentenceService.ts) - Generates example sentences for chengyu display
 - [web-client/src/services/breakdownService.ts](web-client/src/services/breakdownService.ts) - Reads the component breakdown of a character from `/breakdowns/` on Hosting. The reveal after a `CM` lapse draws the character in place, split into its parts in the inks of `partInk` (#529). The breakdown parts are in `components/Characters/`, because the word page uses them too. `CharacterPanel` shows the parts or the character in one ink, and animates the strokes in the inks of the view (#562)
 - [web-client/src/services/ttsService.ts](web-client/src/services/ttsService.ts) - Text-to-speech via Howler.js; called directly from components (not via Redux)
@@ -132,12 +132,16 @@ users/{userId}/
                                     # as the day's last session left them (Dashboard progress chart)
   ├── sentencePractice/{wordId}  # Queue state of the Comprehend and Compose tabs (#489)
   │   └── comprehend?, compose?: { lastPractised: Timestamp,
-  │         lastResult: 'right' | 'wrong', seen: { [sentenceId]: Timestamp } }
+  │         lastResult: 'right' | 'wrong', seen: { [sentenceId]: Timestamp },
+  │         lapses?: { [direction]: number } }  # Lapse counts of the trigger directions
+  │                                # at the grade. A right word comes back only when one rises
   ├── sentenceLog/{autoId}       # One write-once entry per sentence grade (#489)
-  │   └── version: 2, date, reviewedAt, wordId, sentenceId, tab, grade,
-  │       mode: 'audio' | 'text', answerMs, revealed, lookups,
-  │       input?: 'free' | 'tiles', answer? (Compose only),
-  │       tiles? (the tiles shown of a tile answer, in screen order; #386)
+  │   ├── version: 2 (Comprehend): date, reviewedAt, wordId, sentenceId,
+  │   │   tab: 'comprehend', grade, mode: 'audio' | 'text', answerMs, revealed, lookups
+  │   └── version: 3 (Compose; #597): date, reviewedAt, wordId, sentenceId,
+  │       tab: 'compose', grade, mode, gaveUp: bool, lookups,
+  │       attempts: [{ answer, answerMs, lookups }] (at most 10: the first 9 and the last),
+  │       input?: 'tiles', tiles? (the tiles shown of a tile answer, in screen order; #386)
   ├── sentenceReports/{sentenceId} # One report of a bad example sentence (#469)
   │   └── sentenceId, word, stage: 'read' | 'write', sentence, english, reportedAt
   ├── partReports/{reportId}     # One report of a wrong part meaning (#533). The id is

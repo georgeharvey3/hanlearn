@@ -276,7 +276,8 @@ part of a session, and a session ends when its cards end.
 - In the **Comprehend tab**, the learner reads or hears an example sentence,
   reveals the English, and grades the task as right or wrong.
 - In the **Compose tab**, the learner says or types a Chinese sentence for an
-  English prompt, reveals the reference sentence, and grades the task.
+  English prompt. The learner retries until the attempt matches the reference
+  sentence, and the app sets the grade.
 
 The input of each follows `useSound`. With sound on, Comprehend plays the
 sentence and hides the Chinese, and Compose takes the mic and the keyboard. With
@@ -290,9 +291,27 @@ sentence. A sentence with more than 20 characters, not counting punctuation, has
 
 The **answer tiles** are the characters of the sentence. A **near-miss tile**
 is a character that the answer does not hold: a homophone, or another word of
-the measure word list or the aspect word list. The app grades a tile answer at
-the check. The answer is right only when it is an exact match with the
-reference sentence, with no punctuation. A free answer keeps the self-grade.
+the measure word list or the aspect word list.
+
+An **attempt** is one answer that the learner checks in the Compose tab: a free
+answer or a tile answer.
+The app compares it with the reference sentence. The compare ignores
+punctuation and spaces, reads digits as hanzi, and uses the character set of
+the learner. Only the reference sentence matches, so a valid paraphrase does
+not. The first attempt sets the grade: a match is right, and anything else is
+wrong.
+
+A wrong attempt stays in the input or on the placed tiles, and its **marks**
+show above it:
+
+- A **placed** character aligns with the reference sentence.
+- A **misplaced** character is in the reference sentence, at another position.
+- An **extra** character is not in the reference sentence.
+- A **gap** sits where reference characters are missing. It does not show them.
+
+**Give Up** ends a Compose task after the first attempt and shows the reference
+sentence. The grade is then wrong. "Right" and "wrong" name a grade only. A mark
+is never right or wrong.
 
 A **set** is the tasks of one visit to a tab. Each tab has a setting for its
 size: "Comprehend set size" and "Compose set size".
@@ -321,9 +340,12 @@ and
 [docs/adr/0021-sentence-tasks-are-a-separate-practice.md](docs/adr/0021-sentence-tasks-are-a-separate-practice.md).
 
 A **weak** result is a grade of wrong. The queue of a tab puts the weak words
-first, then the words never practised in the tab, then the words with a right
-grade. A sentence grade orders the queue of its tab and goes to `sentenceLog`.
-It never changes the schedule of a word.
+first, then the words never practised in the tab. A word with a right grade
+**retires** from the tab. It comes back only after a lapse of a **trigger
+direction** of the tab: `MC` or `MP` for Comprehend, `PM` or `CM` for Compose.
+Each grade stores the lapse count of these directions, and a higher count
+brings the word back. A sentence grade orders the queue of its tab and goes to
+`sentenceLog`. It never changes the schedule of a word.
 
 The Write step of the new word introduction is a different thing from the
 Compose tab.
