@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { dropSlot, moveToSlot, shuffleTiles, slotKeepsOrder } from './tiles';
+import { dropSlot, moveToSlot, shuffleTiles, slotKeepsOrder, slotLine } from './tiles';
 
 describe('the tile order', () => {
   it('keeps every tile, a repeated one too', () => {
@@ -54,5 +54,33 @@ describe('a tile move', () => {
     expect(slotKeepsOrder(1, 2)).toBe(true);
     expect(moveToSlot(items, 1, 2)).toEqual(items);
     expect(slotKeepsOrder(1, 3)).toBe(false);
+  });
+});
+
+describe('the drop line of a slot', () => {
+  // Two rows: tiles 0-2 on the first, tile 3 on the second. The gap is 10.
+  const boxes = [
+    { left: 0, top: 0, width: 40, bottom: 40 },
+    { left: 50, top: 0, width: 40, bottom: 40 },
+    { left: 100, top: 0, width: 40, bottom: 40 },
+    { left: 0, top: 50, width: 40, bottom: 90 },
+  ];
+
+  it('sits in the middle of the gap between two tiles on one row', () => {
+    expect(slotLine(boxes, 1, 20, 10)).toEqual({ x: 45, top: 0, bottom: 40 });
+  });
+
+  it('sits before the first tile and after the last tile', () => {
+    expect(slotLine(boxes, 0, 20, 10)).toEqual({ x: -5, top: 0, bottom: 40 });
+    expect(slotLine(boxes, 4, 70, 10)).toEqual({ x: 45, top: 50, bottom: 90 });
+  });
+
+  it('takes the row of the point at a row break', () => {
+    expect(slotLine(boxes, 3, 20, 10)).toEqual({ x: 145, top: 0, bottom: 40 });
+    expect(slotLine(boxes, 3, 70, 10)).toEqual({ x: -5, top: 50, bottom: 90 });
+  });
+
+  it('is absent for no tiles', () => {
+    expect(slotLine([], 0, 0, 10)).toBeNull();
   });
 });

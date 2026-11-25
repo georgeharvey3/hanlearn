@@ -30,7 +30,7 @@ import {
 } from '../../utils/sentenceUtils';
 import { ComposeAttempt, ComposeInput } from '../../utils/sentencePracticeDocuments';
 import { AttemptMark, checkAttempt } from '../../utils/answerCompare';
-import { dropSlot, moveToSlot, shuffleTiles, slotKeepsOrder } from '../../utils/tiles';
+import { dropSlot, moveToSlot, shuffleTiles, slotKeepsOrder, slotLine } from '../../utils/tiles';
 import { toCharSet } from '../../utils/charSet';
 import {
   TaskLoadError,
@@ -88,7 +88,10 @@ const switchSx = {
   '&.Mui-selected, &.Mui-selected:hover': { bgcolor: colors.primaryDark, color: colors.white },
 } as const;
 
-const tileRowSx = { display: 'flex', flexWrap: 'wrap', gap: 0.75 } as const;
+/** The space in pixels between two tiles. */
+const TILE_GAP = 6;
+
+const tileRowSx = { display: 'flex', flexWrap: 'wrap', gap: `${TILE_GAP}px` } as const;
 
 /** One tile: a character on a key, large enough to tap. */
 const tileSx = {
@@ -135,10 +138,6 @@ const gapSx = {
 
 /** The distance in pixels that a pointer moves before a press becomes a drag. */
 const DRAG_START = 6;
-
-/** The edge mark of the drop slot: a bar in the gap before or after a tile. */
-const slotMark = (side: 'before' | 'after') =>
-  `${side === 'before' ? -4 : 4}px 0 0 ${colors.primaryDark}`;
 
 /** Strip the punctuation at each end of an English word, to match it. */
 const stripPunctuation = (text: string): string =>
@@ -189,9 +188,13 @@ const ComposeTask: React.FC<Props> = ({
   /** The last attempt, which the reveal shows. */
   const [lastAttempt, setLastAttempt] = useState('');
   /** The placed tile that the learner drags, with its offset and its drop slot. */
-  const [drag, setDrag] = useState<{ at: number; dx: number; dy: number; slot: number } | null>(
-    null,
-  );
+  const [drag, setDrag] = useState<{
+    at: number;
+    dx: number;
+    dy: number;
+    /** The drop line, in the answer row, or null where the order stays. */
+    line: { left: number; top: number; height: number } | null;
+  } | null>(null);
   /** The answer row, for the boxes of its tiles at the start of a drag. */
   const answerRow = useRef<HTMLDivElement | null>(null);
   /** The press on a placed tile: a drag after DRAG_START pixels, else a tap. */
@@ -629,6 +632,7 @@ const ComposeTask: React.FC<Props> = ({
               lang="zh"
               sx={{
                 ...tileRowSx,
+                position: 'relative',
                 mt: 1,
                 minHeight: 60,
                 boxSizing: 'border-box',
@@ -640,14 +644,6 @@ const ComposeTask: React.FC<Props> = ({
             >
               {placed.map((index, at) => {
                 const dragged = drag?.at === at;
-                const marked =
-                  drag && !slotKeepsOrder(drag.at, drag.slot)
-                    ? drag.slot === at
-                      ? slotMark('before')
-                      : drag.slot === placed.length && at === placed.length - 1
-                        ? slotMark('after')
-                        : undefined
-                    : undefined;
                 return (
                   <Box
                     key={index}
@@ -674,7 +670,20 @@ const ComposeTask: React.FC<Props> = ({
                         );
                       }
                       p.slot = dropSlot(p.boxes, e.clientX, e.clientY);
-                      setDrag({ at, dx, dy, slot: p.slot });
+                      const row = answerRow.current;
+                      const found = slotKeepsOrder(at, p.slot)
+                        ? null
+                        : slotLine(p.boxes, p.slot, e.clientY, TILE_GAP);
+                      const origin = row?.getBoundingClientRect();
+                      const line =
+                        found && row && origin
+                          ? {
+                              left: found.x - origin.left - row.clientLeft - 1,
+                              top: found.top - origin.top - row.clientTop,
+                              height: found.bottom - found.top,
+                            }
+                          : null;
+                      setDrag({ at, dx, dy, line });
                     }}
                     onPointerUp={() => {
                       const p = press.current;
@@ -700,7 +709,6 @@ const ComposeTask: React.FC<Props> = ({
                       // The browser must not scroll the page under a drag.
                       touchAction: 'none',
                       userSelect: 'none',
-                      boxShadow: marked,
                       ...(dragged && {
                         position: 'relative',
                         zIndex: 1,
@@ -714,6 +722,21 @@ const ComposeTask: React.FC<Props> = ({
                   </Box>
                 );
               })}
+              {drag?.line && (
+                <Box
+                  aria-hidden
+                  sx={{
+                    position: 'absolute',
+                    left: drag.line.left,
+                    top: drag.line.top,
+                    width: 2,
+                    height: drag.line.height,
+                    borderRadius: 1,
+                    bgcolor: colors.placeholder,
+                    pointerEvents: 'none',
+                  }}
+                />
+              )}
             </Box>
             <Box
               role="group"

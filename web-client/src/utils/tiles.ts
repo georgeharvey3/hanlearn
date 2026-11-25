@@ -43,3 +43,27 @@ export function moveToSlot<T>(items: readonly T[], from: number, slot: number): 
   out.splice(slot > from ? slot - 1 : slot, 0, moved);
   return out;
 }
+
+/**
+ * The drop line of a slot: the centre of the gap at the slot, on the row of
+ * the point. A slot at a row break has a gap at the end of one row and at the
+ * start of the next, so the row of the point picks one. `gap` is the space
+ * between two tiles.
+ */
+export function slotLine(
+  boxes: readonly TileBox[],
+  slot: number,
+  y: number,
+  gap: number,
+): { x: number; top: number; bottom: number } | null {
+  const next = boxes[slot];
+  const prev = boxes[slot - 1];
+  if (next && prev && prev.top === next.top) {
+    return { x: (prev.left + prev.width + next.left) / 2, top: next.top, bottom: next.bottom };
+  }
+  if (next && (!prev || y >= next.top)) {
+    return { x: next.left - gap / 2, top: next.top, bottom: next.bottom };
+  }
+  if (prev) return { x: prev.left + prev.width + gap / 2, top: prev.top, bottom: prev.bottom };
+  return null;
+}
