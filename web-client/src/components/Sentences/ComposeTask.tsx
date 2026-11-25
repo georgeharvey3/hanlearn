@@ -28,11 +28,11 @@ import {
   resolveSentence,
 } from '../../utils/sentenceUtils';
 import { SentenceResult } from '../../utils/sentenceQueue';
-import { ComposeInput } from '../../utils/sentencePracticeDocuments';
+import { ComposeAttempt, ComposeInput } from '../../utils/sentencePracticeDocuments';
+import { AttemptMark, checkAttempt } from '../../utils/answerCompare';
 import { gradeTiles, shuffleTiles } from '../../utils/tiles';
 import { toCharSet } from '../../utils/charSet';
 import {
-  GradeButtons,
   TaskLoadError,
   TaskLoading,
   TaskOutcome,
@@ -55,11 +55,9 @@ const connector = connect(mapStateToProps);
 interface OwnProps {
   word: Word;
   sentenceId: string;
-  /** Save a self-grade and go to the next task. */
-  onGrade: (outcome: TaskOutcome) => void;
-  /** Save the grade of a tile answer at its check, and stay on the task. */
+  /** Save the grade at the reveal, and stay on the task. */
   onCheck: (outcome: TaskOutcome) => void;
-  /** Go to the next task after a tile answer. */
+  /** Go to the next task after the reveal. */
   onNext: () => void;
   /** Leave the word out of the set, when its sentence does not load. */
   onSkip: () => void;
@@ -107,16 +105,46 @@ const tileSx = {
   cursor: 'pointer',
 } as const;
 
+/** The look of each mark: a colour, and a shape that does not need the colour. */
+const markSx: Record<Exclude<AttemptMark['kind'], 'gap'>, object> = {
+  placed: { bgcolor: colors.successSurface, color: colors.success },
+  misplaced: {
+    bgcolor: colors.warningSurface,
+    color: colors.warningText,
+    borderBottom: `2px dashed ${colors.warningText}`,
+  },
+  extra: { bgcolor: colors.errorSurface, color: colors.error, textDecoration: 'line-through' },
+};
+
+const markBoxSx = {
+  minWidth: 32,
+  height: 40,
+  boxSizing: 'border-box',
+  px: 0.5,
+  borderRadius: '3px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  ...hanziSx(26, { lineHeight: 1 }),
+} as const;
+
+const gapSx = {
+  ...markBoxSx,
+  border: `2px dashed ${colors.borderStrong}`,
+} as const;
+
 /** Strip the punctuation at each end of an English word, to match it. */
 const stripPunctuation = (text: string): string =>
   text.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '');
 
 /**
  * One Compose task: the learner says or types a Chinese sentence for an
- * English prompt, reveals the reference sentence, and grades their answer
- * (#489). No model scores the answer, so the task works offline.
+ * English prompt (#489), and the app compares each attempt with the
+ * reference sentence (#597). A wrong attempt stays in the input, and its
+ * marks show above it. The task ends at a match, or when the learner gives
+ * up after the first attempt. Only a first-attempt match is right. No model
+ * scores the answer, so the task works offline.
  *
- * An answer is necessary before the reveal, so each task is a real attempt.
  * With sound on, the mic and the keyboard both take the answer, and the
  * reference plays from a button after the reveal. It does not play by
  * itself, so the learner reads it first (#564).
@@ -133,7 +161,6 @@ const ComposeTask: React.FC<Props> = ({
   lang,
   word,
   sentenceId,
-  onGrade,
   onCheck,
   onNext,
   onSkip,
@@ -150,6 +177,11 @@ const ComposeTask: React.FC<Props> = ({
   const [placed, setPlaced] = useState<number[]>([]);
   /** The grade of a checked tile answer. */
   const [tileGrade, setTileGrade] = useState<SentenceResult | null>(null);
+  /** The marks of the latest wrong attempt, or null before the first check. */
+  const [marks, setMarks] = useState<AttemptMark[] | null>(null);
+  const [checking, setChecking] = useState(false);
+  /** The last attempt, which the reveal shows. */
+  const [lastAttempt, setLastAttempt] = useState('');
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState('');
   const [synthLoading, setSynthLoading] = useState(false);
@@ -161,6 +193,9 @@ const ComposeTask: React.FC<Props> = ({
   const skip = useRef(onSkip);
   skip.current = onSkip;
   const lookups = useRef(0);
+  /** The lookups when the previous attempt was checked. */
+  const lookupsAtCheck = useRef(0);
+  const attempts = useRef<ComposeAttempt[]>([]);
   const shownAt = useRef(0);
   const revealedAt = useRef(0);
 
@@ -278,31 +313,49 @@ const ComposeTask: React.FC<Props> = ({
     });
   };
 
-  const onReveal = () => {
-    if (entered.trim() === '' || !sentence) return;
+  /** End the task: save the grade, and show the reference sentence. */
+  const finish = (gaveUp: boolean) => {
     recognition.current?.abort();
     pendingSpeech.current = null;
-    revealedAt.current = Date.now();
+    const list = attempts.current;
+    setLastAttempt(list[list.length - 1]?.answer ?? '');
     setRevealed(true);
     setMessage('');
+    onCheck({
+      grade: !gaveUp && list.length === 1 ? 'right' : 'wrong',
+      mode: useSound ? 'audio' : 'text',
+      gaveUp,
+      lookups: lookups.current,
+      attempts: list,
+    });
+  };
+
+  const onCheckAnswer = async () => {
+    if (entered.trim() === '' || !sentence || checking) return;
+    recognition.current?.abort();
+    pendingSpeech.current = null;
+    const answer = entered;
+    attempts.current = [
+      ...attempts.current,
+      {
+        answer,
+        answerMs: Date.now() - shownAt.current,
+        lookups: lookups.current - lookupsAtCheck.current,
+      },
+    ];
+    lookupsAtCheck.current = lookups.current;
+    setChecking(true);
+    // The first compare loads the converter of the traditional set.
+    const check = await checkAttempt(answer, sentence.chinese, charSet);
+    if (!mounted.current) return;
+    setChecking(false);
+    setMessage('');
+    if (check.match) finish(false);
+    else setMarks(check.marks);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') onReveal();
-  };
-
-  const grade = (result: SentenceResult) => {
-    ttsService.stopAll();
-    onGrade({
-      grade: result,
-      mode: useSound ? 'audio' : 'text',
-      // The task shows no Chinese before the reveal.
-      revealed: false,
-      lookups: lookups.current,
-      answerMs: revealedAt.current - shownAt.current,
-      input: 'free',
-      answer: entered,
-    });
+    if (event.key === 'Enter') onCheckAnswer();
   };
 
   const target = word[charSet];
@@ -366,7 +419,7 @@ const ComposeTask: React.FC<Props> = ({
           </Box>
           <Overline sx={{ mt: 2.75, mb: 0.75 }}>{copy.sentence.yourAnswer}</Overline>
           <Box lang="zh" sx={answerBox}>
-            {withTarget(tileGrade === null ? entered : tileAnswer)}
+            {withTarget(tileGrade === null ? lastAttempt : tileAnswer)}
           </Box>
           <Overline sx={{ mt: 2, mb: 0.75 }}>{copy.sentence.original}</Overline>
           <Box sx={{ ...answerBox, display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
@@ -416,13 +469,9 @@ const ComposeTask: React.FC<Props> = ({
             </StatusLine>
           )}
         </StudyBody>
-        {tileGrade === null ? (
-          <GradeButtons onGrade={grade} />
-        ) : (
-          <StudyButton variant="primary" onClick={onNext}>
-            {copy.test.continue}
-          </StudyButton>
-        )}
+        <StudyButton variant="primary" onClick={onNext}>
+          {tileGrade === null ? copy.sentence.next : copy.test.continue}
+        </StudyButton>
       </>
     );
   }
@@ -612,6 +661,41 @@ const ComposeTask: React.FC<Props> = ({
             {message}
           </StatusLine>
         )}
+        {!tileMode && marks && (
+          <>
+            <Overline component="span" sx={{ mt: 2.5 }}>
+              {copy.sentence.lastAttempt}
+            </Overline>
+            <Box
+              role="group"
+              aria-label={copy.sentence.lastAttempt}
+              lang="zh"
+              sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}
+            >
+              {marks.map((mark, i) =>
+                mark.kind === 'gap' ? (
+                  <Box
+                    key={i}
+                    component="span"
+                    role="img"
+                    aria-label={copy.sentence.gap}
+                    sx={gapSx}
+                  />
+                ) : (
+                  <Box
+                    key={i}
+                    component="span"
+                    role="img"
+                    aria-label={copy.sentence[mark.kind](mark.char)}
+                    sx={{ ...markBoxSx, ...markSx[mark.kind] }}
+                  >
+                    {mark.char}
+                  </Box>
+                ),
+              )}
+            </Box>
+          </>
+        )}
         {!tileMode && (
           <Overline component="label" htmlFor="answerInput" sx={{ mt: 2.5 }}>
             {copy.sentence.yourAnswer}
@@ -654,9 +738,20 @@ const ComposeTask: React.FC<Props> = ({
           {copy.test.check}
         </StudyButton>
       ) : (
-        <StudyButton variant="primary" disabled={entered.trim() === ''} onClick={onReveal}>
-          {copy.test.check}
-        </StudyButton>
+        <Box sx={{ display: 'flex', gap: 1.25 }}>
+          {marks && (
+            <StudyButton onClick={() => finish(true)} disabled={checking}>
+              {copy.sentence.giveUp}
+            </StudyButton>
+          )}
+          <StudyButton
+            variant="primary"
+            disabled={entered.trim() === '' || checking}
+            onClick={onCheckAnswer}
+          >
+            {copy.test.check}
+          </StudyButton>
+        </Box>
       )}
     </>
   );

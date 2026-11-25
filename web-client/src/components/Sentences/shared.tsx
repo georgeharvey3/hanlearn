@@ -14,7 +14,11 @@ import { getSegmentedSentence } from '../../services/sentenceService';
 import { Word } from '../../types/models';
 
 /** What a task reports when the learner grades it: the grade, less what the tab knows. */
-export type TaskOutcome = Omit<SentenceGrade, 'wordId' | 'sentenceId' | 'tab' | 'at'>;
+export type TaskOutcome = SentenceGrade extends infer G
+  ? G extends SentenceGrade
+    ? Omit<G, 'wordId' | 'sentenceId' | 'tab' | 'at'>
+    : never
+  : never;
 
 export const SLOW_SPEED = 0.7;
 

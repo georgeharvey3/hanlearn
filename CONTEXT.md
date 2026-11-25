@@ -276,7 +276,8 @@ part of a session, and a session ends when its cards end.
 - In the **Comprehend tab**, the learner reads or hears an example sentence,
   reveals the English, and grades the task as right or wrong.
 - In the **Compose tab**, the learner says or types a Chinese sentence for an
-  English prompt, reveals the reference sentence, and grades the task.
+  English prompt. The learner retries until the attempt matches the reference
+  sentence, and the app sets the grade.
 
 The input of each follows `useSound`. With sound on, Comprehend plays the
 sentence and hides the Chinese, and Compose takes the mic and the keyboard. With
@@ -292,7 +293,25 @@ The **answer tiles** are the characters of the sentence. A **near-miss tile**
 is a character that the answer does not hold: a homophone, or another word of
 the measure word list or the aspect word list. The app grades a tile answer at
 the check. The answer is right only when it is an exact match with the
-reference sentence, with no punctuation. A free answer keeps the self-grade.
+reference sentence, with no punctuation.
+
+An **attempt** is one free answer that the learner checks in the Compose tab.
+The app compares it with the reference sentence. The compare ignores
+punctuation and spaces, reads digits as hanzi, and uses the character set of
+the learner. Only the reference sentence matches, so a valid paraphrase does
+not. The first attempt sets the grade: a match is right, and anything else is
+wrong.
+
+A wrong attempt stays in the input, and its **marks** show above it:
+
+- A **placed** character aligns with the reference sentence.
+- A **misplaced** character is in the reference sentence, at another position.
+- An **extra** character is not in the reference sentence.
+- A **gap** sits where reference characters are missing. It does not show them.
+
+**Give Up** ends a Compose task after the first attempt and shows the reference
+sentence. The grade is then wrong. "Right" and "wrong" name a grade only. A mark
+is never right or wrong.
 
 A **set** is the tasks of one visit to a tab. Each tab has a setting for its
 size: "Comprehend set size" and "Compose set size".

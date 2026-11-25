@@ -90,6 +90,14 @@ export const copy = {
     tiles: 'Tiles',
     tilesLeft: 'Tiles left',
     removeTile: (tile: string) => `Remove ${tile}`,
+    // The checked free answer of the Compose tab, one mark on each character (#597)
+    lastAttempt: 'Last attempt',
+    placed: (char: string) => `${char}: placed`,
+    misplaced: (char: string) => `${char}: misplaced`,
+    extra: (char: string) => `${char}: extra`,
+    gap: 'Missing',
+    giveUp: 'Give up',
+    next: 'Next',
   },
   settings: {
     title: 'Settings',

@@ -6,8 +6,20 @@ import { dayKey } from './retention';
 import type { SentenceTab } from './sentenceSettings';
 import type { SentenceResult } from './sentenceQueue';
 
-/** 2 since #386: a Compose entry names its input, and a tile answer logs its tiles. */
+/**
+ * 2 since #386: a Compose entry names its input, and a tile answer logs its
+ * tiles. A Comprehend entry and a tile answer stay at 2.
+ */
 export const SENTENCE_LOG_VERSION = 2;
+
+/** 3 since #597: a free Compose answer logs each attempt, and no single answer. */
+export const ATTEMPTS_LOG_VERSION = 3;
+
+/**
+ * The most attempts that one entry logs: the first ones. The rules allow no
+ * more, because one rules evaluation counts at most 1000 expressions.
+ */
+export const MAX_LOGGED_ATTEMPTS = 10;
 
 /** Whether the task played the sentence (`audio`) or showed it (`text`). */
 export type SentenceMode = 'audio' | 'text';
@@ -15,13 +27,36 @@ export type SentenceMode = 'audio' | 'text';
 /** How the learner gave a Compose answer: keyboard or mic (`free`), or tiles (#386). */
 export type ComposeInput = 'free' | 'tiles';
 
-/** One grade of one task, as the tab records it. */
-export interface SentenceGrade {
+/** One checked answer of a free Compose task (#597). */
+export interface ComposeAttempt {
+  /** The raw text of the input at the check. */
+  answer: string;
+  /** The time from the start of the task to this check. */
+  answerMs: number;
+  /** How many English words the learner looked up since the previous check. */
+  lookups: number;
+}
+
+interface GradeBase {
   wordId: number;
   sentenceId: string;
   tab: SentenceTab;
   grade: SentenceResult;
   mode: SentenceMode;
+  /** How many words the learner looked up in the task. */
+  lookups: number;
+  at: Date;
+}
+
+/** The grade of a free Compose answer: right only when the first attempt matches. */
+export interface AttemptsGrade extends GradeBase {
+  /** The attempts in order. The last one matches, unless the learner gave up. */
+  attempts: ComposeAttempt[];
+  gaveUp: boolean;
+}
+
+/** The grade of a task with one answer: a Comprehend task or a tile answer. */
+export interface AnswerGrade extends GradeBase {
   /** The raw answer of a Compose task: the placed characters of a tile answer. */
   answer?: string;
   /** The input of a Compose task. `free` when not given. */
@@ -35,10 +70,10 @@ export interface SentenceGrade {
   answerMs: number;
   /** Whether the Chinese text showed before the reveal. */
   revealed: boolean;
-  /** How many segments the learner tapped. */
-  lookups: number;
-  at: Date;
 }
+
+/** One grade of one task, as the tab records it. */
+export type SentenceGrade = AnswerGrade | AttemptsGrade;
 
 /**
  * The update of `users/{uid}/sentencePractice/{wordId}`, written as a merged
@@ -56,7 +91,7 @@ export function sentencePracticeUpdate<T>(grade: SentenceGrade, at: T) {
 }
 
 /** The fields that only a Compose entry has. */
-function composeFields(grade: SentenceGrade) {
+function composeFields(grade: AnswerGrade) {
   const input = grade.input ?? 'free';
   return {
     input,
@@ -67,6 +102,25 @@ function composeFields(grade: SentenceGrade) {
 
 /** The write-once document of `users/{uid}/sentenceLog/{autoId}`. */
 export function sentenceLogDocument<T>(grade: SentenceGrade, at: T) {
+  if ('attempts' in grade) {
+    return {
+      version: ATTEMPTS_LOG_VERSION,
+      date: dayKey(grade.at),
+      reviewedAt: at,
+      wordId: grade.wordId,
+      sentenceId: grade.sentenceId,
+      tab: grade.tab,
+      grade: grade.grade,
+      mode: grade.mode,
+      gaveUp: grade.gaveUp,
+      lookups: grade.lookups,
+      attempts: grade.attempts.slice(0, MAX_LOGGED_ATTEMPTS).map((attempt) => ({
+        answer: attempt.answer,
+        answerMs: attempt.answerMs,
+        lookups: attempt.lookups,
+      })),
+    };
+  }
   return {
     version: SENTENCE_LOG_VERSION,
     date: dayKey(grade.at),

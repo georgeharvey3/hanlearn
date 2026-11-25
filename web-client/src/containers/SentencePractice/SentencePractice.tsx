@@ -252,7 +252,6 @@ const SentencePractice: React.FC<Props> = ({ tab }) => {
           key={key}
           word={task.word}
           sentenceId={task.sentenceId}
-          onGrade={onGrade}
           onCheck={record}
           onNext={advance}
           onSkip={onSkip}
