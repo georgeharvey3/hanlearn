@@ -447,19 +447,19 @@ describe('the Compose tab', () => {
     expect(within(marks).getByLabelText('学: placed')).toBeInTheDocument();
     expect(within(marks).getByLabelText('我: misplaced')).toBeInTheDocument();
     expect(within(marks).getByLabelText('在: extra')).toBeInTheDocument();
-    // The gap does not show the missing characters.
-    expect(within(marks).getByLabelText('Missing')).toHaveTextContent('');
     expect(screen.getByLabelText('Your answer')).toHaveValue('学习我在中文');
     expect(screen.queryByText('Original')).not.toBeInTheDocument();
     expect(saveGrade).not.toHaveBeenCalled();
 
-    // Only the latest attempt shows its marks.
-    await attempt(user, '我在学习中文');
+    // Only the latest attempt shows its marks. A gap marks missing characters,
+    // and does not show them.
+    await attempt(user, '学习中');
     await waitFor(() =>
       expect(
-        within(screen.getByRole('group', { name: 'Last attempt' })).getByLabelText('我: placed'),
-      ).toBeInTheDocument(),
+        within(screen.getByRole('group', { name: 'Last attempt' })).getAllByLabelText('Missing'),
+      ).toHaveLength(2),
     );
+    for (const gap of screen.getAllByLabelText('Missing')) expect(gap).toHaveTextContent('');
     expect(screen.queryByLabelText('我: misplaced')).not.toBeInTheDocument();
   });
 

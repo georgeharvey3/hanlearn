@@ -56,8 +56,9 @@ describe('alignAttempt', () => {
     expect(kinds('我学习', '我学习')).toBe('我:p 学:p 习:p');
   });
 
-  it('marks a moved character misplaced, and a gap where it belongs', () => {
-    expect(kinds('学习我中文', '我学习中文')).toBe('_ 学:p 习:p 我:m 中:p 文:p');
+  it('marks a moved character misplaced, with no gap', () => {
+    expect(kinds('学习我中文', '我学习中文')).toBe('学:p 习:p 我:m 中:p 文:p');
+    expect(kinds('这个女人很亮漂', '这个女人很漂亮')).toBe('这:p 个:p 女:p 人:p 很:p 亮:p 漂:m');
   });
 
   it('marks only a gap for a missing first character', () => {

@@ -138,11 +138,12 @@ export function normalizeAnswer(text: string, reference: string): string {
  * characters of a longest common subsequence are `placed`, so one missing
  * character does not move the marks of the characters after it. Of the other
  * characters, one that the reference still holds is `misplaced`, and the rest
- * are `extra`. Between two placed characters, a `gap` follows the attempt
- * characters when the reference has more characters there than the attempt.
- * With as many or fewer, the attempt has a wrong character and not a missing
- * one, and its `extra` mark says so. A gap does not show how many characters
- * are missing.
+ * are `extra`. A misplaced character takes one reference character, which is
+ * then not missing. Between two placed characters, a `gap` follows the attempt
+ * characters when the reference has more missing characters there than the
+ * attempt has extra ones. With as many or fewer, the attempt has a wrong
+ * character and not a missing one, and its `extra` mark says so. A gap does
+ * not show how many characters are missing.
  */
 export function alignAttempt(attempt: string, reference: string): AttemptMark[] {
   const a = Array.from(attempt);
@@ -174,36 +175,49 @@ export function alignAttempt(attempt: string, reference: string): AttemptMark[] 
     }
   }
 
-  const unplaced = new Map<string, number>();
+  // Each unplaced reference character, by character, in reading order.
+  const unplaced = new Map<string, number[]>();
   for (const step of steps) {
-    if ('reference' in step)
-      unplaced.set(r[step.reference], (unplaced.get(r[step.reference]) ?? 0) + 1);
+    if ('reference' in step) {
+      const char = r[step.reference];
+      unplaced.set(char, [...(unplaced.get(char) ?? []), step.reference]);
+    }
+  }
+  // A misplaced attempt character takes one unplaced reference character, which
+  // is then not missing: a swap of two characters shows no gap.
+  const taken = new Set<number>();
+  const misplaced = new Set<number>();
+  for (const step of steps) {
+    if (!('attempt' in step)) continue;
+    const free = unplaced.get(a[step.attempt]) ?? [];
+    if (free.length > 0) {
+      taken.add(free.shift() as number);
+      misplaced.add(step.attempt);
+    }
   }
 
   const marks: AttemptMark[] = [];
-  // The unplaced characters of the attempt and of the reference since the last placed one.
-  let attemptCount = 0;
+  // The extra attempt characters and the missing reference characters since
+  // the last placed character.
+  let extraCount = 0;
   let missingCount = 0;
   const closeSpan = () => {
-    if (missingCount > attemptCount) marks.push({ kind: 'gap' });
-    attemptCount = 0;
+    if (missingCount > extraCount) marks.push({ kind: 'gap' });
+    extraCount = 0;
     missingCount = 0;
   };
   for (const step of steps) {
     if ('reference' in step) {
-      missingCount++;
-      continue;
-    }
-    if ('placed' in step) {
+      if (!taken.has(step.reference)) missingCount++;
+    } else if ('placed' in step) {
       closeSpan();
       marks.push({ kind: 'placed', char: a[step.placed] });
-      continue;
+    } else if (misplaced.has(step.attempt)) {
+      marks.push({ kind: 'misplaced', char: a[step.attempt] });
+    } else {
+      extraCount++;
+      marks.push({ kind: 'extra', char: a[step.attempt] });
     }
-    attemptCount++;
-    const char = a[step.attempt];
-    const left = unplaced.get(char) ?? 0;
-    if (left > 0) unplaced.set(char, left - 1);
-    marks.push({ kind: left > 0 ? 'misplaced' : 'extra', char });
   }
   closeSpan();
   return marks;
