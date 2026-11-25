@@ -31,7 +31,15 @@ import {
 } from '../../utils/sentenceUtils';
 import { ComposeAttempt, ComposeInput } from '../../utils/sentencePracticeDocuments';
 import { AttemptMark, checkAttempt } from '../../utils/answerCompare';
-import { dropSlot, moveToSlot, shuffleTiles, slotKeepsOrder, slotLine } from '../../utils/tiles';
+import {
+  dropSlot,
+  insertAtSlot,
+  insideBox,
+  moveToSlot,
+  shuffleTiles,
+  slotKeepsOrder,
+  slotLine,
+} from '../../utils/tiles';
 import { toCharSet } from '../../utils/charSet';
 import {
   TaskLoadError,
@@ -90,6 +98,15 @@ const switchSx = {
   borderColor: colors.borderStrong,
   '&.Mui-selected, &.Mui-selected:hover': { bgcolor: colors.primaryDark, color: colors.white },
 } as const;
+
+/**
+ * Where a dragged tile comes from: `placed` (`at` is its position in the
+ * answer) or `left` (`at` is its index in the tiles).
+ */
+type TileSource = 'placed' | 'left';
+
+/** The distance in pixels around the answer row that still drops into it. */
+const DROP_MARGIN = 24;
 
 /** The space in pixels between two tiles. */
 const TILE_GAP = 6;
@@ -197,6 +214,7 @@ const ComposeTask: React.FC<Props> = ({
   const [matchedOn, setMatchedOn] = useState<number | null>(null);
   /** The placed tile that the learner drags, with its offset and its drop slot. */
   const [drag, setDrag] = useState<{
+    source: TileSource;
     at: number;
     dx: number;
     dy: number;
@@ -207,13 +225,17 @@ const ComposeTask: React.FC<Props> = ({
   const answerRow = useRef<HTMLDivElement | null>(null);
   /** The press on a placed tile: a drag after DRAG_START pixels, else a tap. */
   const press = useRef<{
+    source: TileSource;
     at: number;
     x: number;
     y: number;
+    /** The boxes of the placed tiles and of the answer row, from the start of the drag. */
     boxes: DOMRect[] | null;
-    slot: number;
+    row: DOMRect | null;
+    /** The drop slot in the answer, or null outside the answer row. */
+    slot: number | null;
   } | null>(null);
-  /** True after a drag ends, so the click that follows does not remove the tile. */
+  /** True after a drag ends, so the click that follows does not move the tile. */
   const dragEnded = useRef(false);
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState('');
@@ -505,6 +527,106 @@ const ComposeTask: React.FC<Props> = ({
     .join(' ');
   const hints = selected.size > 0 ? matchEnglishToSentenceWords(selectedText, sentence.words) : [];
 
+  /**
+   * The pointer handlers of a tile. A tap calls `onTap`. A press that moves
+   * DRAG_START pixels drags the tile, and a drop in the answer row puts it in
+   * the slot under the pointer: a placed tile moves, and a tile left goes in.
+   */
+  const dragHandlers = (source: TileSource, at: number, onTap: () => void) => ({
+    onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
+      if (e.button !== 0) return;
+      dragEnded.current = false;
+      // Optional: jsdom has no pointer capture.
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      press.current = {
+        source,
+        at,
+        x: e.clientX,
+        y: e.clientY,
+        boxes: null,
+        row: null,
+        slot: null,
+      };
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLButtonElement>) => {
+      const p = press.current;
+      const row = answerRow.current;
+      if (!p || !row) return;
+      const dx = e.clientX - p.x;
+      const dy = e.clientY - p.y;
+      if (!p.boxes || !p.row) {
+        if (Math.hypot(dx, dy) < DRAG_START) return;
+        // The boxes stay fixed for the drag: only a transform moves the tile.
+        p.boxes = Array.from(row.querySelectorAll(':scope > button')).map((c) =>
+          c.getBoundingClientRect(),
+        );
+        p.row = row.getBoundingClientRect();
+      }
+      p.slot = insideBox(p.row, e.clientX, e.clientY, DROP_MARGIN)
+        ? dropSlot(p.boxes, e.clientX, e.clientY)
+        : null;
+      const origin = p.row;
+      let found: { x: number; top: number; bottom: number } | null = null;
+      if (p.slot !== null && !(source === 'placed' && slotKeepsOrder(at, p.slot))) {
+        // An empty answer row has no tile to stand beside: the line goes at its start.
+        const inner = origin.left + row.clientLeft + TILE_GAP;
+        const top = origin.top + row.clientTop + TILE_GAP;
+        found = slotLine(p.boxes, p.slot, e.clientY, TILE_GAP) ?? {
+          x: inner,
+          top,
+          bottom: top + tileSx.height,
+        };
+      }
+      const line = found
+        ? {
+            left: found.x - origin.left - row.clientLeft - 1,
+            top: found.top - origin.top - row.clientTop,
+            height: found.bottom - found.top,
+          }
+        : null;
+      setDrag({ source, at, dx, dy, line });
+    },
+    onPointerUp: () => {
+      const p = press.current;
+      press.current = null;
+      if (!p?.boxes) return;
+      dragEnded.current = true;
+      setDrag(null);
+      const { slot } = p;
+      if (slot === null) return;
+      setPlaced((prev) =>
+        source === 'placed' ? moveToSlot(prev, at, slot) : insertAtSlot(prev, slot, at),
+      );
+    },
+    onPointerCancel: () => {
+      press.current = null;
+      setDrag(null);
+    },
+    onClick: () => {
+      if (dragEnded.current) {
+        dragEnded.current = false;
+        return;
+      }
+      onTap();
+    },
+  });
+
+  /** The look of a tile, which follows the pointer while it is dragged. */
+  const dragSx = (dragged: boolean) => ({
+    ...tileSx,
+    // The browser must not scroll the page under a drag.
+    touchAction: 'none',
+    userSelect: 'none',
+    ...(dragged &&
+      drag && {
+        position: 'relative',
+        zIndex: 1,
+        cursor: 'grabbing',
+        transform: `translate(${drag.dx}px, ${drag.dy}px)`,
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+      }),
+  });
+
   // The marks of the latest wrong attempt, above the input or the placed tiles.
   const marksView = marks && (
     <>
@@ -667,80 +789,17 @@ const ComposeTask: React.FC<Props> = ({
               }}
             >
               {placed.map((index, at) => {
-                const dragged = drag?.at === at;
+                const dragged = drag?.source === 'placed' && drag.at === at;
                 return (
                   <Box
                     key={index}
                     component="button"
                     type="button"
                     aria-label={copy.sentence.removeTile(tiles[index])}
-                    onPointerDown={(e: React.PointerEvent<HTMLButtonElement>) => {
-                      if (e.button !== 0) return;
-                      dragEnded.current = false;
-                      // Optional: jsdom has no pointer capture.
-                      e.currentTarget.setPointerCapture?.(e.pointerId);
-                      press.current = { at, x: e.clientX, y: e.clientY, boxes: null, slot: at };
-                    }}
-                    onPointerMove={(e: React.PointerEvent<HTMLButtonElement>) => {
-                      const p = press.current;
-                      if (!p) return;
-                      const dx = e.clientX - p.x;
-                      const dy = e.clientY - p.y;
-                      if (!p.boxes) {
-                        if (Math.hypot(dx, dy) < DRAG_START) return;
-                        // The boxes stay fixed for the drag: only a transform moves the tile.
-                        p.boxes = Array.from(answerRow.current?.children ?? []).map((c) =>
-                          c.getBoundingClientRect(),
-                        );
-                      }
-                      p.slot = dropSlot(p.boxes, e.clientX, e.clientY);
-                      const row = answerRow.current;
-                      const found = slotKeepsOrder(at, p.slot)
-                        ? null
-                        : slotLine(p.boxes, p.slot, e.clientY, TILE_GAP);
-                      const origin = row?.getBoundingClientRect();
-                      const line =
-                        found && row && origin
-                          ? {
-                              left: found.x - origin.left - row.clientLeft - 1,
-                              top: found.top - origin.top - row.clientTop,
-                              height: found.bottom - found.top,
-                            }
-                          : null;
-                      setDrag({ at, dx, dy, line });
-                    }}
-                    onPointerUp={() => {
-                      const p = press.current;
-                      press.current = null;
-                      if (!p?.boxes) return;
-                      dragEnded.current = true;
-                      setDrag(null);
-                      setPlaced((prev) => moveToSlot(prev, p.at, p.slot));
-                    }}
-                    onPointerCancel={() => {
-                      press.current = null;
-                      setDrag(null);
-                    }}
-                    onClick={() => {
-                      if (dragEnded.current) {
-                        dragEnded.current = false;
-                        return;
-                      }
-                      setPlaced((prev) => prev.filter((_, i) => i !== at));
-                    }}
-                    sx={{
-                      ...tileSx,
-                      // The browser must not scroll the page under a drag.
-                      touchAction: 'none',
-                      userSelect: 'none',
-                      ...(dragged && {
-                        position: 'relative',
-                        zIndex: 1,
-                        cursor: 'grabbing',
-                        transform: `translate(${drag.dx}px, ${drag.dy}px)`,
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-                      }),
-                    }}
+                    {...dragHandlers('placed', at, () =>
+                      setPlaced((prev) => prev.filter((_, i) => i !== at)),
+                    )}
+                    sx={dragSx(dragged)}
                   >
                     {tiles[index]}
                   </Box>
@@ -774,8 +833,8 @@ const ComposeTask: React.FC<Props> = ({
                     key={index}
                     component="button"
                     type="button"
-                    onClick={() => setPlaced((prev) => [...prev, index])}
-                    sx={tileSx}
+                    {...dragHandlers('left', index, () => setPlaced((prev) => [...prev, index]))}
+                    sx={dragSx(drag?.source === 'left' && drag.at === index)}
                   >
                     {tile}
                   </Box>

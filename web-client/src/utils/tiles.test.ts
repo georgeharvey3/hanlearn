@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { dropSlot, moveToSlot, shuffleTiles, slotKeepsOrder, slotLine } from './tiles';
+import {
+  dropSlot,
+  insertAtSlot,
+  insideBox,
+  moveToSlot,
+  shuffleTiles,
+  slotKeepsOrder,
+  slotLine,
+} from './tiles';
 
 describe('the tile order', () => {
   it('keeps every tile, a repeated one too', () => {
@@ -82,5 +90,28 @@ describe('the drop line of a slot', () => {
 
   it('is absent for no tiles', () => {
     expect(slotLine([], 0, 0, 10)).toBeNull();
+  });
+});
+
+describe('a tile put into the answer', () => {
+  it('goes into the slot, at the start, or at the end', () => {
+    expect(insertAtSlot(['a', 'b'], 1, 'x')).toEqual(['a', 'x', 'b']);
+    expect(insertAtSlot(['a', 'b'], 0, 'x')).toEqual(['x', 'a', 'b']);
+    expect(insertAtSlot(['a', 'b'], 2, 'x')).toEqual(['a', 'b', 'x']);
+    expect(insertAtSlot([], 0, 'x')).toEqual(['x']);
+  });
+});
+
+describe('a point near the answer row', () => {
+  const row = { left: 0, top: 100, right: 300, bottom: 160 };
+
+  it('is inside within the margin', () => {
+    expect(insideBox(row, 150, 130, 24)).toBe(true);
+    expect(insideBox(row, -20, 80, 24)).toBe(true);
+  });
+
+  it('is outside past the margin', () => {
+    expect(insideBox(row, 150, 200, 24)).toBe(false);
+    expect(insideBox(row, 330, 130, 24)).toBe(false);
   });
 });

@@ -67,3 +67,22 @@ export function slotLine(
   if (prev) return { x: prev.left + prev.width + gap / 2, top: prev.top, bottom: prev.bottom };
   return null;
 }
+
+/** The placed tiles with `item` put into `slot` (see dropSlot). */
+export function insertAtSlot<T>(items: readonly T[], slot: number, item: T): T[] {
+  const out = [...items];
+  out.splice(slot, 0, item);
+  return out;
+}
+
+/** True when the point is in the box, or within `margin` pixels of it. */
+export const insideBox = (
+  box: { left: number; top: number; right: number; bottom: number },
+  x: number,
+  y: number,
+  margin: number,
+): boolean =>
+  x >= box.left - margin &&
+  x <= box.right + margin &&
+  y >= box.top - margin &&
+  y <= box.bottom + margin;

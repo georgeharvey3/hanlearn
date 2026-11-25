@@ -809,8 +809,8 @@ describe('the Compose tab', () => {
       const dragged = screen.getByRole('button', { name: 'Remove 文' });
       await user.pointer([
         { keys: '[MouseLeft>]', target: dragged, coords: { clientX: 0, clientY: 0 } },
-        { target: dragged, coords: { clientX: 300, clientY: 0 } },
-        { keys: '[/MouseLeft]', target: dragged, coords: { clientX: 300, clientY: 0 } },
+        { target: dragged, coords: { clientX: 10, clientY: 0 } },
+        { keys: '[/MouseLeft]', target: dragged, coords: { clientX: 10, clientY: 0 } },
       ]);
 
       expect(screen.getByRole('button', { name: 'Remove 文' })).toBeInTheDocument();
@@ -823,6 +823,51 @@ describe('the Compose tab', () => {
           attempts: [expect.objectContaining({ answer: '我学习中文' })],
         }),
       );
+    });
+
+    it('puts a tile left that the learner drags into the slot under the drop', async () => {
+      const user = userEvent.setup();
+      withTiles();
+      setQueue([STUDY]);
+      renderTab('compose', false);
+
+      await user.click(await screen.findByRole('button', { name: 'Tiles' }));
+      await placeTiles(user, '学习中文');
+      // jsdom gives each box an empty rect at 0, 0: a drop just left of 0 goes first.
+      const dragged = tileButton('我');
+      await user.pointer([
+        { keys: '[MouseLeft>]', target: dragged, coords: { clientX: 0, clientY: 0 } },
+        { target: dragged, coords: { clientX: -10, clientY: 0 } },
+        { keys: '[/MouseLeft]', target: dragged, coords: { clientX: -10, clientY: 0 } },
+      ]);
+
+      expect(screen.getByRole('button', { name: 'Remove 我' })).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Check' }));
+      await screen.findByText('Right');
+      expect(saveGrade).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({
+          attempts: [expect.objectContaining({ answer: '我学习中文' })],
+        }),
+      );
+    });
+
+    it('leaves a tile left where it is after a drop outside the answer', async () => {
+      const user = userEvent.setup();
+      withTiles();
+      setQueue([STUDY]);
+      renderTab('compose', false);
+
+      await user.click(await screen.findByRole('button', { name: 'Tiles' }));
+      const dragged = tileButton('我');
+      await user.pointer([
+        { keys: '[MouseLeft>]', target: dragged, coords: { clientX: 0, clientY: 0 } },
+        { target: dragged, coords: { clientX: 0, clientY: 300 } },
+        { keys: '[/MouseLeft]', target: dragged, coords: { clientX: 0, clientY: 300 } },
+      ]);
+
+      expect(tileButton('我')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Remove 我' })).not.toBeInTheDocument();
     });
 
     it('lets a learner who is stuck check with no tile, then give up', async () => {
