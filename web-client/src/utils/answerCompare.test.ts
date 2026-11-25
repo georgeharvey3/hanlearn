@@ -68,8 +68,13 @@ describe('alignAttempt', () => {
     expect(kinds('我在学习', '我学习')).toBe('我:p 在:e 学:p 习:p');
   });
 
-  it('marks a wrong character extra, with a gap after it', () => {
-    expect(kinds('我在来', '我再来')).toBe('我:p 在:e _ 来:p');
+  it('marks a wrong character extra, with no gap, when the count is right', () => {
+    expect(kinds('我在来', '我再来')).toBe('我:p 在:e 来:p');
+    expect(kinds('我准备回家背', '我准备回家了')).toBe('我:p 准:p 备:p 回:p 家:p 背:e');
+  });
+
+  it('marks a gap when the wrong characters are fewer than the missing ones', () => {
+    expect(kinds('我在', '我再来')).toBe('我:p 在:e _');
   });
 
   it('marks one gap for missing characters at the end', () => {

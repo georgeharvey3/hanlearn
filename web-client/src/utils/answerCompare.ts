@@ -138,9 +138,11 @@ export function normalizeAnswer(text: string, reference: string): string {
  * characters of a longest common subsequence are `placed`, so one missing
  * character does not move the marks of the characters after it. Of the other
  * characters, one that the reference still holds is `misplaced`, and the rest
- * are `extra`. Each run of reference characters with no placed character is
- * one `gap`, after the attempt characters at that place. A gap does not show
- * how many characters are missing.
+ * are `extra`. Between two placed characters, a `gap` follows the attempt
+ * characters when the reference has more characters there than the attempt.
+ * With as many or fewer, the attempt has a wrong character and not a missing
+ * one, and its `extra` mark says so. A gap does not show how many characters
+ * are missing.
  */
 export function alignAttempt(attempt: string, reference: string): AttemptMark[] {
   const a = Array.from(attempt);
@@ -179,26 +181,31 @@ export function alignAttempt(attempt: string, reference: string): AttemptMark[] 
   }
 
   const marks: AttemptMark[] = [];
-  let missing = false;
+  // The unplaced characters of the attempt and of the reference since the last placed one.
+  let attemptCount = 0;
+  let missingCount = 0;
+  const closeSpan = () => {
+    if (missingCount > attemptCount) marks.push({ kind: 'gap' });
+    attemptCount = 0;
+    missingCount = 0;
+  };
   for (const step of steps) {
     if ('reference' in step) {
-      missing = true;
+      missingCount++;
       continue;
     }
-    if ('placed' in step && missing) {
-      marks.push({ kind: 'gap' });
-      missing = false;
-    }
     if ('placed' in step) {
+      closeSpan();
       marks.push({ kind: 'placed', char: a[step.placed] });
       continue;
     }
+    attemptCount++;
     const char = a[step.attempt];
     const left = unplaced.get(char) ?? 0;
     if (left > 0) unplaced.set(char, left - 1);
     marks.push({ kind: left > 0 ? 'misplaced' : 'extra', char });
   }
-  if (missing) marks.push({ kind: 'gap' });
+  closeSpan();
   return marks;
 }
 
