@@ -90,6 +90,16 @@ export const copy = {
     tiles: 'Tiles',
     tilesLeft: 'Tiles left',
     removeTile: (tile: string) => `Remove ${tile}`,
+    // The checked free answer of the Compose tab, one mark on each character (#597)
+    lastAttempt: 'Last attempt',
+    placed: (char: string) => `${char}: placed`,
+    misplaced: (char: string) => `${char}: misplaced`,
+    extra: (char: string) => `${char}: extra`,
+    gap: 'Missing',
+    giveUp: 'Give up',
+    // The status of a match after a wrong attempt: "Right on attempt 3"
+    rightOn: (attempt: number) => `Right on attempt ${attempt}`,
+    next: 'Next',
   },
   settings: {
     title: 'Settings',
@@ -281,8 +291,8 @@ export const copy = {
     results: { pass: 'Known', lapse: 'Nearly', fail: 'Not known' },
     count: (n: number, result: string) => `${n} ${result}`,
     tile: (char: string, result: string) => `${char}, ${result}`,
-    turnedTile: (char: string, result: string, pinyin: string, meaning: string) =>
-      `${char}, ${result}: ${pinyin}, ${meaning}`,
+    turnedTile: (char: string, result: string, pinyin: string, meaning: string, opens: boolean) =>
+      `${char}, ${result}: ${pinyin}, ${meaning}${opens ? '. Open details' : ''}`,
     practiceMissed: 'Practise missed words',
     backToDashboard: 'Back to Dashboard',
   },

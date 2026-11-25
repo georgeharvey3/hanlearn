@@ -1,31 +1,8 @@
 /**
  * The pure rules of tile mode in the Compose tab (#386). The build makes the
  * tiles of each sentence (migration/exampleSentences.js, tilesOf); the screen
- * shuffles them and grades the answer with no AI call.
+ * shuffles them, and src/utils/answerCompare.ts compares the answer (#597).
  */
-import type { SentenceResult } from './sentenceQueue';
-
-/**
- * The characters that a tile can hold: Han characters and digits. A
- * constructor, because the compile target does not allow the `u` flag in a
- * literal.
- */
-const TILE_CHAR = new RegExp('[\\p{Script=Han}\\p{Nd}]', 'u');
-
-const tileChars = (text: string): string =>
-  Array.from(text)
-    .filter((c) => TILE_CHAR.test(c))
-    .join('');
-
-/**
- * The grade of a tile answer: right only for an exact match with the
- * reference sentence. The match ignores punctuation, so 明天我去 is wrong
- * for 我明天去.
- */
-export function gradeTiles(answer: string, reference: string): SentenceResult {
-  const expected = tileChars(reference);
-  return expected !== '' && tileChars(answer) === expected ? 'right' : 'wrong';
-}
 
 /** The tiles in a new random order (Fisher-Yates). `random` gives a number in [0, 1). */
 export function shuffleTiles<T>(tiles: readonly T[], random: () => number = Math.random): T[] {
@@ -36,3 +13,76 @@ export function shuffleTiles<T>(tiles: readonly T[], random: () => number = Math
   }
   return out;
 }
+
+/** The box of one placed tile on screen, as a DOMRect gives it. */
+export interface TileBox {
+  left: number;
+  top: number;
+  width: number;
+  bottom: number;
+}
+
+/**
+ * The slot that a dragged tile drops into: the index of the tile it goes
+ * before, or the tile count for the end. The tiles wrap onto rows, so a point
+ * above a tile's row, or on its row and left of its centre, goes before it.
+ */
+export function dropSlot(boxes: readonly TileBox[], x: number, y: number): number {
+  const at = boxes.findIndex((b) => y < b.top || (y <= b.bottom && x < b.left + b.width / 2));
+  return at === -1 ? boxes.length : at;
+}
+
+/** True when a drop into `slot` leaves the tile at `from` where it is. */
+export const slotKeepsOrder = (from: number, slot: number): boolean =>
+  slot === from || slot === from + 1;
+
+/** The placed tiles with the tile at `from` moved into `slot` (see dropSlot). */
+export function moveToSlot<T>(items: readonly T[], from: number, slot: number): T[] {
+  const out = [...items];
+  const [moved] = out.splice(from, 1);
+  out.splice(slot > from ? slot - 1 : slot, 0, moved);
+  return out;
+}
+
+/**
+ * The drop line of a slot: the centre of the gap at the slot, on the row of
+ * the point. A slot at a row break has a gap at the end of one row and at the
+ * start of the next, so the row of the point picks one. `gap` is the space
+ * between two tiles.
+ */
+export function slotLine(
+  boxes: readonly TileBox[],
+  slot: number,
+  y: number,
+  gap: number,
+): { x: number; top: number; bottom: number } | null {
+  const next = boxes[slot];
+  const prev = boxes[slot - 1];
+  if (next && prev && prev.top === next.top) {
+    return { x: (prev.left + prev.width + next.left) / 2, top: next.top, bottom: next.bottom };
+  }
+  if (next && (!prev || y >= next.top)) {
+    return { x: next.left - gap / 2, top: next.top, bottom: next.bottom };
+  }
+  if (prev) return { x: prev.left + prev.width + gap / 2, top: prev.top, bottom: prev.bottom };
+  return null;
+}
+
+/** The placed tiles with `item` put into `slot` (see dropSlot). */
+export function insertAtSlot<T>(items: readonly T[], slot: number, item: T): T[] {
+  const out = [...items];
+  out.splice(slot, 0, item);
+  return out;
+}
+
+/** True when the point is in the box, or within `margin` pixels of it. */
+export const insideBox = (
+  box: { left: number; top: number; right: number; bottom: number },
+  x: number,
+  y: number,
+  margin: number,
+): boolean =>
+  x >= box.left - margin &&
+  x <= box.right + margin &&
+  y >= box.top - margin &&
+  y <= box.bottom + margin;

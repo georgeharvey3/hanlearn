@@ -75,6 +75,18 @@ const word = (id: number, simp: string, level = 3): Word => ({
 const STUDY = word(1, '学习');
 const READ = word(2, '看书');
 
+/** The answer box after a match: the box after the "Your answer" label. */
+const matchedAnswer = () => screen.getByText('Your answer').nextElementSibling as HTMLElement;
+
+/** The Chinese of the answer box after a match, without the pinyin over it. */
+const hanziOf = (box: HTMLElement) => {
+  const words = box.querySelector('[lang="zh"]');
+  return Array.from(words?.querySelectorAll('[lang="zh-Latn"]') ?? []).reduce(
+    (text, pinyin) => text.replace(pinyin.textContent ?? '', ''),
+    words?.textContent ?? '',
+  );
+};
+
 /** A sentence of the files: 我学习中文。 with 学习 as the target. */
 const sentenceOf = (target: string, id: string) => ({
   sentence: {
@@ -378,20 +390,36 @@ describe('the Compose tab', () => {
     expect(check).toBeEnabled();
   });
 
-  it('shows the answer above the reference, and saves the raw answer', async () => {
+  /** Type an answer into the input, in place of its text, and check it. */
+  const attempt = async (user: ReturnType<typeof userEvent.setup>, text: string) => {
+    const input = await screen.findByLabelText('Your answer');
+    await user.clear(input);
+    await user.type(input, text);
+    await user.click(screen.getByRole('button', { name: 'Check' }));
+  };
+
+  it('reveals a first-attempt match, and saves it right', async () => {
     const user = userEvent.setup();
     setQueue([STUDY]);
     renderTab('compose');
 
-    await user.type(await screen.findByLabelText('Your answer'), '我在学习');
-    await user.click(screen.getByRole('button', { name: 'Check' }));
+    await screen.findByLabelText('Your answer');
+    expect(screen.queryByRole('button', { name: 'Give up' })).not.toBeInTheDocument();
+    await attempt(user, '我学习中文');
 
-    const answer = screen.getByText('Your answer').nextElementSibling as HTMLElement;
-    expect(answer).toHaveTextContent('我在学习');
-    const reference = screen.getByText('Original').nextElementSibling as HTMLElement;
-    expect(within(reference).getByText(/wǒ xué xí/)).toBeInTheDocument();
+    // The screen keeps its layout: the answer shows the pinyin over each word.
+    expect(await screen.findByText('Right')).toBeInTheDocument();
+    expect(screen.getByText('I 学习 Chinese.')).toBeInTheDocument();
+    expect(screen.queryByText('Original')).not.toBeInTheDocument();
+    const answer = matchedAnswer();
+    expect(hanziOf(answer)).toBe('我学习中文。');
+    expect(within(answer).getByText('xué xí')).toBeInTheDocument();
+    expect(within(answer).getByText('wǒ')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Report sentence' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Right' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Wrong' })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Right' }));
+    expect(saveGrade).toHaveBeenCalledTimes(1);
     expect(saveGrade).toHaveBeenCalledWith(
       'user-1',
       expect.objectContaining({
@@ -399,7 +427,105 @@ describe('the Compose tab', () => {
         tab: 'compose',
         grade: 'right',
         mode: 'audio',
-        answer: '我在学习',
+        gaveUp: false,
+        lookups: 0,
+        attempts: [{ answer: '我学习中文', answerMs: expect.any(Number), lookups: 0 }],
+      }),
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(await screen.findByText(/1 right/)).toBeInTheDocument();
+    expect(saveGrade).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores punctuation and spaces in the compare', async () => {
+    const user = userEvent.setup();
+    setQueue([STUDY]);
+    renderTab('compose', false);
+
+    await attempt(user, '我 学习, 中文!');
+
+    expect(await screen.findByText('Right')).toBeInTheDocument();
+    expect(saveGrade).toHaveBeenCalledWith('user-1', expect.objectContaining({ grade: 'right' }));
+  });
+
+  it('marks a wrong attempt, keeps its text in the input, and saves nothing', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('charSet', 'simp');
+    setQueue([STUDY]);
+    renderTab('compose', false);
+
+    await attempt(user, '学习我在中文');
+
+    const marks = await screen.findByRole('group', { name: 'Last attempt' });
+    expect(within(marks).getByLabelText('学: placed')).toBeInTheDocument();
+    expect(within(marks).getByLabelText('我: misplaced')).toBeInTheDocument();
+    expect(within(marks).getByLabelText('在: extra')).toBeInTheDocument();
+    expect(screen.getByLabelText('Your answer')).toHaveValue('学习我在中文');
+    expect(screen.queryByText('Original')).not.toBeInTheDocument();
+    expect(saveGrade).not.toHaveBeenCalled();
+
+    // Only the latest attempt shows its marks. A gap marks missing characters,
+    // and does not show them.
+    await attempt(user, '学习中');
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('group', { name: 'Last attempt' })).getAllByLabelText('Missing'),
+      ).toHaveLength(2),
+    );
+    for (const gap of screen.getAllByLabelText('Missing')) expect(gap).toHaveTextContent('');
+    expect(screen.queryByLabelText('我: misplaced')).not.toBeInTheDocument();
+  });
+
+  it('saves a later match wrong, with each attempt and the lookups before it', async () => {
+    const user = userEvent.setup();
+    setQueue([STUDY]);
+    renderTab('compose', false);
+
+    await user.click(await screen.findByRole('button', { name: 'I: show Chinese' }));
+    await attempt(user, '我在学习');
+    await screen.findByRole('group', { name: 'Last attempt' });
+    // The English words stay open to lookups on each attempt.
+    await user.click(screen.getByRole('button', { name: 'Chinese.: show Chinese' }));
+    await user.click(screen.getByRole('button', { name: 'I: show Chinese' }));
+    await user.click(screen.getByRole('button', { name: 'I: show Chinese' }));
+    await attempt(user, '我学习中文');
+
+    expect(await screen.findByText('Right on attempt 2')).toBeInTheDocument();
+    expect(saveGrade).toHaveBeenCalledTimes(1);
+    expect(saveGrade).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        grade: 'wrong',
+        gaveUp: false,
+        lookups: 3,
+        attempts: [
+          { answer: '我在学习', answerMs: expect.any(Number), lookups: 1 },
+          { answer: '我学习中文', answerMs: expect.any(Number), lookups: 2 },
+        ],
+      }),
+    );
+  });
+
+  it('offers Give up after a wrong attempt, which shows the reference and saves wrong', async () => {
+    const user = userEvent.setup();
+    setQueue([STUDY]);
+    renderTab('compose', false);
+
+    await attempt(user, '我在学习');
+    await user.click(await screen.findByRole('button', { name: 'Give up' }));
+
+    const answer = screen.getByText('Your answer').nextElementSibling as HTMLElement;
+    expect(answer).toHaveTextContent('我在学习');
+    const reference = screen.getByText('Original').nextElementSibling as HTMLElement;
+    expect(reference).toHaveTextContent('我学习中文。');
+    expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument();
+    expect(saveGrade).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        grade: 'wrong',
+        gaveUp: true,
+        attempts: [{ answer: '我在学习', answerMs: expect.any(Number), lookups: 0 }],
       }),
     );
   });
@@ -409,8 +535,8 @@ describe('the Compose tab', () => {
     setQueue([STUDY]);
     renderTab('compose');
 
-    await user.type(await screen.findByLabelText('Your answer'), '我在学习');
-    await user.click(screen.getByRole('button', { name: 'Check' }));
+    await attempt(user, '我学习中文');
+    await screen.findByText('Right');
     expect(ttsService.speak).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: 'Play sentence' }));
@@ -422,9 +548,8 @@ describe('the Compose tab', () => {
     setQueue([STUDY]);
     renderTab('compose', false);
 
-    await user.type(await screen.findByLabelText('Your answer'), '我在学习');
-    await user.click(screen.getByRole('button', { name: 'Check' }));
-    expect(screen.getByText('Original')).toBeInTheDocument();
+    await attempt(user, '我学习中文');
+    expect(await screen.findByText('Right')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Play sentence' })).not.toBeInTheDocument();
   });
 
@@ -436,12 +561,26 @@ describe('the Compose tab', () => {
     setQueue([STUDY]);
     renderTab('compose', false);
 
-    await user.type(await screen.findByLabelText('Your answer'), '我的蘋果');
-    await user.click(screen.getByRole('button', { name: 'Check' }));
+    await attempt(user, '我的蘋果沒了');
 
-    const reference = screen.getByText('Original').nextElementSibling as HTMLElement;
-    expect(reference).toHaveTextContent('我的蘋果沒了。');
-    expect(within(reference).getByText('wǒ de píng guǒ méi le。')).toBeInTheDocument();
+    await screen.findByText('Right');
+    const answer = matchedAnswer();
+    expect(hanziOf(answer)).toBe('我的蘋果沒了。');
+    expect(within(answer).getByText('píng guǒ')).toBeInTheDocument();
+  });
+
+  it('matches a simplified answer to a traditional reference', async () => {
+    const user = userEvent.setup();
+    vi.mocked(getSegmentedSentence).mockImplementation(async (_simp, _charSet, id) =>
+      traditionalSentence(id ?? 'none'),
+    );
+    setQueue([STUDY]);
+    renderTab('compose', false);
+
+    await attempt(user, '我的苹果没了');
+
+    expect(await screen.findByText('Right')).toBeInTheDocument();
+    expect(saveGrade).toHaveBeenCalledWith('user-1', expect.objectContaining({ grade: 'right' }));
   });
 
   describe('with a spoken answer', () => {
@@ -476,20 +615,24 @@ describe('the Compose tab', () => {
       say(transcript);
       const check = screen.getByRole('button', { name: 'Check' });
       await waitFor(() => expect(check).toBeEnabled());
+      // The recognized text goes into the input before the check.
+      expect(screen.getByLabelText('Your answer')).not.toHaveValue('');
       await user.click(check);
-      const answer = screen.getByText('Your answer').nextElementSibling as HTMLElement;
-      await user.click(screen.getByRole('button', { name: 'Right' }));
-      return answer;
+      await screen.findByText('Right');
+      return matchedAnswer();
     };
 
-    it('shows a traditional answer, with the target highlighted, for the traditional set', async () => {
-      const answer = await speakAnswer('trad', '我在学习');
+    it('logs a traditional answer for the traditional set', async () => {
+      const answer = await speakAnswer('trad', '我学习中文');
 
-      expect(answer).toHaveTextContent('我在學習');
-      expect(within(answer).getByText('學習').tagName).toBe('SPAN');
+      // The answer box shows the reference, in the set of the sentence file.
+      expect(hanziOf(answer)).toBe('我学习中文。');
       expect(saveGrade).toHaveBeenCalledWith(
         'user-1',
-        expect.objectContaining({ answer: '我在學習' }),
+        expect.objectContaining({
+          grade: 'right',
+          attempts: [expect.objectContaining({ answer: '我學習中文' })],
+        }),
       );
     });
 
@@ -512,12 +655,15 @@ describe('the Compose tab', () => {
     });
 
     it('keeps the transcript unchanged for the simplified set', async () => {
-      const answer = await speakAnswer('simp', '我在学习');
+      const answer = await speakAnswer('simp', '我学习中文');
 
-      expect(answer).toHaveTextContent('我在学习');
+      expect(hanziOf(answer)).toBe('我学习中文。');
       expect(saveGrade).toHaveBeenCalledWith(
         'user-1',
-        expect.objectContaining({ answer: '我在学习' }),
+        expect.objectContaining({
+          grade: 'right',
+          attempts: [expect.objectContaining({ answer: '我学习中文' })],
+        }),
       );
     });
   });
@@ -538,7 +684,7 @@ describe('the Compose tab', () => {
       for (const char of Array.from(text)) await user.click(tileButton(char));
     };
 
-    it('grades an exact match right at the check, and saves the tiles shown', async () => {
+    it('reveals a first-attempt match, saves it right, and saves the tiles shown', async () => {
       const user = userEvent.setup();
       withTiles();
       setQueue([STUDY]);
@@ -553,9 +699,8 @@ describe('the Compose tab', () => {
       await placeTiles(user, '我学习中文');
       await user.click(check);
 
-      expect(screen.getByRole('status')).toHaveTextContent('Right');
-      const reference = screen.getByText('Original').nextElementSibling as HTMLElement;
-      expect(reference).toHaveTextContent('我学习中文。');
+      await screen.findByText('Right');
+      expect(hanziOf(matchedAnswer())).toBe('我学习中文。');
       expect(screen.queryByRole('button', { name: 'Wrong' })).not.toBeInTheDocument();
       expect(saveGrade).toHaveBeenCalledTimes(1);
       const saved = vi.mocked(saveGrade).mock.calls[0][1];
@@ -563,18 +708,20 @@ describe('the Compose tab', () => {
         tab: 'compose',
         grade: 'right',
         input: 'tiles',
-        answer: '我学习中文',
+        gaveUp: false,
         lookups: 0,
+        attempts: [{ answer: '我学习中文', answerMs: expect.any(Number), lookups: 0 }],
       });
-      expect([...(saved.tiles ?? [])].sort()).toEqual([...TILES].sort());
+      expect([...('tiles' in saved ? (saved.tiles ?? []) : [])].sort()).toEqual([...TILES].sort());
 
-      await user.click(screen.getByRole('button', { name: 'Continue' }));
+      await user.click(screen.getByRole('button', { name: 'Next' }));
       expect(await screen.findByText(/1 right/)).toBeInTheDocument();
       expect(saveGrade).toHaveBeenCalledTimes(1);
     });
 
-    it('grades the right characters in another order wrong', async () => {
+    it('marks the right characters in another order, keeps the placed tiles, and offers Give up', async () => {
       const user = userEvent.setup();
+      localStorage.setItem('charSet', 'simp');
       withTiles();
       setQueue([STUDY]);
       renderTab('compose', false);
@@ -583,10 +730,56 @@ describe('the Compose tab', () => {
       await placeTiles(user, '学习我中文');
       await user.click(screen.getByRole('button', { name: 'Check' }));
 
-      expect(screen.getByRole('status')).toHaveTextContent('Wrong');
+      const marks = await screen.findByRole('group', { name: 'Last attempt' });
+      expect(within(marks).getByLabelText('我: misplaced')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Remove 我' })).toBeInTheDocument();
+      // One task has one input.
+      expect(screen.queryByRole('button', { name: 'Free answer' })).not.toBeInTheDocument();
+      expect(saveGrade).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole('button', { name: 'Give up' }));
+      expect(screen.getByText('Original')).toBeInTheDocument();
       expect(saveGrade).toHaveBeenCalledWith(
         'user-1',
-        expect.objectContaining({ grade: 'wrong', answer: '学习我中文' }),
+        expect.objectContaining({
+          grade: 'wrong',
+          gaveUp: true,
+          input: 'tiles',
+          attempts: [expect.objectContaining({ answer: '学习我中文' })],
+        }),
+      );
+    });
+
+    it('saves a later tile match wrong', async () => {
+      const user = userEvent.setup();
+      withTiles();
+      setQueue([STUDY]);
+      renderTab('compose', false);
+
+      await user.click(await screen.findByRole('button', { name: 'Tiles' }));
+      await placeTiles(user, '学习我中文');
+      await user.click(screen.getByRole('button', { name: 'Check' }));
+      await screen.findByRole('group', { name: 'Last attempt' });
+      await user.click(screen.getByRole('button', { name: 'Remove 我' }));
+      // The tiles after it stay in place.
+      await user.click(screen.getByRole('button', { name: 'Remove 学' }));
+      await user.click(screen.getByRole('button', { name: 'Remove 习' }));
+      await user.click(screen.getByRole('button', { name: 'Remove 中' }));
+      await user.click(screen.getByRole('button', { name: 'Remove 文' }));
+      await placeTiles(user, '我学习中文');
+      await user.click(screen.getByRole('button', { name: 'Check' }));
+
+      expect(await screen.findByText('Right on attempt 2')).toBeInTheDocument();
+      expect(saveGrade).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({
+          grade: 'wrong',
+          gaveUp: false,
+          attempts: [
+            expect.objectContaining({ answer: '学习我中文' }),
+            expect.objectContaining({ answer: '我学习中文' }),
+          ],
+        }),
       );
     });
 
@@ -604,7 +797,80 @@ describe('the Compose tab', () => {
       expect(screen.queryByRole('button', { name: 'Remove 我' })).not.toBeInTheDocument();
     });
 
-    it('lets a learner who is stuck check with no tile, and grades it wrong', async () => {
+    it('moves a placed tile that the learner drags, and keeps it placed', async () => {
+      const user = userEvent.setup();
+      withTiles();
+      setQueue([STUDY]);
+      renderTab('compose', false);
+
+      await user.click(await screen.findByRole('button', { name: 'Tiles' }));
+      await placeTiles(user, '文我学习中');
+      // jsdom gives each tile an empty box at 0, 0, so a drop to the right goes at the end.
+      const dragged = screen.getByRole('button', { name: 'Remove 文' });
+      await user.pointer([
+        { keys: '[MouseLeft>]', target: dragged, coords: { clientX: 0, clientY: 0 } },
+        { target: dragged, coords: { clientX: 10, clientY: 0 } },
+        { keys: '[/MouseLeft]', target: dragged, coords: { clientX: 10, clientY: 0 } },
+      ]);
+
+      expect(screen.getByRole('button', { name: 'Remove 文' })).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Check' }));
+      await screen.findByText('Right');
+      expect(saveGrade).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({
+          grade: 'right',
+          attempts: [expect.objectContaining({ answer: '我学习中文' })],
+        }),
+      );
+    });
+
+    it('puts a tile left that the learner drags into the slot under the drop', async () => {
+      const user = userEvent.setup();
+      withTiles();
+      setQueue([STUDY]);
+      renderTab('compose', false);
+
+      await user.click(await screen.findByRole('button', { name: 'Tiles' }));
+      await placeTiles(user, '学习中文');
+      // jsdom gives each box an empty rect at 0, 0: a drop just left of 0 goes first.
+      const dragged = tileButton('我');
+      await user.pointer([
+        { keys: '[MouseLeft>]', target: dragged, coords: { clientX: 0, clientY: 0 } },
+        { target: dragged, coords: { clientX: -10, clientY: 0 } },
+        { keys: '[/MouseLeft]', target: dragged, coords: { clientX: -10, clientY: 0 } },
+      ]);
+
+      expect(screen.getByRole('button', { name: 'Remove 我' })).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Check' }));
+      await screen.findByText('Right');
+      expect(saveGrade).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({
+          attempts: [expect.objectContaining({ answer: '我学习中文' })],
+        }),
+      );
+    });
+
+    it('leaves a tile left where it is after a drop outside the answer', async () => {
+      const user = userEvent.setup();
+      withTiles();
+      setQueue([STUDY]);
+      renderTab('compose', false);
+
+      await user.click(await screen.findByRole('button', { name: 'Tiles' }));
+      const dragged = tileButton('我');
+      await user.pointer([
+        { keys: '[MouseLeft>]', target: dragged, coords: { clientX: 0, clientY: 0 } },
+        { target: dragged, coords: { clientX: 0, clientY: 300 } },
+        { keys: '[/MouseLeft]', target: dragged, coords: { clientX: 0, clientY: 300 } },
+      ]);
+
+      expect(tileButton('我')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Remove 我' })).not.toBeInTheDocument();
+    });
+
+    it('lets a learner who is stuck check with no tile, then give up', async () => {
       const user = userEvent.setup();
       withTiles();
       setQueue([STUDY]);
@@ -612,11 +878,16 @@ describe('the Compose tab', () => {
 
       await user.click(await screen.findByRole('button', { name: 'Tiles' }));
       await user.click(screen.getByRole('button', { name: 'Check' }));
+      await user.click(await screen.findByRole('button', { name: 'Give up' }));
 
-      expect(screen.getByRole('status')).toHaveTextContent('Wrong');
       expect(saveGrade).toHaveBeenCalledWith(
         'user-1',
-        expect.objectContaining({ grade: 'wrong', input: 'tiles', answer: '' }),
+        expect.objectContaining({
+          grade: 'wrong',
+          gaveUp: true,
+          input: 'tiles',
+          attempts: [expect.objectContaining({ answer: '' })],
+        }),
       );
     });
 
@@ -644,21 +915,22 @@ describe('the Compose tab', () => {
       expect(screen.queryByRole('button', { name: 'Tiles' })).not.toBeInTheDocument();
     });
 
-    it('logs the free answer as free', async () => {
+    it('logs the free answer by its attempts, with no tiles', async () => {
       const user = userEvent.setup();
       withTiles();
       setQueue([STUDY]);
       renderTab('compose', false);
 
-      await user.type(await screen.findByLabelText('Your answer'), '我学习');
+      await user.type(await screen.findByLabelText('Your answer'), '我学习中文');
       await user.click(screen.getByRole('button', { name: 'Check' }));
-      await user.click(screen.getByRole('button', { name: 'Right' }));
 
-      expect(saveGrade).toHaveBeenCalledWith(
-        'user-1',
-        expect.objectContaining({ input: 'free', answer: '我学习' }),
-      );
-      expect(vi.mocked(saveGrade).mock.calls[0][1]).not.toHaveProperty('tiles');
+      await screen.findByText('Right');
+      const saved = vi.mocked(saveGrade).mock.calls[0][1];
+      expect(saved).toMatchObject({
+        attempts: [expect.objectContaining({ answer: '我学习中文' })],
+      });
+      expect(saved).not.toHaveProperty('tiles');
+      expect(saved).not.toHaveProperty('input');
     });
   });
 

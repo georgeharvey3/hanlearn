@@ -48,6 +48,7 @@ const grade = (over: Partial<SentenceGrade> = {}): SentenceGrade => ({
   revealed: true,
   lookups: 2,
   at: NOW,
+  lapses: { MC: 1, MP: 0 },
   ...over,
 });
 
@@ -71,6 +72,7 @@ describe('saveGrade', () => {
         lastPractised: expect.objectContaining({ __ts: NOW.toISOString() }),
         lastResult: 'wrong',
         seen: { s1: expect.objectContaining({ __ts: NOW.toISOString() }) },
+        lapses: { MC: 1, MP: 0 },
       },
     });
 
@@ -91,33 +93,97 @@ describe('saveGrade', () => {
     });
   });
 
-  it('logs the raw answer of a Compose task', async () => {
+  it('logs each attempt of a free Compose answer, at version 3', async () => {
     setDocSpy.mockResolvedValue(undefined);
+    const attempts = [
+      { answer: '我在学中文', answerMs: 8200, lookups: 1 },
+      { answer: '我学中文', answerMs: 14100, lookups: 0 },
+    ];
 
-    await saveGrade('user-1', grade({ tab: 'compose', answer: '我学中文' }));
-
-    expect(setDocSpy.mock.calls[0][1]).toHaveProperty('compose');
-    expect(setDocSpy.mock.calls[1][1]).toMatchObject({
+    await saveGrade('user-1', {
+      wordId: 42,
+      sentenceId: 's1',
       tab: 'compose',
-      input: 'free',
-      answer: '我学中文',
+      lapses: { PM: 0, CM: 0 },
+      grade: 'wrong',
+      mode: 'text',
+      gaveUp: false,
+      lookups: 1,
+      attempts,
+      at: NOW,
     });
-    expect(setDocSpy.mock.calls[1][1]).not.toHaveProperty('tiles');
+
+    expect(setDocSpy.mock.calls[0][1]).toEqual({
+      compose: expect.objectContaining({ lastResult: 'wrong' }),
+    });
+    expect(setDocSpy.mock.calls[1][1]).toEqual({
+      version: 3,
+      date: '2026-11-04',
+      reviewedAt: expect.objectContaining({ __ts: NOW.toISOString() }),
+      wordId: 42,
+      sentenceId: 's1',
+      tab: 'compose',
+      grade: 'wrong',
+      mode: 'text',
+      gaveUp: false,
+      lookups: 1,
+      attempts,
+    });
   });
 
-  it('logs the answer and the tiles shown of a tile answer', async () => {
+  it('logs the first 9 attempts and the last one, as the rules allow', async () => {
+    setDocSpy.mockResolvedValue(undefined);
+    const attempts = Array.from({ length: 12 }, (_, i) => ({
+      answer: String(i),
+      answerMs: i,
+      lookups: 0,
+    }));
+
+    await saveGrade('user-1', {
+      ...grade({ tab: 'compose' }),
+      gaveUp: true,
+      attempts,
+    });
+
+    expect(setDocSpy.mock.calls[1][1].attempts).toEqual([...attempts.slice(0, 9), attempts[11]]);
+  });
+
+  it('logs the input and the tiles shown of a tile answer', async () => {
     setDocSpy.mockResolvedValue(undefined);
     const tiles = ['书', '我', '输', '看', '树', '吃'];
+    const attempts = [{ answer: '我看书', answerMs: 4000, lookups: 0 }];
 
-    await saveGrade('user-1', grade({ tab: 'compose', input: 'tiles', answer: '我看书', tiles }));
+    await saveGrade('user-1', {
+      wordId: 42,
+      sentenceId: 's1',
+      tab: 'compose',
+      lapses: { PM: 0, CM: 0 },
+      grade: 'right',
+      mode: 'text',
+      gaveUp: false,
+      lookups: 0,
+      attempts,
+      input: 'tiles',
+      tiles,
+      at: NOW,
+    });
 
-    expect(setDocSpy.mock.calls[1][1]).toMatchObject({ input: 'tiles', answer: '我看书', tiles });
+    expect(setDocSpy.mock.calls[1][1]).toMatchObject({
+      version: 3,
+      input: 'tiles',
+      tiles,
+      attempts,
+    });
   });
 
-  it('gives a Comprehend entry no input', async () => {
+  it('gives a free Compose entry no input and no tiles', async () => {
     setDocSpy.mockResolvedValue(undefined);
 
-    await saveGrade('user-1', grade({ input: 'tiles', tiles: ['我'] }));
+    await saveGrade('user-1', {
+      ...grade({ tab: 'compose' }),
+      gaveUp: false,
+      attempts: [{ answer: '我', answerMs: 1, lookups: 0 }],
+    });
 
     expect(setDocSpy.mock.calls[1][1]).not.toHaveProperty('input');
     expect(setDocSpy.mock.calls[1][1]).not.toHaveProperty('tiles');

@@ -27,6 +27,7 @@ interface StoredTabPractice {
   lastPractised: Timestamp;
   lastResult: SentenceResult;
   seen?: Record<string, Timestamp>;
+  lapses?: TabPractice['lapses'];
 }
 
 const fromStored = (stored: StoredTabPractice): TabPractice => ({
@@ -35,6 +36,7 @@ const fromStored = (stored: StoredTabPractice): TabPractice => ({
   seen: Object.fromEntries(
     Object.entries(stored.seen ?? {}).map(([id, at]) => [id, at.toDate().toISOString()]),
   ),
+  ...(stored.lapses ? { lapses: stored.lapses } : {}),
 });
 
 /** Read the queue state of every word, with one query. */

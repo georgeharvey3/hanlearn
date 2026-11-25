@@ -487,6 +487,53 @@ describe('TestWords — summary', () => {
   });
 });
 
+describe('TestWords — word page from the summary', () => {
+  const summaryStore = () =>
+    createTestStore({
+      ...authenticatedState(),
+      addWords: {
+        lists: [{ id: 'default', name: 'General', createdAt: '', order: 0 }],
+        activeListId: 'default',
+        words: [dueWord(1, '你好', 2)],
+        listStats: {},
+        loading: false,
+        error: false,
+      },
+    });
+
+  it('opens the word page uncovered, and Back shows the same summary again', async () => {
+    window.history.pushState({ key: 'start', state: undefined }, '', '/test-words');
+    const { unmount } = renderWithProviders(<TestWords />, { store: summaryStore() });
+    const scores = [{ char: '你好', direction: 'MC', result: 'fail' }];
+    await reachSummary(scores);
+
+    act(() => (capturedSummaryProps.onOpenWord as (id: number) => void)(1));
+    expect(window.location.pathname).toBe('/word/1');
+    expect(window.history.state.state).toEqual({ shown: true });
+    unmount();
+
+    // Back from the word page: the entry the summary marked before it left.
+    window.history.back();
+    await waitFor(() => expect(window.location.pathname).toBe('/test-words'));
+    expect(window.history.state.state).toEqual({ summary: true });
+
+    capturedSummaryProps = {};
+    capturedTestProps = {};
+    renderWithProviders(<TestWords />, { store: summaryStore() });
+    await waitFor(() => expect(screen.getByTestId('mock-test-summary')).toBeInTheDocument());
+    expect(screen.queryByTestId('mock-test')).not.toBeInTheDocument();
+    expect(capturedSummaryProps.scores).toEqual(scores);
+    expect((capturedSummaryProps.words as { simp: string }[]).map((w) => w.simp)).toEqual(['你好']);
+  });
+
+  it('starts a new session when the entry is not marked', async () => {
+    window.history.pushState({ key: 'fresh', state: undefined }, '', '/test-words');
+    renderWithProviders(<TestWords />, { store: summaryStore() });
+    await waitFor(() => expect(screen.getByTestId('mock-test')).toBeInTheDocument());
+    expect(screen.queryByTestId('mock-test-summary')).not.toBeInTheDocument();
+  });
+});
+
 describe('TestWords — cross-list (Test All) mode', () => {
   it('names "All lists" when __all__ is active and no words are due', async () => {
     const store = createTestStore({
