@@ -24,6 +24,8 @@ interface TestSummaryProps {
   /** The status of the sentence tabs: a tab with nothing to practise gets no button. */
   sentenceTabs?: TabStatuses | null;
   onSentenceTab?: (tab: SentenceTab) => void;
+  /** Opens the word page of a turned tile. Without it, a second tap turns the tile back. */
+  onOpenWord?: (wordId: number) => void;
 }
 
 /**
@@ -39,6 +41,7 @@ const TestSummary: React.FC<TestSummaryProps> = ({
   onPracticeMissed,
   sentenceTabs,
   onSentenceTab,
+  onOpenWord,
 }) => {
   const rows = useMemo(() => summaryRows(scores, words), [scores, words]);
   const counts = tally(rows);
@@ -107,7 +110,12 @@ const TestSummary: React.FC<TestSummaryProps> = ({
                   key={i}
                   row={row}
                   turned={turned === i}
-                  onClick={() => setTurned(turned === i ? null : i)}
+                  opens={turned === i && onOpenWord !== undefined && row.wordId !== undefined}
+                  onClick={() => {
+                    if (turned !== i) setTurned(i);
+                    else if (onOpenWord && row.wordId !== undefined) onOpenWord(row.wordId);
+                    else setTurned(null);
+                  }}
                 />
               ),
             )}

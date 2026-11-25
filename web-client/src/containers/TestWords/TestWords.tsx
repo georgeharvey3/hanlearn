@@ -17,7 +17,9 @@ import NothingDue from '../../components/Test/NothingDue/NothingDue';
 import SessionLoading from '../../components/Test/NothingDue/SessionLoading';
 import { copy } from '../../copy';
 import { useSentenceTabs } from '../../hooks/useSentenceTabs';
-import { routes } from '../../components/Navigation/navLinks';
+import { routes, wordPath } from '../../components/Navigation/navLinks';
+import type { WordPageLocationState } from '../WordPage/WordPage';
+import { holdSummary, heldSummaryFor, SummaryReturnState } from '../../utils/heldSummary';
 import { SentenceTab } from '../../utils/sentenceSettings';
 
 import ErrorBoundary from '../../components/ErrorBoundary/ErrorBoundary';
@@ -114,6 +116,8 @@ const TestWords: React.FC<Props> = ({
   location,
 }) => {
   const launch = location.state as SessionLaunch | undefined;
+  // Back from the word page shows the summary again, not a new session.
+  const [returned] = useState(() => heldSummaryFor(location.state));
 
   const getInitialStage = (): Stage => {
     if (devConfig) {
@@ -124,15 +128,15 @@ const TestWords: React.FC<Props> = ({
   };
 
   const [state, setState] = useState<TestWordsState>({
-    stage: getInitialStage(),
+    stage: returned ? 'summary' : getInitialStage(),
     newWords: [],
     plan: null,
-    selectedWords: [],
+    selectedWords: returned?.words ?? [],
     newWordsEnabled: isDemo ? true : localStorage.getItem('newWords') !== 'false',
     devTestFinished: devConfig?.testFinished ?? false,
-    practiceMode: false,
-    wordsInitialized: false,
-    wordScores: [],
+    practiceMode: returned?.practiceMode ?? false,
+    wordsInitialized: returned !== null,
+    wordScores: returned?.scores ?? [],
     pendingResume: null,
     pendingResumeLabel: '',
     resume: null,
@@ -239,7 +243,7 @@ const TestWords: React.FC<Props> = ({
   }, [isDemo, planFor, selectTestWords, state.newWordsEnabled]);
 
   // Track whether we've already initialized to prevent re-running setSelectedWords
-  const hasInitialized = useRef(false);
+  const hasInitialized = useRef(returned !== null);
   const prevActiveListId = useRef(activeListId);
   // Track whether wordsLoading has been true at least once (prevents the "no words"
   // fallback from firing before the fetch even starts, since both effects run in the
@@ -515,6 +519,22 @@ const TestWords: React.FC<Props> = ({
     history.push(routes[tab]);
   };
 
+  /**
+   * Open the word page of one tile. This entry is marked first, so the Back of
+   * the word page comes back to the summary. The learner saw the answer on the
+   * tile, so the page opens uncovered.
+   */
+  const onOpenWord = (wordId: number): void => {
+    holdSummary({
+      scores: state.wordScores,
+      words: state.selectedWords,
+      practiceMode: state.practiceMode,
+    });
+    const summaryReturn: SummaryReturnState = { summary: true };
+    history.replace({ ...location, state: { ...launch, ...summaryReturn } });
+    history.push(wordPath(wordId), { shown: true } as WordPageLocationState);
+  };
+
   // All dev stages require auth since they use real words from user's list
   // Wait for auth to initialize before redirecting
   if (devConfig && !authInitialized) {
@@ -580,6 +600,7 @@ const TestWords: React.FC<Props> = ({
             onPracticeMissed={onPracticeMissed}
             sentenceTabs={isDemo ? null : sentenceTabs}
             onSentenceTab={isDemo ? undefined : onSentenceTab}
+            onOpenWord={isDemo ? undefined : onOpenWord}
           />
         );
         break;
