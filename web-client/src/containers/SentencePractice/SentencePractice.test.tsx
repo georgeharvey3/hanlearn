@@ -698,7 +698,7 @@ describe('the Compose tab', () => {
       });
       expect([...('tiles' in saved ? (saved.tiles ?? []) : [])].sort()).toEqual([...TILES].sort());
 
-      await user.click(screen.getByRole('button', { name: 'Continue' }));
+      await user.click(screen.getByRole('button', { name: 'Next' }));
       expect(await screen.findByText(/1 right/)).toBeInTheDocument();
       expect(saveGrade).toHaveBeenCalledTimes(1);
     });

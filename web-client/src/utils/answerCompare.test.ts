@@ -24,6 +24,7 @@ describe('normalizeAnswer', () => {
     expect(normalizeAnswer('2点', '二点')).toBe('二点');
     expect(normalizeAnswer('200', '两百块')).toBe('两百');
     expect(normalizeAnswer('22', '两十二')).toBe('二十二');
+    expect(normalizeAnswer('第2次2点', '第二次两点')).toBe('第二次两点');
   });
 
   it('reads a year or a number with a leading zero digit by digit, as the reference does', () => {

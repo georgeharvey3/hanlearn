@@ -128,7 +128,7 @@ describe('saveGrade', () => {
     });
   });
 
-  it('logs only the first 10 attempts, as the rules allow', async () => {
+  it('logs the first 9 attempts and the last one, as the rules allow', async () => {
     setDocSpy.mockResolvedValue(undefined);
     const attempts = Array.from({ length: 12 }, (_, i) => ({
       answer: String(i),
@@ -142,7 +142,7 @@ describe('saveGrade', () => {
       attempts,
     });
 
-    expect(setDocSpy.mock.calls[1][1].attempts).toEqual(attempts.slice(0, 10));
+    expect(setDocSpy.mock.calls[1][1].attempts).toEqual([...attempts.slice(0, 9), attempts[11]]);
   });
 
   it('logs the answer and the tiles shown of a tile answer', async () => {

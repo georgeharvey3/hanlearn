@@ -16,8 +16,8 @@ export const SENTENCE_LOG_VERSION = 2;
 export const ATTEMPTS_LOG_VERSION = 3;
 
 /**
- * The most attempts that one entry logs: the first ones. The rules allow no
- * more, because one rules evaluation counts at most 1000 expressions.
+ * The most attempts that one entry logs. The rules allow no more, because one
+ * rules evaluation counts at most 1000 expressions.
  */
 export const MAX_LOGGED_ATTEMPTS = 10;
 
@@ -43,7 +43,7 @@ interface GradeBase {
   tab: SentenceTab;
   grade: SentenceResult;
   mode: SentenceMode;
-  /** How many words the learner looked up in the task. */
+  /** The lookups of the task: segments tapped (Comprehend), English words (Compose). */
   lookups: number;
   at: Date;
 }
@@ -59,8 +59,8 @@ export interface AttemptsGrade extends GradeBase {
 export interface AnswerGrade extends GradeBase {
   /** The raw answer of a Compose task: the placed characters of a tile answer. */
   answer?: string;
-  /** The input of a Compose task. `free` when not given. */
-  input?: ComposeInput;
+  /** The input of a Compose task with one answer: a free answer logs its attempts. */
+  input?: 'tiles';
   /**
    * The tiles of a tile answer, in screen order. A rebuild can change the
    * tile set of a sentence, so only the log keeps the tiles that the learner saw.
@@ -90,39 +90,30 @@ export function sentencePracticeUpdate<T>(grade: SentenceGrade, at: T) {
   };
 }
 
-/** The fields that only a Compose entry has. */
-function composeFields(grade: AnswerGrade) {
-  const input = grade.input ?? 'free';
+/** The fields that only a Compose entry with one answer has: a tile answer. */
+function tileFields(grade: AnswerGrade) {
   return {
-    input,
+    input: 'tiles' as const,
     ...(grade.answer !== undefined ? { answer: grade.answer } : {}),
-    ...(input === 'tiles' && grade.tiles !== undefined ? { tiles: grade.tiles } : {}),
+    ...(grade.tiles !== undefined ? { tiles: grade.tiles } : {}),
   };
+}
+
+/**
+ * The attempts that the log keeps, in order: all of them, or the first ones
+ * and the last one. The last attempt is the match, unless the learner gave up.
+ */
+function loggedAttempts(attempts: ComposeAttempt[]): ComposeAttempt[] {
+  const kept =
+    attempts.length <= MAX_LOGGED_ATTEMPTS
+      ? attempts
+      : [...attempts.slice(0, MAX_LOGGED_ATTEMPTS - 1), attempts[attempts.length - 1]];
+  return kept.map(({ answer, answerMs, lookups }) => ({ answer, answerMs, lookups }));
 }
 
 /** The write-once document of `users/{uid}/sentenceLog/{autoId}`. */
 export function sentenceLogDocument<T>(grade: SentenceGrade, at: T) {
-  if ('attempts' in grade) {
-    return {
-      version: ATTEMPTS_LOG_VERSION,
-      date: dayKey(grade.at),
-      reviewedAt: at,
-      wordId: grade.wordId,
-      sentenceId: grade.sentenceId,
-      tab: grade.tab,
-      grade: grade.grade,
-      mode: grade.mode,
-      gaveUp: grade.gaveUp,
-      lookups: grade.lookups,
-      attempts: grade.attempts.slice(0, MAX_LOGGED_ATTEMPTS).map((attempt) => ({
-        answer: attempt.answer,
-        answerMs: attempt.answerMs,
-        lookups: attempt.lookups,
-      })),
-    };
-  }
-  return {
-    version: SENTENCE_LOG_VERSION,
+  const base = {
     date: dayKey(grade.at),
     reviewedAt: at,
     wordId: grade.wordId,
@@ -130,7 +121,20 @@ export function sentenceLogDocument<T>(grade: SentenceGrade, at: T) {
     tab: grade.tab,
     grade: grade.grade,
     mode: grade.mode,
-    ...(grade.tab === 'compose' ? composeFields(grade) : {}),
+  };
+  if ('attempts' in grade) {
+    return {
+      version: ATTEMPTS_LOG_VERSION,
+      ...base,
+      gaveUp: grade.gaveUp,
+      lookups: grade.lookups,
+      attempts: loggedAttempts(grade.attempts),
+    };
+  }
+  return {
+    version: SENTENCE_LOG_VERSION,
+    ...base,
+    ...(grade.tab === 'compose' ? tileFields(grade) : {}),
     answerMs: grade.answerMs,
     revealed: grade.revealed,
     lookups: grade.lookups,

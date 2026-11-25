@@ -1,6 +1,7 @@
 import React, { KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
-import { Box, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Box, Theme, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { SystemStyleObject } from '@mui/system';
 
 import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
@@ -106,7 +107,7 @@ const tileSx = {
 } as const;
 
 /** The look of each mark: a colour, and a shape that does not need the colour. */
-const markSx: Record<Exclude<AttemptMark['kind'], 'gap'>, object> = {
+const markSx: Record<Exclude<AttemptMark['kind'], 'gap'>, SystemStyleObject<Theme>> = {
   placed: { bgcolor: colors.successSurface, color: colors.success },
   misplaced: {
     bgcolor: colors.warningSurface,
@@ -470,7 +471,7 @@ const ComposeTask: React.FC<Props> = ({
           )}
         </StudyBody>
         <StudyButton variant="primary" onClick={onNext}>
-          {tileGrade === null ? copy.sentence.next : copy.test.continue}
+          {copy.sentence.next}
         </StudyButton>
       </>
     );

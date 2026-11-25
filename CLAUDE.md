@@ -140,7 +140,7 @@ users/{userId}/
   │   │   tiles? (the tiles shown of a tile answer, in screen order; #386)
   │   └── version: 3 (a free Compose answer; #597): date, reviewedAt, wordId,
   │       sentenceId, tab: 'compose', grade, mode, gaveUp: bool, lookups,
-  │       attempts: [{ answer, answerMs, lookups }] (the first 10)
+  │       attempts: [{ answer, answerMs, lookups }] (at most 10: the first 9 and the last)
   ├── sentenceReports/{sentenceId} # One report of a bad example sentence (#469)
   │   └── sentenceId, word, stage: 'read' | 'write', sentence, english, reportedAt
   ├── partReports/{reportId}     # One report of a wrong part meaning (#533). The id is

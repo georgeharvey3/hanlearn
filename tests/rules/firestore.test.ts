@@ -509,11 +509,7 @@ describe("reviewLog", () => {
 
   // A stroke-check lapse that the learner counted as known (#475).
   it("accepts a handwriting entry counted as known", async () => {
-    const {
-      answer: _a,
-      alternatives: _c,
-      ...handwriting
-    } = entry({
+    const { answer: _a, alternatives: _c, ...handwriting } = entry({
       mode: "handwriting",
       direction: "CM",
       grade: "pass",
@@ -744,26 +740,14 @@ describe("partReports", () => {
   });
 
   it("rejects an extra field, a missing field or a wrong type", async () => {
-    await assertFails(
-      setDoc(ref(db, path(arrow)), report(arrow, { note: "bad" })),
-    );
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { note: "bad" })));
     const { label: _label, ...noLabel } = report(arrow);
     await assertFails(setDoc(ref(db, path(arrow)), noLabel));
-    await assertFails(
-      setDoc(ref(db, path(arrow)), report(arrow, { strokes: "7,8" })),
-    );
-    await assertFails(
-      setDoc(ref(db, path(arrow)), report(arrow, { strokes: [] })),
-    );
-    await assertFails(
-      setDoc(ref(db, path(arrow)), report(arrow, { label: 3 })),
-    );
-    await assertFails(
-      setDoc(ref(db, path(arrow)), report(arrow, { char: "" })),
-    );
-    await assertFails(
-      setDoc(ref(db, path(arrow)), report(arrow, { parent: null })),
-    );
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { strokes: "7,8" })));
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { strokes: [] })));
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { label: 3 })));
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { char: "" })));
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { parent: null })));
   });
 
   it("accepts a reason, and a report with no reason from an older bundle", async () => {
@@ -774,21 +758,13 @@ describe("partReports", () => {
   });
 
   it("rejects an empty reason, a reason too long or a reason that is not text", async () => {
-    await assertFails(
-      setDoc(ref(db, path(arrow)), report(arrow, { reason: "" })),
-    );
-    await assertFails(
-      setDoc(ref(db, path(arrow)), report(arrow, { reason: "x".repeat(501) })),
-    );
-    await assertFails(
-      setDoc(ref(db, path(arrow)), report(arrow, { reason: 3 })),
-    );
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { reason: "" })));
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { reason: "x".repeat(501) })));
+    await assertFails(setDoc(ref(db, path(arrow)), report(arrow, { reason: 3 })));
   });
 
   it("rejects an id that is not a character and its strokes", async () => {
-    await assertFails(
-      setDoc(ref(db, "users/user-1/partReports/arrow"), report(arrow)),
-    );
+    await assertFails(setDoc(ref(db, "users/user-1/partReports/arrow"), report(arrow)));
   });
 
   it("rejects a label too long for the labels file", async () => {
@@ -920,7 +896,7 @@ describe("sentenceLog", () => {
   });
 
   it("rejects a version 2 entry of a free Compose answer", async () => {
-    const free = entry({ tab: "compose", input: "free", answer: "我" });
+    const free = { ...entry({ tab: "compose", answer: "我" }), input: "free" };
     await assertFails(setDoc(ref(db, path), free));
     const { input: _input, ...noInput } = free;
     await assertFails(setDoc(ref(db, path), noInput));

@@ -101,11 +101,36 @@ function readings(run: string): { usual: string | null; all: string[] } {
 export function normalizeAnswer(text: string, reference: string): string {
   const strip = (value: string) => value.replace(NOT_LETTER_OR_NUMBER, '').toLowerCase();
   const target = strip(reference.normalize('NFKC'));
-  const withHanzi = text.normalize('NFKC').replace(DIGIT_RUN, (run) => {
-    const { usual, all } = readings(run);
-    return all.find((reading) => target.includes(reading)) ?? usual ?? run;
+  const source = text.normalize('NFKC');
+  // Each run of digits, with its readings. A run with no reading stays as digits.
+  const runs = Array.from(source.matchAll(DIGIT_RUN), ([raw]) => {
+    const { usual, all } = readings(raw);
+    return { usual: usual ?? raw, all: all.length > 0 ? all : [raw] };
   });
-  return strip(withHanzi);
+  const fill = (pick: (run: number) => string) => {
+    let at = 0;
+    return strip(source.replace(DIGIT_RUN, () => pick(at++)));
+  };
+
+  // Each number of the reference can read another way (第二次两点), so the
+  // readings that give the whole reference win. A few numbers give few choices.
+  const choices = runs.reduce((count, run) => count * run.all.length, 1);
+  if (runs.length > 0 && choices <= 256) {
+    for (let index = 0; index < choices; index++) {
+      let rest = index;
+      const picks = runs.map((run) => {
+        const pick = run.all[rest % run.all.length];
+        rest = Math.floor(rest / run.all.length);
+        return pick;
+      });
+      const candidate = fill((run) => picks[run]);
+      if (candidate === target) return candidate;
+    }
+  }
+  return fill((run) => {
+    const { usual, all } = runs[run];
+    return all.find((reading) => target.includes(reading)) ?? usual;
+  });
 }
 
 /**
