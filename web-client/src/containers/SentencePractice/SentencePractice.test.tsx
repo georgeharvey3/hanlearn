@@ -75,6 +75,18 @@ const word = (id: number, simp: string, level = 3): Word => ({
 const STUDY = word(1, '学习');
 const READ = word(2, '看书');
 
+/** The answer box after a match: the box after the "Your answer" label. */
+const matchedAnswer = () => screen.getByText('Your answer').nextElementSibling as HTMLElement;
+
+/** The Chinese of the answer box after a match, without the pinyin over it. */
+const hanziOf = (box: HTMLElement) => {
+  const words = box.querySelector('[lang="zh"]');
+  return Array.from(words?.querySelectorAll('[lang="zh-Latn"]') ?? []).reduce(
+    (text, pinyin) => text.replace(pinyin.textContent ?? '', ''),
+    words?.textContent ?? '',
+  );
+};
+
 /** A sentence of the files: 我学习中文。 with 学习 as the target. */
 const sentenceOf = (target: string, id: string) => ({
   sentence: {
@@ -395,12 +407,14 @@ describe('the Compose tab', () => {
     expect(screen.queryByRole('button', { name: 'Give up' })).not.toBeInTheDocument();
     await attempt(user, '我学习中文');
 
-    expect(await screen.findByText('Original')).toBeInTheDocument();
+    // The screen keeps its layout: the answer shows the pinyin over each word.
+    expect(await screen.findByText('Right')).toBeInTheDocument();
     expect(screen.getByText('I 学习 Chinese.')).toBeInTheDocument();
-    const answer = screen.getByText('Your answer').nextElementSibling as HTMLElement;
-    expect(answer).toHaveTextContent('我学习中文');
-    const reference = screen.getByText('Original').nextElementSibling as HTMLElement;
-    expect(within(reference).getByText(/wǒ xué xí/)).toBeInTheDocument();
+    expect(screen.queryByText('Original')).not.toBeInTheDocument();
+    const answer = matchedAnswer();
+    expect(hanziOf(answer)).toBe('我学习中文。');
+    expect(within(answer).getByText('xué xí')).toBeInTheDocument();
+    expect(within(answer).getByText('wǒ')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Report sentence' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Right' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Wrong' })).not.toBeInTheDocument();
@@ -431,7 +445,7 @@ describe('the Compose tab', () => {
 
     await attempt(user, '我 学习, 中文!');
 
-    expect(await screen.findByText('Original')).toBeInTheDocument();
+    expect(await screen.findByText('Right')).toBeInTheDocument();
     expect(saveGrade).toHaveBeenCalledWith('user-1', expect.objectContaining({ grade: 'right' }));
   });
 
@@ -477,7 +491,7 @@ describe('the Compose tab', () => {
     await user.click(screen.getByRole('button', { name: 'I: show Chinese' }));
     await attempt(user, '我学习中文');
 
-    expect(await screen.findByText('Original')).toBeInTheDocument();
+    expect(await screen.findByText('Right on attempt 2')).toBeInTheDocument();
     expect(saveGrade).toHaveBeenCalledTimes(1);
     expect(saveGrade).toHaveBeenCalledWith(
       'user-1',
@@ -522,7 +536,7 @@ describe('the Compose tab', () => {
     renderTab('compose');
 
     await attempt(user, '我学习中文');
-    await screen.findByText('Original');
+    await screen.findByText('Right');
     expect(ttsService.speak).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: 'Play sentence' }));
@@ -535,7 +549,7 @@ describe('the Compose tab', () => {
     renderTab('compose', false);
 
     await attempt(user, '我学习中文');
-    expect(await screen.findByText('Original')).toBeInTheDocument();
+    expect(await screen.findByText('Right')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Play sentence' })).not.toBeInTheDocument();
   });
 
@@ -549,9 +563,10 @@ describe('the Compose tab', () => {
 
     await attempt(user, '我的蘋果沒了');
 
-    const reference = (await screen.findByText('Original')).nextElementSibling as HTMLElement;
-    expect(reference).toHaveTextContent('我的蘋果沒了。');
-    expect(within(reference).getByText('wǒ de píng guǒ méi le。')).toBeInTheDocument();
+    await screen.findByText('Right');
+    const answer = matchedAnswer();
+    expect(hanziOf(answer)).toBe('我的蘋果沒了。');
+    expect(within(answer).getByText('píng guǒ')).toBeInTheDocument();
   });
 
   it('matches a simplified answer to a traditional reference', async () => {
@@ -564,7 +579,7 @@ describe('the Compose tab', () => {
 
     await attempt(user, '我的苹果没了');
 
-    expect(await screen.findByText('Original')).toBeInTheDocument();
+    expect(await screen.findByText('Right')).toBeInTheDocument();
     expect(saveGrade).toHaveBeenCalledWith('user-1', expect.objectContaining({ grade: 'right' }));
   });
 
@@ -603,14 +618,15 @@ describe('the Compose tab', () => {
       // The recognized text goes into the input before the check.
       expect(screen.getByLabelText('Your answer')).not.toHaveValue('');
       await user.click(check);
-      return (await screen.findByText('Your answer')).nextElementSibling as HTMLElement;
+      await screen.findByText('Right');
+      return matchedAnswer();
     };
 
-    it('shows a traditional answer, with the target highlighted, for the traditional set', async () => {
+    it('logs a traditional answer for the traditional set', async () => {
       const answer = await speakAnswer('trad', '我学习中文');
 
-      expect(answer).toHaveTextContent('我學習中文');
-      expect(within(answer).getByText('學習').tagName).toBe('SPAN');
+      // The answer box shows the reference, in the set of the sentence file.
+      expect(hanziOf(answer)).toBe('我学习中文。');
       expect(saveGrade).toHaveBeenCalledWith(
         'user-1',
         expect.objectContaining({
@@ -641,7 +657,7 @@ describe('the Compose tab', () => {
     it('keeps the transcript unchanged for the simplified set', async () => {
       const answer = await speakAnswer('simp', '我学习中文');
 
-      expect(answer).toHaveTextContent('我学习中文');
+      expect(hanziOf(answer)).toBe('我学习中文。');
       expect(saveGrade).toHaveBeenCalledWith(
         'user-1',
         expect.objectContaining({
@@ -683,8 +699,8 @@ describe('the Compose tab', () => {
       await placeTiles(user, '我学习中文');
       await user.click(check);
 
-      const reference = (await screen.findByText('Original')).nextElementSibling as HTMLElement;
-      expect(reference).toHaveTextContent('我学习中文。');
+      await screen.findByText('Right');
+      expect(hanziOf(matchedAnswer())).toBe('我学习中文。');
       expect(screen.queryByRole('button', { name: 'Wrong' })).not.toBeInTheDocument();
       expect(saveGrade).toHaveBeenCalledTimes(1);
       const saved = vi.mocked(saveGrade).mock.calls[0][1];
@@ -753,7 +769,7 @@ describe('the Compose tab', () => {
       await placeTiles(user, '我学习中文');
       await user.click(screen.getByRole('button', { name: 'Check' }));
 
-      expect(await screen.findByText('Original')).toBeInTheDocument();
+      expect(await screen.findByText('Right on attempt 2')).toBeInTheDocument();
       expect(saveGrade).toHaveBeenCalledWith(
         'user-1',
         expect.objectContaining({
@@ -799,7 +815,7 @@ describe('the Compose tab', () => {
 
       expect(screen.getByRole('button', { name: 'Remove 文' })).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Check' }));
-      await screen.findByText('Original');
+      await screen.findByText('Right');
       expect(saveGrade).toHaveBeenCalledWith(
         'user-1',
         expect.objectContaining({
@@ -863,7 +879,7 @@ describe('the Compose tab', () => {
       await user.type(await screen.findByLabelText('Your answer'), '我学习中文');
       await user.click(screen.getByRole('button', { name: 'Check' }));
 
-      await screen.findByText('Original');
+      await screen.findByText('Right');
       const saved = vi.mocked(saveGrade).mock.calls[0][1];
       expect(saved).toMatchObject({
         attempts: [expect.objectContaining({ answer: '我学习中文' })],

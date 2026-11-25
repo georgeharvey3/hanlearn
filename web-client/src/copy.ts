@@ -97,6 +97,8 @@ export const copy = {
     extra: (char: string) => `${char}: extra`,
     gap: 'Missing',
     giveUp: 'Give up',
+    // The status of a match after a wrong attempt: "Right on attempt 3"
+    rightOn: (attempt: number) => `Right on attempt ${attempt}`,
     next: 'Next',
   },
   settings: {

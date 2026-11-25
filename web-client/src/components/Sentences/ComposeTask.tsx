@@ -1,6 +1,7 @@
 import React, { KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { Box, Theme, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 import { SystemStyleObject } from '@mui/system';
 
 import { copy } from '../../copy';
@@ -21,7 +22,7 @@ import { Word } from '../../types/models';
 import { getSegmentedSentence } from '../../services/sentenceService';
 import { reportError } from '../../services/errorReporting';
 import * as ttsService from '../../services/ttsService';
-import { toneMarks } from '../../utils/pinyinMarks';
+import { sentencePinyin, toneMarks } from '../../utils/pinyinMarks';
 import { parseMeanings } from '../../utils/meaningUtils';
 import {
   SentenceWord,
@@ -75,6 +76,8 @@ interface Loaded {
   words: SentenceWord[];
   /** The tiles in screen order, or null for a sentence with no tile mode. */
   tiles: string[] | null;
+  /** The segments in order, for the pinyin over each word after a match. */
+  segments: { text: string; pinyin: string; isTarget: boolean }[];
 }
 
 const switchSx = {
@@ -139,6 +142,9 @@ const gapSx = {
 /** The distance in pixels that a pointer moves before a press becomes a drag. */
 const DRAG_START = 6;
 
+/** A Han character. A constructor: the compile target does not allow the `u` flag in a literal. */
+const HAN = new RegExp('\\p{Script=Han}', 'u');
+
 /** Strip the punctuation at each end of an English word, to match it. */
 const stripPunctuation = (text: string): string =>
   text.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '');
@@ -187,6 +193,8 @@ const ComposeTask: React.FC<Props> = ({
   const [checking, setChecking] = useState(false);
   /** The last attempt, which the reveal shows. */
   const [lastAttempt, setLastAttempt] = useState('');
+  /** The attempt that matched, or null before a match and after Give up. */
+  const [matchedOn, setMatchedOn] = useState<number | null>(null);
   /** The placed tile that the learner drags, with its offset and its drop slot. */
   const [drag, setDrag] = useState<{
     at: number;
@@ -243,6 +251,12 @@ const ComposeTask: React.FC<Props> = ({
         // A new order on each visit. The build writes no tiles for a sentence
         // with more than 20 characters.
         tiles: tiles ? shuffleTiles(tiles) : null,
+        segments: found.chinese.segments.map((segment, i) => ({
+          text: charSet === 'trad' ? segment.t : segment.s,
+          // A name or a number has no entry, so its pinyin comes from its text.
+          pinyin: segment.p || (HAN.test(segment.s) ? sentencePinyin(segment.s) : ''),
+          isTarget: i === found.chinese.targetIndex,
+        })),
       });
       setLoad('ready');
       shownAt.current = Date.now();
@@ -323,6 +337,7 @@ const ComposeTask: React.FC<Props> = ({
     pendingSpeech.current = null;
     const list = attempts.current;
     setLastAttempt(list[list.length - 1]?.answer ?? '');
+    setMatchedOn(gaveUp ? null : list.length);
     setRevealed(true);
     setMessage('');
     onCheck({
@@ -403,7 +418,21 @@ const ComposeTask: React.FC<Props> = ({
     minHeight: 48,
   };
 
-  if (revealed) {
+  const reportButton = (
+    <ReportSentenceButton
+      key={`${word.id}-${sentence.id}`}
+      report={{
+        sentenceId: sentence.id,
+        word: word.simp,
+        stage: 'write',
+        sentence: sentence.chinese,
+        english: sentence.english,
+      }}
+    />
+  );
+
+  // After Give up: the last attempt, then the reference.
+  if (revealed && matchedOn === null) {
     return (
       <>
         <StudyBody>
@@ -455,16 +484,7 @@ const ComposeTask: React.FC<Props> = ({
               />
             )}
           </Box>
-          <ReportSentenceButton
-            key={`${word.id}-${sentence.id}`}
-            report={{
-              sentenceId: sentence.id,
-              word: word.simp,
-              stage: 'write',
-              sentence: sentence.chinese,
-              english: sentence.english,
-            }}
-          />
+          {reportButton}
         </StudyBody>
         <StudyButton variant="primary" onClick={onNext}>
           {copy.sentence.next}
@@ -473,6 +493,10 @@ const ComposeTask: React.FC<Props> = ({
     );
   }
 
+  // After a match the screen keeps its layout: the answer turns green, with
+  // the pinyin over each word, and the English opens nothing.
+  const matched = matchedOn !== null;
+  const plainEnglish = tileMode || matched;
   const englishWords = sentence.english.split(/\s+/);
   const selectedText = Array.from(selected)
     .sort((a, b) => a - b)
@@ -517,8 +541,8 @@ const ComposeTask: React.FC<Props> = ({
       <StudyBody>
         <StudyCard height={240} sx={{ mt: 3, px: 2.75, pt: 3.5, pb: 2.75, gap: 2.25 }}>
           <Box component="p" sx={{ m: 0, fontSize: 24, lineHeight: 1.6 }}>
-            {tileMode && sentence.english}
-            {!tileMode &&
+            {plainEnglish && sentence.english}
+            {!plainEnglish &&
               englishWords.map((english, index) => {
                 const on = selected.has(index);
                 return (
@@ -547,7 +571,7 @@ const ComposeTask: React.FC<Props> = ({
                 );
               })}
           </Box>
-          {!tileMode && selected.size > 0 && (
+          {!plainEnglish && selected.size > 0 && (
             <Box
               sx={{
                 alignSelf: 'stretch',
@@ -608,7 +632,7 @@ const ComposeTask: React.FC<Props> = ({
             </Box>
           </Box>
         </StudyCard>
-        {tiles && !marks && (
+        {tiles && !marks && !matched && (
           <ToggleButtonGroup
             exclusive
             value={input}
@@ -623,7 +647,7 @@ const ComposeTask: React.FC<Props> = ({
             ))}
           </ToggleButtonGroup>
         )}
-        {tileMode && (
+        {!matched && tileMode && (
           <>
             {marksView}
             <Overline sx={{ mt: 2.5 }}>{copy.sentence.yourAnswer}</Overline>
@@ -760,7 +784,7 @@ const ComposeTask: React.FC<Props> = ({
             </Box>
           </>
         )}
-        {!tileMode && useSound && speechAvailable && (
+        {!matched && !tileMode && useSound && speechAvailable && (
           <MicButton
             listening={listening}
             onClick={() => (listening ? recognition.current?.abort() : onListen())}
@@ -775,13 +799,13 @@ const ComposeTask: React.FC<Props> = ({
             {message}
           </StatusLine>
         )}
-        {!tileMode && marksView}
-        {!tileMode && (
+        {!matched && !tileMode && marksView}
+        {!matched && !tileMode && (
           <Overline component="label" htmlFor="answerInput" sx={{ mt: 2.5 }}>
             {copy.sentence.yourAnswer}
           </Overline>
         )}
-        {!tileMode && (
+        {!matched && !tileMode && (
           <Box
             component="input"
             id="answerInput"
@@ -812,21 +836,118 @@ const ComposeTask: React.FC<Props> = ({
             }}
           />
         )}
-      </StudyBody>
-      <Box sx={{ display: 'flex', gap: 1.25 }}>
-        {marks && (
-          <StudyButton onClick={() => finish(true)} disabled={checking}>
-            {copy.sentence.giveUp}
-          </StudyButton>
+        {matched && (
+          <>
+            <Overline sx={{ mt: 2.5 }}>{copy.sentence.yourAnswer}</Overline>
+            <Box
+              sx={{
+                mt: 1,
+                px: 1.75,
+                pt: 1.5,
+                pb: 1.25,
+                border: `2px solid ${colors.success}`,
+                borderRadius: 1,
+                bgcolor: colors.successSurface,
+              }}
+            >
+              <Box
+                lang="zh"
+                sx={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  justifyContent: 'center',
+                  alignItems: 'flex-end',
+                  columnGap: 0.75,
+                  rowGap: 1,
+                }}
+              >
+                {sentence.segments.map((segment, i) => (
+                  <Box
+                    key={i}
+                    sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+                  >
+                    <Box
+                      lang="zh-Latn"
+                      sx={{
+                        minHeight: 18,
+                        fontFamily: fonts.body,
+                        fontSize: 13,
+                        color: colors.textSecondary,
+                      }}
+                    >
+                      {segment.pinyin}
+                    </Box>
+                    <Box
+                      sx={hanziSx(28, {
+                        lineHeight: 1.2,
+                        color: segment.isTarget ? colors.primaryDark : colors.text,
+                        fontWeight: segment.isTarget ? 700 : 400,
+                      })}
+                    >
+                      {segment.text}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+              <Box
+                sx={{
+                  mt: 1.25,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  minHeight: 40,
+                }}
+              >
+                <Box
+                  role="status"
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.75,
+                    color: colors.success,
+                    fontSize: 15,
+                    fontWeight: 600,
+                  }}
+                >
+                  <CheckRoundedIcon sx={{ fontSize: 18 }} />
+                  {matchedOn === 1 ? copy.sentenceTabs.right : copy.sentence.rightOn(matchedOn)}
+                </Box>
+                {useSound && (
+                  <PlayButton
+                    size={40}
+                    loading={synthLoading}
+                    onClick={() =>
+                      speak(sentence.chinese, { slow: false, voice, lang }, setSynthLoading)
+                    }
+                    label={copy.sentence.playSentence}
+                  />
+                )}
+              </Box>
+            </Box>
+            {reportButton}
+          </>
         )}
-        <StudyButton
-          variant="primary"
-          disabled={(!tileMode && entered.trim() === '') || checking}
-          onClick={onCheckAnswer}
-        >
-          {copy.test.check}
+      </StudyBody>
+      {matched ? (
+        <StudyButton variant="primary" onClick={onNext}>
+          {copy.sentence.next}
         </StudyButton>
-      </Box>
+      ) : (
+        <Box sx={{ display: 'flex', gap: 1.25 }}>
+          {marks && (
+            <StudyButton onClick={() => finish(true)} disabled={checking}>
+              {copy.sentence.giveUp}
+            </StudyButton>
+          )}
+          <StudyButton
+            variant="primary"
+            disabled={(!tileMode && entered.trim() === '') || checking}
+            onClick={onCheckAnswer}
+          >
+            {copy.test.check}
+          </StudyButton>
+        </Box>
+      )}
     </>
   );
 };
