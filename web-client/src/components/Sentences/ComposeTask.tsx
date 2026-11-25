@@ -845,9 +845,9 @@ const ComposeTask: React.FC<Props> = ({
                 px: 1.75,
                 pt: 1.5,
                 pb: 1.25,
-                border: `2px solid ${colors.success}`,
+                border: `1px solid ${colors.borderStrong}`,
                 borderRadius: 1,
-                bgcolor: colors.successSurface,
+                bgcolor: colors.card,
               }}
             >
               <Box
@@ -881,7 +881,6 @@ const ComposeTask: React.FC<Props> = ({
                       sx={hanziSx(28, {
                         lineHeight: 1.2,
                         color: segment.isTarget ? colors.primaryDark : colors.text,
-                        fontWeight: segment.isTarget ? 700 : 400,
                       })}
                     >
                       {segment.text}
