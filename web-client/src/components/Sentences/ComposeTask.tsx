@@ -30,7 +30,7 @@ import {
 } from '../../utils/sentenceUtils';
 import { ComposeAttempt, ComposeInput } from '../../utils/sentencePracticeDocuments';
 import { AttemptMark, checkAttempt } from '../../utils/answerCompare';
-import { shuffleTiles } from '../../utils/tiles';
+import { dropSlot, moveToSlot, shuffleTiles, slotKeepsOrder } from '../../utils/tiles';
 import { toCharSet } from '../../utils/charSet';
 import {
   TaskLoadError,
@@ -133,6 +133,13 @@ const gapSx = {
   border: `2px dashed ${colors.borderStrong}`,
 } as const;
 
+/** The distance in pixels that a pointer moves before a press becomes a drag. */
+const DRAG_START = 6;
+
+/** The edge mark of the drop slot: a bar in the gap before or after a tile. */
+const slotMark = (side: 'before' | 'after') =>
+  `${side === 'before' ? -4 : 4}px 0 0 ${colors.primaryDark}`;
+
 /** Strip the punctuation at each end of an English word, to match it. */
 const stripPunctuation = (text: string): string =>
   text.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '');
@@ -181,6 +188,22 @@ const ComposeTask: React.FC<Props> = ({
   const [checking, setChecking] = useState(false);
   /** The last attempt, which the reveal shows. */
   const [lastAttempt, setLastAttempt] = useState('');
+  /** The placed tile that the learner drags, with its offset and its drop slot. */
+  const [drag, setDrag] = useState<{ at: number; dx: number; dy: number; slot: number } | null>(
+    null,
+  );
+  /** The answer row, for the boxes of its tiles at the start of a drag. */
+  const answerRow = useRef<HTMLDivElement | null>(null);
+  /** The press on a placed tile: a drag after DRAG_START pixels, else a tap. */
+  const press = useRef<{
+    at: number;
+    x: number;
+    y: number;
+    boxes: DOMRect[] | null;
+    slot: number;
+  } | null>(null);
+  /** True after a drag ends, so the click that follows does not remove the tile. */
+  const dragEnded = useRef(false);
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState('');
   const [synthLoading, setSynthLoading] = useState(false);
@@ -602,6 +625,7 @@ const ComposeTask: React.FC<Props> = ({
             {marksView}
             <Overline sx={{ mt: 2.5 }}>{copy.sentence.yourAnswer}</Overline>
             <Box
+              ref={answerRow}
               lang="zh"
               sx={{
                 ...tileRowSx,
@@ -614,18 +638,82 @@ const ComposeTask: React.FC<Props> = ({
                 bgcolor: colors.card,
               }}
             >
-              {placed.map((index, at) => (
-                <Box
-                  key={index}
-                  component="button"
-                  type="button"
-                  aria-label={copy.sentence.removeTile(tiles[index])}
-                  onClick={() => setPlaced((prev) => prev.filter((_, i) => i !== at))}
-                  sx={tileSx}
-                >
-                  {tiles[index]}
-                </Box>
-              ))}
+              {placed.map((index, at) => {
+                const dragged = drag?.at === at;
+                const marked =
+                  drag && !slotKeepsOrder(drag.at, drag.slot)
+                    ? drag.slot === at
+                      ? slotMark('before')
+                      : drag.slot === placed.length && at === placed.length - 1
+                        ? slotMark('after')
+                        : undefined
+                    : undefined;
+                return (
+                  <Box
+                    key={index}
+                    component="button"
+                    type="button"
+                    aria-label={copy.sentence.removeTile(tiles[index])}
+                    onPointerDown={(e: React.PointerEvent<HTMLButtonElement>) => {
+                      if (e.button !== 0) return;
+                      dragEnded.current = false;
+                      // Optional: jsdom has no pointer capture.
+                      e.currentTarget.setPointerCapture?.(e.pointerId);
+                      press.current = { at, x: e.clientX, y: e.clientY, boxes: null, slot: at };
+                    }}
+                    onPointerMove={(e: React.PointerEvent<HTMLButtonElement>) => {
+                      const p = press.current;
+                      if (!p) return;
+                      const dx = e.clientX - p.x;
+                      const dy = e.clientY - p.y;
+                      if (!p.boxes) {
+                        if (Math.hypot(dx, dy) < DRAG_START) return;
+                        // The boxes stay fixed for the drag: only a transform moves the tile.
+                        p.boxes = Array.from(answerRow.current?.children ?? []).map((c) =>
+                          c.getBoundingClientRect(),
+                        );
+                      }
+                      p.slot = dropSlot(p.boxes, e.clientX, e.clientY);
+                      setDrag({ at, dx, dy, slot: p.slot });
+                    }}
+                    onPointerUp={() => {
+                      const p = press.current;
+                      press.current = null;
+                      if (!p?.boxes) return;
+                      dragEnded.current = true;
+                      setDrag(null);
+                      setPlaced((prev) => moveToSlot(prev, p.at, p.slot));
+                    }}
+                    onPointerCancel={() => {
+                      press.current = null;
+                      setDrag(null);
+                    }}
+                    onClick={() => {
+                      if (dragEnded.current) {
+                        dragEnded.current = false;
+                        return;
+                      }
+                      setPlaced((prev) => prev.filter((_, i) => i !== at));
+                    }}
+                    sx={{
+                      ...tileSx,
+                      // The browser must not scroll the page under a drag.
+                      touchAction: 'none',
+                      userSelect: 'none',
+                      boxShadow: marked,
+                      ...(dragged && {
+                        position: 'relative',
+                        zIndex: 1,
+                        cursor: 'grabbing',
+                        transform: `translate(${drag.dx}px, ${drag.dy}px)`,
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                      }),
+                    }}
+                  >
+                    {tiles[index]}
+                  </Box>
+                );
+              })}
             </Box>
             <Box
               role="group"

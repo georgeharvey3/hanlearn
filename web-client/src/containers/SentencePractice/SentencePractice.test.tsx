@@ -781,6 +781,34 @@ describe('the Compose tab', () => {
       expect(screen.queryByRole('button', { name: 'Remove 我' })).not.toBeInTheDocument();
     });
 
+    it('moves a placed tile that the learner drags, and keeps it placed', async () => {
+      const user = userEvent.setup();
+      withTiles();
+      setQueue([STUDY]);
+      renderTab('compose', false);
+
+      await user.click(await screen.findByRole('button', { name: 'Tiles' }));
+      await placeTiles(user, '文我学习中');
+      // jsdom gives each tile an empty box at 0, 0, so a drop to the right goes at the end.
+      const dragged = screen.getByRole('button', { name: 'Remove 文' });
+      await user.pointer([
+        { keys: '[MouseLeft>]', target: dragged, coords: { clientX: 0, clientY: 0 } },
+        { target: dragged, coords: { clientX: 300, clientY: 0 } },
+        { keys: '[/MouseLeft]', target: dragged, coords: { clientX: 300, clientY: 0 } },
+      ]);
+
+      expect(screen.getByRole('button', { name: 'Remove 文' })).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Check' }));
+      await screen.findByText('Original');
+      expect(saveGrade).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({
+          grade: 'right',
+          attempts: [expect.objectContaining({ answer: '我学习中文' })],
+        }),
+      );
+    });
+
     it('lets a learner who is stuck check with no tile, then give up', async () => {
       const user = userEvent.setup();
       withTiles();
