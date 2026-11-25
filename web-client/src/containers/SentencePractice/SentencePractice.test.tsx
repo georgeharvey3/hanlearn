@@ -668,7 +668,7 @@ describe('the Compose tab', () => {
       for (const char of Array.from(text)) await user.click(tileButton(char));
     };
 
-    it('grades an exact match right at the check, and saves the tiles shown', async () => {
+    it('reveals a first-attempt match, saves it right, and saves the tiles shown', async () => {
       const user = userEvent.setup();
       withTiles();
       setQueue([STUDY]);
@@ -683,8 +683,7 @@ describe('the Compose tab', () => {
       await placeTiles(user, '我学习中文');
       await user.click(check);
 
-      expect(screen.getByRole('status')).toHaveTextContent('Right');
-      const reference = screen.getByText('Original').nextElementSibling as HTMLElement;
+      const reference = (await screen.findByText('Original')).nextElementSibling as HTMLElement;
       expect(reference).toHaveTextContent('我学习中文。');
       expect(screen.queryByRole('button', { name: 'Wrong' })).not.toBeInTheDocument();
       expect(saveGrade).toHaveBeenCalledTimes(1);
@@ -693,8 +692,9 @@ describe('the Compose tab', () => {
         tab: 'compose',
         grade: 'right',
         input: 'tiles',
-        answer: '我学习中文',
+        gaveUp: false,
         lookups: 0,
+        attempts: [{ answer: '我学习中文', answerMs: expect.any(Number), lookups: 0 }],
       });
       expect([...('tiles' in saved ? (saved.tiles ?? []) : [])].sort()).toEqual([...TILES].sort());
 
@@ -703,8 +703,9 @@ describe('the Compose tab', () => {
       expect(saveGrade).toHaveBeenCalledTimes(1);
     });
 
-    it('grades the right characters in another order wrong', async () => {
+    it('marks the right characters in another order, keeps the placed tiles, and offers Give up', async () => {
       const user = userEvent.setup();
+      localStorage.setItem('charSet', 'simp');
       withTiles();
       setQueue([STUDY]);
       renderTab('compose', false);
@@ -713,10 +714,56 @@ describe('the Compose tab', () => {
       await placeTiles(user, '学习我中文');
       await user.click(screen.getByRole('button', { name: 'Check' }));
 
-      expect(screen.getByRole('status')).toHaveTextContent('Wrong');
+      const marks = await screen.findByRole('group', { name: 'Last attempt' });
+      expect(within(marks).getByLabelText('我: misplaced')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Remove 我' })).toBeInTheDocument();
+      // One task has one input.
+      expect(screen.queryByRole('button', { name: 'Free answer' })).not.toBeInTheDocument();
+      expect(saveGrade).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole('button', { name: 'Give up' }));
+      expect(screen.getByText('Original')).toBeInTheDocument();
       expect(saveGrade).toHaveBeenCalledWith(
         'user-1',
-        expect.objectContaining({ grade: 'wrong', answer: '学习我中文' }),
+        expect.objectContaining({
+          grade: 'wrong',
+          gaveUp: true,
+          input: 'tiles',
+          attempts: [expect.objectContaining({ answer: '学习我中文' })],
+        }),
+      );
+    });
+
+    it('saves a later tile match wrong', async () => {
+      const user = userEvent.setup();
+      withTiles();
+      setQueue([STUDY]);
+      renderTab('compose', false);
+
+      await user.click(await screen.findByRole('button', { name: 'Tiles' }));
+      await placeTiles(user, '学习我中文');
+      await user.click(screen.getByRole('button', { name: 'Check' }));
+      await screen.findByRole('group', { name: 'Last attempt' });
+      await user.click(screen.getByRole('button', { name: 'Remove 我' }));
+      // The tiles after it stay in place.
+      await user.click(screen.getByRole('button', { name: 'Remove 学' }));
+      await user.click(screen.getByRole('button', { name: 'Remove 习' }));
+      await user.click(screen.getByRole('button', { name: 'Remove 中' }));
+      await user.click(screen.getByRole('button', { name: 'Remove 文' }));
+      await placeTiles(user, '我学习中文');
+      await user.click(screen.getByRole('button', { name: 'Check' }));
+
+      expect(await screen.findByText('Original')).toBeInTheDocument();
+      expect(saveGrade).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({
+          grade: 'wrong',
+          gaveUp: false,
+          attempts: [
+            expect.objectContaining({ answer: '学习我中文' }),
+            expect.objectContaining({ answer: '我学习中文' }),
+          ],
+        }),
       );
     });
 
@@ -734,7 +781,7 @@ describe('the Compose tab', () => {
       expect(screen.queryByRole('button', { name: 'Remove 我' })).not.toBeInTheDocument();
     });
 
-    it('lets a learner who is stuck check with no tile, and grades it wrong', async () => {
+    it('lets a learner who is stuck check with no tile, then give up', async () => {
       const user = userEvent.setup();
       withTiles();
       setQueue([STUDY]);
@@ -742,11 +789,16 @@ describe('the Compose tab', () => {
 
       await user.click(await screen.findByRole('button', { name: 'Tiles' }));
       await user.click(screen.getByRole('button', { name: 'Check' }));
+      await user.click(await screen.findByRole('button', { name: 'Give up' }));
 
-      expect(screen.getByRole('status')).toHaveTextContent('Wrong');
       expect(saveGrade).toHaveBeenCalledWith(
         'user-1',
-        expect.objectContaining({ grade: 'wrong', input: 'tiles', answer: '' }),
+        expect.objectContaining({
+          grade: 'wrong',
+          gaveUp: true,
+          input: 'tiles',
+          attempts: [expect.objectContaining({ answer: '' })],
+        }),
       );
     });
 

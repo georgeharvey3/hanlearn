@@ -294,37 +294,29 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
-      // Version 2: a Comprehend grade, or a Compose tile answer (#386).
+      // Version 2: a Comprehend grade. A Compose grade logs its attempts at
+      // version 3 since #597.
       function isAnswerLogEntry(data) {
         return data.version == 2
-          && data.keys().hasOnly(['version', 'date', 'reviewedAt', 'wordId', 'sentenceId', 'tab', 'grade', 'mode', 'input', 'answer', 'tiles', 'answerMs', 'revealed', 'lookups'])
+          && data.keys().hasOnly(['version', 'date', 'reviewedAt', 'wordId', 'sentenceId', 'tab', 'grade', 'mode', 'answerMs', 'revealed', 'lookups'])
           && data.keys().hasAll(['version', 'date', 'reviewedAt', 'wordId', 'sentenceId', 'tab', 'grade', 'mode', 'answerMs', 'revealed', 'lookups'])
-          && data.tab in ['comprehend', 'compose']
-          && (!('answer' in data)
-            || (data.tab == 'compose'
-              && data.answer is string
-              && data.answer.size() <= 500))
-          // Only a Compose entry names its input. A free answer logs its
-          // attempts at version 3 since #597, so a version 2 entry is a tile answer.
-          && (data.tab == 'compose') == ('input' in data)
-          && (!('input' in data) || data.input == 'tiles')
-          // The tiles shown of a tile answer: at most 28.
-          && (!('tiles' in data)
-            || (data.input == 'tiles'
-              && data.tiles is list
-              && data.tiles.size() <= 28))
+          && data.tab == 'comprehend'
           && data.answerMs is number
           && data.revealed is bool;
       }
 
-      // Version 3: a free Compose answer, with each attempt (#597). Rules have
+      // Version 3: a Compose grade, with each attempt (#597). Rules have
       // no loop, so each of the at most 10 attempts is checked by its index. The
       // limit of 1000 expressions in one evaluation allows no more than about 10.
       function isAttemptsLogEntry(data) {
         return data.version == 3
-          && data.keys().hasOnly(['version', 'date', 'reviewedAt', 'wordId', 'sentenceId', 'tab', 'grade', 'mode', 'gaveUp', 'lookups', 'attempts'])
+          && data.keys().hasOnly(['version', 'date', 'reviewedAt', 'wordId', 'sentenceId', 'tab', 'grade', 'mode', 'gaveUp', 'lookups', 'attempts', 'input', 'tiles'])
           && data.keys().hasAll(['version', 'date', 'reviewedAt', 'wordId', 'sentenceId', 'tab', 'grade', 'mode', 'gaveUp', 'lookups', 'attempts'])
           && data.tab == 'compose'
+          // A tile answer names its input and logs the tiles shown: at most 28 (#386).
+          && ('input' in data) == ('tiles' in data)
+          && (!('input' in data)
+            || (data.input == 'tiles' && data.tiles is list && data.tiles.size() <= 28))
           && data.gaveUp is bool
           && data.attempts is list
           && data.attempts.size() >= 1

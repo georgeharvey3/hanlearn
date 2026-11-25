@@ -6,13 +6,13 @@ import { dayKey } from './retention';
 import type { SentenceTab } from './sentenceSettings';
 import type { SentenceResult } from './sentenceQueue';
 
-/**
- * 2 since #386: a Compose entry names its input, and a tile answer logs its
- * tiles. A Comprehend entry and a tile answer stay at 2.
- */
+/** The version of a Comprehend entry: 2 since #386. */
 export const SENTENCE_LOG_VERSION = 2;
 
-/** 3 since #597: a free Compose answer logs each attempt, and no single answer. */
+/**
+ * The version of a Compose entry: 3 since #597. It logs each attempt, and no
+ * single answer. A tile answer names its input and logs its tiles (#386).
+ */
 export const ATTEMPTS_LOG_VERSION = 3;
 
 /**
@@ -27,7 +27,7 @@ export type SentenceMode = 'audio' | 'text';
 /** How the learner gave a Compose answer: keyboard or mic (`free`), or tiles (#386). */
 export type ComposeInput = 'free' | 'tiles';
 
-/** One checked answer of a free Compose task (#597). */
+/** One checked answer of a Compose task (#597). */
 export interface ComposeAttempt {
   /** The raw text of the input at the check. */
   answer: string;
@@ -48,24 +48,22 @@ interface GradeBase {
   at: Date;
 }
 
-/** The grade of a free Compose answer: right only when the first attempt matches. */
+/** The grade of a Compose task: right only when the first attempt matches. */
 export interface AttemptsGrade extends GradeBase {
   /** The attempts in order. The last one matches, unless the learner gave up. */
   attempts: ComposeAttempt[];
   gaveUp: boolean;
-}
-
-/** The grade of a task with one answer: a Comprehend task or a tile answer. */
-export interface AnswerGrade extends GradeBase {
-  /** The raw answer of a Compose task: the placed characters of a tile answer. */
-  answer?: string;
-  /** The input of a Compose task with one answer: a free answer logs its attempts. */
+  /** `tiles` for a tile answer. A free answer (keyboard or mic) has no input. */
   input?: 'tiles';
   /**
    * The tiles of a tile answer, in screen order. A rebuild can change the
    * tile set of a sentence, so only the log keeps the tiles that the learner saw.
    */
   tiles?: string[];
+}
+
+/** The grade of a Comprehend task. */
+export interface AnswerGrade extends GradeBase {
   /** The time from the start of the task to the reveal. */
   answerMs: number;
   /** Whether the Chinese text showed before the reveal. */
@@ -87,15 +85,6 @@ export function sentencePracticeUpdate<T>(grade: SentenceGrade, at: T) {
       lastResult: grade.grade,
       seen: { [grade.sentenceId]: at },
     },
-  };
-}
-
-/** The fields that only a Compose entry with one answer has: a tile answer. */
-function tileFields(grade: AnswerGrade) {
-  return {
-    input: 'tiles' as const,
-    ...(grade.answer !== undefined ? { answer: grade.answer } : {}),
-    ...(grade.tiles !== undefined ? { tiles: grade.tiles } : {}),
   };
 }
 
@@ -129,12 +118,12 @@ export function sentenceLogDocument<T>(grade: SentenceGrade, at: T) {
       gaveUp: grade.gaveUp,
       lookups: grade.lookups,
       attempts: loggedAttempts(grade.attempts),
+      ...(grade.input === 'tiles' ? { input: grade.input, tiles: grade.tiles ?? [] } : {}),
     };
   }
   return {
     version: SENTENCE_LOG_VERSION,
     ...base,
-    ...(grade.tab === 'compose' ? tileFields(grade) : {}),
     answerMs: grade.answerMs,
     revealed: grade.revealed,
     lookups: grade.lookups,

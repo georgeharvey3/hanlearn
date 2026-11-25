@@ -896,7 +896,7 @@ describe("sentenceLog", () => {
   });
 
   it("rejects a version 2 entry of a free Compose answer", async () => {
-    const free = { ...entry({ tab: "compose", answer: "我" }), input: "free" };
+    const free = { ...entry({ tab: "compose" }), input: "free", answer: "我" };
     await assertFails(setDoc(ref(db, path), free));
     const { input: _input, ...noInput } = free;
     await assertFails(setDoc(ref(db, path), noInput));
@@ -939,36 +939,45 @@ describe("sentenceLog", () => {
     await assertFails(setDoc(ref(db, path), { ...free, version: 2 }));
   });
 
-  it("accepts the version 2 entry of a tile answer, with its input and its tiles", async () => {
+  it("accepts the version 3 entry of a tile answer, with its input and its tiles", async () => {
     const tiles = "书我输看树吃".split("");
-    const tileEntry = entry({
-      tab: "compose",
-      input: "tiles",
-      answer: "我看书",
-      tiles,
-    });
-    expect(tileEntry).toMatchObject({ version: 2, input: "tiles", tiles });
+    const tileEntry = attemptsEntry({ input: "tiles", tiles });
+    expect(tileEntry).toMatchObject({ version: 3, input: "tiles", tiles });
     await assertSucceeds(setDoc(ref(db, path), tileEntry));
+    // The longest entry stays inside the limit of 1000 expressions.
+    await assertSucceeds(
+      setDoc(
+        ref(db, "users/user-1/sentenceLog/log-2"),
+        attemptsEntry({
+          input: "tiles",
+          tiles: Array.from({ length: 28 }, () => "我"),
+          attempts: Array.from({ length: 10 }, () => ({ answer: "我".repeat(20), answerMs: 1, lookups: 0 })),
+        }),
+      ),
+    );
   });
 
-  it("rejects a bad input, or more than 28 tiles", async () => {
-    const compose = entry({
-      tab: "compose",
-      input: "tiles",
-      answer: "我",
-      tiles: ["我"],
-    });
-    await assertFails(setDoc(ref(db, path), { ...compose, input: "voice" }));
+  it("rejects a bad input, tiles with no input, more than 28 tiles, or a version 2 tile answer", async () => {
+    const tileEntry = attemptsEntry({ input: "tiles", tiles: ["我"] });
+    await assertFails(setDoc(ref(db, path), { ...tileEntry, input: "voice" }));
+    const { input: _input, ...noInput } = tileEntry;
+    await assertFails(setDoc(ref(db, path), noInput));
+    const { tiles: _tiles, ...noTiles } = tileEntry;
+    await assertFails(setDoc(ref(db, path), noTiles));
     await assertFails(
       setDoc(ref(db, path), {
-        ...compose,
+        ...tileEntry,
         tiles: Array.from({ length: 29 }, () => "我"),
       }),
     );
-    // A Compose entry names its input, and a version 1 entry is refused.
-    const { input: _input, ...noInput } = compose;
-    await assertFails(setDoc(ref(db, path), noInput));
-    await assertFails(setDoc(ref(db, path), { ...compose, version: 1 }));
+    await assertFails(
+      setDoc(ref(db, path), {
+        ...entry({ tab: "compose" }),
+        input: "tiles",
+        answer: "我",
+        tiles: ["我"],
+      }),
+    );
   });
 
   it("rejects an unknown tab or an extra field", async () => {

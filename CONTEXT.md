@@ -291,18 +291,18 @@ sentence. A sentence with more than 20 characters, not counting punctuation, has
 
 The **answer tiles** are the characters of the sentence. A **near-miss tile**
 is a character that the answer does not hold: a homophone, or another word of
-the measure word list or the aspect word list. The app grades a tile answer at
-the check. The answer is right only when it is an exact match with the
-reference sentence, with no punctuation.
+the measure word list or the aspect word list.
 
-An **attempt** is one free answer that the learner checks in the Compose tab.
+An **attempt** is one answer that the learner checks in the Compose tab: a free
+answer or a tile answer.
 The app compares it with the reference sentence. The compare ignores
 punctuation and spaces, reads digits as hanzi, and uses the character set of
 the learner. Only the reference sentence matches, so a valid paraphrase does
 not. The first attempt sets the grade: a match is right, and anything else is
 wrong.
 
-A wrong attempt stays in the input, and its **marks** show above it:
+A wrong attempt stays in the input or on the placed tiles, and its **marks**
+show above it:
 
 - A **placed** character aligns with the reference sentence.
 - A **misplaced** character is in the reference sentence, at another position.

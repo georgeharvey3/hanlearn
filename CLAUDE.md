@@ -134,13 +134,12 @@ users/{userId}/
   │   └── comprehend?, compose?: { lastPractised: Timestamp,
   │         lastResult: 'right' | 'wrong', seen: { [sentenceId]: Timestamp } }
   ├── sentenceLog/{autoId}       # One write-once entry per sentence grade (#489)
-  │   ├── version: 2 (Comprehend, or a Compose tile answer): date, reviewedAt,
-  │   │   wordId, sentenceId, tab, grade, mode: 'audio' | 'text', answerMs,
-  │   │   revealed, lookups, input?: 'tiles', answer? (Compose only),
-  │   │   tiles? (the tiles shown of a tile answer, in screen order; #386)
-  │   └── version: 3 (a free Compose answer; #597): date, reviewedAt, wordId,
-  │       sentenceId, tab: 'compose', grade, mode, gaveUp: bool, lookups,
-  │       attempts: [{ answer, answerMs, lookups }] (at most 10: the first 9 and the last)
+  │   ├── version: 2 (Comprehend): date, reviewedAt, wordId, sentenceId,
+  │   │   tab: 'comprehend', grade, mode: 'audio' | 'text', answerMs, revealed, lookups
+  │   └── version: 3 (Compose; #597): date, reviewedAt, wordId, sentenceId,
+  │       tab: 'compose', grade, mode, gaveUp: bool, lookups,
+  │       attempts: [{ answer, answerMs, lookups }] (at most 10: the first 9 and the last),
+  │       input?: 'tiles', tiles? (the tiles shown of a tile answer, in screen order; #386)
   ├── sentenceReports/{sentenceId} # One report of a bad example sentence (#469)
   │   └── sentenceId, word, stage: 'read' | 'write', sentence, english, reportedAt
   ├── partReports/{reportId}     # One report of a wrong part meaning (#533). The id is

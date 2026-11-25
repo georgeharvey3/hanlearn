@@ -28,10 +28,9 @@ import {
   matchEnglishToSentenceWords,
   resolveSentence,
 } from '../../utils/sentenceUtils';
-import { SentenceResult } from '../../utils/sentenceQueue';
 import { ComposeAttempt, ComposeInput } from '../../utils/sentencePracticeDocuments';
 import { AttemptMark, checkAttempt } from '../../utils/answerCompare';
-import { gradeTiles, shuffleTiles } from '../../utils/tiles';
+import { shuffleTiles } from '../../utils/tiles';
 import { toCharSet } from '../../utils/charSet';
 import {
   TaskLoadError,
@@ -150,10 +149,11 @@ const stripPunctuation = (text: string): string =>
  * reference plays from a button after the reveal. It does not play by
  * itself, so the learner reads it first (#564).
  *
- * In tile mode the learner builds the sentence from the tiles of the build,
- * and the check grades it: right only for an exact match (#386). Tile mode
- * gives no help, so the English words open nothing, and the check is the
- * only way out: with no tile placed, it grades the task wrong.
+ * In tile mode the learner builds the sentence from the tiles of the build
+ * (#386), and the attempts work in the same way: the placed tiles stay after
+ * a wrong check. Tile mode gives no help, so the English words open nothing.
+ * A check with no tile placed is an attempt too, so a stuck learner can give up.
+ * The input switch hides after the first attempt, so one task has one input.
  */
 const ComposeTask: React.FC<Props> = ({
   synthAvailable,
@@ -176,8 +176,6 @@ const ComposeTask: React.FC<Props> = ({
   const [input, setInput] = useState<ComposeInput>(readComposeInput);
   /** The placed tiles, as indices into the tiles, in answer order. */
   const [placed, setPlaced] = useState<number[]>([]);
-  /** The grade of a checked tile answer. */
-  const [tileGrade, setTileGrade] = useState<SentenceResult | null>(null);
   /** The marks of the latest wrong attempt, or null before the first check. */
   const [marks, setMarks] = useState<AttemptMark[] | null>(null);
   const [checking, setChecking] = useState(false);
@@ -198,7 +196,6 @@ const ComposeTask: React.FC<Props> = ({
   const lookupsAtCheck = useRef(0);
   const attempts = useRef<ComposeAttempt[]>([]);
   const shownAt = useRef(0);
-  const revealedAt = useRef(0);
 
   const fetchSentence = useCallback(async () => {
     setLoad('loading');
@@ -294,26 +291,6 @@ const ComposeTask: React.FC<Props> = ({
     writeComposeInput(next);
   };
 
-  const onCheckTiles = () => {
-    if (!sentence || !tiles) return;
-    recognition.current?.abort();
-    revealedAt.current = Date.now();
-    const result = gradeTiles(tileAnswer, sentence.chinese);
-    setTileGrade(result);
-    setRevealed(true);
-    setMessage('');
-    onCheck({
-      grade: result,
-      mode: useSound ? 'audio' : 'text',
-      revealed: false,
-      lookups: lookups.current,
-      answerMs: revealedAt.current - shownAt.current,
-      input: 'tiles',
-      answer: tileAnswer,
-      tiles,
-    });
-  };
-
   /** End the task: save the grade, and show the reference sentence. */
   const finish = (gaveUp: boolean) => {
     recognition.current?.abort();
@@ -328,14 +305,15 @@ const ComposeTask: React.FC<Props> = ({
       gaveUp,
       lookups: lookups.current,
       attempts: list,
+      ...(tileMode && tiles ? { input: 'tiles' as const, tiles } : {}),
     });
   };
 
   const onCheckAnswer = async () => {
-    if (entered.trim() === '' || !sentence || checking) return;
+    if ((!tileMode && entered.trim() === '') || !sentence || checking) return;
     recognition.current?.abort();
     pendingSpeech.current = null;
-    const answer = entered;
+    const answer = tileMode ? tileAnswer : entered;
     attempts.current = [
       ...attempts.current,
       {
@@ -420,7 +398,7 @@ const ComposeTask: React.FC<Props> = ({
           </Box>
           <Overline sx={{ mt: 2.75, mb: 0.75 }}>{copy.sentence.yourAnswer}</Overline>
           <Box lang="zh" sx={answerBox}>
-            {withTarget(tileGrade === null ? lastAttempt : tileAnswer)}
+            {withTarget(lastAttempt)}
           </Box>
           <Overline sx={{ mt: 2, mb: 0.75 }}>{copy.sentence.original}</Overline>
           <Box sx={{ ...answerBox, display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
@@ -461,14 +439,6 @@ const ComposeTask: React.FC<Props> = ({
               english: sentence.english,
             }}
           />
-          {tileGrade !== null && (
-            <StatusLine
-              tone={tileGrade === 'right' ? 'success' : 'error'}
-              icon={tileGrade === 'right' ? 'check' : undefined}
-            >
-              {copy.sentenceTabs[tileGrade]}
-            </StatusLine>
-          )}
         </StudyBody>
         <StudyButton variant="primary" onClick={onNext}>
           {copy.sentence.next}
@@ -484,6 +454,37 @@ const ComposeTask: React.FC<Props> = ({
     .filter((w) => w.length > 0)
     .join(' ');
   const hints = selected.size > 0 ? matchEnglishToSentenceWords(selectedText, sentence.words) : [];
+
+  // The marks of the latest wrong attempt, above the input or the placed tiles.
+  const marksView = marks && (
+    <>
+      <Overline component="span" sx={{ mt: 2.5 }}>
+        {copy.sentence.lastAttempt}
+      </Overline>
+      <Box
+        role="group"
+        aria-label={copy.sentence.lastAttempt}
+        lang="zh"
+        sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}
+      >
+        {marks.map((mark, i) =>
+          mark.kind === 'gap' ? (
+            <Box key={i} component="span" role="img" aria-label={copy.sentence.gap} sx={gapSx} />
+          ) : (
+            <Box
+              key={i}
+              component="span"
+              role="img"
+              aria-label={copy.sentence[mark.kind](mark.char)}
+              sx={{ ...markBoxSx, ...markSx[mark.kind] }}
+            >
+              {mark.char}
+            </Box>
+          ),
+        )}
+      </Box>
+    </>
+  );
 
   return (
     <>
@@ -581,7 +582,7 @@ const ComposeTask: React.FC<Props> = ({
             </Box>
           </Box>
         </StudyCard>
-        {tiles && (
+        {tiles && !marks && (
           <ToggleButtonGroup
             exclusive
             value={input}
@@ -598,6 +599,7 @@ const ComposeTask: React.FC<Props> = ({
         )}
         {tileMode && (
           <>
+            {marksView}
             <Overline sx={{ mt: 2.5 }}>{copy.sentence.yourAnswer}</Overline>
             <Box
               lang="zh"
@@ -662,41 +664,7 @@ const ComposeTask: React.FC<Props> = ({
             {message}
           </StatusLine>
         )}
-        {!tileMode && marks && (
-          <>
-            <Overline component="span" sx={{ mt: 2.5 }}>
-              {copy.sentence.lastAttempt}
-            </Overline>
-            <Box
-              role="group"
-              aria-label={copy.sentence.lastAttempt}
-              lang="zh"
-              sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}
-            >
-              {marks.map((mark, i) =>
-                mark.kind === 'gap' ? (
-                  <Box
-                    key={i}
-                    component="span"
-                    role="img"
-                    aria-label={copy.sentence.gap}
-                    sx={gapSx}
-                  />
-                ) : (
-                  <Box
-                    key={i}
-                    component="span"
-                    role="img"
-                    aria-label={copy.sentence[mark.kind](mark.char)}
-                    sx={{ ...markBoxSx, ...markSx[mark.kind] }}
-                  >
-                    {mark.char}
-                  </Box>
-                ),
-              )}
-            </Box>
-          </>
-        )}
+        {!tileMode && marksView}
         {!tileMode && (
           <Overline component="label" htmlFor="answerInput" sx={{ mt: 2.5 }}>
             {copy.sentence.yourAnswer}
@@ -734,26 +702,20 @@ const ComposeTask: React.FC<Props> = ({
           />
         )}
       </StudyBody>
-      {tileMode ? (
-        <StudyButton variant="primary" onClick={onCheckTiles}>
+      <Box sx={{ display: 'flex', gap: 1.25 }}>
+        {marks && (
+          <StudyButton onClick={() => finish(true)} disabled={checking}>
+            {copy.sentence.giveUp}
+          </StudyButton>
+        )}
+        <StudyButton
+          variant="primary"
+          disabled={(!tileMode && entered.trim() === '') || checking}
+          onClick={onCheckAnswer}
+        >
           {copy.test.check}
         </StudyButton>
-      ) : (
-        <Box sx={{ display: 'flex', gap: 1.25 }}>
-          {marks && (
-            <StudyButton onClick={() => finish(true)} disabled={checking}>
-              {copy.sentence.giveUp}
-            </StudyButton>
-          )}
-          <StudyButton
-            variant="primary"
-            disabled={entered.trim() === '' || checking}
-            onClick={onCheckAnswer}
-          >
-            {copy.test.check}
-          </StudyButton>
-        </Box>
-      )}
+      </Box>
     </>
   );
 };
