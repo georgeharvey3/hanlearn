@@ -4,7 +4,7 @@
  */
 import { vi, describe, it, expect } from 'vitest';
 
-vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {} }));
 
 import React from 'react';
 import { screen, within } from '@testing-library/react';

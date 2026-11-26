@@ -6,7 +6,7 @@
  */
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
-vi.mock('../../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('../../../firebase/config', () => ({ auth: {}, db: {}, functions: {} }));
 vi.mock('../../../services/wordService', () => ({
   addWordToList: vi.fn().mockResolvedValue(undefined),
 }));

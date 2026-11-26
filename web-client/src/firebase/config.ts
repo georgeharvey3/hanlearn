@@ -2,7 +2,6 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
-import { getAI, GoogleAIBackend } from 'firebase/ai';
 import { type FirebasePerformance, getPerformance } from 'firebase/performance';
 import { type Analytics, getAnalytics } from 'firebase/analytics';
 
@@ -21,7 +20,6 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const functions = getFunctions(app);
-export const ai = getAI(app, { backend: new GoogleAIBackend() });
 
 // Firebase Performance and Analytics — production only (no emulators available)
 export let perf: FirebasePerformance | null = null;

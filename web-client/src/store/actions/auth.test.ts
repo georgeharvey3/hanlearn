@@ -5,7 +5,7 @@ import * as firebaseAuth from '../../firebase/auth';
 import * as Sentry from '@sentry/react';
 import { FirebaseError } from 'firebase/app';
 
-vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {} }));
 vi.mock('../../firebase/auth');
 vi.mock('@sentry/react', () => ({
   captureException: vi.fn(),
