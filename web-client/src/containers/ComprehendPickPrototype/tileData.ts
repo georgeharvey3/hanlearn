@@ -3,7 +3,8 @@
 // by gloss overlap, or null. targetDecoys: xlm-roberta-base fill-mask words
 // for the target slot, less co-glossed synonyms in CC-CEDICT. swaps: pronoun
 // person swaps (never he/she, which sound the same in Chinese). fillers: words of
-// the nearest corpus sentences, for variant D.
+// the nearest corpus sentences, for variant D. optional: token indexes of grammar
+// words whose removal keeps the meaning (cosine 0.997 or more).
 export interface TileSentence {
   word: string;
   id: string;
@@ -15,6 +16,7 @@ export interface TileSentence {
   targetDecoys: string[];
   swaps: { index: number; decoy: string }[];
   fillers: string[];
+  optional: number[];
 }
 
 export const TILE_SENTENCES: TileSentence[] = [
@@ -37,7 +39,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'him',
       },
     ],
-    fillers: ['guilty', 'from', 'it', 'received', 'vouch', 'enter', 'suit', 'believe'],
+    fillers: ['about', 'from', 'was', 'received', 'this', 'make', 'business', 'do'],
+    optional: [2],
   },
   {
     word: '暗中',
@@ -49,7 +52,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['involved', 'of', 'have', 'for', 'they', 'found', 'definitely', 'we'],
+    fillers: ['will', 'news', 'have', 'source', 'looked', 'any', 'get', 'knows'],
+    optional: [],
   },
   {
     word: '暗中',
@@ -73,7 +77,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 4,
     targetDecoys: ['really', 'constantly', 'totally'],
     swaps: [],
-    fillers: ['between', "other's", 'meet', 'way', 'while', 'depended', "today's", 'upset'],
+    fillers: ['between', "other's", 'meet', 'way', 'develop', 'only', 'partners', 'height'],
+    optional: [3],
   },
   {
     word: '霸占',
@@ -107,7 +112,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'he',
       },
     ],
-    fillers: ['shares', 'advantage', 'home', 'secret', 'how', 'anyone', 'know', 'shown'],
+    fillers: ['shares', 'advantage', 'home', 'secret', 'how', 'modern', 'know', 'privacy'],
+    optional: [8],
   },
   {
     word: '霸占',
@@ -124,7 +130,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'i',
       },
     ],
-    fillers: ['on', 'moved', 'have', 'in', 'behaved', 'is', 'got', 'burden'],
+    fillers: ['on', 'moved', 'have', 'in', 'were', 'filled', 'jumped', 'alone'],
+    optional: [2],
   },
   {
     word: '霸占',
@@ -136,7 +143,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 2,
     targetDecoys: ['bought', 'gets', 'sold'],
     swaps: [],
-    fillers: ['plundered', 'prices', 'at', 'peasants', 'wasteland', 'their', 'said', "neighbour's"],
+    fillers: ['this', 'time', 'low', 'suffered', 'must', 'plundered', 'some', "can't"],
+    optional: [],
   },
   {
     word: '罢免',
@@ -157,7 +165,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'my',
       },
     ],
-    fillers: ['chief', 'left', 'bureau', 'and', 'more', 'bribed', 'blight', 'replaced'],
+    fillers: ['chief', 'permission', 'bureau', 'and', 'brett', 'looking', 'track', 'organization'],
+    optional: [],
   },
   {
     word: '罢免',
@@ -169,7 +178,17 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 4,
     targetDecoys: ['replace', 'change', 'retire'],
     swaps: [],
-    fillers: ['its', "manager's", 'power', 'resigned', 'taking', 'took', 'behind', 'assistant'],
+    fillers: [
+      'weakened',
+      'corruption',
+      'team',
+      'its',
+      'losing',
+      'license',
+      'today',
+      "restaurant's",
+    ],
+    optional: [3, 5],
   },
   {
     word: '罢免',
@@ -181,7 +200,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 8,
     targetDecoys: ['changed', 'signed', 'released'],
     swaps: [],
-    fillers: ['to', 'of', 'unhappy', 'happy', 'prosecutors', 'hope', 'politician', 'remark'],
+    fillers: ['to', 'public', 'with', 'choice', 'result', 'fight', 'problems', 'principal'],
+    optional: [4],
   },
   {
     word: '爱理不理',
@@ -202,7 +222,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'him',
       },
     ],
-    fillers: ['against', 'lately', 'and', 'treat', 'hands', 'today', 'at', 'she'],
+    fillers: ['against', 'lately', 'and', 'treat', 'let', 'cold-hearted', 'conversation', 'gives'],
+    optional: [],
   },
   {
     word: '爱理不理',
@@ -223,7 +244,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'me',
       },
     ],
-    fillers: ['pay', 'press', 'aware', 'that', 'week', 'mentioned', 'talks', 'hurt'],
+    fillers: ['pay', 'press', 'aware', 'that', 'light', 'ordinary', 'book', 'feel'],
+    optional: [3],
   },
   {
     word: '爱理不理',
@@ -235,7 +257,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['was', 'dampen', 'of', 'enthusiasm', 'evil', 'they', 'seems', 'expects'],
+    fillers: ['so', 'dampen', 'of', 'was', 'nature', 'on', 'forgave', 'end'],
+    optional: [],
   },
   {
     word: '福气',
@@ -247,7 +270,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 2,
     targetDecoys: ['healthy', 'great', 'strong'],
     swaps: [],
-    fillers: ['hearty', 'has', 'another', 'to', 'restaurants', 'losing', 'dinner', 'an'],
+    fillers: ['hearty', 'has', 'another', 'to', 'eaten', 'meat', 'value', 'balanced'],
+    optional: [1, 5],
   },
   {
     word: '福气',
@@ -259,7 +283,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['optimistic', "don't", 'of', 'enough', 'well', 'necessarily', 'feel', 'sentence'],
+    fillers: ['optimistic', "don't", 'of', 'enough', "isn't", 'living', 'today', 'injured'],
+    optional: [],
   },
   {
     word: '福气',
@@ -286,7 +311,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 10,
     targetDecoys: ['born', 'happy', 'rich'],
     swaps: [],
-    fillers: ['hopes', 'live', 'kindly', 'will', 'willing', 'children', 'eighty', 'gently'],
+    fillers: ['his', 'lives', 'face', 'all', 'settle', 'says', 'two', 'heart'],
+    optional: [4],
   },
   {
     word: '不服气',
@@ -307,7 +333,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'i',
       },
     ],
-    fillers: ['refused', "didn't", 'my', 'resolutely', 'these', 'away', 'really', 'attitude'],
+    fillers: ['even', "didn't", 'view', 'to', 'faults', 'right', 'will', 'trusted'],
+    optional: [],
   },
   {
     word: '不服气',
@@ -324,7 +351,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'him',
       },
     ],
-    fillers: ['at', 'stared', 'speak', 'eye', 'abandon', "you're", 'politeness', 'believe'],
+    fillers: ['at', 'stared', 'speak', 'eye', 'first', 'hide', 'going', 'promised'],
+    optional: [],
   },
   {
     word: '不服气',
@@ -341,7 +369,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'his',
       },
     ],
-    fillers: ['him', 'rebellious', 'with', 'often', 'over', 'strict', 'disappointment', 'patience'],
+    fillers: ['him', 'rebellious', 'with', 'often', 'eldest', 'bullies', 'there', 'certain'],
+    optional: [],
   },
   {
     word: '描绘',
@@ -353,7 +382,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 2,
     targetDecoys: ['shows', 'features', 'about'],
     swaps: [],
-    fillers: ['color', 'film', 'very', 'is', 'across', 'who', 'on', 'leaves'],
+    fillers: ['color', 'film', 'very', 'is', 'too', 'lives', 'on', 'three-dimensional'],
+    optional: [5],
   },
   {
     word: '描绘',
@@ -374,7 +404,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'my',
       },
     ],
-    fillers: ['are', 'freely', 'our', 'out', "wouldn't", 'speaks', 'but', 'follows'],
+    fillers: ['everyone', 'their', 'are', 'lives', 'mistakes', 'take', 'should', 'asked'],
+    optional: [],
   },
   {
     word: '描绘',
@@ -386,7 +417,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 2,
     targetDecoys: ['about', 'shows', 'takes'],
     swaps: [],
-    fillers: ['characters', 'is', 'human', 'captures', 'those', 'were', 'plague', 'well'],
+    fillers: ['characters', 'is', 'human', 'captures', 'difficult', 'times', 'plague', 'country'],
+    optional: [],
   },
   {
     word: '离谱儿',
@@ -398,7 +430,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['there', 'the', 'heard', 'most', 'ridiculous', 'saying', 'totally', 'plot'],
+    fillers: ['there', 'the', 'heard', 'most', "isn't", 'not', 'question', 'plot'],
+    optional: [],
   },
   {
     word: '离谱儿',
@@ -410,7 +443,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['enough', 'week', 'unpredictable', 'this', 'forth', 'abate', 'past', 'in'],
+    fillers: ['rained', 'week', 'unpredictable', 'this', 'fierce', 'hours', 'large', 'game'],
+    optional: [],
   },
   {
     word: '离谱儿',
@@ -422,7 +456,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['so', 'very', 'how', 'me', 'that', "can't", 'someone', 'hands'],
+    fillers: ['so', 'very', 'how', 'me', 'recently', 'money', 'got', 'why'],
+    optional: [],
   },
   {
     word: '开启',
@@ -439,7 +474,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'i',
       },
     ],
-    fillers: ['teach', 'soon', 'shanghai', 'reliant', 'place', 'war', 'that', 'dorm'],
+    fillers: ['money', 'settled', 'joined', 'the', 'into', 'studied', 'quit', 'foundation'],
+    optional: [],
   },
   {
     word: '开启',
@@ -476,7 +512,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'your',
       },
     ],
-    fillers: ['ancient', 'found', 'stars', 'life', 'an', 'made', 'shaking', 'difference'],
+    fillers: ['most', 'ancient', 'he', 'stars', 'of', 'an', 'made', 'microscopic'],
+    optional: [4, 10, 11, 12],
   },
   {
     word: '开启',
@@ -507,7 +544,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 9,
     targetDecoys: ['release', 'first', 'creation'],
     swaps: [],
-    fillers: ['will', 'an', 'family', 'upgraded', 'friendly', 'lot', "you're", 'shine'],
+    fillers: ['month', 'service', 'engine', 'games', 'well', 'will', 'company', "team's"],
+    optional: [2, 8, 10, 11, 15],
   },
   {
     word: '罐头',
@@ -524,7 +562,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'he',
       },
     ],
-    fillers: ['not', 'want', 'the', 'her', 'very', 'and', 'aim', 'empty'],
+    fillers: ['and', 'this', 'do', 'the', 'silly', 'membrane', 'her', 'find'],
+    optional: [],
   },
   {
     word: '罐头',
@@ -536,7 +575,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 0,
     targetDecoys: ['good', 'this', 'organic'],
     swaps: [],
-    fillers: ['fresh', 'keeps', 'fruits', 'time', 'also', 'rich', 'culture', 'old'],
+    fillers: ['fertilizer', 'well', 'time', 'tend', 'cool', 'rich', 'health', 'every'],
+    optional: [4],
   },
   {
     word: '罐头',
@@ -553,7 +593,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'i',
       },
     ],
-    fillers: ['the', 'to', 'in', 'is', 'culture', 'over', 'gone', 'feel'],
+    fillers: ['this', 'tasted', 'the', 'in', 'does', 'spare', 'go', 'fly'],
+    optional: [],
   },
   {
     word: '非金属',
@@ -565,7 +606,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 0,
     targetDecoys: ['they', 'people', 'you'],
     swaps: [],
-    fillers: ['can', 'carbon', 'things', 'materials', 'this', 'tin', 'it', 'material'],
+    fillers: ['acid', 'can', 'carbon', 'on', 'melting', 'connected', 'soft', 'it'],
+    optional: [],
   },
   {
     word: '非金属',
@@ -577,7 +619,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 4,
     targetDecoys: ['gas', 'chemical', 'metal'],
     swaps: [],
-    fillers: ['of', 'material', 'developing', 'plastic', 'the', 'has', 'that', 'vibration'],
+    fillers: ['new', 'material', 'of', 'developing', 'these', 'acts', 'the', 'has'],
+    optional: [],
   },
   {
     word: '非金属',
@@ -589,7 +632,17 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 5,
     targetDecoys: ['good', 'natural', 'excellent'],
     swaps: [],
-    fillers: ['toys', 'conduct', 'property', 'up', 'locally', 'sixty', 'carbon', 'not'],
+    fillers: [
+      'generally',
+      'substances',
+      'wooden',
+      'electricity',
+      'scientists',
+      'raw',
+      'sturdy',
+      'nylon',
+    ],
+    optional: [],
   },
   {
     word: '独唱',
@@ -601,7 +654,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 3,
     targetDecoys: ['song', 'guitar', 'piano'],
     swaps: [],
-    fillers: ['dressed', 'next', 'part', 'up', 'but', 'greatest', 'fans', 'celebrate'],
+    fillers: ['recited', 'for', 'dressed', 'next', "singer's", 'year', 'paint', 'several'],
+    optional: [],
   },
   {
     word: '独唱',
@@ -622,7 +676,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'he',
       },
     ],
-    fillers: ['incredibly', 'bit', 'fool', 'myself', 'last', 'wave', 'to', 'heartache'],
+    fillers: ['while', 'myself', 'made', 'bit', 'hit', "i'd", 'working', 'never'],
+    optional: [0, 7],
   },
   {
     word: '独唱',
@@ -634,7 +689,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 3,
     targetDecoys: ['different', 'main', 'major'],
     swaps: [],
-    fillers: ['held', 'orchestra', 'be', 'what', 'being', 'weekend', 'way', 'my'],
+    fillers: ['will', 'tomorrow', 'orchestra', 'held', 'evening', 'streamed', 'part', 'his'],
+    optional: [1],
   },
   {
     word: '喜酒',
@@ -646,7 +702,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 4,
     targetDecoys: ['traditional', 'christmas', 'religious'],
     swaps: [],
-    fillers: ['if', 'this', 'every', 'revived', 'went', 'guests', 'were', 'as'],
+    fillers: ['if', 'this', 'every', 'revived', 'where', 'guests', 'were', 'as'],
+    optional: [3],
   },
   {
     word: '喜酒',
@@ -663,7 +720,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'i',
       },
     ],
-    fillers: ['becomes', 'harms', 'very', 'because', 'street', 'choked', 'drinking', 'she'],
+    fillers: ['becomes', 'ate', 'very', 'heavy', 'water', 'health', 'lost', 'headache'],
+    optional: [5],
   },
   {
     word: '喜酒',
@@ -687,7 +745,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 10,
     targetDecoys: ['concert', 'hospital', 'party'],
     swaps: [],
-    fillers: ['eve', 'busy', 'service', 'year', 'church', 'tomorrow', 'near', "i'll"],
+    fillers: ['year', 'week', 'was', 'very', "friend's", 'pretty', 'invited', 'forced'],
+    optional: [8],
   },
   {
     word: '沧桑',
@@ -704,7 +763,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'my',
       },
     ],
-    fillers: ['scar', 'smooth', 'went', 'was', 'sun', "don't", 'admit', 'joined'],
+    fillers: ['on', 'shaped', 'through', 'was', 'beaten', 'harsh', 'young', 'weary'],
+    optional: [3, 6],
   },
   {
     word: '沧桑',
@@ -729,7 +789,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['lost', 'on', 'he', 'past', 'leaning', 'statue', 'point', 'be'],
+    fillers: ['he', 'breathed', 'on', 'what', 'sipped', 'we', 'dialogue', 'trot'],
+    optional: [2, 5, 8],
   },
   {
     word: '沧桑',
@@ -741,7 +802,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 9,
     targetDecoys: ['age', 'history', 'life'],
     swaps: [],
-    fillers: ['already', 'restoring', "it's", 'year', 'inherited', 'village', 'as', 'heavy'],
+    fillers: ['already', 'few', 'modern', 'restoring', 'farm', 'village', 'nervous', 'favourable'],
+    optional: [5, 8],
   },
   {
     word: '彩电',
@@ -758,7 +820,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'his',
       },
     ],
-    fillers: ['still', 'in', 'were', 'made', 'much', 'their', 'and', 'is'],
+    fillers: ['still', 'in', 'were', 'china', 'we', 'happy', 'heavy', 'made'],
+    optional: [],
   },
   {
     word: '彩电',
@@ -770,7 +833,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['bought', 'heavy', "isn't", 'and', 'dish', 'device', 'big', 'went'],
+    fillers: ['bought', 'heavy', "isn't", 'and', 'little', 'dish', 'big', 'blurry'],
+    optional: [1],
   },
   {
     word: '彩电',
@@ -782,7 +846,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['eighties', 'is', 'old', 'big', 'bought', 'gone', 'can', 'revolution'],
+    fillers: ['eighties', 'is', 'old', 'big', 'bought', 'flash', 'table', 'monitors'],
+    optional: [4],
   },
   {
     word: '恩怨',
@@ -794,7 +859,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['again', 'put', 'issue', 'those', 'heart', 'reasons', 'difficulties', 'resolve'],
+    fillers: ['again', 'put', 'issue', 'those', 'take', 'one', 'whole', 'resolve'],
+    optional: [],
   },
   {
     word: '恩怨',
@@ -824,7 +890,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'i',
       },
     ],
-    fillers: ['no', 'accept', 'result', 'the', 'topic', 'front', 'reply', 'word'],
+    fillers: ['longer', 'the', 'of', 'result', 'motivated', 'down', 'saying', 'end'],
+    optional: [3],
   },
   {
     word: '恩怨',
@@ -849,7 +916,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['war', 'them', 'went', 'by', 'with', 'died', 'when', 'son'],
+    fillers: ['war', 'them', 'went', 'by', 'other', 'know', 'kids', 'cold-hearted'],
+    optional: [3],
   },
   {
     word: '距',
@@ -861,7 +929,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['holds', 'feels', 'for', 'coming', 'as', 'an', 'bit', 'police'],
+    fillers: ['just', 'pressure', 'for', 'and', 'not', 'week', 'finished', 'beginning'],
+    optional: [1, 7],
   },
   {
     word: '距',
@@ -873,7 +942,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['power', 'grid', 'far', 'lives', 'developed', 'outside', 'than', 'how'],
+    fillers: ['power', 'grid', 'center', 'away', 'establish', 'went', 'income', 'for'],
+    optional: [3, 7],
   },
   {
     word: '距',
@@ -881,11 +951,12 @@ export const TILE_SENTENCES: TileSentence[] = [
     simp: '保持车距可以避免追尾。',
     pinyin: 'bǎo chí chē jù kě yǐ bì miǎn zhuī wěi',
     english: 'Keeping a safe distance can prevent rear-end collisions.',
-    tokens: ['keeping', 'a', 'safe', 'distance', 'can', 'prevent', 'rear', 'end', 'collisions'],
+    tokens: ['keeping', 'a', 'safe', 'distance', 'can', 'prevent', 'rear-end', 'collisions'],
     target: 3,
     targetDecoys: ['vehicle', 'car', 'track'],
     swaps: [],
-    fillers: ['comes', 'let', 'down', 'so', 'stamina', 'fear', 'sit', 'mind'],
+    fillers: ['comes', 'let', 'down', 'so', 'door', 'whole', 'they', 'obey'],
+    optional: [],
   },
   {
     word: '扣人心弦',
@@ -897,7 +968,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['novel', 'thrilling', 'end', 'until', 'screen', 'visuals', 'excitement', 'shocking'],
+    fillers: ['moving', 'has', 'novel', 'very', 'big-name', 'beautiful', 'old', 'red'],
+    optional: [],
   },
   {
     word: '扣人心弦',
@@ -909,7 +981,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 4,
     targetDecoys: ['good', 'bagus', 'great'],
     swaps: [],
-    fillers: ['and', 'splendid', 'the', 'energetic', 'sight', 'time', 'dared', 'another'],
+    fillers: ['and', 'splendid', 'the', 'energetic', 'my', 'huge', 'time', 'dance'],
+    optional: [],
   },
   {
     word: '扣人心弦',
@@ -926,11 +999,12 @@ export const TILE_SENTENCES: TileSentence[] = [
       'great',
       'downs',
       'portrayal',
-      'turn',
-      'generation',
+      'here',
+      "who's",
       'masterpiece',
       'realistically',
     ],
+    optional: [],
   },
   {
     word: '真心',
@@ -951,7 +1025,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'i',
       },
     ],
-    fillers: ['there', 'it', 'makes', "isn't", 'some', 'from', 'time', 'distinguish'],
+    fillers: ['grain', 'it', 'makes', 'of', 'concerned', "wasn't", 'pent-up', 'looks'],
+    optional: [3],
   },
   {
     word: '真心',
@@ -963,16 +1038,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: [
-      'issue',
-      'time',
-      'discussed',
-      'while',
-      'concerning',
-      'house',
-      "tomorrow's",
-      'sparked',
-    ],
+    fillers: ['gathered', 'issue', 'is', 'plans', 'hear', 'she', 'wrong', 'start'],
+    optional: [],
   },
   {
     word: '真心',
@@ -1007,7 +1074,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'him',
       },
     ],
-    fillers: ['kindness', 'along', 'heart', 'of', 'suggestion', 'always', 'guys', 'lunch'],
+    fillers: ['could', 'heart', 'and', 'who', 'admire', 'must', 'inviting', 'helper'],
+    optional: [8],
   },
   {
     word: '不相上下',
@@ -1024,7 +1092,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'us',
       },
     ],
-    fillers: ['students', 'average', 'number', 'are', 'leadership', 'grand', 'better', 'between'],
+    fillers: ['students', 'average', 'classes', 'and', 'part-time', 'compare', 'is', 'you'],
+    optional: [],
   },
   {
     word: '不相上下',
@@ -1036,7 +1105,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 4,
     targetDecoys: ['from', 'having', 'also'],
     swaps: [],
-    fillers: ['of', 'like', 'temperaments', 'kids', 'lot', 'yours', 'big', 'see'],
+    fillers: ['they', 'like', 'temperaments', 'have', 'be', 'completely', 'sleeves', 'kitchen'],
+    optional: [5],
   },
   {
     word: '不相上下',
@@ -1048,7 +1118,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 5,
     targetDecoys: ['competitive', 'different', 'close'],
     swaps: [],
-    fillers: ['between', 'power', 'off', 'fighting', 'went', 'air', 'losing', 'standing'],
+    fillers: ['face', 'between', 'of', 'for', 'against', 'favourite', 'produce', 'we'],
+    optional: [],
   },
   {
     word: '接班人',
@@ -1060,7 +1131,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['the', 'sunken', 'close', 'beds', 'taking', 'nobody', 'saying', 'things'],
+    fillers: ['ship', 'the', 'close', 'last', 'wind', 'village', 'be', 'knows'],
+    optional: [],
   },
   {
     word: '接班人',
@@ -1072,7 +1144,17 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 4,
     targetDecoys: ['treasure', 'strength', 'voice'],
     swaps: [],
-    fillers: ['our', 'country', 'people', 'leave', 'balanced', 'no', 'attitude', 'educating'],
+    fillers: [
+      'shoulders',
+      'parents',
+      'bear',
+      'need',
+      'forward',
+      'schooling',
+      'fundamental',
+      'rebel',
+    ],
+    optional: [],
   },
   {
     word: '接班人',
@@ -1089,7 +1171,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'my',
       },
     ],
-    fillers: ['will', 'happy', 'choice', 'retired', 'but', 'assigning', 'change', 'handedly'],
+    fillers: ['this', 'person', 'still', 'to', 'people', 'choice', 'old', 'suggestion'],
+    optional: [],
   },
   {
     word: '物流',
@@ -1101,7 +1184,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['is', 'are', 'held', 'bit', 'traffic', 'in', 'condition', 'grey'],
+    fillers: ['outside', 'it', 'held', 'cut', 'forever', 'time', 'inaccurate', 'into'],
+    optional: [5],
   },
   {
     word: '物流',
@@ -1118,7 +1202,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'his',
       },
     ],
-    fillers: ['joint', 'by', 'driver', 'delivery', 'pilot', 'younger', 'microchips', 'supervisory'],
+    fillers: ['delivery', 'joint', 'does', 'as', 'wants', 'long', 'service', 'air'],
+    optional: [4],
   },
   {
     word: '物流',
@@ -1130,7 +1215,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['to', 'faster', 'has', 'door', 'turns', 'police', 'in', 'or'],
+    fillers: ['has', 'be', 'goods', 'been', 'manager', 'thought', 'vibrant', 'same'],
+    optional: [7],
   },
   {
     word: '均匀',
@@ -1142,7 +1228,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
-    fillers: ['mixing', 'has', 'ice', 'very', 'cream', 'and', 'filling', 'mom'],
+    fillers: ['and', 'this', 'ice', 'evenly', 'in', 'water', 'mix', 'flour'],
+    optional: [6],
   },
   {
     word: '均匀',
@@ -1154,7 +1241,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 5,
     targetDecoys: ['carefully', 'properly', 'completely'],
     swaps: [],
-    fillers: ['before', 'blend', 'sift', 'using', 'ready', 'for', 'mom', 'made'],
+    fillers: ['one', 'you', 'bread', 'is', 'some', 'mixture', 'cooking', 'rolled'],
+    optional: [],
   },
   {
     word: '均匀',
@@ -1166,7 +1254,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 7,
     targetDecoys: ['easily', 'carefully', 'slowly'],
     swaps: [],
-    fillers: ['and', 'of', 'color', 'hanging', 'did', 'ahead', "isn't", 'rich'],
+    fillers: ['brush', 'painting', 'rich', 'is', 'technique', 'one', 'sanded', 'salt'],
+    optional: [],
   },
   {
     word: '宣称',
@@ -1187,7 +1276,8 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'i',
       },
     ],
-    fillers: ['everyone', 'implicated', 'despised', 'that', 'looked', 'the', 'aside', 'serves'],
+    fillers: ['such', 'ruled', 'the', 'made', 'if', 'admitting', 'up', 'told'],
+    optional: [],
   },
   {
     word: '宣称',
@@ -1199,7 +1289,8 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 1,
     targetDecoys: ['seems', 'used', 'appears'],
     swaps: [],
-    fillers: ['anything', 'from', 'away', 'there', 'do', 'amazed', 'at', 'her'],
+    fillers: ['unusual', 'ghosts', 'are', 'came', 'object', 'had', 'happened', 'delighted'],
+    optional: [],
   },
   {
     word: '宣称',
@@ -1211,6 +1302,7 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 2,
     targetDecoys: ['with', 'from', 'for'],
     swaps: [],
-    fillers: ['good', 'drinking', 'to', 'medicine', 'amazing', 'almost', 'all', 'treasure'],
+    fillers: ['plant', 'pear', 'drinking', 'of', 'live', 'get', 'dissolved', 'glass'],
+    optional: [],
   },
 ];

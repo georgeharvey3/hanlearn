@@ -3,8 +3,10 @@
  * learner hears or reads the Chinese and builds the English.
  *
  * - D "Build from tiles": the tiles are the reference words and the false
- *   tiles, shuffled. The grade ignores the order: right when the learner used
- *   exactly the reference words.
+ *   tiles, shuffled. The grade ignores the order and the optional words of the
+ *   sentence. A match is right at once (`gradedBy: 'auto'`). Any other answer
+ *   shows next to the reference, and the learner says if the meaning is the
+ *   same (`gradedBy: 'self'`): a committed answer, not a feeling.
  * - E "Choose each slot": the English shows with a gap at each choice point
  *   (the target, and each swapped pronoun). The learner fills every gap.
  */
@@ -28,6 +30,11 @@ const text = {
   noSlots: 'No choice points',
   missing: 'Missing:',
   gap: '____',
+  sameMeaning: 'Same meaning?',
+  yours: 'Yours',
+  reference: 'Reference',
+  same: 'Same',
+  different: 'Different',
 };
 
 export type TileVariant = 'D' | 'E';
@@ -38,6 +45,7 @@ export interface TileLog {
   sentenceId: string;
   mode: 'audio' | 'text';
   grade: 'right' | 'wrong' | 'none';
+  gradedBy?: 'auto' | 'self';
   answer: string[];
   falseTilesUsed: string[];
   missing: string[];
@@ -121,6 +129,21 @@ const Chip: React.FC<{
 const multisetEqual = (a: string[], b: string[]) =>
   a.length === b.length && [...a].sort().join('|') === [...b].sort().join('|');
 
+/**
+ * Whether an answer holds exactly the reference words, in any order, when an
+ * optional word of the sentence may be there or not.
+ */
+const matchesReference = (words: string[], s: TileSentence) => {
+  const required = s.tokens.filter((_, i) => !s.optional.includes(i));
+  const optional = s.optional.map((i) => s.tokens[i]);
+  const core = [...words];
+  optional.forEach((w) => {
+    const at = core.indexOf(w);
+    if (at >= 0) core.splice(at, 1);
+  });
+  return multisetEqual(core, required);
+};
+
 export const TileTask: React.FC<{
   variant: TileVariant;
   sentence: TileSentence;
@@ -141,6 +164,9 @@ export const TileTask: React.FC<{
     ]),
   );
   const [answer, setAnswer] = useState<number[]>([]);
+  // D: the answer did not match, and waits for the learner's "Same meaning?".
+  const [judging, setJudging] = useState(false);
+  const [selfRight, setSelfRight] = useState<boolean | null>(null);
 
   // E: the choice points and the options of each.
   const slotIndexes = [
@@ -167,14 +193,26 @@ export const TileTask: React.FC<{
 
   const byId = (id: number) => tiles.find((t) => t.id === id)!;
 
-  const check = () => {
+  const autoRight = matchesReference(
+    answer.map((id) => byId(id).word),
+    sentence,
+  );
+
+  const check = (judged?: boolean) => {
+    if (variant === 'D' && !autoRight && judged === undefined) {
+      setJudging(true);
+      setTextShown(true);
+      return;
+    }
+    setJudging(false);
     setChecked(true);
     setTextShown(true);
+    if (judged !== undefined) setSelfRight(judged);
     let words: string[];
     let right: boolean;
     if (variant === 'D') {
       words = answer.map((id) => byId(id).word);
-      right = multisetEqual(words, sentence.tokens);
+      right = judged ?? autoRight;
     } else {
       words = slotIndexes.map((i) => choices[i]);
       right = slotIndexes.every((i) => choices[i] === sentence.tokens[i]);
@@ -188,7 +226,9 @@ export const TileTask: React.FC<{
         : [];
     const missing =
       variant === 'D'
-        ? tiles.filter((t) => t.real && !answer.includes(t.id)).map((t) => t.word)
+        ? tiles
+            .filter((t) => t.real && !answer.includes(t.id) && !sentence.optional.includes(t.id))
+            .map((t) => t.word)
         : [];
     onLog({
       variant,
@@ -196,6 +236,7 @@ export const TileTask: React.FC<{
       sentenceId: sentence.id,
       mode: useSound ? 'audio' : 'text',
       grade: variant === 'E' && slotIndexes.length === 0 ? 'none' : right ? 'right' : 'wrong',
+      gradedBy: variant === 'D' ? (judged === undefined ? 'auto' : 'self') : undefined,
       answer: words,
       falseTilesUsed:
         variant === 'D'
@@ -210,10 +251,7 @@ export const TileTask: React.FC<{
 
   const right =
     variant === 'D'
-      ? multisetEqual(
-          answer.map((id) => byId(id).word),
-          sentence.tokens,
-        )
+      ? (selfRight ?? autoRight)
       : slotIndexes.every((i) => choices[i] === sentence.tokens[i]);
 
   const canCheck =
@@ -258,7 +296,7 @@ export const TileTask: React.FC<{
               </Box>
             </>
           )}
-          {useSound && !checked && (
+          {useSound && !checked && !judging && (
             <PillToggle
               pressed={textShown}
               onClick={() => {
@@ -291,7 +329,9 @@ export const TileTask: React.FC<{
                     key={id}
                     tone={checked ? (t.real ? 'right' : 'wrong') : 'idle'}
                     onClick={
-                      checked ? undefined : () => setAnswer((a) => a.filter((x) => x !== id))
+                      checked || judging
+                        ? undefined
+                        : () => setAnswer((a) => a.filter((x) => x !== id))
                     }
                   >
                     {t.word}
@@ -305,8 +345,10 @@ export const TileTask: React.FC<{
                 .map((t) => (
                   <Chip
                     key={t.id}
-                    tone={checked && t.real ? 'missing' : 'idle'}
-                    onClick={checked ? undefined : () => setAnswer((a) => [...a, t.id])}
+                    tone={
+                      checked && t.real && !sentence.optional.includes(t.id) ? 'missing' : 'idle'
+                    }
+                    onClick={checked || judging ? undefined : () => setAnswer((a) => [...a, t.id])}
                   >
                     {t.word}
                   </Chip>
@@ -372,6 +414,16 @@ export const TileTask: React.FC<{
           </Box>
         )}
 
+        {judging && (
+          <Box sx={{ mt: 2, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box sx={{ fontSize: 14, color: colors.textSecondary }}>{text.yours}</Box>
+            <Box sx={{ fontSize: 18 }}>{answer.map((id) => byId(id).word).join(' ')}</Box>
+            <Box sx={{ fontSize: 14, color: colors.textSecondary }}>{text.reference}</Box>
+            <Box sx={{ fontSize: 18 }}>{sentence.english}</Box>
+            <Box sx={{ mt: 1, fontWeight: 600 }}>{text.sameMeaning}</Box>
+          </Box>
+        )}
+
         {checked && (variant === 'D' || slotIndexes.length > 0) && (
           <Box sx={{ mt: 2, fontWeight: 600, color: right ? colors.success : colors.primaryLight }}>
             {right ? text.right : text.wrong}
@@ -383,8 +435,15 @@ export const TileTask: React.FC<{
         <StudyButton variant="primary" onClick={onNext}>
           {text.next}
         </StudyButton>
+      ) : judging ? (
+        <Box sx={{ display: 'flex', gap: 1.25 }}>
+          <StudyButton onClick={() => check(false)}>{text.different}</StudyButton>
+          <StudyButton variant="primary" onClick={() => check(true)}>
+            {text.same}
+          </StudyButton>
+        </Box>
       ) : (
-        <StudyButton variant="primary" disabled={!canCheck} onClick={check}>
+        <StudyButton variant="primary" disabled={!canCheck} onClick={() => check()}>
           {text.check}
         </StudyButton>
       )}
