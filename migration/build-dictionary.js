@@ -13,6 +13,7 @@
  *     hsk-index.json, the HSK index of the Dashboard)
  *   ../web-client/public/sentences/ (the example sentences, see #465)
  *   ../web-client/public/breakdowns/ (the component breakdowns, see #528)
+ *   ../web-client/public/handwriting/ (the templates of the handwriting pad, see #476)
  *   sentences/coverage.md (the coverage report, on a local run only)
  *   components/wiktionary-differences.md (the parts that differ from
  *     Wiktionary, see #563, on a local run only)
@@ -27,6 +28,8 @@ const { checkHskIndex, hskIndexOf } = require('./hskIndex');
 const { buildExampleSentences, unfilledOf } = require('./exampleSentences');
 const { buildBreakdowns, compareWithWiktionary, parseMakeMeAHanzi } = require('./componentBreakdown');
 const { cleanDictionary, isUnclean } = require('./cleanMeaning');
+const { endsOf } = require('./strokeMedians');
+const { templatesOf } = require('./handwritingTemplates');
 
 /**
  * The HSK 3.0 bands of the catalogue, from drkameleon/complete-hsk-vocabulary
@@ -293,7 +296,12 @@ function buildComponentBreakdowns(catalogue, outputDir) {
     chars,
     entries: parseMakeMeAHanzi(fs.readFileSync(path.join(sourceDir, 'dictionary.txt'), 'utf8')),
     strokeCounts: readJson(sourceDir, 'stroke-counts.json').counts,
-    strokeEnds: readJson(sourceDir, 'stroke-ends.json').ends,
+    strokeEnds: Object.fromEntries(
+      Object.entries(readJson(sourceDir, 'stroke-medians.json').medians).map(([char, medians]) => [
+        char,
+        endsOf(medians),
+      ]),
+    ),
     animcjk: readJson(sourceDir, 'animcjk.json'),
     definitions: readJson(COMPONENTS_DIR, 'definitions.json').definitions,
     labels: readJson(COMPONENTS_DIR, 'labels.json'),
@@ -497,6 +505,42 @@ function wiktionaryDifferencesReport(result, dump) {
  * Hanzi each ask for their notice, and the Unihan notice in LICENSE.txt asks
  * for a notice that the data is modified.
  */
+/**
+ * Write the template file of the handwriting pad (#476) from the committed
+ * stroke medians, with its licence. The pad loads the file when it opens for
+ * the first time.
+ */
+function writeHandwritingTemplates(words, ranks, outputDir) {
+  const sourceDir = path.join(COMPONENTS_DIR, 'source');
+  const { medians } = JSON.parse(fs.readFileSync(path.join(sourceDir, 'stroke-medians.json'), 'utf8'));
+  const file = templatesOf({ medians, words, ranks });
+  fs.rmSync(outputDir, { recursive: true, force: true });
+  fs.mkdirSync(outputDir, { recursive: true });
+  const outputPath = path.join(outputDir, 'templates.json');
+  fs.writeFileSync(outputPath, JSON.stringify(file));
+  fs.writeFileSync(path.join(outputDir, 'ATTRIBUTION.txt'), handwritingAttributionText);
+  fs.copyFileSync(path.join(sourceDir, 'hanzi-writer-ARPHICPL.txt'), path.join(outputDir, 'LICENSE.txt'));
+  console.log(
+    'Wrote the templates of ' + [...file.chars].length + ' characters (' +
+      fs.statSync(outputPath).size + ' bytes) to: ' + outputPath,
+  );
+}
+
+const handwritingAttributionText = [
+  'templates.json in this directory is derived from the stroke data of',
+  'hanzi-writer-data 2.0.1 (https://github.com/chanind/hanzi-writer-data),',
+  'which is derived from graphics.txt of Make Me a Hanzi',
+  '(https://github.com/skishore/makemeahanzi), which is derived from the fonts',
+  'AR PL KaitiM GB and AR PL UKai of Arphic Technology.',
+  '',
+  'HanLearn modified the data: it simplified the median line of each stroke,',
+  'scaled the points to a box of 256, and kept only the characters that have',
+  'an entry in CC-CEDICT. See migration/handwritingTemplates.js of HanLearn.',
+  '',
+  'You can redistribute and/or modify this file under the terms of the Arphic',
+  'Public License (LICENSE.txt).',
+].join('\n') + '\n';
+
 const breakdownAttributionText = (animcjk, makeMeAHanzi) => [
   'The component breakdown files in this directory are derived from the',
   'dictionary files of AnimCJK (https://github.com/parsimonhi/animCJK) and from',
@@ -754,6 +798,9 @@ function buildDictionary() {
 
   console.log('Writing the component breakdowns...');
   buildComponentBreakdowns(catalogue, path.join(outputDir, 'breakdowns'));
+
+  console.log('Writing the handwriting templates...');
+  writeHandwritingTemplates(words, ranks, path.join(outputDir, 'handwriting'));
 
   // Write as compact JSON (no pretty printing to save space). An HSK word
   // carries the frequency rank `q` of the source, which the dictionary search

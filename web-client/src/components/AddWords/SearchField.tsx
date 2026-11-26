@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import DrawRoundedIcon from '@mui/icons-material/DrawRounded';
 
 import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
@@ -23,12 +24,22 @@ interface Props {
   /** Enter: search now, without the pause after typing. */
   onSubmit: () => void;
   onClear: () => void;
+  /** Whether the handwriting pad is open (#476). */
+  padOpen: boolean;
+  /** The pen button: open or close the pad. */
+  onPen: () => void;
+  /**
+   * True while the pad takes the place of the system keyboard, on a phone.
+   * The field keeps its focus and caret, and asks for no keyboard.
+   */
+  noKeyboard: boolean;
 }
 
 /**
  * The one field of the word bank. It filters the bank and asks the dictionary.
  * Ctrl+B focuses it from anywhere on the page. The toggle at its end sets the
- * search mode, as in Pleco (#577).
+ * search mode, as in Pleco (#577). The pen button before it opens the
+ * handwriting pad (#476).
  */
 const SearchField: React.FC<Props> = ({
   query,
@@ -38,6 +49,9 @@ const SearchField: React.FC<Props> = ({
   onChange,
   onSubmit,
   onClear,
+  padOpen,
+  onPen,
+  noKeyboard,
 }) => {
   useEffect(() => {
     const onKeyUp = (event: KeyboardEvent) => {
@@ -90,7 +104,12 @@ const SearchField: React.FC<Props> = ({
         value={query}
         onChange={(e) => onChange(e.target.value)}
         placeholder={label}
-        inputProps={{ 'aria-label': label, maxLength: 100, lang: mode === 'chinese' ? 'zh' : 'en' }}
+        inputProps={{
+          'aria-label': label,
+          maxLength: 100,
+          lang: mode === 'chinese' ? 'zh' : 'en',
+          inputMode: noKeyboard ? 'none' : undefined,
+        }}
         sx={{ flex: 1, minWidth: 0, fontFamily: fonts.body, fontSize: 17, color: colors.text }}
       />
       {query && (
@@ -102,6 +121,24 @@ const SearchField: React.FC<Props> = ({
           <CloseRoundedIcon fontSize="small" />
         </IconButton>
       )}
+      <IconButton
+        onClick={onPen}
+        // A tap keeps the focus in the field, so its caret stays.
+        onMouseDown={(e) => e.preventDefault()}
+        aria-label={copy.wordBank.draw}
+        aria-pressed={padOpen}
+        sx={{
+          width: 44,
+          height: 44,
+          flex: 'none',
+          borderRadius: 1,
+          color: padOpen ? colors.white : colors.textSecondary,
+          bgcolor: padOpen ? colors.primaryDark : 'transparent',
+          '&:hover': { bgcolor: padOpen ? colors.primaryDarkHover : undefined },
+        }}
+      >
+        <DrawRoundedIcon fontSize="small" />
+      </IconButton>
       <ToggleButtonGroup
         exclusive
         value={mode}

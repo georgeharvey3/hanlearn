@@ -86,6 +86,17 @@ is pinyin. In English mode, the query is an English meaning. A hanzi query
 reads the same in both modes. The device keeps the last search mode, and the
 first one is Chinese (#577).
 
+## Handwriting pad and candidate
+
+The **handwriting pad** is the input method of Add Words that turns the
+strokes of one drawn character into candidates. It always gives hanzi. It is
+not a search mode, but it sets the search mode to Chinese while it is open
+(#476). Do not call it a "handwriting mode" or a "drawing search".
+
+A **candidate** is one character that the pad offers for the strokes so far.
+A tap puts it into the search field. Do not call it a "suggestion", a
+"guess" or a "recognizer result".
+
 ## HSK coverage
 
 The **HSK coverage** of one HSK level is how the words of that level split across the learner's whole collection: the words not added, and the words at each level from 1 to 5. It has no threshold and no single percent. A word that the learner added by hand counts the same as one from a premade list. Each HSK word is in exactly one HSK level, so no word counts twice.

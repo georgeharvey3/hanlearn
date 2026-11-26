@@ -332,6 +332,17 @@ export const copy = {
       english: { short: 'EN', name: 'English' },
     },
     clear: 'Clear',
+    // The pen button of the search field, and the handwriting pad it opens (#476).
+    draw: 'Draw a character',
+    pad: {
+      name: 'Handwriting pad',
+      candidates: 'Candidates',
+      backspace: 'Backspace',
+      clear: 'Clear strokes',
+      keyboard: 'Keyboard',
+      loading: 'Loading…',
+      failed: 'Pad failed to load',
+    },
     searching: 'Searching…',
     searchFailed: 'Search failed',
     retry: 'Retry',

@@ -13,6 +13,7 @@ import {
 import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded';
 
 import SearchField from '../../components/AddWords/SearchField';
+import HandwritingPad from '../../components/AddWords/HandwritingPad';
 import ListChips, { Chip } from '../../components/AddWords/ListChips';
 import WordRow from '../../components/AddWords/WordRow';
 import SearchResults, { EntryState, SearchStatus } from '../../components/AddWords/SearchResults';
@@ -55,6 +56,10 @@ type DialogKind = 'new' | 'rename' | 'delete' | 'lists' | 'deleteWord';
 
 // The pause after typing before the dictionary is asked. Enter asks at once.
 const SEARCH_DELAY_MS = 400;
+
+// The height of the handwriting pad on a phone: its candidate strip and its
+// drawing box, in HandwritingPad.tsx.
+const PAD_ROOM = 52 + 220;
 
 const mapStateToProps = (state: RootState) => ({
   words: state.addWords.words,
@@ -206,6 +211,45 @@ const AddWords: React.FC<Props> = ({
       if (searchKind(query) === 'latin') runSearch(query);
     },
     [query, runSearch],
+  );
+
+  // The handwriting pad (#476). It always gives hanzi, so it sets the search
+  // mode to Chinese while it is open, and gives back the mode it found.
+  const [padOpen, setPadOpen] = useState(false);
+  const modeBeforePad = useRef<SearchMode | null>(null);
+
+  const openPad = useCallback(() => {
+    modeBeforePad.current = modeRef.current;
+    if (modeRef.current !== 'chinese') switchMode('chinese');
+    setPadOpen(true);
+    document.getElementById('addInput')?.focus();
+  }, [switchMode]);
+
+  const closePad = useCallback(() => {
+    setPadOpen(false);
+    const before = modeBeforePad.current;
+    modeBeforePad.current = null;
+    if (before && before !== modeRef.current) switchMode(before);
+  }, [switchMode]);
+
+  // The keyboard button: the field asks for the keyboard again. A phone shows
+  // it only on a new focus, so the field blurs, then takes the focus back.
+  const padToKeyboard = useCallback(() => {
+    closePad();
+    requestAnimationFrame(() => {
+      const input = document.getElementById('addInput');
+      input?.blur();
+      input?.focus();
+    });
+  }, [closePad]);
+
+  // A candidate or a backspace of the pad searches at once, with no pause.
+  const setPadQuery = useCallback(
+    (text: string) => {
+      setQueryText(text);
+      runSearch(text);
+    },
+    [runSearch],
   );
 
   const clearSearch = useCallback(() => {
@@ -414,6 +458,15 @@ const AddWords: React.FC<Props> = ({
     );
   }
 
+  const pad = (
+    <HandwritingPad
+      docked={desktop}
+      onCandidate={(char) => setPadQuery(query + char)}
+      onDeleteChar={() => setPadQuery(Array.from(query).slice(0, -1).join(''))}
+      onKeyboard={padToKeyboard}
+    />
+  );
+
   return (
     <Box
       sx={{
@@ -457,7 +510,11 @@ const AddWords: React.FC<Props> = ({
           onChange={setQuery}
           onSubmit={() => runSearch(query)}
           onClear={clearSearch}
+          padOpen={padOpen}
+          onPen={() => (padOpen ? closePad() : openPad())}
+          noKeyboard={padOpen && !desktop}
         />
+        {padOpen && desktop && pad}
         {!searching && !firstLoad && (
           <ListChips
             chips={chips}
@@ -552,6 +609,13 @@ const AddWords: React.FC<Props> = ({
           closeDialog();
         }}
       />
+      {padOpen && !desktop && (
+        <>
+          {/* Room at the foot of the page, so the pad covers no word. */}
+          <Box aria-hidden="true" sx={{ height: PAD_ROOM }} />
+          {pad}
+        </>
+      )}
     </Box>
   );
 };

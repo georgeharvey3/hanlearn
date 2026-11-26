@@ -21,7 +21,7 @@
  * `meanings` gives `[definition, pinyin]` for each character that Make Me a
  * Hanzi does not have, for the label of a part.
  *
- * The script reads the committed stroke-ends.json, so run
+ * The script reads the committed stroke-medians.json, so run
  * fetch-makemeahanzi.js first. build-dictionary.js reads only the committed
  * files, with no network.
  *
@@ -34,6 +34,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parseMakeMeAHanzi, strokeOrder } = require('./componentBreakdown');
+const { endsOf } = require('./strokeMedians');
 
 /** The AnimCJK commit of the committed file. */
 const ANIMCJK_COMMIT = 'c63765b150cbd567c71d05cf4a4f8d00b57045c9';
@@ -60,7 +61,8 @@ const linesOf = (buffer) =>
     .map((line) => JSON.parse(line));
 
 async function main() {
-  const ends = JSON.parse(fs.readFileSync(path.join(SOURCE_DIR, 'stroke-ends.json'), 'utf8')).ends;
+  const medians = JSON.parse(fs.readFileSync(path.join(SOURCE_DIR, 'stroke-medians.json'), 'utf8')).medians;
+  const ends = Object.fromEntries(Object.entries(medians).map(([char, lines]) => [char, endsOf(lines)]));
   const entries = parseMakeMeAHanzi(fs.readFileSync(path.join(SOURCE_DIR, 'dictionary.txt'), 'utf8'));
   const sets = {};
   const order = {};
