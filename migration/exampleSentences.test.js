@@ -772,6 +772,15 @@ describe('build failures', () => {
     ];
     expect(() => build(records)).toThrow(/over the limit of 2 MB/);
   });
+
+  it('fails when the sentence of the Comprehend tab has no distractors (#601)', () => {
+    const inputs = { dictionary, hsk: HSK, generated: [generated('书', '我看书。')], nearMiss: NEAR_MISS };
+    expect(() => buildExampleSentences({ ...inputs, distractors: {} })).toThrow(
+      /of 书: 0 distractors, 3 needed. Run: node migration\/write-distractors.js/,
+    );
+    // The scripts that add sentences build without the distractors.
+    expect(() => buildExampleSentences(inputs)).not.toThrow();
+  });
 });
 
 describe('accepting generated candidates', () => {

@@ -675,6 +675,42 @@ describe("sentenceReports", () => {
     await assertFails(setDoc(ref(db, path), report({ note: "bad" })));
   });
 
+  describe("the report of an option (#601)", () => {
+    const optionPath = "users/user-1/sentenceReports/4abe78e382-9f00aa11bb";
+    const option = (extra: Record<string, unknown> = {}) => ({
+      ...sentenceReportDocument(
+        {
+          sentenceId: "4abe78e382",
+          word: "你",
+          stage: "option",
+          distractorId: "9f00aa11bb",
+          sentence: "你會打球嗎？",
+          english: "Can you play the piano?",
+        },
+        Timestamp.now(),
+      ),
+      ...extra,
+    });
+
+    it("accepts the report of an option under the ids of the sentence and the distractor", async () => {
+      expect(option()).toMatchObject({ stage: "option", distractorId: "9f00aa11bb" });
+      await assertSucceeds(setDoc(ref(db, optionPath), option()));
+    });
+
+    it("rejects an option report under another id, or with no distractor", async () => {
+      await assertFails(setDoc(ref(db, path), option()));
+      await assertFails(
+        setDoc(ref(db, "users/user-1/sentenceReports/4abe78e382-other"), option()),
+      );
+      const { distractorId: _distractorId, ...noDistractor } = option();
+      await assertFails(setDoc(ref(db, optionPath), noDistractor));
+    });
+
+    it("rejects a sentence report with a distractor", async () => {
+      await assertFails(setDoc(ref(db, path), report({ distractorId: "9f00aa11bb" })));
+    });
+  });
+
   it("keeps one user out of another user's reports", async () => {
     await assertFails(setDoc(ref(otherDb, path), report()));
     await assertSucceeds(setDoc(ref(db, path), report()));
@@ -866,6 +902,8 @@ describe("sentenceLog", () => {
         answerMs: 6100,
         revealed: true,
         lookups: 0,
+        options: ["d1", "4abe78e382", "d2", "d3"],
+        picked: "d2",
         at: new Date(),
         ...over,
       },
@@ -893,9 +931,37 @@ describe("sentenceLog", () => {
       Timestamp.now(),
     );
 
-  it("accepts the version 2 entry of a Comprehend grade", async () => {
-    expect(entry()).toMatchObject({ version: 2 });
+  it("accepts the version 4 entry of a Comprehend pick", async () => {
+    expect(entry()).toMatchObject({ version: 4, picked: "d2" });
     await assertSucceeds(setDoc(ref(db, path), entry()));
+    await assertSucceeds(
+      setDoc(
+        ref(db, "users/user-1/sentenceLog/log-2"),
+        entry({ grade: "right", picked: "4abe78e382", options: ["4abe78e382", "d1"] }),
+      ),
+    );
+  });
+
+  it("still accepts the version 2 entry of a self-grade, from a bundle before #601", async () => {
+    const { options: _options, picked: _picked, ...selfGrade } = entry();
+    await assertSucceeds(setDoc(ref(db, path), { ...selfGrade, version: 2 }));
+  });
+
+  it("rejects a version 4 entry whose pick or sentence is not an option, or whose grade is not its pick", async () => {
+    await assertFails(setDoc(ref(db, path), entry({ picked: "d9" })));
+    await assertFails(setDoc(ref(db, path), entry({ options: ["d1", "d2", "d3", "d4"], picked: "d2" })));
+    await assertFails(setDoc(ref(db, path), entry({ grade: "right" })));
+    await assertFails(setDoc(ref(db, path), entry({ grade: "wrong", picked: "4abe78e382" })));
+  });
+
+  it("rejects a version 4 entry with one option or more than four, or an unknown field", async () => {
+    await assertFails(setDoc(ref(db, path), entry({ options: ["4abe78e382"], picked: "4abe78e382", grade: "right" })));
+    await assertFails(
+      setDoc(ref(db, path), entry({ options: ["4abe78e382", "d1", "d2", "d3", "d4"] })),
+    );
+    await assertFails(setDoc(ref(db, path), { ...entry(), gradedBy: "auto" }));
+    const { picked: _picked, ...noPick } = entry();
+    await assertFails(setDoc(ref(db, path), noPick));
   });
 
   it("accepts the version 3 entry of a free Compose answer, with its attempts", async () => {

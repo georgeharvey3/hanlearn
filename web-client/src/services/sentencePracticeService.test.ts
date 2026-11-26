@@ -34,11 +34,12 @@ vi.mock('firebase/firestore', async () => {
   };
 });
 
-import { loadPractice, saveGrade, SentenceGrade } from './sentencePracticeService';
+import { loadPractice, saveGrade } from './sentencePracticeService';
+import type { AnswerGrade } from '../utils/sentencePracticeDocuments';
 
 const NOW = new Date(2026, 10, 4, 10, 0);
 
-const grade = (over: Partial<SentenceGrade> = {}): SentenceGrade => ({
+const grade = (over: Partial<AnswerGrade> = {}): AnswerGrade => ({
   wordId: 42,
   sentenceId: 's1',
   tab: 'comprehend',
@@ -47,6 +48,8 @@ const grade = (over: Partial<SentenceGrade> = {}): SentenceGrade => ({
   answerMs: 5300,
   revealed: true,
   lookups: 2,
+  options: ['d1', 's1', 'd2', 'd3'],
+  picked: 'd2',
   at: NOW,
   lapses: { MC: 1, MP: 0 },
   ...over,
@@ -79,7 +82,7 @@ describe('saveGrade', () => {
     const [logRef, log] = setDocSpy.mock.calls[1];
     expect(logRef.path).toBe('users/user-1/sentenceLog/auto');
     expect(log).toEqual({
-      version: 2,
+      version: 4,
       date: '2026-11-04',
       reviewedAt: expect.objectContaining({ __ts: NOW.toISOString() }),
       wordId: 42,
@@ -90,6 +93,8 @@ describe('saveGrade', () => {
       answerMs: 5300,
       revealed: true,
       lookups: 2,
+      options: ['d1', 's1', 'd2', 'd3'],
+      picked: 'd2',
     });
   });
 

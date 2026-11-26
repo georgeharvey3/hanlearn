@@ -11,9 +11,11 @@
     "fetch:tatoeba": "node fetch-tatoeba.js",
     "fetch:makemeahanzi": "node fetch-makemeahanzi.js",
     "fetch:animcjk": "node fetch-animcjk.js",
-    "fetch:wiktionary": "node fetch-wiktionary.js"
+    "fetch:wiktionary": "node fetch-wiktionary.js",
+    "write:distractors": "node write-distractors.js"
   },
   "dependencies": {
+    "@huggingface/transformers": "4.3.2",
     "firebase-admin": "^12.0.0",
     "ts-fsrs": "^5.4.2"
   },

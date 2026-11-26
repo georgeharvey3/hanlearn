@@ -219,6 +219,30 @@ describe('sentenceService', () => {
       expect(result.sentence?.id).toBe('s2');
     });
 
+    it('gives the distractors of the sentence, less an option that the learner reported', async () => {
+      const distractors = [
+        { id: 'd1', english: 'Listen up, teachers!' },
+        { id: 'd2', english: 'Sit down, students!' },
+        { id: 'd3', english: 'The students left.' },
+      ];
+      fetchMock.mockImplementation(async () =>
+        jsonResponse({ 学生: [{ ...fixture['学生'][0], distractors }] }),
+      );
+      const { getSegmentedSentence } = await loadService();
+      const { markOptionReported } = await import('../utils/reportedSentences');
+
+      expect((await getSegmentedSentence('学生', 'simp')).sentence?.distractors).toEqual(
+        distractors,
+      );
+      markOptionReported('s1', 'd2');
+      // The report of d2 as an option of another sentence leaves s1 as it is.
+      markOptionReported('s9', 'd3');
+      expect((await getSegmentedSentence('学生', 'simp')).sentence?.distractors).toEqual([
+        distractors[0],
+        distractors[2],
+      ]);
+    });
+
     it('throws when the network fails, and reads the file again on the next call', async () => {
       fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
       const { getSegmentedSentence } = await loadService();

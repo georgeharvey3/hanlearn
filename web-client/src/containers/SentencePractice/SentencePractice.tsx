@@ -144,11 +144,6 @@ const SentencePractice: React.FC<Props> = ({ tab }) => {
     setTally((prev) => ({ ...prev, [outcome.grade]: prev[outcome.grade] + 1 }));
   };
 
-  const onGrade = (outcome: TaskOutcome) => {
-    record(outcome);
-    advance();
-  };
-
   if (!userId) return <Redirect to={routes.home} />;
 
   const goHome = () => history.push(routes.home);
@@ -246,7 +241,8 @@ const SentencePractice: React.FC<Props> = ({ tab }) => {
           key={key}
           word={task.word}
           sentenceId={task.sentenceId}
-          onGrade={onGrade}
+          onCheck={record}
+          onNext={advance}
           onSkip={onSkip}
         />
       )}

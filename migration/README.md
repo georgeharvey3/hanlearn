@@ -117,6 +117,22 @@ The build also prints a coverage report. The report lists each HSK word that has
 
 The build stops on a gloss override that names no entry, on a bad block entry, on a malformed record, on a generated sentence that fails the grader, and on a sentence file over 2 MB. It does not stop on low coverage.
 
+### Distractors
+
+The Comprehend tab shows the English of each sentence with the English of 3 **distractors** (#601). `sentences/distractors.json` holds the distractor ids of each built sentence. The build writes the id and the English of each distractor into the sentence files, in the field `distractors`. Thus a corrected English translation needs no new run.
+
+`node write-distractors.js` writes the file again. Run it after a change to the sentences, for example after `sentence-accept.js` or a new block in `sentences/blocked.json`. The script runs the sentence build in memory and embeds the English of each sentence with `Alibaba-NLP/gte-modernbert-base`, at a pinned revision (`embedder.js`). The first run downloads the model, about 600 MB. A run takes about 15 minutes on a laptop CPU. Run `npm install` in this directory first.
+
+A candidate has an English cosine to the sentence of 0.60 to 0.83. It is not a sentence of the same word, and no segment of it has a gloss word of the target segment. Its English and its toneless pinyin are not those of the sentence or of another option. The candidates rank by the Chinese content words that they share with the sentence, then by the cosine. If the band gives fewer than 3, the candidates with a cosine of 0.45 to 0.60 give the rest. The values are in `distractors.js`, and the rules are pure.
+
+`sentences/blocked-distractors.json` blocks one pair of a sentence `id` and a `distractor`, with a `reason`. The script skips a blocked pair.
+
+The build stops in these conditions:
+
+- The sentence that the Comprehend tab shows has fewer than 3 distractors. Run `node write-distractors.js`.
+- A distractor is not a built sentence, or `sentences/blocked.json` blocks it.
+- The file holds a pair of the block list of distractors.
+
 ## Component Breakdown Build
 
 `npm run build:dict` writes one component breakdown file for each character of the HSK words (#528). The file holds the tree of the parts of the character. Each part has its strokes and a label. The file also holds the origin of the character when the data has one (#569).
@@ -282,12 +298,13 @@ The script needs `service-account.json`, the same as `export-review-log.js`. Git
 
 ## Reported Sentences
 
-A learner can report a bad sentence from the sentence stages (#469). Each report goes to `users/{userId}/sentenceReports/{sentenceId}`.
+A learner can report a bad sentence from the sentence stages (#469). Each report goes to `users/{userId}/sentenceReports/{sentenceId}`. A learner can also report one option of the Comprehend tab (#601). This report has the stage `option` and goes to `users/{userId}/sentenceReports/{sentenceId}-{distractorId}`.
 
-1. Run `node export-sentence-reports.js`. It writes `sentence-reports.csv`, with one row for each reported sentence and the most reported first.
+1. Run `node export-sentence-reports.js`. It writes `sentence-reports.csv`, with one row for each reported sentence or option and the most reported first.
 2. For a wrong pinyin or gloss, add an override to `sentences/gloss-overrides.json`.
 3. For a bad generated sentence, change it or remove it in `sentences/generated.json`.
-4. Run `npm run build:dict`.
+4. For an option that is also a true reading, add the pair to `sentences/blocked-distractors.json`. Then run `node write-distractors.js`.
+5. Run `npm run build:dict`.
 
 The script needs `service-account.json`, the same as `export-review-log.js`. Git ignores the CSV file.
 
