@@ -167,25 +167,78 @@ describe('the order of a set', () => {
     expect(set.map((task) => task.word.simp)).toEqual(['二', '三', '一']);
   });
 
-  it('holds a miss back until no new word is left', () => {
-    const missed = word('错', 3);
-    const imported = Array.from({ length: 50 }, (_, i) => word(`新${i}`, 2));
-    const index: SentenceIndex = { 错: both('x') };
-    for (const w of imported) index[w.simp] = both(`s-${w.simp}`);
-    const practice: PracticeByWord = {
-      [missed.id]: { comprehend: { lastPractised: at(-1), lastResult: 'wrong', seen: {} } },
+  describe('the mix of unpractised and practised words', () => {
+    const missed = (n: number) => Array.from({ length: n }, (_, i) => word(`错${i}`, 3));
+    const fresh = (n: number) => Array.from({ length: n }, (_, i) => word(`新${i}`, 2));
+    const setOf = (newWords: Word[], oldWords: Word[], size: number, now = NOW) => {
+      const index: SentenceIndex = {};
+      const practice: PracticeByWord = {};
+      for (const w of [...newWords, ...oldWords]) index[w.simp] = both(`s-${w.simp}`);
+      for (const w of oldWords) {
+        practice[w.id] = { comprehend: { lastPractised: at(-1), lastResult: 'wrong', seen: {} } };
+      }
+      return buildSet({
+        words: [...newWords, ...oldWords],
+        practice,
+        index,
+        tab: 'comprehend',
+        size,
+        now,
+      }).map((task) => task.word);
     };
 
-    const set = buildSet({
-      words: [...imported, missed],
-      practice,
-      index,
-      tab: 'comprehend',
-      size: 51,
-      now: NOW,
+    it.each([
+      [1, 1, 0],
+      [2, 1, 1],
+      [3, 2, 1],
+      [4, 3, 1],
+      [5, 3, 2],
+      [7, 5, 2],
+      [10, 6, 4],
+    ])('gives a set of %i words %i unpractised and %i practised', (size, newCount, oldCount) => {
+      const newWords = fresh(20);
+      const oldWords = missed(20);
+      expect(setOf(newWords, oldWords, size)).toEqual([
+        ...newWords.slice(0, newCount),
+        ...oldWords.slice(0, oldCount),
+      ]);
     });
-    expect(set.slice(0, 50).map((task) => task.word)).toEqual(imported);
-    expect(set[50].word).toBe(missed);
+
+    it('keeps a place for a miss after a big import of unpractised words', () => {
+      const newWords = fresh(50);
+      const [miss] = missed(1);
+      expect(setOf(newWords, [miss], 5)).toEqual([...newWords.slice(0, 4), miss]);
+    });
+
+    it('fills the practised places with unpractised words when no practised word is left', () => {
+      const newWords = fresh(10);
+      expect(setOf(newWords, [], 5)).toEqual(newWords.slice(0, 5));
+    });
+
+    it('fills the unpractised places with practised words when no unpractised word is left', () => {
+      const newWords = fresh(1);
+      const oldWords = missed(10);
+      expect(setOf(newWords, oldWords, 5)).toEqual([...newWords, ...oldWords.slice(0, 4)]);
+    });
+  });
+
+  it('holds a miss back until the next day', () => {
+    const miss = word('错', 3);
+    const practice: PracticeByWord = {
+      [miss.id]: { comprehend: { lastPractised: at(0), lastResult: 'wrong', seen: {} } },
+    };
+    const set = (now: Date) =>
+      buildSet({
+        words: [miss],
+        practice,
+        index: { 错: both('x') },
+        tab: 'comprehend',
+        size: 5,
+        now,
+      });
+
+    expect(set(NOW)).toEqual([]);
+    expect(set(new Date(2026, 10, 5, 8, 0))).toEqual([{ word: miss, sentenceId: 'x' }]);
   });
 
   it('reads the practice of its own tab only', () => {
@@ -354,7 +407,7 @@ describe('a word that the other tab showed today', () => {
     expect(hasNeverPractised(input)).toBe(false);
   });
 
-  it('does not wait when the same tab showed the sentence today', () => {
+  it('waits until tomorrow when the same tab graded the word today', () => {
     const study = word('学', 3);
     const [task] = buildSet({
       words: [study],
@@ -364,7 +417,7 @@ describe('a word that the other tab showed today', () => {
       size: 1,
       now: NOW,
     });
-    expect(task?.sentenceId).toBe('only');
+    expect(task).toBeUndefined();
   });
 
   it('does not wait for a sentence that the other tab showed and that is not its sentence now', () => {
