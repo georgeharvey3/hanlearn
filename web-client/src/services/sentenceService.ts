@@ -8,8 +8,12 @@
  * call, because each segment carries its own pinyin and gloss.
  */
 
-import { SegmentedSentence, SentenceSegment } from '../utils/sentenceUtils';
-import { reportedSentenceIds } from '../utils/reportedSentences';
+import { SegmentedSentence, SentenceOption, SentenceSegment } from '../utils/sentenceUtils';
+import {
+  isOptionReported,
+  reportedOptionKeys,
+  reportedSentenceIds,
+} from '../utils/reportedSentences';
 import { SentenceTab } from '../utils/sentenceSettings';
 
 /**
@@ -29,6 +33,8 @@ interface FileSentence {
   pool: SentencePool;
   /** The tiles of tile mode, one character each, in both character sets (#386). */
   tiles?: { s: string; t: string };
+  /** The false English readings of the Comprehend options (#601). */
+  distractors?: SentenceOption[];
 }
 
 /** One file: the sentences of each word that starts with its character. */
@@ -216,6 +222,7 @@ export async function getSegmentedSentence(
   const { segments, targetIndex } = withGaps(example);
   const text = charSet === 'trad' ? example.trad : example.simp;
   const target = segments[targetIndex];
+  const reportedOptions = reportedOptionKeys();
   const highlight = calculateHighlightIndices(
     text,
     target ? target[charSet === 'trad' ? 't' : 's'] : '',
@@ -229,6 +236,9 @@ export async function getSegmentedSentence(
       ...(example.tiles
         ? { tiles: Array.from(charSet === 'trad' ? example.tiles.t : example.tiles.s) }
         : {}),
+      distractors: (example.distractors ?? []).filter(
+        (option) => !isOptionReported(reportedOptions, example.id, option.id),
+      ),
     },
     totalCount: kept.length,
   };

@@ -274,7 +274,8 @@ The sentence tasks are two tabs of their own, directly below Study. They are not
 part of a session, and a session ends when its cards end.
 
 - In the **Comprehend tab**, the learner reads or hears an example sentence,
-  reveals the English, and grades the task as right or wrong.
+  and picks its English from four **options**. The first pick sets the grade:
+  right for the sentence's own English, wrong for a distractor (#601).
 - In the **Compose tab**, the learner says or types a Chinese sentence for an
   English prompt. The learner retries until the attempt matches the reference
   sentence, and the app sets the grade.
@@ -339,8 +340,12 @@ production. See
 and
 [docs/adr/0021-sentence-tasks-are-a-separate-practice.md](docs/adr/0021-sentence-tasks-are-a-separate-practice.md).
 
-A **weak** result is a grade of wrong. The queue of a tab puts the weak words
-first, then the words never practised in the tab. A word with a right grade
+A **weak** result is a grade of wrong. A set of a tab mixes **unpractised**
+words, never graded in the tab, with **practised** words: the weak words, then
+the words that came back after a lapse. Two places in five go to practised
+words, and at least one in a set of two or more. The unpractised words come
+first in the set. A word that
+the tab graded today waits until the next day. A word with a right grade
 **retires** from the tab. It comes back only after a lapse of a **trigger
 direction** of the tab: `MC` or `MP` for Comprehend, `PM` or `CM` for Compose.
 Each grade stores the lapse count of these directions, and a higher count
@@ -383,6 +388,19 @@ level. An HSK 7–9 word has a cap and no level rule.
 
 A word is **filled** when it has 3 sentences. A filled word has one sentence in
 each pool. The **coverage report** lists the HSK words that are not filled.
+
+A **distractor** is another built example sentence whose English is a false
+reading of the sentence. Each sentence has 3 distractors, and the Comprehend
+tab shows their English with the English of the sentence as the four
+**options**. A distractor shares Chinese words with the sentence, so one known
+word does not give the answer. It is never a sentence of the same word, a
+synonym of the target segment, or a sentence with the same sound.
+
+`node migration/write-distractors.js` chooses the distractors with a sentence
+embedding model, and writes their ids to `sentences/distractors.json`.
+`sentences/blocked-distractors.json` is the **block list of distractors**:
+pairs of a sentence and a distractor that are also true readings. The build
+writes the English of each distractor into the sentence files.
 
 The **origin** of a sentence says whether a person or a machine wrote its
 Chinese and its English. A Tatoeba sentence has the origin `human` for both,

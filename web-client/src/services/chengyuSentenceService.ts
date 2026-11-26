@@ -1,15 +1,4 @@
-import { getGenerativeModel, GenerativeModel } from 'firebase/ai';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { ai, db } from '../firebase/config';
 import { CharSet, toCharSet } from '../utils/charSet';
-
-let _model: GenerativeModel | null = null;
-function getModel(): GenerativeModel {
-  if (!_model) {
-    _model = getGenerativeModel(ai, { model: 'gemini-2.5-flash-lite' });
-  }
-  return _model;
-}
 
 export interface ChengyuSentence {
   chinese: string;
@@ -17,114 +6,21 @@ export interface ChengyuSentence {
   english: string;
 }
 
-async function generateChengyuSentenceWithAI(chengyu: string): Promise<ChengyuSentence | null> {
-  const prompt = `You are helping a Chinese language learner understand the chengyu (成语) "${chengyu}".
-Generate ONE short, natural Chinese example sentence (15–30 characters) that uses this chengyu in context. Use Simplified Chinese characters.
-
-Return ONLY a JSON object in this exact format:
-{"chinese": "...", "pinyin": "...", "english": "..."}
-
-Requirements:
-- The sentence MUST contain "${chengyu}" used naturally in context
-- pinyin should be the full pinyin for the entire sentence with tone marks
-- english should be a natural English translation
-- Keep the sentence concise and natural
-- Use a context that illustrates the meaning of the chengyu clearly`;
-
-  const result = await getModel().generateContent({
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { responseMimeType: 'application/json' },
-  });
-
-  const text = result.response.text();
-  const parsed: unknown = JSON.parse(text);
-
-  if (
-    parsed &&
-    typeof parsed === 'object' &&
-    'chinese' in parsed &&
-    'pinyin' in parsed &&
-    'english' in parsed &&
-    typeof (parsed as Record<string, unknown>).chinese === 'string' &&
-    typeof (parsed as Record<string, unknown>).pinyin === 'string' &&
-    typeof (parsed as Record<string, unknown>).english === 'string'
-  ) {
-    const obj = parsed as { chinese: string; pinyin: string; english: string };
-    if (obj.chinese.includes(chengyu)) {
-      return { chinese: obj.chinese, pinyin: obj.pinyin, english: obj.english };
-    }
-  }
-
-  return null;
-}
-
-const LOCAL_CACHE_KEY = 'chengyuSentenceCache';
-
-function getLocalCachedSentence(chengyu: string): ChengyuSentence | null {
-  try {
-    const raw = localStorage.getItem(LOCAL_CACHE_KEY);
-    if (!raw) return null;
-    const cache = JSON.parse(raw) as { chengyu: string; sentence: ChengyuSentence };
-    if (cache.chengyu === chengyu) return cache.sentence;
-  } catch {
-    // Corrupted cache — ignore
-  }
-  return null;
-}
-
-function setLocalCachedSentence(chengyu: string, sentence: ChengyuSentence): void {
-  try {
-    localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify({ chengyu, sentence }));
-  } catch {
-    // Storage full or unavailable — not critical
-  }
-}
-
-async function applyCharSet(sentence: ChengyuSentence, charSet: CharSet): Promise<ChengyuSentence> {
-  return { ...sentence, chinese: await toCharSet(sentence.chinese, charSet) };
-}
-
+/**
+ * The example sentence of a chengyu, in the given character set, or null when
+ * the chengyu has none. The sentences are committed in
+ * data/chengyuSentences.json, one for each chengyu of data/chengyus.ts, so a
+ * sentence needs no AI call and no Firestore read (#387). A Claude Code session
+ * wrote them, as ADR 0020 does for the word sentences. A new chengyu needs a
+ * sentence there, or the data test fails. The file loads in a chunk of its own,
+ * on the first call.
+ */
 export async function getChengyuExampleSentence(
   chengyu: string,
-  charSet: 'simp' | 'trad',
+  charSet: CharSet,
 ): Promise<ChengyuSentence | null> {
-  // Check localStorage first to avoid any network calls on repeated views
-  const localCached = getLocalCachedSentence(chengyu);
-  if (localCached) {
-    return applyCharSet(localCached, charSet);
-  }
-
-  const cacheRef = doc(db, 'chengyuSentences', chengyu);
-
-  try {
-    const cached = await getDoc(cacheRef);
-    if (cached.exists()) {
-      const data = cached.data().sentence as ChengyuSentence;
-      setLocalCachedSentence(chengyu, data);
-      return applyCharSet(data, charSet);
-    }
-  } catch {
-    // Cache read unavailable — fall through to AI generation
-  }
-
-  let sentence: ChengyuSentence | null;
-  try {
-    sentence = await generateChengyuSentenceWithAI(chengyu);
-  } catch {
-    return null;
-  }
-
-  if (sentence) {
-    setLocalCachedSentence(chengyu, sentence);
-
-    try {
-      await setDoc(cacheRef, { sentence, generatedAt: serverTimestamp() });
-    } catch {
-      // Cache write failed — not critical
-    }
-
-    return applyCharSet(sentence, charSet);
-  }
-
-  return sentence;
+  const { default: sentences } = await import('../data/chengyuSentences.json');
+  const sentence = (sentences as Record<string, ChengyuSentence>)[chengyu];
+  if (!sentence) return null;
+  return { ...sentence, chinese: await toCharSet(sentence.chinese, charSet) };
 }

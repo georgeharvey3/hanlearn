@@ -204,15 +204,23 @@ service cloud.firestore {
       // sentences, one document per sentence (#469). A person reads them with
       // `node migration/export-sentence-reports.js` and fixes the data in the
       // next build. A second report of the same sentence replaces the first.
-      match /sentenceReports/{sentenceId} {
+      // The report of an option of the Comprehend tab (#601) names its
+      // distractor, under the id of the sentence and the distractor.
+      match /sentenceReports/{reportId} {
         allow read: if request.auth != null && request.auth.uid == userId;
         allow create, update: if request.auth != null && request.auth.uid == userId
-          && request.resource.data.keys().hasOnly(['sentenceId', 'word', 'stage', 'sentence', 'english', 'reportedAt'])
+          && request.resource.data.keys().hasOnly(['sentenceId', 'word', 'stage', 'sentence', 'english', 'distractorId', 'reportedAt'])
           && request.resource.data.keys().hasAll(['sentenceId', 'word', 'stage', 'sentence', 'english', 'reportedAt'])
-          && request.resource.data.sentenceId == sentenceId
+          && request.resource.data.sentenceId is string
+          && ((request.resource.data.stage in ['read', 'write']
+              && !('distractorId' in request.resource.data)
+              && reportId == request.resource.data.sentenceId)
+            || (request.resource.data.stage == 'option'
+              && request.resource.data.distractorId is string
+              && request.resource.data.distractorId.size() <= 50
+              && reportId == request.resource.data.sentenceId + '-' + request.resource.data.distractorId))
           && request.resource.data.word is string
           && request.resource.data.word.size() <= 50
-          && request.resource.data.stage in ['read', 'write']
           && request.resource.data.sentence is string
           && request.resource.data.sentence.size() <= 200
           && request.resource.data.english is string
@@ -301,12 +309,34 @@ service cloud.firestore {
           && request.resource.data.grade in ['right', 'wrong']
           && request.resource.data.mode in ['audio', 'text']
           && request.resource.data.lookups is int
-          && (isAnswerLogEntry(request.resource.data) || isAttemptsLogEntry(request.resource.data));
+          && (isPickLogEntry(request.resource.data)
+            || isAnswerLogEntry(request.resource.data)
+            || isAttemptsLogEntry(request.resource.data));
         allow update, delete: if false;
       }
 
-      // Version 2: a Comprehend grade. A Compose grade logs its attempts at
-      // version 3 since #597.
+      // Version 4: a Comprehend pick (#601). The options are the sentence ids
+      // in screen order, and the sentence's own id is one of them. The grade
+      // is right only when the pick is the sentence's own English.
+      function isPickLogEntry(data) {
+        return data.version == 4
+          && data.keys().hasOnly(['version', 'date', 'reviewedAt', 'wordId', 'sentenceId', 'tab', 'grade', 'mode', 'answerMs', 'revealed', 'lookups', 'options', 'picked'])
+          && data.keys().hasAll(['version', 'date', 'reviewedAt', 'wordId', 'sentenceId', 'tab', 'grade', 'mode', 'answerMs', 'revealed', 'lookups', 'options', 'picked'])
+          && data.tab == 'comprehend'
+          && data.answerMs is number
+          && data.revealed is bool
+          && data.options is list
+          && data.options.size() >= 2
+          && data.options.size() <= 4
+          && data.picked is string
+          && data.picked in data.options
+          && data.sentenceId in data.options
+          && (data.picked == data.sentenceId) == (data.grade == 'right');
+      }
+
+      // Version 2: a Comprehend self-grade, before #601. A bundle from before
+      // #601 still writes it. A Compose grade logs its attempts at version 3
+      // since #597.
       function isAnswerLogEntry(data) {
         return data.version == 2
           && data.keys().hasOnly(['version', 'date', 'reviewedAt', 'wordId', 'sentenceId', 'tab', 'grade', 'mode', 'answerMs', 'revealed', 'lookups'])
@@ -377,21 +407,6 @@ service cloud.firestore {
     // Rate limit counters - only accessible by Cloud Functions (Admin SDK)
     match /rateLimits/{userId}/{document=**} {
       allow read, write: if false;
-    }
-
-    // Chengyu sentence cache - AI-generated example sentences for daily chengyus.
-    // Public read so all users see the same cached sentence.
-    // Auth write to prevent abuse.
-    match /chengyuSentences/{chengyu} {
-      allow read: if true;
-      allow write: if request.auth != null
-        && request.resource.data.keys().hasAll(['sentence', 'generatedAt'])
-        && request.resource.data.sentence.chinese is string
-        && request.resource.data.sentence.chinese.size() <= 200
-        && request.resource.data.sentence.pinyin is string
-        && request.resource.data.sentence.pinyin.size() <= 500
-        && request.resource.data.sentence.english is string
-        && request.resource.data.sentence.english.size() <= 500;
     }
   }
 }

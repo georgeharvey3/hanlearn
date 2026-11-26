@@ -1,0 +1,737 @@
+{
+  "不可得兼": {
+    "chinese": "鱼和熊掌不可得兼，你只能选一个。",
+    "pinyin": "Yú hé xióngzhǎng bù kě dé jiān, nǐ zhǐ néng xuǎn yī gè.",
+    "english": "You can't have both the fish and the bear's paw, so you can only choose one."
+  },
+  "不得其法": {
+    "chinese": "他学了三年英语，可是不得其法，进步很慢。",
+    "pinyin": "Tā xué le sān nián Yīngyǔ, kěshì bù dé qí fǎ, jìnbù hěn màn.",
+    "english": "He studied English for three years, but he did not know the right way, so he made slow progress."
+  },
+  "心神不宁": {
+    "chinese": "考试前一天晚上，她心神不宁，睡不着觉。",
+    "pinyin": "Kǎoshì qián yī tiān wǎnshang, tā xīn shén bù níng, shuì bù zháo jiào.",
+    "english": "The night before the exam, she felt restless and could not sleep."
+  },
+  "一本正经": {
+    "chinese": "他一本正经地讲了一个笑话，大家都笑了。",
+    "pinyin": "Tā yī běn zhèng jīng de jiǎng le yī gè xiàohua, dàjiā dōu xiào le.",
+    "english": "He told a joke with a completely serious face, and everyone laughed."
+  },
+  "沉鱼落雁": {
+    "chinese": "故事里的公主有沉鱼落雁之美。",
+    "pinyin": "Gùshi lǐ de gōngzhǔ yǒu chén yú luò yàn zhī měi.",
+    "english": "The princess in the story was breathtakingly beautiful."
+  },
+  "独一无二": {
+    "chinese": "每个人的指纹都是独一无二的。",
+    "pinyin": "Měi gè rén de zhǐwén dōu shì dú yī wú èr de.",
+    "english": "Every person's fingerprints are unique."
+  },
+  "数一数二": {
+    "chinese": "这家饭馆的菜在我们城市里数一数二。",
+    "pinyin": "Zhè jiā fànguǎn de cài zài wǒmen chéngshì lǐ shǔ yī shǔ èr.",
+    "english": "The food at this restaurant is among the best in our city."
+  },
+  "绝无仅有": {
+    "chinese": "这样的好机会是绝无仅有的。",
+    "pinyin": "Zhèyàng de hǎo jīhuì shì jué wú jǐn yǒu de.",
+    "english": "A good chance like this is one of a kind."
+  },
+  "损人利己": {
+    "chinese": "损人利己的事情，我们不能做。",
+    "pinyin": "Sǔn rén lì jǐ de shìqing, wǒmen bù néng zuò.",
+    "english": "We must not do things that harm others to benefit ourselves."
+  },
+  "幸灾乐祸": {
+    "chinese": "别人摔倒了，你不应该幸灾乐祸。",
+    "pinyin": "Biérén shuāidǎo le, nǐ bù yīnggāi xìng zāi lè huò.",
+    "english": "When someone falls over, you should not take pleasure in it."
+  },
+  "力不从心": {
+    "chinese": "爷爷想爬山，可是年纪大了，力不从心。",
+    "pinyin": "Yéye xiǎng pá shān, kěshì niánjì dà le, lì bù cóng xīn.",
+    "english": "Grandpa wants to climb the mountain, but he is old now and his strength is not equal to his wishes."
+  },
+  "亦步亦趋": {
+    "chinese": "学习别人的方法可以，但不要亦步亦趋。",
+    "pinyin": "Xuéxí biérén de fāngfǎ kěyǐ, dàn bù yào yì bù yì qū.",
+    "english": "It is fine to learn from other people's methods, but do not blindly copy them."
+  },
+  "滔滔不绝": {
+    "chinese": "一说到足球，他就滔滔不绝。",
+    "pinyin": "Yī shuō dào zúqiú, tā jiù tāo tāo bù jué.",
+    "english": "As soon as football comes up, he talks on and on without stopping."
+  },
+  "桃李满天下": {
+    "chinese": "王老师教了四十年书，真是桃李满天下。",
+    "pinyin": "Wáng lǎoshī jiāo le sìshí nián shū, zhēn shì táo lǐ mǎn tiānxià.",
+    "english": "Teacher Wang taught for forty years and truly has students all over the world."
+  },
+  "省吃俭用": {
+    "chinese": "父母省吃俭用，为了让孩子上大学。",
+    "pinyin": "Fùmǔ shěng chī jiǎn yòng, wèile ràng háizi shàng dàxué.",
+    "english": "The parents lived frugally so that their child could go to university."
+  },
+  "婀娜多姿": {
+    "chinese": "舞台上的演员跳得婀娜多姿。",
+    "pinyin": "Wǔtái shang de yǎnyuán tiào de ē nuó duō zī.",
+    "english": "The performer on the stage danced with great grace."
+  },
+  "应运而生": {
+    "chinese": "随着网上购物的发展，快递公司应运而生。",
+    "pinyin": "Suízhe wǎng shang gòuwù de fāzhǎn, kuàidì gōngsī yìng yùn ér shēng.",
+    "english": "With the growth of online shopping, delivery companies emerged to meet the need."
+  },
+  "厮守终生": {
+    "chinese": "他们发誓要厮守终生。",
+    "pinyin": "Tāmen fāshì yào sī shǒu zhōng shēng.",
+    "english": "They swore to stay together for the rest of their lives."
+  },
+  "寓意深远": {
+    "chinese": "这个古老的故事寓意深远，值得我们思考。",
+    "pinyin": "Zhè gè gǔlǎo de gùshi yù yì shēn yuǎn, zhíde wǒmen sīkǎo.",
+    "english": "This old story has a profound meaning that is worth thinking about."
+  },
+  "一切就绪": {
+    "chinese": "一切就绪，比赛马上开始。",
+    "pinyin": "Yī qiè jiù xù, bǐsài mǎshàng kāishǐ.",
+    "english": "Everything is ready, and the match starts at once."
+  },
+  "囫囵吞枣": {
+    "chinese": "读书不能囫囵吞枣，要理解每一句话。",
+    "pinyin": "Dú shū bù néng hú lún tūn zǎo, yào lǐjiě měi yī jù huà.",
+    "english": "Do not read without digesting it; you must understand every sentence."
+  },
+  "塞翁失马": {
+    "chinese": "这次没考上也许是塞翁失马，焉知非福。",
+    "pinyin": "Zhè cì méi kǎo shàng yěxǔ shì sài wēng shī mǎ, yān zhī fēi fú.",
+    "english": "Failing the exam this time may be a blessing in disguise."
+  },
+  "狼吞虎咽": {
+    "chinese": "他饿坏了，狼吞虎咽地吃完了一大碗面。",
+    "pinyin": "Tā è huài le, láng tūn hǔ yàn de chī wán le yī dà wǎn miàn.",
+    "english": "He was starving and wolfed down a big bowl of noodles."
+  },
+  "避而不见": {
+    "chinese": "他欠了钱以后，就对朋友避而不见。",
+    "pinyin": "Tā qiàn le qián yǐhòu, jiù duì péngyou bì ér bù jiàn.",
+    "english": "After he ran up debts, he avoided meeting his friends."
+  },
+  "成千上万": {
+    "chinese": "每年有成千上万的游客来这里旅游。",
+    "pinyin": "Měi nián yǒu chéng qiān shàng wàn de yóukè lái zhèlǐ lǚyóu.",
+    "english": "Every year, tens of thousands of tourists travel here."
+  },
+  "依依不舍": {
+    "chinese": "毕业那天，同学们依依不舍地告别。",
+    "pinyin": "Bìyè nà tiān, tóngxuémen yī yī bù shě de gàobié.",
+    "english": "On graduation day, the classmates said goodbye reluctantly."
+  },
+  "如期而至": {
+    "chinese": "春天如期而至，公园里的花都开了。",
+    "pinyin": "Chūntiān rú qī ér zhì, gōngyuán lǐ de huā dōu kāi le.",
+    "english": "Spring arrived on time, and all the flowers in the park came out."
+  },
+  "自作聪明": {
+    "chinese": "你别自作聪明，按照老师说的做。",
+    "pinyin": "Nǐ bié zì zuò cōngming, ànzhào lǎoshī shuō de zuò.",
+    "english": "Don't think you know better; do what the teacher said."
+  },
+  "废寝忘食": {
+    "chinese": "为了完成这个项目，他废寝忘食地工作。",
+    "pinyin": "Wèile wánchéng zhè gè xiàngmù, tā fèi qǐn wàng shí de gōngzuò.",
+    "english": "To finish this project, he worked so hard that he forgot to eat and sleep."
+  },
+  "一门心思": {
+    "chinese": "她一门心思想当医生。",
+    "pinyin": "Tā yī mén xīnsi xiǎng dāng yīshēng.",
+    "english": "She is set on one thing only: becoming a doctor."
+  },
+  "深情厚谊": {
+    "chinese": "我永远不会忘记我们之间的深情厚谊。",
+    "pinyin": "Wǒ yǒngyuǎn bù huì wàngjì wǒmen zhī jiān de shēn qíng hòu yì.",
+    "english": "I will never forget the deep friendship between us."
+  },
+  "死里逃生": {
+    "chinese": "那次车祸他死里逃生，从此更珍惜生活。",
+    "pinyin": "Nà cì chēhuò tā sǐ lǐ táo shēng, cóngcǐ gèng zhēnxī shēnghuó.",
+    "english": "He narrowly escaped death in that car accident, and since then he has valued life more."
+  },
+  "与众不同": {
+    "chinese": "她的想法总是与众不同。",
+    "pinyin": "Tā de xiǎngfǎ zǒng shì yǔ zhòng bù tóng.",
+    "english": "Her ideas are always different from everyone else's."
+  },
+  "心甘情愿": {
+    "chinese": "为了家人，他心甘情愿地辛苦工作。",
+    "pinyin": "Wèile jiārén, tā xīn gān qíng yuàn de xīnkǔ gōngzuò.",
+    "english": "He works hard for his family, and he does it gladly."
+  },
+  "无可奈何": {
+    "chinese": "下大雨了，比赛取消了，大家都无可奈何。",
+    "pinyin": "Xià dà yǔ le, bǐsài qǔxiāo le, dàjiā dōu wú kě nài hé.",
+    "english": "It rained heavily and the match was cancelled; nobody could do anything about it."
+  },
+  "眼见为实": {
+    "chinese": "别相信传言，眼见为实。",
+    "pinyin": "Bié xiāngxìn chuányán, yǎn jiàn wéi shí.",
+    "english": "Don't believe rumours; seeing is believing."
+  },
+  "耳听为虚": {
+    "chinese": "耳听为虚，你最好亲自去看看。",
+    "pinyin": "Ěr tīng wéi xū, nǐ zuìhǎo qīnzì qù kànkan.",
+    "english": "What you hear may not be true, so you had better go and see for yourself."
+  },
+  "十全十美": {
+    "chinese": "世界上没有十全十美的人。",
+    "pinyin": "Shìjiè shang méiyǒu shí quán shí měi de rén.",
+    "english": "Nobody in the world is perfect."
+  },
+  "星火燎原": {
+    "chinese": "一个小小的想法，也可能星火燎原。",
+    "pinyin": "Yī gè xiǎoxiǎo de xiǎngfǎ, yě kěnéng xīng huǒ liáo yuán.",
+    "english": "Even a small idea can be the spark that starts a prairie fire."
+  },
+  "夸大其词": {
+    "chinese": "他说自己一天跑了一百公里，这是夸大其词。",
+    "pinyin": "Tā shuō zìjǐ yī tiān pǎo le yī bǎi gōnglǐ, zhè shì kuā dà qí cí.",
+    "english": "He says he ran a hundred kilometres in one day; that is an exaggeration."
+  },
+  "举目无亲": {
+    "chinese": "刚到北京的时候，我举目无亲。",
+    "pinyin": "Gāng dào Běijīng de shíhou, wǒ jǔ mù wú qīn.",
+    "english": "When I first arrived in Beijing, I did not know a single person."
+  },
+  "四海为家": {
+    "chinese": "他年轻时四海为家，去过很多国家。",
+    "pinyin": "Tā niánqīng shí sì hǎi wéi jiā, qù guo hěn duō guójiā.",
+    "english": "When he was young, he made his home wherever he went and visited many countries."
+  },
+  "小心翼翼": {
+    "chinese": "她小心翼翼地把杯子放在桌子上。",
+    "pinyin": "Tā xiǎo xīn yì yì de bǎ bēizi fàng zài zhuōzi shang.",
+    "english": "She put the cup on the table very carefully."
+  },
+  "焕然一新": {
+    "chinese": "房子装修以后焕然一新。",
+    "pinyin": "Fángzi zhuāngxiū yǐhòu huàn rán yī xīn.",
+    "english": "After the renovation, the house looked completely new."
+  },
+  "乱七八糟": {
+    "chinese": "他的房间乱七八糟，衣服到处都是。",
+    "pinyin": "Tā de fángjiān luàn qī bā zāo, yīfu dàochù dōu shì.",
+    "english": "His room is a complete mess, with clothes everywhere."
+  },
+  "不自觉地": {
+    "chinese": "听到这首歌，她不自觉地跟着唱了起来。",
+    "pinyin": "Tīng dào zhè shǒu gē, tā bù zì jué de gēnzhe chàng le qǐlái.",
+    "english": "When she heard this song, she started to sing along without noticing."
+  },
+  "筋疲力尽": {
+    "chinese": "跑完马拉松，他已经筋疲力尽了。",
+    "pinyin": "Pǎo wán mǎlāsōng, tā yǐjīng jīn pí lì jìn le.",
+    "english": "After he finished the marathon, he was completely exhausted."
+  },
+  "顺其自然": {
+    "chinese": "这件事你别太着急，顺其自然吧。",
+    "pinyin": "Zhè jiàn shì nǐ bié tài zháojí, shùn qí zì rán ba.",
+    "english": "Don't worry too much about this; let it take its course."
+  },
+  "恋恋不舍": {
+    "chinese": "孩子们恋恋不舍地离开了动物园。",
+    "pinyin": "Háizimen liàn liàn bù shě de líkāi le dòngwùyuán.",
+    "english": "The children left the zoo reluctantly."
+  },
+  "擦肩而过": {
+    "chinese": "我们在街上擦肩而过，可是谁也没认出谁。",
+    "pinyin": "Wǒmen zài jiē shang cā jiān ér guò, kěshì shéi yě méi rèn chū shéi.",
+    "english": "We brushed past each other in the street, but neither of us recognised the other."
+  },
+  "迫不及待": {
+    "chinese": "收到礼物，他迫不及待地打开了。",
+    "pinyin": "Shōu dào lǐwù, tā pò bù jí dài de dǎkāi le.",
+    "english": "When he got the present, he couldn't wait to open it."
+  },
+  "无所不谈": {
+    "chinese": "我和她是好朋友，我们无所不谈。",
+    "pinyin": "Wǒ hé tā shì hǎo péngyou, wǒmen wú suǒ bù tán.",
+    "english": "She and I are good friends; we talk about everything."
+  },
+  "不谋而合": {
+    "chinese": "我们俩的想法不谋而合。",
+    "pinyin": "Wǒmen liǎ de xiǎngfǎ bù móu ér hé.",
+    "english": "The two of us had the same idea without discussing it."
+  },
+  "不以为然": {
+    "chinese": "大家都很担心，他却不以为然。",
+    "pinyin": "Dàjiā dōu hěn dānxīn, tā què bù yǐ wéi rán.",
+    "english": "Everyone was worried, but he did not think it was a problem."
+  },
+  "我行我素": {
+    "chinese": "别人怎么说他都不在乎，总是我行我素。",
+    "pinyin": "Biérén zěnme shuō tā dōu bù zàihu, zǒng shì wǒ xíng wǒ sù.",
+    "english": "He doesn't care what others say and always does things his own way."
+  },
+  "栩栩如生": {
+    "chinese": "这幅画上的鸟栩栩如生。",
+    "pinyin": "Zhè fú huà shang de niǎo xǔ xǔ rú shēng.",
+    "english": "The bird in this painting looks as if it were alive."
+  },
+  "莞尔一笑": {
+    "chinese": "听了我的话，她莞尔一笑。",
+    "pinyin": "Tīng le wǒ de huà, tā wǎn ěr yī xiào.",
+    "english": "When she heard what I said, she gave a faint smile."
+  },
+  "胡说八道": {
+    "chinese": "你别胡说八道，我根本没去过那儿。",
+    "pinyin": "Nǐ bié hú shuō bā dào, wǒ gēnběn méi qù guo nàr.",
+    "english": "Stop talking nonsense; I have never been there."
+  },
+  "眉飞色舞": {
+    "chinese": "他眉飞色舞地讲着旅行中的故事。",
+    "pinyin": "Tā méi fēi sè wǔ de jiǎng zhe lǚxíng zhōng de gùshi.",
+    "english": "He told the stories from his trip with great excitement."
+  },
+  "漫无目的": {
+    "chinese": "周末他在城里漫无目的地走了一天。",
+    "pinyin": "Zhōumò tā zài chéng lǐ màn wú mù dì de zǒu le yī tiān.",
+    "english": "At the weekend, he wandered aimlessly around the city all day."
+  },
+  "左顾右盼": {
+    "chinese": "过马路的时候，他左顾右盼，非常小心。",
+    "pinyin": "Guò mǎlù de shíhou, tā zuǒ gù yòu pàn, fēicháng xiǎoxīn.",
+    "english": "When he crossed the road, he looked left and right very carefully."
+  },
+  "一针见血": {
+    "chinese": "他的话一针见血，指出了问题的关键。",
+    "pinyin": "Tā de huà yī zhēn jiàn xiě, zhǐ chū le wèntí de guānjiàn.",
+    "english": "His words hit the nail on the head and pointed out the core of the problem."
+  },
+  "轻而易举": {
+    "chinese": "这道题对他来说轻而易举。",
+    "pinyin": "Zhè dào tí duì tā lái shuō qīng ér yì jǔ.",
+    "english": "This question is very easy for him."
+  },
+  "全心全意": {
+    "chinese": "医生全心全意地照顾病人。",
+    "pinyin": "Yīshēng quán xīn quán yì de zhàogù bìngrén.",
+    "english": "The doctor cares for the patients with all her heart."
+  },
+  "相去甚远": {
+    "chinese": "实际情况和他说的相去甚远。",
+    "pinyin": "Shíjì qíngkuàng hé tā shuō de xiāng qù shèn yuǎn.",
+    "english": "The real situation is very different from what he said."
+  },
+  "彬彬有礼": {
+    "chinese": "这个年轻人对谁都彬彬有礼。",
+    "pinyin": "Zhè gè niánqīngrén duì shéi dōu bīn bīn yǒu lǐ.",
+    "english": "This young man is polite and refined with everyone."
+  },
+  "称兄道弟": {
+    "chinese": "他们认识没几天，就称兄道弟了。",
+    "pinyin": "Tāmen rènshi méi jǐ tiān, jiù chēng xiōng dào dì le.",
+    "english": "They had known each other only a few days, and they already called each other brothers."
+  },
+  "相提并论": {
+    "chinese": "这两件事完全不同，不能相提并论。",
+    "pinyin": "Zhè liǎng jiàn shì wánquán bù tóng, bù néng xiāng tí bìng lùn.",
+    "english": "These two things are completely different and cannot be put on the same level."
+  },
+  "惟妙惟肖": {
+    "chinese": "他模仿老师说话，惟妙惟肖。",
+    "pinyin": "Tā mófǎng lǎoshī shuō huà, wéi miào wéi xiào.",
+    "english": "He imitates the way the teacher talks, and it is just like the real thing."
+  },
+  "忙里偷闲": {
+    "chinese": "工作再忙，她也会忙里偷闲去喝杯咖啡。",
+    "pinyin": "Gōngzuò zài máng, tā yě huì máng lǐ tōu xián qù hē bēi kāfēi.",
+    "english": "However busy work is, she still finds a moment to go for a coffee."
+  },
+  "全神贯注": {
+    "chinese": "学生们全神贯注地听老师讲课。",
+    "pinyin": "Xuéshengmen quán shén guàn zhù de tīng lǎoshī jiǎng kè.",
+    "english": "The students listened to the teacher's lesson with full attention."
+  },
+  "缘木求鱼": {
+    "chinese": "不努力学习就想考第一，简直是缘木求鱼。",
+    "pinyin": "Bù nǔlì xuéxí jiù xiǎng kǎo dì yī, jiǎnzhí shì yuán mù qiú yú.",
+    "english": "Wanting to come first without studying hard is like climbing a tree to catch fish."
+  },
+  "见钱眼开": {
+    "chinese": "那个商人见钱眼开，什么都愿意卖。",
+    "pinyin": "Nà gè shāngrén jiàn qián yǎn kāi, shénme dōu yuànyì mài.",
+    "english": "That merchant's eyes light up at the sight of money; he will sell anything."
+  },
+  "见利忘义": {
+    "chinese": "真正的朋友不会见利忘义。",
+    "pinyin": "Zhēnzhèng de péngyou bù huì jiàn lì wàng yì.",
+    "english": "A true friend does not forget loyalty at the sight of profit."
+  },
+  "下不为例": {
+    "chinese": "这次就原谅你，下不为例。",
+    "pinyin": "Zhè cì jiù yuánliàng nǐ, xià bù wéi lì.",
+    "english": "I'll forgive you this time, but don't let it happen again."
+  },
+  "可想而知": {
+    "chinese": "他三天没睡觉，有多累可想而知。",
+    "pinyin": "Tā sān tiān méi shuì jiào, yǒu duō lèi kě xiǎng ér zhī.",
+    "english": "He hasn't slept for three days, so you can imagine how tired he is."
+  },
+  "不翼而飞": {
+    "chinese": "我放在桌子上的钱包不翼而飞了。",
+    "pinyin": "Wǒ fàng zài zhuōzi shang de qiánbāo bù yì ér fēi le.",
+    "english": "The wallet that I left on the table has vanished."
+  },
+  "惊慌失措": {
+    "chinese": "听到火警，有些人惊慌失措。",
+    "pinyin": "Tīng dào huǒjǐng, yǒuxiē rén jīng huāng shī cuò.",
+    "english": "When they heard the fire alarm, some people panicked."
+  },
+  "龇牙咧嘴": {
+    "chinese": "他的脚扭伤了，疼得龇牙咧嘴。",
+    "pinyin": "Tā de jiǎo niǔshāng le, téng de zī yá liě zuǐ.",
+    "english": "He sprained his ankle, and the pain made him grimace."
+  },
+  "火上加油": {
+    "chinese": "他已经很生气了，你别再火上加油。",
+    "pinyin": "Tā yǐjīng hěn shēngqì le, nǐ bié zài huǒ shàng jiā yóu.",
+    "english": "He is already very angry, so don't add fuel to the fire."
+  },
+  "雪上加霜": {
+    "chinese": "他丢了工作，又生了病，真是雪上加霜。",
+    "pinyin": "Tā diū le gōngzuò, yòu shēng le bìng, zhēn shì xuě shàng jiā shuāng.",
+    "english": "He lost his job and then fell ill; one misfortune came on top of another."
+  },
+  "如愿以偿": {
+    "chinese": "经过一年的努力，她终于如愿以偿，考上了大学。",
+    "pinyin": "Jīngguò yī nián de nǔlì, tā zhōngyú rú yuàn yǐ cháng, kǎo shàng le dàxué.",
+    "english": "After a year of hard work, she finally got her wish and got into university."
+  },
+  "无理取闹": {
+    "chinese": "孩子在商店里无理取闹，非要买玩具。",
+    "pinyin": "Háizi zài shāngdiàn lǐ wú lǐ qǔ nào, fēi yào mǎi wánjù.",
+    "english": "The child made a scene in the shop for no reason, insisting on buying a toy."
+  },
+  "对牛弹琴": {
+    "chinese": "跟他讲音乐简直是对牛弹琴。",
+    "pinyin": "Gēn tā jiǎng yīnyuè jiǎnzhí shì duì niú tán qín.",
+    "english": "Talking to him about music is like playing the lute to a cow."
+  },
+  "理直气壮": {
+    "chinese": "他没有做错事，所以说话理直气壮。",
+    "pinyin": "Tā méiyǒu zuò cuò shì, suǒyǐ shuō huà lǐ zhí qì zhuàng.",
+    "english": "He did nothing wrong, so he spoke with confidence."
+  },
+  "思前想后": {
+    "chinese": "她思前想后，最后决定换工作。",
+    "pinyin": "Tā sī qián xiǎng hòu, zuìhòu juédìng huàn gōngzuò.",
+    "english": "She thought it over from every angle and finally decided to change jobs."
+  },
+  "如释重负": {
+    "chinese": "考试结束了，大家都如释重负。",
+    "pinyin": "Kǎoshì jiéshù le, dàjiā dōu rú shì zhòng fù.",
+    "english": "The exam was over, and everyone felt a great weight lifted."
+  },
+  "不可开交": {
+    "chinese": "最近工作很多，我忙得不可开交。",
+    "pinyin": "Zuìjìn gōngzuò hěn duō, wǒ máng de bù kě kāi jiāo.",
+    "english": "I have a lot of work lately and am extremely busy."
+  },
+  "重温旧梦": {
+    "chinese": "多年以后，他们回到母校重温旧梦。",
+    "pinyin": "Duō nián yǐhòu, tāmen huí dào mǔxiào chóng wēn jiù mèng.",
+    "english": "Many years later, they went back to their old school to relive old times."
+  },
+  "兴致勃勃": {
+    "chinese": "孩子们兴致勃勃地参观了博物馆。",
+    "pinyin": "Háizimen xìng zhì bó bó de cānguān le bówùguǎn.",
+    "english": "The children visited the museum full of enthusiasm."
+  },
+  "如影随形": {
+    "chinese": "小狗跟着主人，如影随形。",
+    "pinyin": "Xiǎo gǒu gēnzhe zhǔrén, rú yǐng suí xíng.",
+    "english": "The puppy follows its owner like a shadow."
+  },
+  "千言万语": {
+    "chinese": "离别的时候，我心里有千言万语，却说不出来。",
+    "pinyin": "Líbié de shíhou, wǒ xīn lǐ yǒu qiān yán wàn yǔ, què shuō bù chūlái.",
+    "english": "When we parted, I had a thousand things to say but could not say them."
+  },
+  "惴惴不安": {
+    "chinese": "等待面试结果的时候，他一直惴惴不安。",
+    "pinyin": "Děngdài miànshì jiéguǒ de shíhou, tā yīzhí zhuì zhuì bù ān.",
+    "english": "While he waited for the interview result, he was on edge the whole time."
+  },
+  "大惊小怪": {
+    "chinese": "这只是一只小虫子，你别大惊小怪。",
+    "pinyin": "Zhè zhǐ shì yī zhī xiǎo chóngzi, nǐ bié dà jīng xiǎo guài.",
+    "english": "It's just a little bug; don't make such a fuss."
+  },
+  "不足挂齿": {
+    "chinese": "这点小事不足挂齿，你不用谢我。",
+    "pinyin": "Zhè diǎn xiǎo shì bù zú guà chǐ, nǐ bù yòng xiè wǒ.",
+    "english": "This little thing is not worth mentioning; you don't need to thank me."
+  },
+  "天涯海角": {
+    "chinese": "不管你走到天涯海角，我都会想你。",
+    "pinyin": "Bùguǎn nǐ zǒu dào tiān yá hǎi jiǎo, wǒ dōu huì xiǎng nǐ.",
+    "english": "Wherever you go, even to the ends of the earth, I will miss you."
+  },
+  "垂垂老矣": {
+    "chinese": "当年的年轻人，如今已垂垂老矣。",
+    "pinyin": "Dāngnián de niánqīngrén, rújīn yǐ chuí chuí lǎo yǐ.",
+    "english": "The young man of those days has now grown very old."
+  },
+  "白发苍苍": {
+    "chinese": "一位白发苍苍的老人坐在公园里看书。",
+    "pinyin": "Yī wèi bái fà cāng cāng de lǎorén zuò zài gōngyuán lǐ kàn shū.",
+    "english": "A white-haired old man sat in the park reading a book."
+  },
+  "低三下四": {
+    "chinese": "为了借钱，他低三下四地求别人。",
+    "pinyin": "Wèile jiè qián, tā dī sān xià sì de qiú biérén.",
+    "english": "To borrow money, he begged others humbly."
+  },
+  "安贫乐道": {
+    "chinese": "这位老学者一生安贫乐道，专心做学问。",
+    "pinyin": "Zhè wèi lǎo xuézhě yī shēng ān pín lè dào, zhuānxīn zuò xuéwen.",
+    "english": "This old scholar lived a simple, contented life and devoted himself to learning."
+  },
+  "光明磊落": {
+    "chinese": "他为人光明磊落，从不说谎。",
+    "pinyin": "Tā wéirén guāng míng lěi luò, cóng bù shuō huǎng.",
+    "english": "He is open and honest, and he never lies."
+  },
+  "知足常乐": {
+    "chinese": "奶奶常说知足常乐，不要和别人比。",
+    "pinyin": "Nǎinai cháng shuō zhī zú cháng lè, bù yào hé biérén bǐ.",
+    "english": "Grandma often says that contentment brings happiness and that you should not compare yourself with others."
+  },
+  "东山再起": {
+    "chinese": "公司倒闭以后，他没有放弃，几年后东山再起。",
+    "pinyin": "Gōngsī dǎobì yǐhòu, tā méiyǒu fàngqì, jǐ nián hòu dōng shān zài qǐ.",
+    "english": "After his company failed, he did not give up, and a few years later he made a comeback."
+  },
+  "完璧归赵": {
+    "chinese": "你借我的书，我一定完璧归赵。",
+    "pinyin": "Nǐ jiè wǒ de shū, wǒ yīdìng wán bì guī Zhào.",
+    "english": "I will return the book you lent me in perfect condition."
+  },
+  "如虎添翼": {
+    "chinese": "有了新电脑，他的工作如虎添翼。",
+    "pinyin": "Yǒu le xīn diànnǎo, tā de gōngzuò rú hǔ tiān yì.",
+    "english": "With the new computer, he works far better than before."
+  },
+  "夜深人静": {
+    "chinese": "夜深人静的时候，她喜欢一个人看书。",
+    "pinyin": "Yè shēn rén jìng de shíhou, tā xǐhuan yī gè rén kàn shū.",
+    "english": "When the night is deep and quiet, she likes to read alone."
+  },
+  "班门弄斧": {
+    "chinese": "在书法家面前写字，我真是班门弄斧。",
+    "pinyin": "Zài shūfǎjiā miànqián xiě zì, wǒ zhēn shì Bān mén nòng fǔ.",
+    "english": "Writing characters in front of a calligrapher, I am really showing off before a master."
+  },
+  "乘风破浪": {
+    "chinese": "希望你在新的工作中乘风破浪。",
+    "pinyin": "Xīwàng nǐ zài xīn de gōngzuò zhōng chéng fēng pò làng.",
+    "english": "I hope you go from strength to strength in your new job."
+  },
+  "程门立雪": {
+    "chinese": "他对老师有程门立雪的精神，总是虚心请教。",
+    "pinyin": "Tā duì lǎoshī yǒu Chéng mén lì xuě de jīngshén, zǒng shì xūxīn qǐngjiào.",
+    "english": "He shows his teacher the respect of a student who waits in the snow, and always asks for advice humbly."
+  },
+  "狐假虎威": {
+    "chinese": "他仗着父亲是经理，狐假虎威地欺负别人。",
+    "pinyin": "Tā zhàngzhe fùqin shì jīnglǐ, hú jiǎ hǔ wēi de qīfu biérén.",
+    "english": "Because his father is the manager, he bullies others on the strength of his father's position."
+  },
+  "孟母三迁": {
+    "chinese": "为了孩子上好学校，他们像孟母三迁一样搬了好几次家。",
+    "pinyin": "Wèile háizi shàng hǎo xuéxiào, tāmen xiàng Mèng mǔ sān qiān yīyàng bān le hǎo jǐ cì jiā.",
+    "english": "For their child to go to a good school, they moved house several times, like Mencius's mother."
+  },
+  "愚公移山": {
+    "chinese": "只要有愚公移山的精神，没有做不成的事。",
+    "pinyin": "Zhǐyào yǒu yú gōng yí shān de jīngshén, méiyǒu zuò bù chéng de shì.",
+    "english": "With the spirit of the Foolish Old Man who moved the mountains, nothing is impossible."
+  },
+  "画蛇添足": {
+    "chinese": "文章已经很好了，再加这一段就是画蛇添足。",
+    "pinyin": "Wénzhāng yǐjīng hěn hǎo le, zài jiā zhè yī duàn jiù shì huà shé tiān zú.",
+    "english": "The essay is already very good; adding this paragraph would only spoil it."
+  },
+  "开卷有益": {
+    "chinese": "开卷有益，多读书总是好的。",
+    "pinyin": "Kāi juàn yǒu yì, duō dú shū zǒng shì hǎo de.",
+    "english": "Reading always brings benefits, so it is always good to read more."
+  },
+  "世外桃源": {
+    "chinese": "这个小山村安静美丽，像世外桃源一样。",
+    "pinyin": "Zhè gè xiǎo shāncūn ānjìng měilì, xiàng shì wài táo yuán yīyàng.",
+    "english": "This little mountain village is quiet and beautiful, like a paradise far from the world."
+  },
+  "津津有味": {
+    "chinese": "孩子们津津有味地听爷爷讲故事。",
+    "pinyin": "Háizimen jīn jīn yǒu wèi de tīng yéye jiǎng gùshi.",
+    "english": "The children listened to Grandpa's stories with great relish."
+  },
+  "落英缤纷": {
+    "chinese": "春天的公园里，落英缤纷，美极了。",
+    "pinyin": "Chūntiān de gōngyuán lǐ, luò yīng bīn fēn, měi jí le.",
+    "english": "In the park in spring, flower petals fall all around, and it is beautiful."
+  },
+  "虚怀若谷": {
+    "chinese": "这位教授虚怀若谷，总是认真听学生的意见。",
+    "pinyin": "Zhè wèi jiàoshòu xū huái ruò gǔ, zǒng shì rènzhēn tīng xuésheng de yìjiàn.",
+    "english": "This professor is very open-minded and always listens carefully to the students' opinions."
+  },
+  "心如止水": {
+    "chinese": "经历了很多事以后，他已经心如止水。",
+    "pinyin": "Jīnglì le hěn duō shì yǐhòu, tā yǐjīng xīn rú zhǐ shuǐ.",
+    "english": "After going through so much, his heart is now as calm as still water."
+  },
+  "随遇而安": {
+    "chinese": "她性格随和，到哪儿都能随遇而安。",
+    "pinyin": "Tā xìnggé suíhé, dào nǎr dōu néng suí yù ér ān.",
+    "english": "She is easy-going and feels at home wherever she goes."
+  },
+  "厚德载物": {
+    "chinese": "学校的校训是厚德载物。",
+    "pinyin": "Xuéxiào de xiàoxùn shì hòu dé zài wù.",
+    "english": "The school motto is \"great virtue carries all things\"."
+  },
+  "大智若愚": {
+    "chinese": "他看起来有点傻，其实是大智若愚。",
+    "pinyin": "Tā kàn qǐlái yǒudiǎn shǎ, qíshí shì dà zhì ruò yú.",
+    "english": "He looks a bit foolish, but really he is a wise man who hides his wisdom."
+  },
+  "相濡以沫": {
+    "chinese": "老夫妻相濡以沫，一起度过了五十年。",
+    "pinyin": "Lǎo fūqī xiāng rú yǐ mò, yīqǐ dùguò le wǔshí nián.",
+    "english": "The old couple helped each other through hard times and spent fifty years together."
+  },
+  "阳光明媚": {
+    "chinese": "今天阳光明媚，我们去公园散步吧。",
+    "pinyin": "Jīntiān yáng guāng míng mèi, wǒmen qù gōngyuán sàn bù ba.",
+    "english": "It is bright and sunny today, so let's go for a walk in the park."
+  },
+  "忐忑不安": {
+    "chinese": "第一次上台演讲，她心里忐忑不安。",
+    "pinyin": "Dì yī cì shàng tái yǎnjiǎng, tā xīn lǐ tǎn tè bù ān.",
+    "english": "Giving a speech on stage for the first time, she felt very nervous."
+  },
+  "说三道四": {
+    "chinese": "别在背后对别人说三道四。",
+    "pinyin": "Bié zài bèihòu duì biérén shuō sān dào sì.",
+    "english": "Don't gossip about people behind their backs."
+  },
+  "不顾一切": {
+    "chinese": "看到孩子掉进河里，他不顾一切地跳了下去。",
+    "pinyin": "Kàn dào háizi diào jìn hé lǐ, tā bù gù yī qiè de tiào le xiàqù.",
+    "english": "When he saw the child fall into the river, he jumped in without a thought for anything else."
+  },
+  "一日为师，终身为父": {
+    "chinese": "中国人常说一日为师，终身为父。",
+    "pinyin": "Zhōngguó rén cháng shuō yī rì wéi shī, zhōng shēn wéi fù.",
+    "english": "Chinese people often say that a teacher for a day is a father for life."
+  },
+  "不管三七二十一": {
+    "chinese": "他不管三七二十一，拿起电话就打了过去。",
+    "pinyin": "Tā bùguǎn sān qī èr shí yī, ná qǐ diànhuà jiù dǎ le guòqù.",
+    "english": "Without a care for the consequences, he picked up the phone and called."
+  },
+  "开门见山": {
+    "chinese": "他开门见山地说：\"我想跟你借钱。\"",
+    "pinyin": "Tā kāi mén jiàn shān de shuō: \"Wǒ xiǎng gēn nǐ jiè qián.\"",
+    "english": "He came straight to the point: \"I want to borrow some money from you.\""
+  },
+  "一蹴而就": {
+    "chinese": "学好一门语言不是一蹴而就的事。",
+    "pinyin": "Xué hǎo yī mén yǔyán bù shì yī cù ér jiù de shì.",
+    "english": "Learning a language well is not something you achieve in one step."
+  },
+  "惹是生非": {
+    "chinese": "这个孩子总是在学校惹是生非。",
+    "pinyin": "Zhè gè háizi zǒng shì zài xuéxiào rě shì shēng fēi.",
+    "english": "This child is always stirring up trouble at school."
+  },
+  "安居乐业": {
+    "chinese": "经济发展了，人们安居乐业。",
+    "pinyin": "Jīngjì fāzhǎn le, rénmen ān jū lè yè.",
+    "english": "The economy has grown, and people live and work in peace."
+  },
+  "难兄难弟": {
+    "chinese": "我们俩都没考好，真是一对难兄难弟。",
+    "pinyin": "Wǒmen liǎ dōu méi kǎo hǎo, zhēn shì yī duì nàn xiōng nàn dì.",
+    "english": "Neither of us did well in the exam; we really are companions in misfortune."
+  },
+  "笑里藏刀": {
+    "chinese": "这个人笑里藏刀，你要小心。",
+    "pinyin": "Zhè gè rén xiào lǐ cáng dāo, nǐ yào xiǎoxīn.",
+    "english": "This person hides a dagger behind a smile, so be careful."
+  },
+  "海市蜃楼": {
+    "chinese": "他的发财计划不过是海市蜃楼。",
+    "pinyin": "Tā de fā cái jìhuà bùguò shì hǎi shì shèn lóu.",
+    "english": "His plan to get rich is nothing but a mirage."
+  },
+  "厮守终身": {
+    "chinese": "他们相爱多年，决定厮守终身。",
+    "pinyin": "Tāmen xiāng ài duō nián, juédìng sī shǒu zhōng shēn.",
+    "english": "They have loved each other for many years and have decided to stay together for life."
+  },
+  "伶牙俐齿": {
+    "chinese": "她伶牙俐齿，辩论时没人说得过她。",
+    "pinyin": "Tā líng yá lì chǐ, biànlùn shí méi rén shuō de guò tā.",
+    "english": "She is quick-witted and eloquent; nobody can out-argue her in a debate."
+  },
+  "日积月累": {
+    "chinese": "词汇量是日积月累的结果。",
+    "pinyin": "Cíhuìliàng shì rì jī yuè lěi de jiéguǒ.",
+    "english": "A large vocabulary is the result of steady accumulation over time."
+  },
+  "雷打不动": {
+    "chinese": "他每天早上跑步，雷打不动。",
+    "pinyin": "Tā měi tiān zǎoshang pǎo bù, léi dǎ bù dòng.",
+    "english": "He runs every morning, and nothing can stop him."
+  },
+  "家常便饭": {
+    "chinese": "对他来说，加班是家常便饭。",
+    "pinyin": "Duì tā lái shuō, jiā bān shì jiā cháng biàn fàn.",
+    "english": "For him, working overtime is an everyday thing."
+  },
+  "一头雾水": {
+    "chinese": "老师讲得太快，我听得一头雾水。",
+    "pinyin": "Lǎoshī jiǎng de tài kuài, wǒ tīng de yī tóu wù shuǐ.",
+    "english": "The teacher spoke too fast, and I was completely confused."
+  },
+  "大汗淋漓": {
+    "chinese": "打完篮球，他大汗淋漓。",
+    "pinyin": "Dǎ wán lánqiú, tā dà hàn lín lí.",
+    "english": "After playing basketball, he was dripping with sweat."
+  },
+  "有条不紊": {
+    "chinese": "她做事有条不紊，从来不着急。",
+    "pinyin": "Tā zuò shì yǒu tiáo bù wěn, cónglái bù zháojí.",
+    "english": "She does things in an orderly way and is never in a rush."
+  },
+  "知难而退": {
+    "chinese": "遇到困难不要知难而退。",
+    "pinyin": "Yù dào kùnnan bù yào zhī nán ér tuì.",
+    "english": "When you meet difficulties, do not back down."
+  },
+  "似懂非懂": {
+    "chinese": "听了他的解释，我还是似懂非懂。",
+    "pinyin": "Tīng le tā de jiěshì, wǒ háishi sì dǒng fēi dǒng.",
+    "english": "After his explanation, I still only half understood."
+  },
+  "知行合一": {
+    "chinese": "学习要知行合一，不能只说不做。",
+    "pinyin": "Xuéxí yào zhī xíng hé yī, bù néng zhǐ shuō bù zuò.",
+    "english": "Learning must unite knowledge and action; you cannot just talk and not act."
+  }
+}

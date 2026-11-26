@@ -140,6 +140,13 @@ const BLOCKED_PATH = path.join(__dirname, 'sentences', 'blocked.json');
 const NEAR_MISS_PATH = path.join(__dirname, 'sentences', 'near-miss-lists.json');
 
 /**
+ * The committed distractors of the Comprehend tab, and their block list
+ * (#601). `node migration/write-distractors.js` writes the distractors.
+ */
+const DISTRACTORS_PATH = path.join(__dirname, 'sentences', 'distractors.json');
+const BLOCKED_DISTRACTORS_PATH = path.join(__dirname, 'sentences', 'blocked-distractors.json');
+
+/**
  * The inputs of buildExampleSentences, from the committed generated and
  * Tatoeba sentences and the resolved HSK lists. Also gives the generated file
  * as it is on disk, which the gaps and accept scripts read and write.
@@ -183,11 +190,18 @@ function sentenceInputs(words, catalogue, ranks) {
  * report to sentences/coverage.md. CI only prints it.
  *
  * Fails the build on a malformed record, on a bad block entry, on a generated
- * sentence that fails the grader, and on a sentence file over 2 MB.
+ * sentence that fails the grader, on a sentence file over 2 MB, and on a stale
+ * or blocked distractor (#601).
  */
 function buildSentences(words, catalogue, ranks, outputDir) {
   const { inputs, tatoebaFile } = sentenceInputs(words, catalogue, ranks);
-  const result = buildExampleSentences(inputs);
+  // Only the build reads the distractors: the scripts that add sentences run
+  // before write-distractors.js chooses theirs.
+  const result = buildExampleSentences({
+    ...inputs,
+    distractors: JSON.parse(fs.readFileSync(DISTRACTORS_PATH, 'utf8')).distractors,
+    blockedDistractors: JSON.parse(fs.readFileSync(BLOCKED_DISTRACTORS_PATH, 'utf8')).entries,
+  });
 
   fs.rmSync(outputDir, { recursive: true, force: true });
   fs.mkdirSync(outputDir, { recursive: true });
@@ -781,4 +795,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { readCedict, readCleanCedict, emptiedReport, chengyuRowsOf, resolveHsk, sentenceInputs, GENERATED_PATH, BLOCKED_PATH };
+module.exports = { readCedict, readCleanCedict, emptiedReport, chengyuRowsOf, resolveHsk, sentenceInputs, GENERATED_PATH, BLOCKED_PATH, DISTRACTORS_PATH, BLOCKED_DISTRACTORS_PATH };

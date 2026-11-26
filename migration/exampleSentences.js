@@ -12,6 +12,7 @@
 const crypto = require('crypto');
 const { LICENCE: TATOEBA_LICENCE } = require('./tatoeba');
 const { isUnclean } = require('./cleanMeaning');
+const { attachDistractors, parseBlockedPairs } = require('./distractors');
 
 /**
  * The length cap of each HSK level, in Han characters and digits. A sentence
@@ -1016,6 +1017,8 @@ function buildAll({
   glossOverrides = {},
   blocked = [],
   nearMiss = {},
+  distractors,
+  blockedDistractors = [],
 }) {
   const problems = [];
   const index = indexInputs(dictionary, hsk);
@@ -1116,6 +1119,17 @@ function buildAll({
         needed: SENTENCE_TARGET - chosen.length,
       });
     }
+  }
+
+  // The distractors of the Comprehend tab (#601). write-distractors.js runs
+  // this build without them, to choose them.
+  if (distractors !== undefined) {
+    problems.push(
+      ...attachDistractors(files, distractors, {
+        blockedSentences: blocks.sentences,
+        blockedPairs: parseBlockedPairs(blockedDistractors),
+      }),
+    );
   }
 
   let largest = { name: '', bytes: 0 };

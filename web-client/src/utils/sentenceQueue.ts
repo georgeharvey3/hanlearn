@@ -158,36 +158,66 @@ function retired(practice: PracticeByWord, word: Word, tab: SentenceTab): boolea
   return entry?.lastResult === 'right' && !lapsedSince(word, entry, tab);
 }
 
+/**
+ * Whether the tab graded the word today, the local calendar day. A miss shows
+ * the same sentence when it comes back, so on the same day the learner would
+ * recall the sentence, not the word (#496). It is eligible again on the next day.
+ */
+function practisedToday(
+  practice: PracticeByWord,
+  word: Word,
+  tab: SentenceTab,
+  now: Date,
+): boolean {
+  const entry = practiceOf(practice, word, tab);
+  return entry !== undefined && new Date(entry.lastPractised) >= startOfLocalDay(now);
+}
+
 const eligibleWords = ({ words, practice, index, tab, now }: QueueInput): Word[] =>
   gatedWords(words, tab, now).filter((word) => {
     const sentences = index[word.simp];
     return (
       sentences !== undefined &&
       !retired(practice, word, tab) &&
+      !practisedToday(practice, word, tab, now) &&
       !sharedAndShownToday(practice, word, sentences, tab, now)
     );
   });
 
 /**
+ * The number of practised places in a set of the given size: two in five, rounded
+ * down in favour of unpractised words, and at least one in a set of two or more. A
+ * rule to tune. Unpractised words alone would keep a miss away after a big
+ * import, and practised words alone would stop the learner from meeting new ones.
+ */
+export function practisedPlaces(size: number): number {
+  if (size < 2) return 0;
+  return Math.max(1, Math.floor((size * 2) / 5));
+}
+
+/**
  * The tasks of one set, in order.
  *
- * The order is a rule to tune, in three groups:
- * 1. A wrong last grade, the oldest practice first. Misses come back soonest,
- *    and a big import of new words does not push them back.
- * 2. No practice in this tab, the lowest level first: the words the learner
- *    learns now, before the ones they already know well.
- * 3. A right last grade whose word lapsed since, the oldest practice first. A
- *    right word with no lapse since its grade never comes back.
+ * The set mixes unpractised and practised words. Unpractised words fill the places that `practisedPlaces`
+ * leaves, and they come first in the set. When one side runs short, the other
+ * side fills its places, so the mix never makes a set shorter.
+ *
+ * - Unpractised: no practice in this tab, the lowest level first: the words the learner
+ *   learns now, before the ones they already know well.
+ * - Practised: first a wrong last grade, then a right last grade whose word lapsed
+ *   since. Each group takes the oldest practice first. A right word with no
+ *   lapse since its grade never comes back.
  *
  * Each task shows the sentence of the pool of its tab (#581).
  */
 export function buildSet(input: QueueInput & { size: number }): SentenceTask[] {
-  const { practice, index, tab, size } = input;
+  const { practice, index, tab } = input;
+  const size = Math.max(0, input.size);
 
   const group = (word: Word): number => {
     const entry = practiceOf(practice, word, tab);
-    if (!entry) return 1;
-    return entry.lastResult === 'wrong' ? 0 : 2;
+    if (!entry) return 0;
+    return entry.lastResult === 'wrong' ? 1 : 2;
   };
   const lastPractised = (word: Word): string =>
     practiceOf(practice, word, tab)?.lastPractised ?? '';
@@ -197,7 +227,7 @@ export function buildSet(input: QueueInput & { size: number }): SentenceTask[] {
     .sort((a, b) => {
       const byGroup = group(a.word) - group(b.word);
       if (byGroup !== 0) return byGroup;
-      if (group(a.word) === 1) {
+      if (group(a.word) === 0) {
         const byLevel = (a.word.level ?? 1) - (b.word.level ?? 1);
         if (byLevel !== 0) return byLevel;
       } else {
@@ -205,11 +235,23 @@ export function buildSet(input: QueueInput & { size: number }): SentenceTask[] {
         if (byDate !== 0) return byDate;
       }
       return a.position - b.position;
-    });
+    })
+    .map(({ word }) => word);
 
-  return ordered
-    .slice(0, Math.max(0, size))
-    .map(({ word }) => ({ word, sentenceId: index[word.simp][tab] }));
+  const unpractised = ordered.filter((word) => group(word) === 0);
+  const practised = ordered.filter((word) => group(word) !== 0);
+  const practisedCount = Math.min(
+    practised.length,
+    Math.max(practisedPlaces(size), size - unpractised.length),
+  );
+  const unpractisedCount = Math.min(unpractised.length, size - practisedCount);
+
+  return [...unpractised.slice(0, unpractisedCount), ...practised.slice(0, practisedCount)].map(
+    (word) => ({
+      word,
+      sentenceId: index[word.simp][tab],
+    }),
+  );
 }
 
 /** Whether the tab holds an eligible word that the learner never practised there. */

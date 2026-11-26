@@ -8,7 +8,7 @@
  */
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-vi.mock('../../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('../../../firebase/config', () => ({ auth: {}, db: {}, functions: {} }));
 vi.mock('../../../services/dictionaryService', () => ({
   searchWord: vi.fn(),
 }));

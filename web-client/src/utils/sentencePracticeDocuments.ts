@@ -7,8 +7,12 @@ import type { Direction } from '../types/models';
 import type { SentenceTab } from './sentenceSettings';
 import type { SentenceResult } from './sentenceQueue';
 
-/** The version of a Comprehend entry: 2 since #386. */
-export const SENTENCE_LOG_VERSION = 2;
+/**
+ * The version of a Comprehend entry: 4 since #601. It logs the options in
+ * screen order and the pick. The rules still accept version 2, the entry of a
+ * self-grade before #601.
+ */
+export const SENTENCE_LOG_VERSION = 4;
 
 /**
  * The version of a Compose entry: 3 since #597. It logs each attempt, and no
@@ -65,12 +69,16 @@ export interface AttemptsGrade extends GradeBase {
   tiles?: string[];
 }
 
-/** The grade of a Comprehend task. */
+/** The grade of a Comprehend task: right only when the pick is the sentence's own English. */
 export interface AnswerGrade extends GradeBase {
-  /** The time from the start of the task to the reveal. */
+  /** The time from the start of the task to the pick. */
   answerMs: number;
-  /** Whether the Chinese text showed before the reveal. */
+  /** Whether the Chinese text showed before the pick. */
   revealed: boolean;
+  /** The sentence ids of the options in screen order, the sentence's own id included. */
+  options: string[];
+  /** The sentence id of the picked option: one of `options`. */
+  picked: string;
 }
 
 /** One grade of one task, as the tab records it. */
@@ -131,5 +139,7 @@ export function sentenceLogDocument<T>(grade: SentenceGrade, at: T) {
     answerMs: grade.answerMs,
     revealed: grade.revealed,
     lookups: grade.lookups,
+    options: grade.options,
+    picked: grade.picked,
   };
 }

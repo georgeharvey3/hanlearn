@@ -8,7 +8,7 @@ import TestChengyusTest from './TestChengyusTest';
 import { Word } from '../../types/models';
 import * as ttsService from '../../services/ttsService';
 
-vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {} }));
 vi.mock('../../services/ttsService', () => ({
   speak: vi.fn(),
   cancel: vi.fn(),
