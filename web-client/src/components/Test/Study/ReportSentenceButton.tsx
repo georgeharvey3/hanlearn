@@ -1,5 +1,6 @@
 import React from 'react';
 import { connect, ConnectedProps } from 'react-redux';
+import { SxProps, Theme } from '@mui/material';
 
 import { copy } from '../../../copy';
 import { RootState } from '../../../types/store';
@@ -16,31 +17,33 @@ interface OwnProps {
   report: SentenceReport | null;
   /** The tryout has no account to save a report to. */
   isDemo?: boolean;
+  sx?: SxProps<Theme>;
 }
 
 type Props = ConnectedProps<typeof connector> & OwnProps;
 
 /**
  * Report a bad example sentence: a wrong translation, a wrong gloss, an
- * unnatural sentence. One tap saves the report and leaves the sentence out of
+ * unnatural sentence. Or report one option of the Comprehend tab that is also
+ * a true reading of its sentence (#601). One tap saves the report and leaves the sentence out of
  * the learner's later sessions. Give it a `key` of the word and the sentence
  * id, so that the next question starts unreported: one sentence can serve two
  * words.
  */
-const ReportSentenceButton: React.FC<Props> = ({ userId, report, isDemo }) => {
+const ReportSentenceButton: React.FC<Props> = ({ userId, report, isDemo, sx }) => {
   if (!userId || !report || isDemo) return null;
 
   return (
     <ReportButton
       send={() => reportSentence(userId, report)}
       labels={{
-        report: copy.sentence.report,
+        report: report.stage === 'option' ? copy.sentence.reportOption : copy.sentence.report,
         reported: copy.sentence.reported,
         failed: copy.sentence.reportFailed,
       }}
       feature="sentence-report"
       context={{ stage: report.stage }}
-      sx={{ alignSelf: 'center', mt: 1.5 }}
+      sx={sx ?? { alignSelf: 'center', mt: 1.5 }}
     />
   );
 };

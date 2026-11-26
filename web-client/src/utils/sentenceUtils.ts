@@ -50,6 +50,17 @@ export interface SegmentedSentence {
    * a sentence with no tile mode (#386).
    */
   tiles?: string[];
+  /**
+   * The false English readings of the sentence, for the options of the
+   * Comprehend tab, less the ones that the learner reported on this device (#601).
+   */
+  distractors?: SentenceOption[];
+}
+
+/** One English option of the Comprehend tab: a built sentence, by its id. */
+export interface SentenceOption {
+  id: string;
+  english: string;
 }
 
 // Resolved sentence with full word data (used for rendering)

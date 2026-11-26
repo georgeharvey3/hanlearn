@@ -4,7 +4,6 @@ import { Box, CircularProgress } from '@mui/material';
 import { copy } from '../../copy';
 import { colors } from '../../theme';
 import { CharSet } from '../../utils/charSet';
-import { SentenceResult } from '../../utils/sentenceQueue';
 import { SentenceWord, resolveSentence } from '../../utils/sentenceUtils';
 import { ComposeInput, SentenceGrade } from '../../utils/sentencePracticeDocuments';
 import { StudyButton, hanziSx } from '../Test/Study/parts';
@@ -119,18 +118,6 @@ export const TaskLoadError: React.FC<{
       {copy.sentence.tryAgain}
     </StudyButton>
   </>
-);
-
-/** The two grade buttons at the foot of a revealed task. */
-export const GradeButtons: React.FC<{ onGrade: (result: SentenceResult) => void }> = ({
-  onGrade,
-}) => (
-  <Box sx={{ display: 'flex', gap: 1.25 }}>
-    <StudyButton onClick={() => onGrade('wrong')}>{copy.sentenceTabs.wrong}</StudyButton>
-    <StudyButton variant="primary" onClick={() => onGrade('right')}>
-      {copy.sentenceTabs.right}
-    </StudyButton>
-  </Box>
 );
 
 /** A word of a sentence that opens its meaning: dotted underline, dark while its sheet is open. */

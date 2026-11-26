@@ -1,6 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { Box } from '@mui/material';
+import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 
 import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
@@ -17,13 +19,12 @@ import { reportError } from '../../services/errorReporting';
 import * as ttsService from '../../services/ttsService';
 import {
   ResolvedSentence,
+  SentenceOption,
   SentenceWord,
   dictionaryEntryOf,
   resolveSentence,
 } from '../../utils/sentenceUtils';
-import { SentenceResult } from '../../utils/sentenceQueue';
 import {
-  GradeButtons,
   Highlight,
   SentenceWordButton,
   TaskLoadError,
@@ -51,8 +52,11 @@ const connector = connect(mapStateToProps, mapDispatchToProps);
 interface OwnProps {
   word: Word;
   sentenceId: string;
-  onGrade: (outcome: TaskOutcome) => void;
-  /** Leave the word out of the set, when its sentence does not load. */
+  /** Save the grade of the first pick. The task stays on screen. */
+  onCheck: (outcome: TaskOutcome) => void;
+  /** Go to the next task. */
+  onNext: () => void;
+  /** Leave the word out of the set, when its sentence does not load or has no options. */
   onSkip: () => void;
 }
 
@@ -60,12 +64,30 @@ type Props = ConnectedProps<typeof connector> & OwnProps;
 
 type Load = 'loading' | 'error' | 'ready';
 
+/** The border and the background of an option, after the pick: the answer and a wrong pick. */
+const OPTION_COLORS = {
+  plain: { border: colors.divider, background: colors.card },
+  answer: { border: colors.success, background: colors.successSurface },
+  picked: { border: colors.error, background: colors.errorSurface },
+};
+
+/** The options in a random order, so that the place of the right one tells nothing. */
+function shuffled<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 /**
- * One Comprehend task: the learner hears or reads an example sentence,
- * reveals the English, and grades what they understood (#489).
+ * One Comprehend task: the learner hears or reads an example sentence and
+ * picks its English from the options (#489, #601). The first pick is the
+ * grade: right for the sentence's own English, wrong for a distractor.
  *
  * With sound on, the sentence plays and the Chinese is hidden until the
- * learner asks for it. Before the reveal each word except the target opens its
+ * learner asks for it. Before the pick each word except the target opens its
  * meaning, so an unknown word does not block the sentence, and the sentence
  * still tests the word under study.
  */
@@ -78,7 +100,8 @@ const ComprehendTask: React.FC<Props> = ({
   onAddFailed,
   word,
   sentenceId,
-  onGrade,
+  onCheck,
+  onNext,
   onSkip,
 }) => {
   const [charSet] = useState(readCharSet);
@@ -87,7 +110,10 @@ const ComprehendTask: React.FC<Props> = ({
   const [load, setLoad] = useState<Load>('loading');
   const [sentence, setSentence] = useState<ResolvedSentence | null>(null);
   const [textShown, setTextShown] = useState(!useSound);
-  const [revealed, setRevealed] = useState(false);
+  const [options, setOptions] = useState<SentenceOption[]>([]);
+  const [picked, setPicked] = useState<string | null>(null);
+  const hasPicked = picked !== null;
+  const descriptionId = useId();
   const [synthLoading, setSynthLoading] = useState(false);
   const [openWord, setOpenWord] = useState<SentenceWord | null>(null);
 
@@ -96,10 +122,9 @@ const ComprehendTask: React.FC<Props> = ({
   const skip = useRef(onSkip);
   skip.current = onSkip;
   const lookups = useRef(0);
-  // Whether the text showed at any moment before the reveal.
+  // Whether the text showed at any moment before the pick.
   const textSeen = useRef(!useSound);
   const shownAt = useRef(0);
-  const revealedAt = useRef(0);
 
   const play = useCallback(
     (text: string, slowSpeech = slow) => {
@@ -113,12 +138,16 @@ const ComprehendTask: React.FC<Props> = ({
     try {
       const { sentence: found } = await getSegmentedSentence(word.simp, charSet, sentenceId);
       if (!mounted.current) return;
-      if (!found) {
+      // A sentence with no distractor left gives no choice: the word leaves the set.
+      if (!found || !found.distractors?.length) {
         skip.current();
         return;
       }
       const resolved = resolveSentence(found, charSet);
       setSentence(resolved);
+      setOptions(
+        shuffled([{ id: found.id, english: found.english.sentence }, ...found.distractors]),
+      );
       setLoad('ready');
       shownAt.current = Date.now();
       if (useSound) play(resolved.chinese.sentence);
@@ -152,20 +181,14 @@ const ComprehendTask: React.FC<Props> = ({
     setTextShown((prev) => !prev);
   };
 
-  const onReveal = () => {
-    revealedAt.current = Date.now();
-    setRevealed(true);
-    setTextShown(true);
-  };
-
   // A tap on the open word closes it. Only a tap that opens a word before the
-  // reveal counts as a lookup.
+  // pick counts as a lookup.
   const onShowWord = (entry: SentenceWord) => {
     if (openWord === entry) {
       setOpenWord(null);
       return;
     }
-    if (!revealed) lookups.current += 1;
+    if (!hasPicked) lookups.current += 1;
     if (useSound) play(entry[charSet]);
     setOpenWord(entry);
   };
@@ -179,21 +202,33 @@ const ComprehendTask: React.FC<Props> = ({
       });
   };
 
-  const grade = (result: SentenceResult) => {
-    ttsService.stopAll();
-    onGrade({
-      grade: result,
+  // Only the first pick counts: a later tap changes nothing.
+  const onPick = (option: SentenceOption) => {
+    if (picked !== null || !sentence) return;
+    setPicked(option.id);
+    setTextShown(true);
+    onCheck({
+      grade: option.id === sentence.id ? 'right' : 'wrong',
       mode: useSound ? 'audio' : 'text',
       revealed: textSeen.current,
       lookups: lookups.current,
-      answerMs: revealedAt.current - shownAt.current,
+      answerMs: Date.now() - shownAt.current,
+      options: options.map(({ id }) => id),
+      picked: option.id,
     });
+  };
+
+  const onNextTask = () => {
+    ttsService.stopAll();
+    onNext();
   };
 
   if (load === 'error') {
     return <TaskLoadError word={word[charSet]} onSkip={onSkip} onRetry={fetchSentence} />;
   }
   if (load === 'loading' || !sentence) return <TaskLoading />;
+
+  const pickedRight = picked === sentence.id;
 
   const wordButton = (entry: SentenceWord, key: React.Key) => (
     <SentenceWordButton
@@ -211,7 +246,7 @@ const ComprehendTask: React.FC<Props> = ({
     sentence.chinese.words.map((segment, i) => {
       if (i === sentence.chinese.targetIndex) {
         const text = word[charSet];
-        return revealed && sentence.chinese.target ? (
+        return hasPicked && sentence.chinese.target ? (
           <Highlight key={i}>{wordButton(sentence.chinese.target, 'target')}</Highlight>
         ) : (
           <Highlight key={i}>{text}</Highlight>
@@ -261,7 +296,7 @@ const ComprehendTask: React.FC<Props> = ({
             color: colors.textSecondary,
           }}
         >
-          {revealed && (
+          {hasPicked && (
             <>
               {copy.sentence.readPrompt}
               <Box
@@ -275,7 +310,7 @@ const ComprehendTask: React.FC<Props> = ({
           )}
         </Box>
         <StudyCard
-          height={revealed ? undefined : 260}
+          height={hasPicked ? undefined : 260}
           sx={{ mt: 1.5, gap: 2, justifyContent: textShown ? 'flex-start' : 'center' }}
         >
           {useSound && (
@@ -316,7 +351,7 @@ const ComprehendTask: React.FC<Props> = ({
               onAdd={onAddWord}
             />
           )}
-          {revealed && (
+          {hasPicked && (
             <Box
               component="p"
               lang="zh-Latn"
@@ -325,44 +360,111 @@ const ComprehendTask: React.FC<Props> = ({
               {sentence.chinese.pinyin}
             </Box>
           )}
-          {useSound && !revealed && (
+          {useSound && !hasPicked && (
             <PillToggle pressed={textShown} onClick={onToggleText}>
               {textShown ? copy.sentence.hideText : copy.sentence.showText}
             </PillToggle>
           )}
         </StudyCard>
-        {revealed && (
-          <>
-            <Box
-              sx={{
-                mt: 2,
-                p: 1.75,
-                border: `1px solid ${colors.divider}`,
-                borderRadius: 1,
-                bgcolor: colors.card,
-                fontSize: 17,
-              }}
-            >
-              {sentence.english.sentence}
-            </Box>
-            <ReportSentenceButton
-              key={`${word.id}-${sentence.id}`}
-              report={{
-                sentenceId: sentence.id,
-                word: word.simp,
-                stage: 'read',
-                sentence: sentence.chinese.sentence,
-                english: sentence.english.sentence,
-              }}
-            />
-          </>
+        {hasPicked && (
+          <Box
+            role="status"
+            sx={{
+              mt: 2,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.75,
+              color: pickedRight ? colors.success : colors.error,
+              fontSize: 15,
+              fontWeight: 600,
+            }}
+          >
+            {pickedRight ? (
+              <CheckRoundedIcon sx={{ fontSize: 18 }} />
+            ) : (
+              <CloseRoundedIcon sx={{ fontSize: 18 }} />
+            )}
+            {pickedRight ? copy.sentenceTabs.right : copy.sentenceTabs.wrong}
+          </Box>
+        )}
+        <Box
+          role="group"
+          aria-label={copy.sentence.options}
+          sx={{ mt: hasPicked ? 1 : 2, display: 'flex', flexDirection: 'column', gap: 1 }}
+        >
+          {options.map((option) => {
+            const isAnswer = option.id === sentence.id;
+            const isPicked = option.id === picked;
+            const marked = hasPicked && (isAnswer || isPicked);
+            const { border, background } =
+              OPTION_COLORS[
+                !hasPicked ? 'plain' : isAnswer ? 'answer' : isPicked ? 'picked' : 'plain'
+              ];
+            return (
+              <React.Fragment key={option.id}>
+                <Box
+                  component="button"
+                  type="button"
+                  onClick={() => onPick(option)}
+                  aria-describedby={marked ? `${descriptionId}-${option.id}` : undefined}
+                  sx={{
+                    p: 1.75,
+                    textAlign: 'left',
+                    fontFamily: fonts.body,
+                    fontSize: 17,
+                    lineHeight: 1.4,
+                    color: colors.text,
+                    cursor: hasPicked ? 'default' : 'pointer',
+                    borderRadius: 1,
+                    border: `1px solid ${border}`,
+                    bgcolor: background,
+                  }}
+                >
+                  {option.english}
+                </Box>
+                {marked && (
+                  <Box
+                    component="span"
+                    id={`${descriptionId}-${option.id}`}
+                    sx={{ display: 'none' }}
+                  >
+                    {isAnswer ? copy.sentence.answerOption : copy.sentence.pickedOption}
+                  </Box>
+                )}
+                {hasPicked && !isAnswer && (
+                  <ReportSentenceButton
+                    key={`${word.id}-${sentence.id}-${option.id}`}
+                    report={{
+                      sentenceId: sentence.id,
+                      word: word.simp,
+                      stage: 'option',
+                      distractorId: option.id,
+                      sentence: sentence.chinese.sentence,
+                      english: option.english,
+                    }}
+                    sx={{ alignSelf: 'flex-end', mt: -0.5 }}
+                  />
+                )}
+              </React.Fragment>
+            );
+          })}
+        </Box>
+        {hasPicked && (
+          <ReportSentenceButton
+            key={`${word.id}-${sentence.id}`}
+            report={{
+              sentenceId: sentence.id,
+              word: word.simp,
+              stage: 'read',
+              sentence: sentence.chinese.sentence,
+              english: sentence.english.sentence,
+            }}
+          />
         )}
       </StudyBody>
-      {revealed ? (
-        <GradeButtons onGrade={grade} />
-      ) : (
-        <StudyButton variant="primary" onClick={onReveal}>
-          {copy.sentenceTabs.showEnglish}
+      {hasPicked && (
+        <StudyButton variant="primary" onClick={onNextTask}>
+          {copy.sentence.next}
         </StudyButton>
       )}
     </>

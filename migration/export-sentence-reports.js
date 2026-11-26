@@ -7,6 +7,14 @@
  * remove it in `sentences/generated.json`, or add a gloss override to
  * `sentences/gloss-overrides.json`, and run `npm run build:dict`.
  *
+ * A learner can also report one option of the Comprehend tab, with the stage
+ * `option` (#601). The report goes to
+ * `users/{userId}/sentenceReports/{sentenceId}-{distractorId}` and gets a row
+ * of its own, with its distractorId and the English of the option. To remove
+ * the option for every learner, add the pair to
+ * `sentences/blocked-distractors.json`, run `node write-distractors.js`, and
+ * run `npm run build:dict`.
+ *
  * Prerequisites:
  *   1. `npm install` in this directory
  *   2. A service account key saved as `service-account.json` in this directory
@@ -25,6 +33,7 @@ const admin = require("firebase-admin");
 
 const COLUMNS = [
   "sentenceId",
+  "distractorId",
   "word",
   "sentence",
   "english",
@@ -48,12 +57,19 @@ function argument(flag) {
   return index === -1 ? undefined : process.argv[index + 1];
 }
 
-/** One row per sentence: the reports of all learners, the most reported first. */
+/**
+ * One row per sentence, and one per reported option: the reports of all
+ * learners, the most reported first.
+ */
 function reportRows(reports) {
   const bySentence = new Map();
   for (const report of reports) {
-    const row = bySentence.get(report.sentenceId) ?? {
+    const key = report.distractorId
+      ? `${report.sentenceId}-${report.distractorId}`
+      : report.sentenceId;
+    const row = bySentence.get(key) ?? {
       sentenceId: report.sentenceId,
+      distractorId: report.distractorId ?? "",
       word: report.word,
       sentence: report.sentence,
       english: report.english,
@@ -65,11 +81,15 @@ function reportRows(reports) {
     row.stages.add(report.stage);
     const at = report.reportedAt?.toDate?.().toISOString() ?? "";
     if (at > row.lastReported) row.lastReported = at;
-    bySentence.set(report.sentenceId, row);
+    bySentence.set(key, row);
   }
   return [...bySentence.values()]
     .sort(
-      (a, b) => b.reports - a.reports || (a.sentenceId < b.sentenceId ? -1 : 1),
+      (a, b) =>
+        b.reports - a.reports ||
+        (a.sentenceId !== b.sentenceId
+          ? a.sentenceId < b.sentenceId ? -1 : 1
+          : a.distractorId < b.distractorId ? -1 : 1),
     )
     .map((row) => ({ ...row, stages: [...row.stages].sort().join(" ") }));
 }

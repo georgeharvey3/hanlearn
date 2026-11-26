@@ -50,7 +50,6 @@ export const copy = {
     withNew: (tab: string) => `${tab}, new words`,
     nothing: 'Nothing to practise',
     toStudy: 'Go to Study',
-    showEnglish: 'Show English',
     right: 'Right',
     wrong: 'Wrong',
     done: 'Done',
@@ -100,6 +99,11 @@ export const copy = {
     // The status of a match after a wrong attempt: "Right on attempt 3"
     rightOn: (attempt: number) => `Right on attempt ${attempt}`,
     next: 'Next',
+    // The English options of the Comprehend tab (#601)
+    options: 'Options',
+    answerOption: 'Answer',
+    pickedOption: 'Your pick',
+    reportOption: 'Report option',
   },
   settings: {
     title: 'Settings',

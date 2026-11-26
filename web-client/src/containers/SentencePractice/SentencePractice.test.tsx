@@ -87,6 +87,21 @@ const hanziOf = (box: HTMLElement) => {
   );
 };
 
+/** The distractors of each sentence of the Comprehend tab (#601). */
+const DISTRACTORS = [
+  { id: 'd1', english: 'I teach Chinese.' },
+  { id: 'd2', english: 'I speak Chinese.' },
+  { id: 'd3', english: 'I forgot my Chinese.' },
+];
+
+/** The four options of a Comprehend task, in screen order. */
+const optionButtons = () =>
+  within(screen.getByRole('group', { name: 'Options' })).getAllByRole('button');
+
+/** The option that is the English of the sentence. */
+const rightOption = () =>
+  optionButtons().find((button) => !DISTRACTORS.some((d) => d.english === button.textContent))!;
+
 /** A sentence of the files: 我学习中文。 with 学习 as the target. */
 const sentenceOf = (target: string, id: string) => ({
   sentence: {
@@ -104,6 +119,7 @@ const sentenceOf = (target: string, id: string) => ({
       targetIndex: 1,
     },
     english: { sentence: `I ${target} Chinese.`, highlight: [] },
+    distractors: DISTRACTORS,
   },
   totalCount: 1,
 });
@@ -127,6 +143,7 @@ const traditionalSentence = (id: string) => ({
       targetIndex: 2,
     },
     english: { sentence: 'My apple is gone.', highlight: [] },
+    distractors: DISTRACTORS,
   },
   totalCount: 1,
 });
@@ -209,18 +226,32 @@ describe('the Comprehend tab', () => {
     expect(screen.queryByRole('button', { name: 'Play sentence' })).not.toBeInTheDocument();
   });
 
-  it('locks the target word until the reveal, which shows the pinyin and the English', async () => {
+  it('shows four options in place of a reveal', async () => {
+    setQueue([STUDY]);
+    renderTab('comprehend', false);
+
+    await screen.findByRole('button', { name: '中文: show meaning' });
+    expect(
+      optionButtons()
+        .map((button) => button.textContent)
+        .sort(),
+    ).toEqual(['I forgot my Chinese.', 'I speak Chinese.', 'I teach Chinese.', 'I 学习 Chinese.']);
+    expect(screen.queryByRole('button', { name: 'Show English' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Right' })).not.toBeInTheDocument();
+  });
+
+  it('locks the target word until the pick, which shows the pinyin', async () => {
     const user = userEvent.setup();
     setQueue([STUDY]);
     renderTab('comprehend', false);
 
     await screen.findByRole('button', { name: '中文: show meaning' });
     expect(screen.queryByRole('button', { name: '学习: show meaning' })).not.toBeInTheDocument();
-    expect(screen.queryByText('I 学习 Chinese.')).not.toBeInTheDocument();
+    expect(screen.queryByText(/wǒ xué xí/)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Show English' }));
+    await user.click(screen.getByRole('button', { name: 'I 学习 Chinese.' }));
 
-    expect(screen.getByText('I 学习 Chinese.')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Right');
     expect(screen.getByText(/wǒ xué xí/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '学习: show meaning' })).toBeInTheDocument();
   });
@@ -228,18 +259,18 @@ describe('the Comprehend tab', () => {
   it.each([
     ['sound on', true],
     ['sound off', false],
-  ])('names the word above the card only after the reveal, with %s', async (_mode, sound) => {
+  ])('names the word above the card only after the pick, with %s', async (_mode, sound) => {
     const user = userEvent.setup();
     setQueue([STUDY]);
     renderTab('comprehend', sound);
 
-    await screen.findByRole('button', { name: 'Show English' });
+    await screen.findByRole('group', { name: 'Options' });
     expect(screen.queryByText(/Sentence with/)).not.toBeInTheDocument();
     // With sound off the sentence shows the word; nothing outside it may.
     const outsideSentence = screen.queryAllByText('学习').filter((el) => !el.closest('p'));
     expect(outsideSentence).toHaveLength(0);
 
-    await user.click(screen.getByRole('button', { name: 'Show English' }));
+    await user.click(screen.getByRole('button', { name: 'I speak Chinese.' }));
 
     expect(screen.getByText(/Sentence with/)).toHaveTextContent('Sentence with 学习');
   });
@@ -252,13 +283,13 @@ describe('the Comprehend tab', () => {
     setQueue([STUDY]);
     renderTab('comprehend', false);
 
-    await user.click(await screen.findByRole('button', { name: 'Show English' }));
+    await user.click(await screen.findByRole('button', { name: 'My apple is gone.' }));
 
     expect(screen.getByText('wǒ de píng guǒ méi le。')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '沒: show meaning' })).toBeInTheDocument();
   });
 
-  it('saves the grade with the mode, the reveal of the text and the lookups', async () => {
+  it('saves the first pick as the grade, with the options in screen order and the lookups', async () => {
     const user = userEvent.setup();
     setQueue([STUDY]);
     renderTab('comprehend');
@@ -267,9 +298,18 @@ describe('the Comprehend tab', () => {
     await user.click(screen.getByRole('button', { name: '中文: show meaning' }));
     // A tap that closes the panel is no lookup.
     await user.click(screen.getByRole('button', { name: '中文: show meaning' }));
-    await user.click(screen.getByRole('button', { name: 'Show English' }));
-    await user.click(screen.getByRole('button', { name: 'Wrong' }));
+    const order = optionButtons().map((button) => button.textContent);
+    await user.click(screen.getByRole('button', { name: 'I speak Chinese.' }));
+    // A lookup after the pick does not count.
+    await user.click(screen.getByRole('button', { name: '中文: show meaning' }));
 
+    const idOf: Record<string, string> = {
+      'I 学习 Chinese.': 's-学习',
+      'I teach Chinese.': 'd1',
+      'I speak Chinese.': 'd2',
+      'I forgot my Chinese.': 'd3',
+    };
+    expect(saveGrade).toHaveBeenCalledTimes(1);
     expect(saveGrade).toHaveBeenCalledWith(
       'user-1',
       expect.objectContaining({
@@ -280,8 +320,56 @@ describe('the Comprehend tab', () => {
         mode: 'audio',
         revealed: true,
         lookups: 1,
+        options: order.map((text) => idOf[text ?? '']),
+        picked: 'd2',
       }),
     );
+  });
+
+  it('shows the right option after a wrong pick, and a second tap changes nothing', async () => {
+    const user = userEvent.setup();
+    setQueue([STUDY]);
+    renderTab('comprehend', false);
+
+    await user.click(await screen.findByRole('button', { name: 'I teach Chinese.' }));
+
+    expect(screen.getByRole('status')).toHaveTextContent('Wrong');
+    expect(screen.getByRole('button', { name: 'I teach Chinese.' })).toHaveAccessibleDescription(
+      'Your pick',
+    );
+    expect(screen.getByRole('button', { name: 'I 学习 Chinese.' })).toHaveAccessibleDescription(
+      'Answer',
+    );
+
+    await user.click(screen.getByRole('button', { name: 'I 学习 Chinese.' }));
+    expect(saveGrade).toHaveBeenCalledTimes(1);
+    expect(saveGrade).toHaveBeenCalledWith('user-1', expect.objectContaining({ grade: 'wrong' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Wrong');
+  });
+
+  it('offers a report of each wrong option after the pick', async () => {
+    const user = userEvent.setup();
+    setQueue([STUDY]);
+    renderTab('comprehend', false);
+
+    await screen.findByRole('group', { name: 'Options' });
+    expect(screen.queryByRole('button', { name: /Report option/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'I 学习 Chinese.' }));
+    expect(screen.getAllByRole('button', { name: /Report option/ })).toHaveLength(3);
+  });
+
+  it('leaves out a word whose sentence has no options left', async () => {
+    vi.mocked(getSegmentedSentence).mockImplementation(async (simp, _charSet, id) => {
+      const found = sentenceOf(simp, id ?? 'none');
+      return simp === '学习'
+        ? { ...found, sentence: { ...found.sentence, distractors: [] } }
+        : found;
+    });
+    setQueue([STUDY, READ]);
+    renderTab('comprehend', false);
+
+    expect(await screen.findByRole('button', { name: 'I 看书 Chinese.' })).toBeInTheDocument();
   });
 
   it('shows the meaning of a tapped word under the sentence, one word at a time', async () => {
@@ -335,15 +423,14 @@ describe('the Comprehend tab', () => {
     renderTab('comprehend', false);
 
     expect(await screen.findByText('1 / 1')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Show English' }));
-    await user.click(screen.getByRole('button', { name: 'Right' }));
+    await user.click(rightOption());
+    await user.click(screen.getByRole('button', { name: 'Next' }));
 
     expect(await screen.findByText('1 right · 0 wrong')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Practise more' }));
 
     // The word just graded right goes to the end, so the next set starts with the other.
-    await user.click(await screen.findByRole('button', { name: 'Show English' }));
-    expect(screen.getByText('I 看书 Chinese.')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'I 看书 Chinese.' })).toBeInTheDocument();
   });
 
   it('keeps focus mode on for the finish screen', async () => {
@@ -353,8 +440,9 @@ describe('the Comprehend tab', () => {
     setQueue([STUDY, READ]);
     renderTab('comprehend', false, setFocused);
 
-    await user.click(await screen.findByRole('button', { name: 'Show English' }));
-    await user.click(screen.getByRole('button', { name: 'Right' }));
+    await screen.findByRole('group', { name: 'Options' });
+    await user.click(rightOption());
+    await user.click(screen.getByRole('button', { name: 'Next' }));
 
     expect(await screen.findByRole('button', { name: 'Back to Dashboard' })).toBeInTheDocument();
     expect(setFocused).toHaveBeenLastCalledWith(true);
