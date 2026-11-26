@@ -5,7 +5,7 @@
  */
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
-vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {} }));
 vi.mock('../../firebase/auth', () => ({
   getCurrentUser: () => ({ email: 'learner@example.com' }),
   logoutUser: () => Promise.resolve(),

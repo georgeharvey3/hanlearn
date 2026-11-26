@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-vi.mock('./firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('./firebase/config', () => ({ auth: {}, db: {}, functions: {} }));
 vi.mock('./firebase/auth', () => ({
   loginUser: vi.fn(),
   registerUser: vi.fn(),

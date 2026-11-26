@@ -7,7 +7,7 @@
  */
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
-vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {} }));
 vi.mock('../../utils/devTestMode', () => ({ getDevTestConfig: vi.fn().mockReturnValue(null) }));
 vi.mock('../../store/actions/index', () => ({
   initWords: vi.fn(() => ({ type: 'INIT_WORDS_NOOP' })),

@@ -31,17 +31,16 @@ The owner of the Firebase account does these steps one time.
 4. Create the Firestore database in the same region as production.
 5. Enable Hosting.
 6. Change the project to the Blaze plan. Set a budget alert on the billing account.
-7. In AI Logic, enable the Gemini Developer API. The example sentences use it.
-8. In Google Cloud, enable these APIs. The deploy account cannot enable an API, so the first deploy stops if one is missing.
+7. In Google Cloud, enable these APIs. The deploy account cannot enable an API, so the first deploy stops if one is missing.
    - Cloud Functions API, Cloud Build API, and Artifact Registry API, for the functions deploy
    - Cloud Billing API (`cloudbilling.googleapis.com`) and Firebase Extensions API (`firebaseextensions.googleapis.com`), for the functions deploy. Since firebase-functions 7, the deploy checks extensions and billing, also when the project has no extensions
    - Cloud Text-to-Speech API, for the audio
    - Agent Platform API (`aiplatform.googleapis.com`, earlier named Vertex AI API), for the sentence score
-9. In Project settings > Service accounts, generate a key for the Firebase Admin SDK account. Add it as the GitHub secret `FIREBASE_SERVICE_ACCOUNT_STAGING`.
-10. In Google Cloud IAM, give that account these roles: Cloud Functions Admin, Service Account User, Firebase Hosting Admin, Firebase Rules Admin, Cloud Datastore Index Admin, and Artifact Registry Administrator.
-11. Add the web configuration as the GitHub secrets `STAGING_FIREBASE_API_KEY`, `STAGING_FIREBASE_AUTH_DOMAIN`, `STAGING_FIREBASE_PROJECT_ID`, `STAGING_FIREBASE_STORAGE_BUCKET`, `STAGING_FIREBASE_MESSAGING_SENDER_ID`, and `STAGING_FIREBASE_APP_ID`.
-12. Run the `Deploy to Staging` workflow from the Actions tab. GitHub shows this button only when the workflow is on `develop`. A push to `develop` also starts it.
-13. Seed the staging data.
+8. In Project settings > Service accounts, generate a key for the Firebase Admin SDK account. Add it as the GitHub secret `FIREBASE_SERVICE_ACCOUNT_STAGING`.
+9. In Google Cloud IAM, give that account these roles: Cloud Functions Admin, Service Account User, Firebase Hosting Admin, Firebase Rules Admin, Cloud Datastore Index Admin, and Artifact Registry Administrator.
+10. Add the web configuration as the GitHub secrets `STAGING_FIREBASE_API_KEY`, `STAGING_FIREBASE_AUTH_DOMAIN`, `STAGING_FIREBASE_PROJECT_ID`, `STAGING_FIREBASE_STORAGE_BUCKET`, `STAGING_FIREBASE_MESSAGING_SENDER_ID`, and `STAGING_FIREBASE_APP_ID`.
+11. Run the `Deploy to Staging` workflow from the Actions tab. GitHub shows this button only when the workflow is on `develop`. A push to `develop` also starts it.
+12. Seed the staging data.
 
 If the build of one function fails with "Build error details not available", run the workflow again. On the first deploy, one function of eleven failed this way and the next run deployed it.
 

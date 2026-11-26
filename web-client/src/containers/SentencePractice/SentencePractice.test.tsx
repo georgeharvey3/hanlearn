@@ -7,7 +7,6 @@ vi.mock('../../firebase/config', () => ({
   auth: {},
   db: {},
   functions: {},
-  ai: {},
   analytics: null,
 }));
 vi.mock('howler', () => ({ Howl: vi.fn(), Howler: { ctx: null } }));

@@ -16,7 +16,7 @@ vi.mock('../../store/actions/index', () => ({
   finishTest: vi.fn(),
 }));
 
-vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {}, ai: {} }));
+vi.mock('../../firebase/config', () => ({ auth: {}, db: {}, functions: {} }));
 
 vi.mock('../../services/sentenceService', () => ({
   checkSentenceAvailability: vi.fn(),
