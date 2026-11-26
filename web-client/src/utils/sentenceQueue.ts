@@ -172,10 +172,11 @@ const eligibleWords = ({ words, practice, index, tab, now }: QueueInput): Word[]
  * The tasks of one set, in order.
  *
  * The order is a rule to tune, in three groups:
- * 1. A wrong last grade, the oldest practice first. Misses come back soonest,
- *    and a big import of new words does not push them back.
- * 2. No practice in this tab, the lowest level first: the words the learner
- *    learns now, before the ones they already know well.
+ * 1. No practice in this tab, the lowest level first: the words the learner
+ *    learns now, before the ones they already know well. A new sentence always
+ *    comes before a miss.
+ * 2. A wrong last grade, the oldest practice first. A miss comes back only
+ *    when the tab has no new sentence left.
  * 3. A right last grade whose word lapsed since, the oldest practice first. A
  *    right word with no lapse since its grade never comes back.
  *
@@ -186,8 +187,8 @@ export function buildSet(input: QueueInput & { size: number }): SentenceTask[] {
 
   const group = (word: Word): number => {
     const entry = practiceOf(practice, word, tab);
-    if (!entry) return 1;
-    return entry.lastResult === 'wrong' ? 0 : 2;
+    if (!entry) return 0;
+    return entry.lastResult === 'wrong' ? 1 : 2;
   };
   const lastPractised = (word: Word): string =>
     practiceOf(practice, word, tab)?.lastPractised ?? '';
@@ -197,7 +198,7 @@ export function buildSet(input: QueueInput & { size: number }): SentenceTask[] {
     .sort((a, b) => {
       const byGroup = group(a.word) - group(b.word);
       if (byGroup !== 0) return byGroup;
-      if (group(a.word) === 1) {
+      if (group(a.word) === 0) {
         const byLevel = (a.word.level ?? 1) - (b.word.level ?? 1);
         if (byLevel !== 0) return byLevel;
       } else {

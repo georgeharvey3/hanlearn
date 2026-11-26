@@ -108,7 +108,7 @@ describe('the words a tab may use', () => {
 });
 
 describe('the order of a set', () => {
-  it('puts a wrong last grade first, then never practised, then a right last grade that lapsed since', () => {
+  it('puts never practised first, then a wrong last grade, then a right last grade that lapsed since', () => {
     const right = withLapses(word('学', 3), { MC: 1 });
     const fresh = word('书', 3);
     const wrong = word('吃', 3);
@@ -125,7 +125,7 @@ describe('the order of a set', () => {
       size: 5,
       now: NOW,
     });
-    expect(set.map((task) => task.word.simp)).toEqual(['吃', '书', '学']);
+    expect(set.map((task) => task.word.simp)).toEqual(['书', '吃', '学']);
   });
 
   it('takes the oldest practice first among the wrong and among the right', () => {
@@ -167,7 +167,7 @@ describe('the order of a set', () => {
     expect(set.map((task) => task.word.simp)).toEqual(['二', '三', '一']);
   });
 
-  it('keeps a miss first after a big import of new words', () => {
+  it('holds a miss back until no new word is left', () => {
     const missed = word('错', 3);
     const imported = Array.from({ length: 50 }, (_, i) => word(`新${i}`, 2));
     const index: SentenceIndex = { 错: both('x') };
@@ -181,10 +181,11 @@ describe('the order of a set', () => {
       practice,
       index,
       tab: 'comprehend',
-      size: 5,
+      size: 51,
       now: NOW,
     });
-    expect(set[0].word).toBe(missed);
+    expect(set.slice(0, 50).map((task) => task.word)).toEqual(imported);
+    expect(set[50].word).toBe(missed);
   });
 
   it('reads the practice of its own tab only', () => {

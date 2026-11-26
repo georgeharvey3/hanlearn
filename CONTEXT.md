@@ -339,8 +339,8 @@ production. See
 and
 [docs/adr/0021-sentence-tasks-are-a-separate-practice.md](docs/adr/0021-sentence-tasks-are-a-separate-practice.md).
 
-A **weak** result is a grade of wrong. The queue of a tab puts the weak words
-first, then the words never practised in the tab. A word with a right grade
+A **weak** result is a grade of wrong. The queue of a tab puts the words never
+practised in the tab first, then the weak words. A word with a right grade
 **retires** from the tab. It comes back only after a lapse of a **trigger
 direction** of the tab: `MC` or `MP` for Comprehend, `PM` or `CM` for Compose.
 Each grade stores the lapse count of these directions, and a higher count
