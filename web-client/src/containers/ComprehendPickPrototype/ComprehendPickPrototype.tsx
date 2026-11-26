@@ -53,6 +53,7 @@ interface Sentence {
   simp: string;
   pinyin: string;
   english: string;
+  distractors?: { score: number; simp: string; english: string }[];
 }
 interface ProtoWord {
   simp: string;
@@ -135,7 +136,10 @@ const WORDS: ProtoWord[] = [
   },
 ];
 
-// HSK 7-9 words, from public/sentences/ (6697, 9738, 7f62).
+// HSK 7-9 words. Each sentence carries 3 distractors: the English of corpus
+// sentences with a cosine of 0.72-0.81 (gte-modernbert-base), less any that holds
+// a word whose gloss shares a content word with the target gloss. The number is
+// the cosine; the Chinese is the source sentence of the distractor.
 const HARD_WORDS: ProtoWord[] = [
   {
     simp: '暗中',
@@ -147,18 +151,61 @@ const HARD_WORDS: ProtoWord[] = [
         simp: '他一直在暗中帮助我。',
         pinyin: 'tā yī zhí zài àn zhōng bāng zhù wǒ',
         english: 'He has been helping me secretly all along.',
+        distractors: [
+          {
+            score: 0.79,
+            simp: '我受过他很多恩惠。',
+            english: 'I have received many favours from him.',
+          },
+          { score: 0.75, simp: '我确信我可以帮到他。', english: "I'm pretty sure I can help him." },
+          {
+            score: 0.73,
+            simp: '他是我多年的知己。',
+            english: 'He has been my close friend for many years.',
+          },
+        ],
       },
       {
         id: 'a2934bf8a0',
         simp: '警察在暗中调查这件事。',
         pinyin: 'jǐng chá zài àn zhōng diào chá zhè jiàn shì',
         english: 'The police are quietly investigating this matter.',
+        distractors: [
+          { score: 0.8, simp: '警察正在搜集证据。', english: 'The police are gathering evidence.' },
+          {
+            score: 0.77,
+            simp: '警察正在调查伤亡情况。',
+            english: 'The police are looking into the casualties.',
+          },
+          {
+            score: 0.75,
+            simp: '警察正在询问受害人。',
+            english: 'The police are questioning the victim.',
+          },
+        ],
       },
       {
         id: 'e3ffd7ad04',
         simp: '这两个人一直在暗中较劲。',
         pinyin: 'zhè liǎng gè rén yī zhí zài àn zhōng jiào jìn',
         english: 'Those two have been secretly competing with each other all along.',
+        distractors: [
+          {
+            score: 0.78,
+            simp: '他们一见面就针锋相对。',
+            english: "They're at each other's throats as soon as they meet.",
+          },
+          {
+            score: 0.75,
+            simp: '他们合伙骗了很多人。',
+            english: 'They teamed up to cheat a lot of people.',
+          },
+          {
+            score: 0.72,
+            simp: '这几家公司在争夺市场。',
+            english: 'These companies are fighting over the market.',
+          },
+        ],
       },
     ],
   },
@@ -172,18 +219,61 @@ const HARD_WORDS: ProtoWord[] = [
         simp: '别霸占着电脑，我也要用。',
         pinyin: 'bié bà zhàn zhe diàn nǎo wǒ yě yào yòng',
         english: "Don't keep the computer to yourself; I need to use it too.",
+        distractors: [
+          {
+            score: 0.73,
+            simp: '在家里，大家共享一台电脑。',
+            english: 'At home, everyone shares one computer.',
+          },
+          {
+            score: 0.73,
+            simp: '我不是有意要保密的。',
+            english: "I didn't mean to keep it secret.",
+          },
+          { score: 0.72, simp: '给我那台笔电。', english: 'Hand me that laptop.' },
+        ],
       },
       {
         id: '3dcf159f3f',
         simp: '他一个人霸占了整张沙发。',
         pinyin: 'tā yī gè rén bà zhàn le zhěng zhāng shā fā',
         english: 'He hogged the whole sofa to himself.',
+        distractors: [
+          {
+            score: 0.76,
+            simp: '他累得瘫在沙发上。',
+            english: 'He was so tired he collapsed on the sofa.',
+          },
+          {
+            score: 0.73,
+            simp: '他饿得恨不得把桌上的菜全吃了。',
+            english: 'He was so hungry he could have eaten everything on the table.',
+          },
+          { score: 0.72, simp: '他不得不打扫了他的房间。', english: 'He had to clean his room.' },
+        ],
       },
       {
         id: '0971f9118e',
         simp: '那个地主霸占了农民的土地。',
-        pinyin: 'nà gè dì zhǔ bà zhàn le nóng mín de tǔ dì',
+        pinyin: 'nà gè de zhǔ bà zhàn le nóng mín de tǔ dì',
         english: "That landlord seized the peasants' land.",
+        distractors: [
+          {
+            score: 0.76,
+            simp: '他们用低价掠夺农民的土地。',
+            english: "They grabbed farmers' land at low prices.",
+          },
+          {
+            score: 0.74,
+            simp: '土匪抢走了村民的粮食。',
+            english: 'The bandits robbed the villagers of their grain.',
+          },
+          {
+            score: 0.73,
+            simp: '这片土地被他们占有了很多年。',
+            english: 'This land was in their possession for many years.',
+          },
+        ],
       },
     ],
   },
@@ -197,18 +287,125 @@ const HARD_WORDS: ProtoWord[] = [
         simp: '他因为贪污被罢免了。',
         pinyin: 'tā yīn wèi tān wū bèi bà miǎn le',
         english: 'He was removed from his post for corruption.',
+        distractors: [
+          {
+            score: 0.81,
+            simp: '他因为受贿被查处了。',
+            english: 'He was investigated and punished for taking bribes.',
+          },
+          {
+            score: 0.75,
+            simp: '他的政治生涯完蛋了。',
+            english: 'His political career is done for.',
+          },
+          {
+            score: 0.72,
+            simp: '他因滥用公共基金而被捕。',
+            english: 'He was arrested for abusing public funds.',
+          },
+        ],
       },
       {
         id: '6f1d4ca521',
         simp: '董事会决定罢免总经理。',
         pinyin: 'dǒng shì huì jué dìng bà miǎn zǒng jīng lǐ',
         english: 'The board decided to remove the general manager.',
+        distractors: [
+          {
+            score: 0.75,
+            simp: '公司最近更换了经理。',
+            english: 'The company recently replaced its manager.',
+          },
+          {
+            score: 0.72,
+            simp: '市长突然提交了辞呈。',
+            english: 'The mayor suddenly submitted his resignation.',
+          },
+          {
+            score: 0.72,
+            simp: '公司正在进行一场管理变革。',
+            english: 'The company is going through a management overhaul.',
+          },
+        ],
       },
       {
         id: '88bcf74583',
         simp: '有人要求罢免这名官员。',
         pinyin: 'yǒu rén yāo qiú bà miǎn zhè míng guān yuán',
         english: 'Some people are demanding that this official be dismissed.',
+        distractors: [
+          {
+            score: 0.75,
+            simp: '很多选民对他不满意。',
+            english: 'Many voters are unhappy with him.',
+          },
+          {
+            score: 0.73,
+            simp: '有人在鼓动工人罢工。',
+            english: 'Someone is stirring up the workers to strike.',
+          },
+          {
+            score: 0.72,
+            simp: '老板对员工非常苛刻。',
+            english: 'The boss is very harsh with the staff.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    simp: '爱理不理',
+    pinyin: 'ài lǐ bù lǐ',
+    meaning: 'standoffish; indifferent',
+    sentences: [
+      {
+        id: '7e375659a2',
+        simp: '你为什么对我爱理不理的？',
+        pinyin: 'nǐ wèi shén me duì wǒ ài lǐ bù lǐ de',
+        english: 'Why are you so cold toward me?',
+        distractors: [
+          { score: 0.79, simp: '你为什么老跟我作对？', english: 'Why are you always against me?' },
+          { score: 0.74, simp: '我甚至不喜欢你', english: "I don't even like you." },
+          {
+            score: 0.73,
+            simp: '为什么你这么久不给我回信？',
+            english: "Why haven't you replied to me for so long?",
+          },
+        ],
+      },
+      {
+        id: 'fe181a41cd',
+        simp: '我跟他打招呼，他爱理不理的。',
+        pinyin: 'wǒ gēn tā dǎ zhāo hu tā ài lǐ bù lǐ de',
+        english: 'I said hello to him, but he barely acknowledged me.',
+        distractors: [
+          {
+            score: 0.77,
+            simp: '他瞅了我一眼，没说话。',
+            english: 'He glanced at me and said nothing.',
+          },
+          {
+            score: 0.73,
+            simp: '我没留心他说了什么。',
+            english: "I didn't pay attention to what he said.",
+          },
+          { score: 0.72, simp: '我们简短地谈了谈。', english: 'We spoke briefly.' },
+        ],
+      },
+      {
+        id: '2bd3965b0f',
+        simp: '她生气的时候就对人爱理不理。',
+        pinyin: 'tā shēng qì de shí hou jiù duì rén ài lǐ bù lǐ',
+        english: "When she's angry, she gives people the cold shoulder.",
+        distractors: [
+          { score: 0.79, simp: '她脾气有点坏。', english: 'She has a bit of a bad temper.' },
+          { score: 0.74, simp: '她的眼神很冷酷。', english: 'Her gaze is cold and hard.' },
+          {
+            score: 0.72,
+            simp: '每次提起这件事，她都很难过。',
+            english: 'Every time this is mentioned, she gets upset.',
+          },
+        ],
       },
     ],
   },
@@ -234,8 +431,30 @@ interface Task {
   probe: Sentence;
 }
 
-const makeTasks = (words: ProtoWord[]): Task[] =>
-  words.map((word) => {
+const makeTasks = (words: ProtoWord[]): Task[] => {
+  // A sentence with its own distractors: every sentence of every word, in a
+  // random order, with the target and its 3 distractors as options.
+  if (words.some((w) => w.sentences.some((s) => s.distractors))) {
+    return shuffle(
+      words.flatMap((word) =>
+        word.sentences.map((target) => {
+          const decoys: Sentence[] = (target.distractors ?? []).map((d, i) => ({
+            id: `${target.id}-d${i} (${d.score} ${d.simp})`,
+            simp: d.simp,
+            pinyin: '',
+            english: d.english,
+          }));
+          return {
+            word,
+            target,
+            options: shuffle([target, ...decoys]),
+            probe: Math.random() < 0.5 ? target : decoys[Math.floor(Math.random() * decoys.length)],
+          };
+        }),
+      ),
+    );
+  }
+  return words.map((word) => {
     const target = word.sentences[Math.floor(Math.random() * word.sentences.length)];
     const others = word.sentences.filter((s) => s !== target);
     return {
@@ -245,6 +464,7 @@ const makeTasks = (words: ProtoWord[]): Task[] =>
       probe: Math.random() < 0.5 ? target : others[Math.floor(Math.random() * others.length)],
     };
   });
+};
 
 interface LogEntry {
   variant: Variant;
