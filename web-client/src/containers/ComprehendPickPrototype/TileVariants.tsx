@@ -71,11 +71,12 @@ interface Tile {
   real: boolean;
 }
 
-const falseWords = (s: TileSentence) => [
-  ...s.targetDecoys,
-  ...s.swaps.map((x) => x.decoy),
-  ...s.fillers,
-];
+// A false tile never repeats a word of the reference or another false tile:
+// two tiles with one word would be one right and one wrong.
+const falseWords = (s: TileSentence) =>
+  [...s.targetDecoys, ...s.swaps.map((x) => x.decoy), ...s.fillers].filter(
+    (w, i, all) => !s.tokens.includes(w) && all.indexOf(w) === i,
+  );
 
 const Chip: React.FC<{
   tone: 'idle' | 'right' | 'wrong' | 'active' | 'missing';
