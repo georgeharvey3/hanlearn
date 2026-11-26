@@ -123,7 +123,7 @@ The Comprehend tab shows the English of each sentence with the English of 3 **di
 
 `node write-distractors.js` writes the file again. Run it after a change to the sentences, for example after `sentence-accept.js` or a new block in `sentences/blocked.json`. The script runs the sentence build in memory and embeds the English of each sentence with `Alibaba-NLP/gte-modernbert-base`, at a pinned revision (`embedder.js`). The first run downloads the model, about 600 MB. A run takes about 15 minutes on a laptop CPU. Run `npm install` in this directory first.
 
-A candidate has an English cosine to the sentence of 0.60 to 0.83. It is not a sentence of the same word, and no segment of it has a gloss word of the target segment. Its English and its toneless pinyin are not those of the sentence or of another option. The candidates rank by the Chinese content words that they share with the sentence, then by the cosine. If the band gives fewer than 3, the candidates with a cosine of 0.45 to 0.60 give the rest. The values are in `distractors.js`, and the rules are pure.
+A candidate has an English cosine to the sentence of 0.60 to 0.83. It is not a sentence of the same word, and no segment of it has a gloss word of the target segment. Its English is not the English of the sentence or of another option. Its toneless pinyin is not the toneless pinyin of the sentence. The candidates rank by the Chinese content words that they share with the sentence, then by the cosine. If the band gives fewer than 3, the candidates with a cosine of 0.45 to 0.60 give the rest. The values are in `distractors.js`, and the rules are pure.
 
 `sentences/blocked-distractors.json` blocks one pair of a sentence `id` and a `distractor`, with a `reason`. The script skips a blocked pair.
 

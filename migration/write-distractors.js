@@ -12,19 +12,21 @@
  *   npm --prefix migration install       (once, for the model library)
  *   node migration/write-distractors.js
  *
- * The first run downloads the model (about 600 MB). A run takes about 10
+ * The first run downloads the model (about 600 MB). A run takes about 15
  * minutes on a laptop CPU.
  */
 
 const fs = require('fs');
-const path = require('path');
-const { readCleanCedict, resolveHsk, sentenceInputs } = require('./build-dictionary');
+const {
+  readCleanCedict,
+  resolveHsk,
+  sentenceInputs,
+  DISTRACTORS_PATH,
+  BLOCKED_DISTRACTORS_PATH,
+} = require('./build-dictionary');
 const { buildExampleSentences } = require('./exampleSentences');
 const { chooseDistractors, formatDistractors, parseBlockedPairs } = require('./distractors');
 const { MODEL, createEmbedder } = require('./embedder');
-
-const DISTRACTORS_PATH = path.join(__dirname, 'sentences', 'distractors.json');
-const BLOCKED_DISTRACTORS_PATH = path.join(__dirname, 'sentences', 'blocked-distractors.json');
 
 /** A progress line that rewrites itself. */
 const progress = (label) => {

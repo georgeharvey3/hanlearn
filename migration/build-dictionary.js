@@ -795,4 +795,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { readCedict, readCleanCedict, emptiedReport, chengyuRowsOf, resolveHsk, sentenceInputs, GENERATED_PATH, BLOCKED_PATH, BLOCKED_DISTRACTORS_PATH };
+module.exports = { readCedict, readCleanCedict, emptiedReport, chengyuRowsOf, resolveHsk, sentenceInputs, GENERATED_PATH, BLOCKED_PATH, DISTRACTORS_PATH, BLOCKED_DISTRACTORS_PATH };
