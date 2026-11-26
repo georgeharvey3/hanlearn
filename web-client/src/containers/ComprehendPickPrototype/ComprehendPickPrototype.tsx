@@ -135,6 +135,85 @@ const WORDS: ProtoWord[] = [
   },
 ];
 
+// HSK 7-9 words, from public/sentences/ (6697, 9738, 7f62).
+const HARD_WORDS: ProtoWord[] = [
+  {
+    simp: '暗中',
+    pinyin: 'àn zhōng',
+    meaning: 'secretly; in the dark',
+    sentences: [
+      {
+        id: '9319cd8589',
+        simp: '他一直在暗中帮助我。',
+        pinyin: 'tā yī zhí zài àn zhōng bāng zhù wǒ',
+        english: 'He has been helping me secretly all along.',
+      },
+      {
+        id: 'a2934bf8a0',
+        simp: '警察在暗中调查这件事。',
+        pinyin: 'jǐng chá zài àn zhōng diào chá zhè jiàn shì',
+        english: 'The police are quietly investigating this matter.',
+      },
+      {
+        id: 'e3ffd7ad04',
+        simp: '这两个人一直在暗中较劲。',
+        pinyin: 'zhè liǎng gè rén yī zhí zài àn zhōng jiào jìn',
+        english: 'Those two have been secretly competing with each other all along.',
+      },
+    ],
+  },
+  {
+    simp: '霸占',
+    pinyin: 'bà zhàn',
+    meaning: 'to occupy by force; to hog',
+    sentences: [
+      {
+        id: '2148c25c84',
+        simp: '别霸占着电脑，我也要用。',
+        pinyin: 'bié bà zhàn zhe diàn nǎo wǒ yě yào yòng',
+        english: "Don't keep the computer to yourself; I need to use it too.",
+      },
+      {
+        id: '3dcf159f3f',
+        simp: '他一个人霸占了整张沙发。',
+        pinyin: 'tā yī gè rén bà zhàn le zhěng zhāng shā fā',
+        english: 'He hogged the whole sofa to himself.',
+      },
+      {
+        id: '0971f9118e',
+        simp: '那个地主霸占了农民的土地。',
+        pinyin: 'nà gè dì zhǔ bà zhàn le nóng mín de tǔ dì',
+        english: "That landlord seized the peasants' land.",
+      },
+    ],
+  },
+  {
+    simp: '罢免',
+    pinyin: 'bà miǎn',
+    meaning: 'to remove from office',
+    sentences: [
+      {
+        id: '58c2f7730e',
+        simp: '他因为贪污被罢免了。',
+        pinyin: 'tā yīn wèi tān wū bèi bà miǎn le',
+        english: 'He was removed from his post for corruption.',
+      },
+      {
+        id: '6f1d4ca521',
+        simp: '董事会决定罢免总经理。',
+        pinyin: 'dǒng shì huì jué dìng bà miǎn zǒng jīng lǐ',
+        english: 'The board decided to remove the general manager.',
+      },
+      {
+        id: '88bcf74583',
+        simp: '有人要求罢免这名官员。',
+        pinyin: 'yǒu rén yāo qiú bà miǎn zhè míng guān yuán',
+        english: 'Some people are demanding that this official be dismissed.',
+      },
+    ],
+  },
+];
+
 const now = () => Date.now();
 
 const shuffle = <T,>(items: T[]): T[] => {
@@ -155,8 +234,8 @@ interface Task {
   probe: Sentence;
 }
 
-const makeTasks = (): Task[] =>
-  WORDS.map((word) => {
+const makeTasks = (words: ProtoWord[]): Task[] =>
+  words.map((word) => {
     const target = word.sentences[Math.floor(Math.random() * word.sentences.length)];
     const others = word.sentences.filter((s) => s !== target);
     return {
@@ -470,23 +549,27 @@ const ComprehendPickPrototype: React.FC = () => {
   const raw = params.get('variant');
   const variant: Variant = raw === 'B' || raw === 'C' ? raw : 'A';
 
+  // `?set=easy` gives the HSK 1-2 words, the default the HSK 7-9 words.
+  const wordSet = params.get('set') === 'easy' ? WORDS : HARD_WORDS;
   const [useSound, setUseSound] = useState(true);
-  const [tasks, setTasks] = useState<Task[]>(makeTasks);
+  const [tasks, setTasks] = useState<Task[]>(() => makeTasks(wordSet));
   const [index, setIndex] = useState(0);
   const [log, setLog] = useState<LogEntry[]>([]);
 
   const restart = useCallback(() => {
     window.speechSynthesis?.cancel();
-    setTasks(makeTasks());
+    setTasks(makeTasks(wordSet));
     setIndex(0);
-  }, []);
+  }, [wordSet]);
 
   const setVariant = useCallback(
     (v: Variant) => {
-      history.replace({ search: `?variant=${v}` });
+      const next = new URLSearchParams(location.search);
+      next.set('variant', v);
+      history.replace({ search: `?${next.toString()}` });
       restart();
     },
-    [history, restart],
+    [history, location.search, restart],
   );
 
   const task = tasks[index];
