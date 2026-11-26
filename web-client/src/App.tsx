@@ -25,6 +25,10 @@ const SentencePractice = React.lazy(() => import('./containers/SentencePractice/
 const BreakdownPreview = import.meta.env.DEV
   ? React.lazy(() => import('./containers/BreakdownPreview/BreakdownPreview'))
   : null;
+// PROTOTYPE, throwaway: the pick-the-English grade of the Comprehend tab.
+const ComprehendPickPrototype = import.meta.env.DEV
+  ? React.lazy(() => import('./containers/ComprehendPickPrototype/ComprehendPickPrototype'))
+  : null;
 
 const mapDispatchToProps = {
   onTryAutoLogin: actions.authCheckState,
@@ -231,6 +235,9 @@ const App: React.FC<Props> = ({
                   </ErrorBoundary>
                 )}
               />
+              {ComprehendPickPrototype && (
+                <Route path="/dev/comprehend-pick" render={() => <ComprehendPickPrototype />} />
+              )}
               {BreakdownPreview && (
                 <Route path="/dev/breakdown" render={() => <BreakdownPreview />} />
               )}
