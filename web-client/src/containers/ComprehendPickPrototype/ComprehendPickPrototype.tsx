@@ -21,6 +21,8 @@ import { Box, ButtonBase } from '@mui/material';
 import StudyScreen, { StudyBody } from '../../components/Test/Study/StudyScreen';
 import { PillToggle, PlayButton, StudyButton, StudyCard } from '../../components/Test/Study/parts';
 import { colors, fonts } from '../../theme';
+import { TileLog, TileTask, TileVariant } from './TileVariants';
+import { TILE_SENTENCES } from './tileData';
 
 // Prototype copy. It stays here so the prototype is one file.
 const text = {
@@ -39,14 +41,18 @@ const text = {
   text: 'Text',
   done: 'Set done',
   state: 'State',
-  variantNames: { A: 'Pick at once', B: 'Think, then pick', C: 'Match or not' } as Record<
-    Variant,
-    string
-  >,
+  variantNames: {
+    A: 'Pick at once',
+    B: 'Think, then pick',
+    C: 'Match or not',
+    D: 'Build from tiles',
+    E: 'Choose each slot',
+  } as Record<Variant, string>,
 };
 
-type Variant = 'A' | 'B' | 'C';
-const VARIANTS: Variant[] = ['A', 'B', 'C'];
+type Variant = 'A' | 'B' | 'C' | 'D' | 'E';
+const VARIANTS: Variant[] = ['A', 'B', 'C', 'D', 'E'];
+const isTile = (v: Variant): v is TileVariant => v === 'D' || v === 'E';
 
 interface Sentence {
   id: string;
@@ -767,32 +773,34 @@ const ComprehendPickPrototype: React.FC = () => {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const raw = params.get('variant');
-  const variant: Variant = raw === 'B' || raw === 'C' ? raw : 'A';
+  const variant: Variant = VARIANTS.includes(raw as Variant) ? (raw as Variant) : 'A';
 
   // `?set=easy` gives the HSK 1-2 words, the default the HSK 7-9 words.
   const wordSet = params.get('set') === 'easy' ? WORDS : HARD_WORDS;
   const [useSound, setUseSound] = useState(true);
   const [tasks, setTasks] = useState<Task[]>(() => makeTasks(wordSet));
   const [index, setIndex] = useState(0);
-  const [log, setLog] = useState<LogEntry[]>([]);
+  const [log, setLog] = useState<(LogEntry | TileLog)[]>([]);
+  const [tileOrder, setTileOrder] = useState(() => shuffle(TILE_SENTENCES));
 
-  const restart = useCallback(() => {
+  const restart = () => {
     window.speechSynthesis?.cancel();
     setTasks(makeTasks(wordSet));
+    setTileOrder(shuffle(TILE_SENTENCES));
     setIndex(0);
-  }, [wordSet]);
+  };
 
-  const setVariant = useCallback(
-    (v: Variant) => {
-      const next = new URLSearchParams(location.search);
-      next.set('variant', v);
-      history.replace({ search: `?${next.toString()}` });
-      restart();
-    },
-    [history, location.search, restart],
-  );
+  const setVariant = (v: Variant) => {
+    const next = new URLSearchParams(location.search);
+    next.set('variant', v);
+    history.replace({ search: `?${next.toString()}` });
+    restart();
+  };
 
-  const task = tasks[index];
+  const tile = isTile(variant);
+  const total = tile ? tileOrder.length : tasks.length;
+  const tileSentence = tile ? tileOrder[index] : undefined;
+  const task = tile ? undefined : tasks[index];
   const key = useMemo(
     () => `${variant}-${useSound}-${index}-${task?.target.id}`,
     [variant, useSound, index, task],
@@ -818,11 +826,20 @@ const ComprehendPickPrototype: React.FC = () => {
           </PillToggle>
         </Box>
         <Box sx={{ fontSize: 14, color: colors.textSecondary }}>
-          {Math.min(index + 1, tasks.length)} / {tasks.length}
+          {Math.min(index + 1, total)} / {total}
         </Box>
       </Box>
 
-      {task ? (
+      {tileSentence && isTile(variant) ? (
+        <TileTask
+          key={`${variant}-${useSound}-${index}-${tileSentence.id}`}
+          variant={variant}
+          sentence={tileSentence}
+          useSound={useSound}
+          onLog={(entry) => setLog((prev) => [entry, ...prev])}
+          onNext={() => setIndex((i) => i + 1)}
+        />
+      ) : task ? (
         <TaskView
           key={key}
           variant={variant}
