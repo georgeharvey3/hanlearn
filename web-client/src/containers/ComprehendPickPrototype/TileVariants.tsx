@@ -71,7 +71,11 @@ interface Tile {
   real: boolean;
 }
 
-const falseWords = (s: TileSentence) => [...s.targetDecoys, ...s.swaps.map((x) => x.decoy)];
+const falseWords = (s: TileSentence) => [
+  ...s.targetDecoys,
+  ...s.swaps.map((x) => x.decoy),
+  ...s.fillers,
+];
 
 const Chip: React.FC<{
   tone: 'idle' | 'right' | 'wrong' | 'active' | 'missing';

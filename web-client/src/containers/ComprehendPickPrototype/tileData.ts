@@ -2,7 +2,8 @@
 // tokens: the reference English. target: the token that translates the word,
 // by gloss overlap, or null. targetDecoys: xlm-roberta-base fill-mask words
 // for the target slot, less co-glossed synonyms in CC-CEDICT. swaps: pronoun
-// person swaps (never he/she, which sound the same in Chinese).
+// person swaps (never he/she, which sound the same in Chinese). fillers: words of
+// the nearest corpus sentences, for variant D.
 export interface TileSentence {
   word: string;
   id: string;
@@ -13,6 +14,7 @@ export interface TileSentence {
   target: number | null;
   targetDecoys: string[];
   swaps: { index: number; decoy: string }[];
+  fillers: string[];
 }
 
 export const TILE_SENTENCES: TileSentence[] = [
@@ -35,6 +37,7 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'him',
       },
     ],
+    fillers: ['guilty', 'from', 'it', 'received', 'vouch', 'enter', 'suit', 'believe'],
   },
   {
     word: '暗中',
@@ -46,6 +49,7 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
+    fillers: ['involved', 'of', 'have', 'for', 'they', 'found', 'definitely', 'we'],
   },
   {
     word: '暗中',
@@ -69,6 +73,7 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 4,
     targetDecoys: ['really', 'constantly', 'totally'],
     swaps: [],
+    fillers: ['between', "other's", 'meet', 'way', 'while', 'depended', "today's", 'upset'],
   },
   {
     word: '霸占',
@@ -102,6 +107,7 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'he',
       },
     ],
+    fillers: ['shares', 'advantage', 'home', 'secret', 'how', 'anyone', 'know', 'shown'],
   },
   {
     word: '霸占',
@@ -118,6 +124,7 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'i',
       },
     ],
+    fillers: ['on', 'moved', 'have', 'in', 'behaved', 'is', 'got', 'burden'],
   },
   {
     word: '霸占',
@@ -129,6 +136,7 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 2,
     targetDecoys: ['bought', 'gets', 'sold'],
     swaps: [],
+    fillers: ['plundered', 'prices', 'at', 'peasants', 'wasteland', 'their', 'said', "neighbour's"],
   },
   {
     word: '罢免',
@@ -149,6 +157,7 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'my',
       },
     ],
+    fillers: ['chief', 'left', 'bureau', 'and', 'more', 'bribed', 'blight', 'replaced'],
   },
   {
     word: '罢免',
@@ -160,6 +169,7 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 4,
     targetDecoys: ['replace', 'change', 'retire'],
     swaps: [],
+    fillers: ['its', "manager's", 'power', 'resigned', 'taking', 'took', 'behind', 'assistant'],
   },
   {
     word: '罢免',
@@ -171,6 +181,7 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: 8,
     targetDecoys: ['changed', 'signed', 'released'],
     swaps: [],
+    fillers: ['to', 'of', 'unhappy', 'happy', 'prosecutors', 'hope', 'politician', 'remark'],
   },
   {
     word: '爱理不理',
@@ -191,6 +202,7 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'him',
       },
     ],
+    fillers: ['against', 'lately', 'and', 'treat', 'hands', 'today', 'at', 'she'],
   },
   {
     word: '爱理不理',
@@ -211,6 +223,7 @@ export const TILE_SENTENCES: TileSentence[] = [
         decoy: 'me',
       },
     ],
+    fillers: ['pay', 'press', 'aware', 'that', 'week', 'mentioned', 'talks', 'hurt'],
   },
   {
     word: '爱理不理',
@@ -222,5 +235,6 @@ export const TILE_SENTENCES: TileSentence[] = [
     target: null,
     targetDecoys: [],
     swaps: [],
+    fillers: ['was', 'dampen', 'of', 'enthusiasm', 'evil', 'they', 'seems', 'expects'],
   },
 ];
