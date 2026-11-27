@@ -40,6 +40,28 @@ interface SearchRequest {
 
 const searchCallable = () => httpsCallable<SearchRequest, Word[]>(functions, 'dictionarySearch');
 
+/** The number of searches kept in memory. */
+export const SEARCH_CACHE_SIZE = 50;
+
+// The answers of the recent searches, oldest first. The dictionary changes
+// only with a deploy, so an answer stays good for the life of the page. Back
+// from the word page finds its search here and draws it at once.
+const searchCache = new Map<string, Word[]>();
+
+const cacheKey = (query: string, charSet: CharSet, mode: SearchMode) =>
+  JSON.stringify([query, charSet, mode]);
+
+/** The kept answer of a search, or undefined when it is not kept. */
+export function cachedSearch(
+  query: string,
+  charSet: CharSet,
+  mode: SearchMode,
+): Word[] | undefined {
+  const parsed = searchInputSchema.safeParse(query);
+  if (!parsed.success) return undefined;
+  return searchCache.get(cacheKey(parsed.data, charSet, mode));
+}
+
 /**
  * The search of the Add Words screen: hanzi, pinyin or English, ranked on the
  * server, at most 30 entries. The search mode decides how a Latin query reads:
@@ -53,11 +75,20 @@ export async function searchDictionary(
   const parsed = searchInputSchema.safeParse(query);
   if (!parsed.success || parsed.data.length === 0) return [];
 
-  return traceAsync('dictionary_search', async () => {
+  const key = cacheKey(parsed.data, charSet, mode);
+  const kept = searchCache.get(key);
+  if (kept) return kept;
+
+  const found = await traceAsync('dictionary_search', async () => {
     const fn = searchCallable();
     const result = await retryTransient(() => fn({ query: parsed.data, charSet, mode }));
     return result.data;
   });
+  searchCache.set(key, found);
+  if (searchCache.size > SEARCH_CACHE_SIZE) {
+    searchCache.delete(searchCache.keys().next().value as string);
+  }
+  return found;
 }
 
 /**

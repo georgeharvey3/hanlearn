@@ -70,7 +70,7 @@ Actions in [web-client/src/store/actions/](web-client/src/store/actions/) use th
 #### Service Layer
 
 - [web-client/src/services/wordService.ts](web-client/src/services/wordService.ts) - All Firestore operations for word management
-- [web-client/src/services/dictionaryService.ts](web-client/src/services/dictionaryService.ts) - Dictionary search and lookups, through Cloud Functions callables
+- [web-client/src/services/dictionaryService.ts](web-client/src/services/dictionaryService.ts) - Dictionary search and lookups, through Cloud Functions callables. It keeps the last 50 searches in memory. Add Words keeps its query and its open row in the URL (`?q=…&open=…`). Back from the word page then draws the same search at once, at the same scroll position
 - [web-client/src/services/premadeListService.ts](web-client/src/services/premadeListService.ts) - Loads the catalogue of premade lists and the entries of one list from `/premade-lists/`; `wordService.addPremadeList` writes the import
 - [web-client/src/services/streakService.ts](web-client/src/services/streakService.ts) - Read/write `testCompletions` subcollection; calculates streak from completion dates
 - [web-client/src/services/dashboardService.ts](web-client/src/services/dashboardService.ts) - Aggregates the Dashboard's data: the session sizes, per-direction bank counts, the words due ahead and the `reviewStats` history. The counting rules are pure, in [web-client/src/utils/dashboard.ts](web-client/src/utils/dashboard.ts). It also gives the HSK coverage of the whole collection, from the HSK index of the premade lists; the rules are pure, in [web-client/src/utils/hskCoverage.ts](web-client/src/utils/hskCoverage.ts) (#271)
