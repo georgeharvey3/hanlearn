@@ -6,8 +6,11 @@
  *   and the GPL 3.0 text that the LGPL adds to
  * - stroke-counts.json: the stroke count of each character in the Hanzi
  *   Writer stroke data, the version that the app loads from the CDN
- * - stroke-ends.json: the first and last point of the median line of each
- *   stroke in the same data, for the shape check of the build
+ * - stroke-medians.json: the median line of each stroke in the same data,
+ *   simplified (strokeMedians.js). The breakdown build reads the first and the
+ *   last point of each stroke for its shape check (#528), and the template file
+ *   of the handwriting pad reads the whole line (#476)
+ * - hanzi-writer-ARPHICPL.txt: the licence of the Hanzi Writer data
  *
  * build-dictionary.js reads only these committed files, with no network.
  *
@@ -21,6 +24,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { simplifyMedian } = require('./strokeMedians');
 
 /** The Make Me a Hanzi commit of the committed files. */
 const MAKEMEAHANZI_COMMIT = 'bddc96d41bef78427ed0e034e9f7e31d71fd1b92';
@@ -62,13 +66,13 @@ async function main() {
     execFileSync('tar', ['-xzf', tarball, '-C', dir]);
     const packageDir = path.join(dir, 'package');
     const counts = {};
-    const ends = {};
+    const medians = {};
     for (const file of fs.readdirSync(packageDir).sort()) {
       if (!file.endsWith('.json') || file === 'package.json') continue;
       const data = JSON.parse(fs.readFileSync(path.join(packageDir, file), 'utf8'));
       const char = file.slice(0, -'.json'.length);
       counts[char] = data.strokes.length;
-      ends[char] = data.medians.map((median) => [...median[0], ...median[median.length - 1]]);
+      medians[char] = data.medians.map((median) => simplifyMedian(median));
     }
     const out = path.join(SOURCE_DIR, 'stroke-counts.json');
     fs.writeFileSync(
@@ -80,12 +84,16 @@ async function main() {
       }) + '\n',
     );
     console.log(`Wrote ${Object.keys(counts).length} stroke counts to: ${out}`);
-    const endsOut = path.join(SOURCE_DIR, 'stroke-ends.json');
+    const mediansOut = path.join(SOURCE_DIR, 'stroke-medians.json');
     fs.writeFileSync(
-      endsOut,
-      JSON.stringify({ source: `hanzi-writer-data@${HANZI_WRITER_DATA}`, ends }) + '\n',
+      mediansOut,
+      JSON.stringify({ source: `hanzi-writer-data@${HANZI_WRITER_DATA}`, medians }) + '\n',
     );
-    console.log(`Wrote the stroke ends of ${Object.keys(ends).length} characters to: ${endsOut}`);
+    console.log(`Wrote the stroke medians of ${Object.keys(medians).length} characters to: ${mediansOut}`);
+    fs.copyFileSync(
+      path.join(packageDir, 'ARPHICPL.TXT'),
+      path.join(SOURCE_DIR, 'hanzi-writer-ARPHICPL.txt'),
+    );
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

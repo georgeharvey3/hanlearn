@@ -14,6 +14,7 @@ import {
   strokeOrder,
   wiktionaryComposition,
 } from './componentBreakdown';
+import { endsOf } from './strokeMedians';
 
 const COMPONENTS = path.join(__dirname, 'components');
 const SOURCE = path.join(COMPONENTS, 'source');
@@ -22,7 +23,9 @@ const readJson = (...parts) => JSON.parse(fs.readFileSync(path.join(...parts), '
 /** The committed sources of the build. */
 const entries = parseMakeMeAHanzi(fs.readFileSync(path.join(SOURCE, 'dictionary.txt'), 'utf8'));
 const strokeCounts = readJson(SOURCE, 'stroke-counts.json').counts;
-const strokeEnds = readJson(SOURCE, 'stroke-ends.json').ends;
+const strokeEnds = Object.fromEntries(
+  Object.entries(readJson(SOURCE, 'stroke-medians.json').medians).map(([char, medians]) => [char, endsOf(medians)]),
+);
 const animcjk = readJson(SOURCE, 'animcjk.json');
 const definitions = readJson(COMPONENTS, 'definitions.json').definitions;
 const committedLabels = readJson(COMPONENTS, 'labels.json');

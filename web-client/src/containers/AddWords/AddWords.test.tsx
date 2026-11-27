@@ -17,6 +17,10 @@ vi.mock('../../services/ttsService', () => ({
   prefetch: vi.fn(),
   stopAll: vi.fn(),
 }));
+vi.mock('../../services/handwritingService', () => ({
+  loadTemplates: vi.fn().mockResolvedValue([]),
+  candidatesFor: vi.fn(),
+}));
 vi.mock('../../services/streakService', () => ({
   recordTestCompletion: vi.fn(),
   getStreakData: vi.fn().mockResolvedValue([]),
@@ -24,13 +28,14 @@ vi.mock('../../services/streakService', () => ({
 }));
 
 import React from 'react';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import AddWords from './AddWords';
 import { renderWithProviders, authenticatedState, createTestStore } from '../../test/utils';
 import * as wordService from '../../services/wordService';
 import * as ttsService from '../../services/ttsService';
+import * as handwritingService from '../../services/handwritingService';
 import { Word, WordList } from '../../types/models';
 import { ListStats } from '../../types/store';
 import { makeDirections } from '../../utils/directions';
@@ -616,5 +621,120 @@ describe('AddWords — the pinned rows', () => {
     expect(
       stickyGroup(screen.getByRole('textbox', { name: 'Search a Chinese word' })),
     ).not.toBeNull();
+  });
+});
+
+describe('AddWords — the handwriting pad', () => {
+  const candidatesFor = vi.mocked(handwritingService.candidatesFor);
+
+  beforeEach(() => {
+    candidatesFor.mockResolvedValue(['生', '字']);
+  });
+
+  const field = () => screen.getByRole('textbox', { name: 'Search a Chinese word' });
+
+  /** Open the pad and wait for its templates. */
+  const openPad = async () => {
+    await userEvent.click(screen.getByRole('button', { name: 'Draw a character' }));
+    await waitFor(() => expect(screen.queryByLabelText('Loading…')).not.toBeInTheDocument());
+  };
+
+  /** One stroke on the pad, from the top left to the bottom right. */
+  const stroke = () => {
+    const canvas = screen.getByTestId('handwriting-canvas');
+    fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 50, clientY: 50 });
+    fireEvent.pointerUp(canvas, { pointerId: 1, clientX: 90, clientY: 90 });
+  };
+
+  const strip = () => screen.getByRole('list', { name: 'Candidates' });
+
+  it('opens in Chinese mode, and gives back the English mode when it closes', async () => {
+    localStorage.setItem('searchMode', 'english');
+    renderBank([farWord]);
+    await screen.findByText('附近');
+
+    await openPad();
+    expect(screen.getByRole('button', { name: 'Chinese' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('group', { name: 'Handwriting pad' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Draw a character' }));
+    expect(screen.queryByRole('group', { name: 'Handwriting pad' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('offers candidates after a stroke, and puts nothing in the field by itself', async () => {
+    renderBank([farWord]);
+    await screen.findByText('附近');
+    await openPad();
+
+    stroke();
+    expect(await within(strip()).findByRole('button', { name: '生' })).toBeInTheDocument();
+    expect(candidatesFor).toHaveBeenLastCalledWith([expect.any(Array)]);
+    expect(field()).toHaveValue('');
+  });
+
+  it('appends a tapped candidate to the field, searches at once, and clears the pad', async () => {
+    renderBank([farWord]);
+    await screen.findByText('附近');
+    await searchFor('学');
+    await openPad();
+
+    stroke();
+    await userEvent.click(await within(strip()).findByRole('button', { name: '生' }));
+    expect(field()).toHaveValue('学生');
+    expect(mockedWordService.searchWord).toHaveBeenLastCalledWith('学生', 'trad', 'chinese');
+    expect(within(strip()).queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear strokes' })).toBeDisabled();
+  });
+
+  it('takes away the last stroke on backspace, then the last character of the field', async () => {
+    renderBank([farWord]);
+    await screen.findByText('附近');
+    await searchFor('学生');
+    await openPad();
+
+    stroke();
+    stroke();
+    await waitFor(() =>
+      expect(candidatesFor).toHaveBeenLastCalledWith([expect.any(Array), expect.any(Array)]),
+    );
+
+    const backspace = screen.getByRole('button', { name: 'Backspace' });
+    await userEvent.click(backspace);
+    expect(candidatesFor).toHaveBeenLastCalledWith([expect.any(Array)]);
+    await userEvent.click(backspace);
+    expect(within(strip()).queryByRole('button')).not.toBeInTheDocument();
+    expect(field()).toHaveValue('学生');
+
+    await userEvent.click(backspace);
+    expect(field()).toHaveValue('学');
+    expect(mockedWordService.searchWord).toHaveBeenLastCalledWith('学', 'trad', 'chinese');
+  });
+
+  it('empties the pad on clear, and leaves the field as it was', async () => {
+    renderBank([farWord]);
+    await screen.findByText('附近');
+    await searchFor('学');
+    await openPad();
+
+    stroke();
+    await within(strip()).findByRole('button', { name: '生' });
+    await userEvent.click(screen.getByRole('button', { name: 'Clear strokes' }));
+    expect(within(strip()).queryByRole('button')).not.toBeInTheDocument();
+    expect(field()).toHaveValue('学');
+
+    // The pad is empty, so the next backspace takes a character.
+    await userEvent.click(screen.getByRole('button', { name: 'Backspace' }));
+    expect(field()).toHaveValue('');
+  });
+
+  it('closes on the keyboard button', async () => {
+    renderBank([farWord]);
+    await screen.findByText('附近');
+    await openPad();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Keyboard' }));
+    expect(screen.queryByRole('group', { name: 'Handwriting pad' })).not.toBeInTheDocument();
   });
 });

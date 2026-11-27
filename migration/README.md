@@ -146,7 +146,7 @@ The committed sources are in `components/`:
 - `components/source/animcjk.json`: the "acjk" text of each character of AnimCJK, at one pinned commit. The four sets are simplified Chinese (`hans`), traditional Chinese (`hant`), Japanese (`ja`) and Korean (`ko`). `animcjk-COPYING.txt` is the AnimCJK notice. The dictionary files of AnimCJK are LGPL 3.0 or later.
 - `components/source/dictionary.txt`, `COPYING` and `LGPL`: Make Me a Hanzi at one pinned commit. `dictionary.txt` is LGPL 3.0 or later.
 - `components/source/GPL`: the GPL 3.0 text, which the LGPL adds to.
-- `components/source/stroke-counts.json` and `stroke-ends.json`: the stroke count of each character in `hanzi-writer-data@2.0.1`, and the first and last point of each stroke. The app draws this stroke data.
+- `components/source/stroke-counts.json` and `stroke-medians.json`: the stroke count of each character in `hanzi-writer-data@2.0.1`, and the median line of each stroke. The app draws this stroke data. The median lines are simplified with a tolerance of 16 units of the 1024 box, and the first and last point of each stroke stay exact ([strokeMedians.js](strokeMedians.js)). `hanzi-writer-ARPHICPL.txt` is the licence of this data.
 - `components/source/wiktionary.json`: the Wiktionary composition of each character entry, from the Translingual dictionary of Wiktextract on kaikki.org. The file gives the date of the Wiktionary dump. `wiktionary-NOTICE.txt` gives the credit. The text is CC BY-SA 4.0. The build uses it only for the comparison below.
 - `components/definitions.json`: the definitions file. It holds the acjk text of each form that the two sources do not have.
 - `components/labels.json`: the labels file.
@@ -193,7 +193,7 @@ A part looks for a definition in this order: the parts that its parent gives it 
 
 ### Stroke order
 
-A top character can draw a part in another stroke order than the part alone. 里 draws the 田 at its top as 丨 𠃍 一 一 丨, and 田 alone is 丨 𠃍 一 丨 一. The build reads the direction of each stroke from `stroke-ends.json`. Four names give a direction: 一 runs across, 丨 and 亅 run down, and 丿 runs down to the left.
+A top character can draw a part in another stroke order than the part alone. 里 draws the 田 at its top as 丨 𠃍 一 一 丨, and 田 alone is 丨 𠃍 一 丨 一. The build reads the direction of each stroke from the first and last point of each line of `stroke-medians.json`. Four names give a direction: 一 runs across, 丨 and 亅 run down, and 丿 runs down to the left.
 
 Two strokes change places only on a proof that both are in the wrong place. Neither stroke fits its own name, and each stroke fits the name of the other. The nearest pairs go first. A pair inside one part of the definition does not change places at that level, because that part pairs its own strokes later.
 
@@ -284,6 +284,12 @@ The build prints these lists for a person to review:
 - The number of AnimCJK texts in use with another operand count.
 
 `node migration/review-breakdowns.js <characters> [output file]` writes a page that draws the breakdown of the characters. Each picture shows one part that splits, with its own parts in colors. The page reads the breakdown files of the last build, and the browser downloads the stroke outlines from the CDN.
+
+## Handwriting Template Build
+
+`build:dict` writes `web-client/public/handwriting/templates.json`, the template file of the handwriting pad of Add Words (#476). The source is `components/source/stroke-medians.json`. The file holds each character that has a CC-CEDICT entry of its own, simplified and traditional, and the best HSK rank `q` of those entries. The points are bytes in a box of 256, with y down. `ATTRIBUTION.txt` and `LICENSE.txt` (the Arphic Public License) go beside the file.
+
+The matcher of the app is our own code, in `web-client/src/utils/handwriting.ts`. HanziLookupJS is GPL v3, so the app does not use it.
 
 ## Reported Part Meanings
 
