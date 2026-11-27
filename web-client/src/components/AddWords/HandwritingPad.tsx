@@ -8,7 +8,7 @@ import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
 import { candidatesFor, loadTemplates } from '../../services/handwritingService';
 import { Point, Stroke } from '../../utils/handwriting';
-import { CANVAS_HEIGHT, STRIP_HEIGHT } from './padSize';
+import { CANVAS_SIDE, STRIP_HEIGHT, TOOLS_WIDTH } from './padSize';
 
 /** The width of the line that the learner draws, in pixels. */
 const INK_WIDTH = 6;
@@ -173,148 +173,158 @@ const HandwritingPad: React.FC<Props> = ({ onCandidate, onDeleteChar, onKeyboard
       aria-label={copy.wordBank.pad.name}
       // A tap on the pad never takes the focus from the field.
       onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
-      sx={{
-        bgcolor: colors.card,
-        border: `1px solid ${colors.borderStrong}`,
-        borderRadius: 1,
-        overflow: 'hidden',
-        ...(docked
+      sx={
+        docked
           ? {}
           : {
+              // On a phone, a bar across the foot of the screen, over the tab
+              // bar (1100), as a keyboard is. The pad sits at its centre.
               position: 'fixed',
               left: 0,
               right: 0,
               bottom: 0,
-              // Over the tab bar (1100), as a keyboard is.
               zIndex: 1200,
-              borderRadius: 0,
-              borderLeft: 0,
-              borderRight: 0,
-              borderBottom: 0,
+              display: 'flex',
+              justifyContent: 'center',
+              bgcolor: colors.paper,
+              borderTop: `1px solid ${colors.borderStrong}`,
               pb: 'env(safe-area-inset-bottom)',
-            }),
-      }}
+            }
+      }
     >
       <Box
-        role="list"
-        aria-label={copy.wordBank.pad.candidates}
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          height: STRIP_HEIGHT,
-          px: 0.5,
-          gap: 0.25,
-          borderBottom: `1px solid ${colors.divider}`,
-          overflowX: 'auto',
+          // As wide as the drawing box and its buttons, no wider.
+          width: `calc(${CANVAS_SIDE} + ${TOOLS_WIDTH + 2}px)`,
+          bgcolor: colors.card,
+          border: `1px solid ${colors.borderStrong}`,
+          borderRadius: docked ? 1 : 0,
+          borderTop: docked ? undefined : 0,
+          borderBottom: docked ? undefined : 0,
+          overflow: 'hidden',
         }}
       >
-        {status === 'loading' && (
-          <CircularProgress
-            size={20}
-            thickness={5}
-            aria-label={copy.wordBank.pad.loading}
-            sx={{ color: colors.primaryDark, mx: 1.5 }}
-          />
-        )}
-        {status === 'failed' && (
-          <>
-            <Box
-              component="span"
-              sx={{ px: 1.5, fontFamily: fonts.body, fontSize: 15, color: colors.textSecondary }}
-            >
-              {copy.wordBank.pad.failed}
-            </Box>
-            <Button onClick={retry} sx={{ textTransform: 'none', fontFamily: fonts.body }}>
-              {copy.wordBank.retry}
-            </Button>
-          </>
-        )}
-        {status === 'ready' &&
-          candidates.map((char) => (
-            <Box role="listitem" key={char} sx={{ flex: 'none' }}>
-              <Button
-                lang="zh"
-                onClick={() => pick(char)}
-                sx={{
-                  minWidth: 44,
-                  height: 44,
-                  px: 0.5,
-                  fontSize: 26,
-                  lineHeight: 1,
-                  color: colors.text,
-                  borderRadius: 1,
-                }}
-              >
-                {char}
-              </Button>
-            </Box>
-          ))}
-      </Box>
-      <Box sx={{ display: 'flex' }}>
-        <Box sx={{ position: 'relative', flex: 1, minWidth: 0, height: CANVAS_HEIGHT }}>
-          {/* The guides of the box: a cross through the middle. */}
-          <Box
-            aria-hidden="true"
-            sx={{
-              position: 'absolute',
-              left: '50%',
-              top: 0,
-              bottom: 0,
-              borderLeft: `1px dashed ${colors.gridLine}`,
-            }}
-          />
-          <Box
-            aria-hidden="true"
-            sx={{
-              position: 'absolute',
-              top: '50%',
-              left: 0,
-              right: 0,
-              borderTop: `1px dashed ${colors.gridLine}`,
-            }}
-          />
-          <canvas
-            ref={canvasRef}
-            data-testid="handwriting-canvas"
-            aria-hidden="true"
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerCancel}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              touchAction: 'none',
-              cursor: 'crosshair',
-            }}
-          />
-        </Box>
         <Box
+          role="list"
+          aria-label={copy.wordBank.pad.candidates}
           sx={{
             display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-around',
             alignItems: 'center',
-            width: 56,
-            borderLeft: `1px solid ${colors.divider}`,
+            height: STRIP_HEIGHT,
+            px: 0.5,
+            gap: 0.25,
+            borderBottom: `1px solid ${colors.divider}`,
+            overflowX: 'auto',
           }}
         >
-          <IconButton onClick={backspace} aria-label={copy.wordBank.pad.backspace} sx={toolSx}>
-            <BackspaceRoundedIcon />
-          </IconButton>
-          <IconButton
-            onClick={() => setAndAsk([])}
-            disabled={strokes.length === 0}
-            aria-label={copy.wordBank.pad.clear}
-            sx={toolSx}
+          {status === 'loading' && (
+            <CircularProgress
+              size={20}
+              thickness={5}
+              aria-label={copy.wordBank.pad.loading}
+              sx={{ color: colors.primaryDark, mx: 1.5 }}
+            />
+          )}
+          {status === 'failed' && (
+            <>
+              <Box
+                component="span"
+                sx={{ px: 1.5, fontFamily: fonts.body, fontSize: 15, color: colors.textSecondary }}
+              >
+                {copy.wordBank.pad.failed}
+              </Box>
+              <Button onClick={retry} sx={{ textTransform: 'none', fontFamily: fonts.body }}>
+                {copy.wordBank.retry}
+              </Button>
+            </>
+          )}
+          {status === 'ready' &&
+            candidates.map((char) => (
+              <Box role="listitem" key={char} sx={{ flex: 'none' }}>
+                <Button
+                  lang="zh"
+                  onClick={() => pick(char)}
+                  sx={{
+                    minWidth: 44,
+                    height: 44,
+                    px: 0.5,
+                    fontSize: 26,
+                    lineHeight: 1,
+                    color: colors.text,
+                    borderRadius: 1,
+                  }}
+                >
+                  {char}
+                </Button>
+              </Box>
+            ))}
+        </Box>
+        <Box sx={{ display: 'flex' }}>
+          <Box sx={{ position: 'relative', width: CANVAS_SIDE, height: CANVAS_SIDE, flex: 'none' }}>
+            {/* The guides of the box: a cross through the middle. */}
+            <Box
+              aria-hidden="true"
+              sx={{
+                position: 'absolute',
+                left: '50%',
+                top: 0,
+                bottom: 0,
+                borderLeft: `1px dashed ${colors.gridLine}`,
+              }}
+            />
+            <Box
+              aria-hidden="true"
+              sx={{
+                position: 'absolute',
+                top: '50%',
+                left: 0,
+                right: 0,
+                borderTop: `1px dashed ${colors.gridLine}`,
+              }}
+            />
+            <canvas
+              ref={canvasRef}
+              data-testid="handwriting-canvas"
+              aria-hidden="true"
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerCancel}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                touchAction: 'none',
+                cursor: 'crosshair',
+              }}
+            />
+          </Box>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-around',
+              alignItems: 'center',
+              width: TOOLS_WIDTH,
+              borderLeft: `1px solid ${colors.divider}`,
+            }}
           >
-            <ClearAllRoundedIcon />
-          </IconButton>
-          <IconButton onClick={onKeyboard} aria-label={copy.wordBank.pad.keyboard} sx={toolSx}>
-            <KeyboardRoundedIcon />
-          </IconButton>
+            <IconButton onClick={backspace} aria-label={copy.wordBank.pad.backspace} sx={toolSx}>
+              <BackspaceRoundedIcon />
+            </IconButton>
+            <IconButton
+              onClick={() => setAndAsk([])}
+              disabled={strokes.length === 0}
+              aria-label={copy.wordBank.pad.clear}
+              sx={toolSx}
+            >
+              <ClearAllRoundedIcon />
+            </IconButton>
+            <IconButton onClick={onKeyboard} aria-label={copy.wordBank.pad.keyboard} sx={toolSx}>
+              <KeyboardRoundedIcon />
+            </IconButton>
+          </Box>
         </Box>
       </Box>
     </Box>

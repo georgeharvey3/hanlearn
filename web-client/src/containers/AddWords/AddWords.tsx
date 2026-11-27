@@ -623,7 +623,7 @@ const AddWords: React.FC<Props> = ({
           {/* Room at the foot of the page, so the pad covers no word. */}
           <Box
             aria-hidden="true"
-            sx={{ height: `calc(${PAD_HEIGHT}px + env(safe-area-inset-bottom))` }}
+            sx={{ height: `calc(${PAD_HEIGHT} + env(safe-area-inset-bottom))` }}
           />
           {pad}
         </>
