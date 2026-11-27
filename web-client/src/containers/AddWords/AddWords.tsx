@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
-import { Redirect, useHistory } from 'react-router-dom';
+import { Redirect, useHistory, useLocation } from 'react-router-dom';
 import {
   Box,
   ButtonBase,
@@ -44,6 +44,8 @@ import {
 import { premadePath } from '../../components/Navigation/navLinks';
 import { ALL_LISTS_ID, DEFAULT_LIST_ID } from '../../utils/activeList';
 import { searchKind } from '../../utils/searchQuery';
+import { addWordsSearch, readAddWordsView } from '../../utils/addWordsUrl';
+import { useRestoredScroll } from './useRestoredScroll';
 import { getSearchMode, SearchMode, setSearchMode } from '../../utils/searchMode';
 import {
   customWordMeaningSchema,
@@ -109,6 +111,7 @@ const AddWords: React.FC<Props> = ({
   onDeleteList,
 }) => {
   const history = useHistory();
+  const location = useLocation();
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up('sm'), { noSsr: true });
   const stickyTop = useStickyTop();
@@ -121,10 +124,22 @@ const AddWords: React.FC<Props> = ({
   // query again at once in the new mode.
   const modeRef = useRef(mode);
 
-  const [query, setQueryText] = useState('');
-  const [status, setStatus] = useState<SearchStatus>('idle');
-  const [results, setResults] = useState<Word[]>([]);
-  const [openId, setOpenId] = useState<number | null>(null);
+  // The search and the open row live in the URL too, so back from the word
+  // page gives them back. A kept answer draws the results on the first render,
+  // so the scroll position can come back at once.
+  const [initial] = useState(() => {
+    const view = readAddWordsView(location.search);
+    const kept = searchKind(view.query)
+      ? wordService.cachedSearchWord(view.query, charSet, mode)
+      : undefined;
+    return { ...view, kept };
+  });
+  const [query, setQueryText] = useState(initial.query);
+  const [status, setStatus] = useState<SearchStatus>(
+    !searchKind(initial.query) ? 'idle' : initial.kept ? 'done' : 'searching',
+  );
+  const [results, setResults] = useState<Word[]>(initial.kept ?? []);
+  const [openId, setOpenId] = useState<number | null>(initial.open);
   // The kind of dialog stays set while it closes, so its title and fields do
   // not change during the exit transition.
   const [dialogKind, setDialogKind] = useState<DialogKind>('new');
@@ -179,6 +194,19 @@ const AddWords: React.FC<Props> = ({
     },
     [charSet],
   );
+
+  // A search from the URL that is not kept asks the dictionary again. The
+  // effect syncs with the dictionary, an outside system, on mount only.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (searchKind(initial.query) && !initial.kept) runSearch(initial.query);
+  }, [initial, runSearch]);
+
+  const search = addWordsSearch({ query, open: openId });
+  useEffect(() => {
+    if (history.location.search === search) return;
+    history.replace({ pathname: history.location.pathname, search, state: history.location.state });
+  }, [history, search]);
 
   const setQuery = useCallback(
     (text: string) => {
@@ -269,11 +297,18 @@ const AddWords: React.FC<Props> = ({
     return [{ id: ALL_LISTS_ID, name: copy.wordBank.allLists, count: all }, ...own];
   }, [lists, listStats, activeListId, words.length, loading, totalWords]);
 
+  const searching = query.trim().length > 0;
+  // Each visit loads the words again, and the list shows grey rows while it
+  // loads. The scroll position comes back after that load, not before it.
+  const [loadSeen, setLoadSeen] = useState(loading);
+  if (loading && !loadSeen) setLoadSeen(true);
+  const listReady = loadSeen && !loading;
+  useRestoredScroll(search, searching ? status !== 'searching' : listReady);
+
   // Wait for auth to initialize before redirecting.
   if (!authInitialized) return <Spinner />;
   if (userId === null) return <Redirect to="/" />;
 
-  const searching = query.trim().length > 0;
   const kind = searchKind(query);
   // A Latin search with no entry says No match; the own-word form is for hanzi.
   const noEntry = status === 'done' && results.length === 0;

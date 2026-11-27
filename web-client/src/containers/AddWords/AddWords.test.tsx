@@ -24,7 +24,10 @@ vi.mock('../../services/streakService', () => ({
 }));
 
 import React from 'react';
-import { screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import { Provider } from 'react-redux';
+import { Route, Router, Switch } from 'react-router-dom';
+import { createMemoryHistory, MemoryHistory } from 'history';
 import userEvent from '@testing-library/user-event';
 
 import AddWords from './AddWords';
@@ -34,6 +37,7 @@ import * as ttsService from '../../services/ttsService';
 import { Word, WordList } from '../../types/models';
 import { ListStats } from '../../types/store';
 import { makeDirections } from '../../utils/directions';
+import { resetScrollPositions } from './useRestoredScroll';
 
 const mockedWordService = vi.mocked(wordService);
 
@@ -95,6 +99,9 @@ const searchFor = async (text: string) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // The page keeps its search in the URL, so each test starts at a clean one.
+  window.history.replaceState(null, '', '/');
+  resetScrollPositions();
   localStorage.removeItem('searchMode');
   mockedWordService.getUserWordLists.mockResolvedValue(LISTS);
   mockedWordService.searchWord.mockResolvedValue([]);
@@ -616,5 +623,124 @@ describe('AddWords — the pinned rows', () => {
     expect(
       stickyGroup(screen.getByRole('textbox', { name: 'Search a Chinese word' })),
     ).not.toBeNull();
+  });
+});
+
+describe('AddWords — back from the word page', () => {
+  const xue = word('学', 'xué', 'to study', 1, 30);
+  const xuexi = word('学习', 'xué xí', 'to learn', 1, 30);
+
+  /** The bank and a stub word page, on a memory history that test can step back on. */
+  function renderWithHistory(words: Word[], path = '/add-words') {
+    mockedWordService.getUserWords.mockResolvedValue(words);
+    mockedWordService.getListStats.mockResolvedValue({
+      default: { due: 0, total: words.length },
+      __all__: { due: 0, total: words.length },
+    });
+    const store = createTestStore({ ...authenticatedState() });
+    const history: MemoryHistory = createMemoryHistory({ initialEntries: [path] });
+    render(
+      <Provider store={store}>
+        <Router history={history}>
+          <Switch>
+            <Route path="/word/:id">
+              <p>Word page</p>
+            </Route>
+            <Route path="/add-words">
+              <AddWords />
+            </Route>
+          </Switch>
+        </Router>
+      </Provider>,
+    );
+    return history;
+  }
+
+  it('keeps the search in the URL as the learner types', async () => {
+    const history = renderWithHistory([farWord]);
+    await screen.findByText('附近');
+    mockedWordService.searchWord.mockResolvedValue([xue]);
+
+    await searchFor('xue');
+    await waitFor(() => expect(history.location.search).toBe('?q=xue'));
+    // Typing replaces the entry, so back does not step through each letter.
+    expect(history.length).toBe(1);
+  });
+
+  it('gives back the query and the results, from memory', async () => {
+    const history = renderWithHistory([farWord]);
+    await screen.findByText('附近');
+    mockedWordService.searchWord.mockResolvedValue([xue, xuexi]);
+
+    await searchFor('xue');
+    await userEvent.click(await screen.findByText('to learn'));
+    expect(await screen.findByText('Word page')).toBeInTheDocument();
+
+    mockedWordService.cachedSearchWord.mockReturnValue([xue, xuexi]);
+    mockedWordService.searchWord.mockClear();
+    history.goBack();
+
+    expect(await screen.findByRole('textbox', { name: 'Search a Chinese word' })).toHaveValue(
+      'xue',
+    );
+    expect(screen.getByText('to learn')).toBeInTheDocument();
+    expect(screen.getByText('to study')).toBeInTheDocument();
+    expect(mockedWordService.searchWord).not.toHaveBeenCalled();
+  });
+
+  it('searches again when the answer is not kept', async () => {
+    mockedWordService.cachedSearchWord.mockReturnValue(undefined);
+    mockedWordService.searchWord.mockResolvedValue([xuexi]);
+    renderWithHistory([farWord], '/add-words?q=xue');
+
+    expect(await screen.findByText('to learn')).toBeInTheDocument();
+    expect(mockedWordService.searchWord).toHaveBeenCalledWith('xue', 'trad', 'chinese');
+  });
+
+  it('gives back the open word row', async () => {
+    const history = renderWithHistory([farWord, xuexi]);
+    await userEvent.click(await screen.findByText('附近'));
+    await waitFor(() => expect(history.location.search).toBe(`?open=${farWord.id}`));
+
+    history.push(`/word/${farWord.id}`);
+    expect(await screen.findByText('Word page')).toBeInTheDocument();
+    history.goBack();
+
+    const row = await screen.findByRole('button', { name: /附近/, expanded: true });
+    expect(row).toBeInTheDocument();
+  });
+
+  it('gives back the scroll position once the list is drawn', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    const history = renderWithHistory([farWord, xuexi]);
+    await screen.findByText('附近');
+
+    Object.defineProperty(window, 'scrollY', { value: 640, configurable: true });
+    window.dispatchEvent(new Event('scroll'));
+    history.push(`/word/${farWord.id}`);
+    Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+    window.dispatchEvent(new Event('scroll'));
+    await screen.findByText('Word page');
+
+    history.goBack();
+    await screen.findByText('附近');
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledWith(0, 640));
+    scrollTo.mockRestore();
+  });
+
+  it('starts clean when the learner comes from the nav', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    const history = renderWithHistory([farWord]);
+    await screen.findByText('附近');
+    mockedWordService.searchWord.mockResolvedValue([xue]);
+    await searchFor('xue');
+
+    history.push(`/word/${xue.id}`);
+    await screen.findByText('Word page');
+    history.push('/add-words');
+
+    expect(await screen.findByRole('textbox', { name: 'Search a Chinese word' })).toHaveValue('');
+    expect(scrollTo).not.toHaveBeenCalled();
+    scrollTo.mockRestore();
   });
 });

@@ -42,6 +42,7 @@ import {
   nextMemory,
 } from '../utils/scheduling';
 import {
+  cachedSearch,
   searchDictionary,
   lookupCharacter,
   lookupCharacterByTrad,
@@ -678,6 +679,13 @@ export const searchWord = async (
 ): Promise<Word[]> => {
   return searchDictionary(query, charSet, mode);
 };
+
+/** The kept answer of an Add Words search, or undefined when it is not kept. */
+export const cachedSearchWord = (
+  query: string,
+  charSet: CharSet,
+  mode: SearchMode,
+): Word[] | undefined => cachedSearch(query, charSet, mode);
 
 /** Warm the English search of a function instance, without waiting for it. */
 export const warmEnglishSearch = (): void => warmEnglishSearchCall();

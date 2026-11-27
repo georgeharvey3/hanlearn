@@ -86,6 +86,45 @@ describe('dictionaryService', () => {
       expect(await mod.searchDictionary('   ', 'simp', 'english')).toEqual([]);
       expect(mockCallable).not.toHaveBeenCalled();
     });
+
+    it('answers a repeated search from memory', async () => {
+      mockCallable.mockResolvedValue({ data: [SAMPLE_ENTRIES[1]] });
+      await mod.searchDictionary('xuexi', 'simp', 'chinese');
+      const again = await mod.searchDictionary(' xuexi ', 'simp', 'chinese');
+      expect(again).toEqual([SAMPLE_ENTRIES[1]]);
+      expect(mockCallable).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps a search apart for each search mode and character set', async () => {
+      mockCallable.mockResolvedValue({ data: [] });
+      await mod.searchDictionary('study', 'simp', 'chinese');
+      await mod.searchDictionary('study', 'simp', 'english');
+      await mod.searchDictionary('study', 'trad', 'english');
+      expect(mockCallable).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not keep a failed search', async () => {
+      mockCallable.mockRejectedValueOnce(new Error('internal'));
+      await expect(mod.searchDictionary('xuexi', 'simp', 'chinese')).rejects.toThrow();
+      mockCallable.mockResolvedValue({ data: [SAMPLE_ENTRIES[1]] });
+      expect(await mod.searchDictionary('xuexi', 'simp', 'chinese')).toEqual([SAMPLE_ENTRIES[1]]);
+    });
+
+    it('gives a kept search at once, and nothing for a search not yet made', async () => {
+      mockCallable.mockResolvedValue({ data: [SAMPLE_ENTRIES[1]] });
+      expect(mod.cachedSearch('xuexi', 'simp', 'chinese')).toBeUndefined();
+      await mod.searchDictionary('xuexi', 'simp', 'chinese');
+      expect(mod.cachedSearch('xuexi ', 'simp', 'chinese')).toEqual([SAMPLE_ENTRIES[1]]);
+    });
+
+    it('forgets the oldest search past the cap', async () => {
+      mockCallable.mockResolvedValue({ data: [] });
+      for (let i = 0; i <= mod.SEARCH_CACHE_SIZE; i++) {
+        await mod.searchDictionary(`q${i}`, 'simp', 'chinese');
+      }
+      expect(mod.cachedSearch('q0', 'simp', 'chinese')).toBeUndefined();
+      expect(mod.cachedSearch('q1', 'simp', 'chinese')).toEqual([]);
+    });
   });
 
   describe('warmEnglishSearch', () => {
