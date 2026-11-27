@@ -338,6 +338,8 @@ export const copy = {
       name: 'Handwriting pad',
       candidates: 'Candidates',
       backspace: 'Backspace',
+      // The clear button: its text, then its name.
+      clearShort: 'Clear',
       clear: 'Clear strokes',
       keyboard: 'Keyboard',
       loading: 'Loading…',

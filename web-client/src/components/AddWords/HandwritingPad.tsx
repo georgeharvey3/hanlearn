@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, Button, CircularProgress, IconButton } from '@mui/material';
 import BackspaceRoundedIcon from '@mui/icons-material/BackspaceRounded';
-import ClearAllRoundedIcon from '@mui/icons-material/ClearAllRounded';
 import KeyboardRoundedIcon from '@mui/icons-material/KeyboardRounded';
 
 import { copy } from '../../copy';
@@ -304,14 +303,21 @@ const HandwritingPad: React.FC<Props> = ({ onCandidate, onDeleteChar, onKeyboard
           <IconButton onClick={backspace} aria-label={copy.wordBank.pad.backspace} sx={toolSx}>
             <BackspaceRoundedIcon />
           </IconButton>
-          <IconButton
+          <Button
             onClick={() => setAndAsk([])}
             disabled={strokes.length === 0}
             aria-label={copy.wordBank.pad.clear}
-            sx={toolSx}
+            sx={{
+              ...toolSx,
+              minWidth: 0,
+              fontFamily: fonts.body,
+              fontSize: 14,
+              fontWeight: 600,
+              textTransform: 'none',
+            }}
           >
-            <ClearAllRoundedIcon />
-          </IconButton>
+            {copy.wordBank.pad.clearShort}
+          </Button>
           <IconButton onClick={onKeyboard} aria-label={copy.wordBank.pad.keyboard} sx={toolSx}>
             <KeyboardRoundedIcon />
           </IconButton>
