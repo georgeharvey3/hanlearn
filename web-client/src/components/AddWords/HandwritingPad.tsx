@@ -8,9 +8,7 @@ import { copy } from '../../copy';
 import { colors, fonts } from '../../theme';
 import { candidatesFor, loadTemplates } from '../../services/handwritingService';
 import { Point, Stroke } from '../../utils/handwriting';
-
-/** The height of the drawing box, in pixels. */
-const CANVAS_HEIGHT = 220;
+import { CANVAS_HEIGHT, STRIP_HEIGHT } from './padSize';
 
 /** The width of the line that the learner draws, in pixels. */
 const INK_WIDTH = 6;
@@ -98,6 +96,14 @@ const HandwritingPad: React.FC<Props> = ({ onCandidate, onDeleteChar, onKeyboard
   }, []);
 
   useEffect(() => redraw(strokes), [strokes, redraw]);
+
+  // A rotation or a new window size changes the box: draw the ink again at
+  // the new size.
+  useEffect(() => {
+    const onResize = () => redraw(strokes);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [strokes, redraw]);
 
   const ask = useCallback((next: Stroke[]) => {
     const mine = ++seq.current;
@@ -195,7 +201,7 @@ const HandwritingPad: React.FC<Props> = ({ onCandidate, onDeleteChar, onKeyboard
         sx={{
           display: 'flex',
           alignItems: 'center',
-          height: 52,
+          height: STRIP_HEIGHT,
           px: 0.5,
           gap: 0.25,
           borderBottom: `1px solid ${colors.divider}`,

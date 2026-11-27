@@ -501,11 +501,6 @@ function wiktionaryDifferencesReport(result, dump) {
 }
 
 /**
- * The text of ATTRIBUTION.txt of the breakdown files. AnimCJK and Make Me a
- * Hanzi each ask for their notice, and the Unihan notice in LICENSE.txt asks
- * for a notice that the data is modified.
- */
-/**
  * Write the template file of the handwriting pad (#476) from the committed
  * stroke medians, with its licence. The pad loads the file when it opens for
  * the first time.
@@ -541,6 +536,11 @@ const handwritingAttributionText = [
   'Public License (LICENSE.txt).',
 ].join('\n') + '\n';
 
+/**
+ * The text of ATTRIBUTION.txt of the breakdown files. AnimCJK and Make Me a
+ * Hanzi each ask for their notice, and the Unihan notice in LICENSE.txt asks
+ * for a notice that the data is modified.
+ */
 const breakdownAttributionText = (animcjk, makeMeAHanzi) => [
   'The component breakdown files in this directory are derived from the',
   'dictionary files of AnimCJK (https://github.com/parsimonhi/animCJK) and from',

@@ -11,12 +11,9 @@ const { medians } = JSON.parse(fs.readFileSync(path.join(SOURCE, 'stroke-medians
 // Every character of the medians counts as one with an entry, so the matcher
 // faces all 9,500 shapes.
 const words = Object.keys(medians).map((char, id) => ({ id, simp: char, trad: char }));
-const templates = prepareTemplates(
-  parseTemplates(templatesOf({ medians, words, ranks: new Map() })),
-);
-const byChar = new Map(
-  parseTemplates(templatesOf({ medians, words, ranks: new Map() })).map((t) => [t.char, t]),
-);
+const parsed = parseTemplates(templatesOf({ medians, words, ranks: new Map() }));
+const templates = prepareTemplates(parsed);
+const byChar = new Map(parsed.map((t) => [t.char, t]));
 
 /** A small seeded random number, so each run draws the same strokes. */
 function random(seed: number) {
@@ -82,6 +79,20 @@ describe('match', () => {
 
   it('finds a character with one stroke missing', () => {
     expect(top(draw('您').slice(0, -1))).toContain('您');
+  });
+
+  it.each([
+    ['龍', 12],
+    ['學', 10],
+    ['書', 7],
+    ['愛', 9],
+  ])('finds %s before its last strokes, from its first %i', (char, strokes) => {
+    expect(top(draw(char).slice(0, strokes))).toContain(char);
+  });
+
+  it('puts a whole character before one that it only starts', () => {
+    // 口 is the first three strokes of many characters.
+    expect(top(draw('口'), 1)).toEqual(['口']);
   });
 
   it('gives the best match first, with no candidate twice', () => {

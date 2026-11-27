@@ -14,6 +14,7 @@ import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded';
 
 import SearchField from '../../components/AddWords/SearchField';
 import HandwritingPad from '../../components/AddWords/HandwritingPad';
+import { PAD_HEIGHT } from '../../components/AddWords/padSize';
 import ListChips, { Chip } from '../../components/AddWords/ListChips';
 import WordRow from '../../components/AddWords/WordRow';
 import SearchResults, { EntryState, SearchStatus } from '../../components/AddWords/SearchResults';
@@ -57,9 +58,8 @@ type DialogKind = 'new' | 'rename' | 'delete' | 'lists' | 'deleteWord';
 // The pause after typing before the dictionary is asked. Enter asks at once.
 const SEARCH_DELAY_MS = 400;
 
-// The height of the handwriting pad on a phone: its candidate strip and its
-// drawing box, in HandwritingPad.tsx.
-const PAD_ROOM = 52 + 220;
+// The longest query the field takes: its maxLength.
+const MAX_QUERY = 100;
 
 const mapStateToProps = (state: RootState) => ({
   words: state.addWords.words,
@@ -222,8 +222,13 @@ const AddWords: React.FC<Props> = ({
     modeBeforePad.current = modeRef.current;
     if (modeRef.current !== 'chinese') switchMode('chinese');
     setPadOpen(true);
-    document.getElementById('addInput')?.focus();
-  }, [switchMode]);
+    // On a phone the field must not show the keyboard under the pad. A focused
+    // field keeps its keyboard when its inputMode changes, so it blurs now and
+    // takes the focus back after the render that sets inputMode to none.
+    const input = document.getElementById('addInput');
+    if (!desktop) input?.blur();
+    requestAnimationFrame(() => input?.focus());
+  }, [switchMode, desktop]);
 
   const closePad = useCallback(() => {
     setPadOpen(false);
@@ -461,7 +466,7 @@ const AddWords: React.FC<Props> = ({
   const pad = (
     <HandwritingPad
       docked={desktop}
-      onCandidate={(char) => setPadQuery(query + char)}
+      onCandidate={(char) => Array.from(query).length < MAX_QUERY && setPadQuery(query + char)}
       onDeleteChar={() => setPadQuery(Array.from(query).slice(0, -1).join(''))}
       onKeyboard={padToKeyboard}
     />
@@ -506,7 +511,11 @@ const AddWords: React.FC<Props> = ({
           query={query}
           busy={status === 'searching'}
           mode={mode}
-          onMode={switchMode}
+          onMode={(next) => {
+            // The learner's own choice stays when the pad closes.
+            modeBeforePad.current = null;
+            switchMode(next);
+          }}
           onChange={setQuery}
           onSubmit={() => runSearch(query)}
           onClear={clearSearch}
@@ -612,7 +621,10 @@ const AddWords: React.FC<Props> = ({
       {padOpen && !desktop && (
         <>
           {/* Room at the foot of the page, so the pad covers no word. */}
-          <Box aria-hidden="true" sx={{ height: PAD_ROOM }} />
+          <Box
+            aria-hidden="true"
+            sx={{ height: `calc(${PAD_HEIGHT}px + env(safe-area-inset-bottom))` }}
+          />
           {pad}
         </>
       )}

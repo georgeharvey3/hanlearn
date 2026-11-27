@@ -66,6 +66,12 @@ const REVERSE_COST = 0.08;
 /** A template whose stroke count differs from the drawing by more is skipped. */
 const MAX_STROKE_GAP = 3;
 
+/**
+ * The cost added to a match against the first strokes of a template, so that
+ * a whole character goes before one that the drawing only starts.
+ */
+const PREFIX_COST = 0.03;
+
 /** A character, ready to match: its strokes resampled into one unit box. */
 export interface PreparedTemplate {
   char: string;
@@ -139,6 +145,33 @@ function normalise(strokes: Stroke[]): Float64Array {
   return points;
 }
 
+/**
+ * The first `n` strokes of a prepared template, moved and scaled again so
+ * that they fill the unit box on their own, into `out`. The drawing of the
+ * first strokes of a character fills the pad in the same way.
+ */
+function prefixOf(points: Float64Array, n: number, out: Float64Array): Float64Array {
+  const length = n * POINTS * 2;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (let i = 0; i < length; i += 2) {
+    minX = Math.min(minX, points[i]);
+    maxX = Math.max(maxX, points[i]);
+    minY = Math.min(minY, points[i + 1]);
+    maxY = Math.max(maxY, points[i + 1]);
+  }
+  const size = Math.max(maxX - minX, maxY - minY) || 1;
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  for (let i = 0; i < length; i += 2) {
+    out[i] = (points[i] - cx) / size + 0.5;
+    out[i + 1] = (points[i + 1] - cy) / size + 0.5;
+  }
+  return out;
+}
+
 /** Make the templates ready to match. The pad does this once, after the load. */
 export function prepareTemplates(templates: Template[]): PreparedTemplate[] {
   return templates
@@ -187,11 +220,11 @@ function strokeCost(a: Float64Array, i: number, b: Float64Array, j: number): num
 function distance(
   drawn: Float64Array,
   n: number,
-  template: PreparedTemplate,
+  points: Float64Array,
+  m: number,
   row: Float64Array,
   cutoff: number,
 ): number {
-  const m = template.strokeCount;
   const limit = cutoff * Math.max(n, m);
   // One row of the alignment table at a time: row[j] is the best cost of the
   // first i drawn strokes against the first j template strokes.
@@ -203,7 +236,7 @@ function distance(
     for (let j = 1; j <= m; j++) {
       const above = row[j];
       row[j] = Math.min(
-        diagonal + strokeCost(drawn, i - 1, template.points, j - 1),
+        diagonal + strokeCost(drawn, i - 1, points, j - 1),
         above + GAP_COST,
         row[j - 1] + GAP_COST,
       );
@@ -218,6 +251,9 @@ function distance(
 /**
  * The `limit` best candidates for the drawn strokes, best first. The strokes
  * are in any unit with y down, as the pad gives them.
+ *
+ * A template matches as a whole, or by its first strokes when it has more
+ * strokes than the drawing. So a character can show before its last stroke.
  */
 export function match(strokes: Stroke[], templates: PreparedTemplate[], limit: number): Match[] {
   const drawnStrokes = strokes.filter((s) => s.length > 0);
@@ -225,14 +261,21 @@ export function match(strokes: Stroke[], templates: PreparedTemplate[], limit: n
   if (n === 0) return [];
   const drawn = normalise(drawnStrokes);
   const row = new Float64Array(n + MAX_STROKE_GAP + 2);
+  const prefix = new Float64Array(n * POINTS * 2);
   // The best `limit` so far, best first. A template that cannot beat the last
   // one stops early.
   const found: Match[] = [];
   for (const template of templates) {
-    if (Math.abs(template.strokeCount - n) > MAX_STROKE_GAP) continue;
-    const cutoff = found.length < limit ? Infinity : found[found.length - 1].distance;
-    const d = distance(drawn, n, template, row, cutoff);
-    if (d >= cutoff) continue;
+    const m = template.strokeCount;
+    const worst = found.length < limit ? Infinity : found[found.length - 1].distance;
+    let d = Infinity;
+    if (Math.abs(m - n) <= MAX_STROKE_GAP) d = distance(drawn, n, template.points, m, row, worst);
+    if (m > n) {
+      const prefixCutoff = Math.min(worst, d) - PREFIX_COST;
+      const start = distance(drawn, n, prefixOf(template.points, n, prefix), n, row, prefixCutoff);
+      d = Math.min(d, start + PREFIX_COST);
+    }
+    if (d >= worst) continue;
     let at = found.length;
     while (at > 0 && found[at - 1].distance > d) at--;
     found.splice(at, 0, { char: template.char, rank: template.rank, distance: d });

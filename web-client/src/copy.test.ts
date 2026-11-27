@@ -75,6 +75,7 @@ const FILES = [
   'components/Home/Landing/StrokeChar.tsx',
   'containers/AddWords/AddWords.tsx',
   'components/AddWords/SearchField.tsx',
+  'components/AddWords/HandwritingPad.tsx',
   'components/AddWords/ListChips.tsx',
   'components/AddWords/WordRow.tsx',
   'components/AddWords/SearchResults.tsx',

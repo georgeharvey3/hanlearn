@@ -2,8 +2,8 @@
  * The order of the candidates of the handwriting pad (#476).
  *
  * The matcher distance comes first. But two shapes that the matcher scores
- * almost the same are a tie in practice, and then the common character is the
- * better guess. So the candidates go in bands: a band starts at the best
+ * almost the same are a tie in practice, and then the common character is
+ * more likely. So the candidates go in bands: a band starts at the best
  * candidate left and holds each candidate within CANDIDATE_BAND of it. Inside
  * a band, a character with an HSK rank `q` goes first, a lower rank before a
  * higher one, and the rest keep the matcher order.
@@ -30,13 +30,12 @@ export function orderCandidates(
   count: number = CANDIDATE_COUNT,
   band: number = CANDIDATE_BAND,
 ): string[] {
-  const left = [...matches].sort((a, b) => a.distance - b.distance);
   const out: string[] = [];
   let at = 0;
-  while (at < left.length && out.length < count) {
+  while (at < matches.length && out.length < count) {
     let end = at;
-    while (end < left.length && left[end].distance - left[at].distance <= band) end++;
-    const inBand = left
+    while (end < matches.length && matches[end].distance - matches[at].distance <= band) end++;
+    const inBand = matches
       .slice(at, end)
       .map((match, i) => ({ match, i }))
       .sort((a, b) => (a.match.rank ?? Infinity) - (b.match.rank ?? Infinity) || a.i - b.i);

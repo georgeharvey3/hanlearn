@@ -42,8 +42,8 @@ function templatesOf({ medians, words, ranks }) {
   const bytes = [];
   for (const char of chars) {
     const strokes = medians[char];
-    bytes.push(strokes.length);
     if (strokes.length > 255) throw new Error(char + ' has more than 255 strokes');
+    bytes.push(strokes.length);
     for (const median of strokes) {
       if (median.length / 2 > 255) throw new Error('A stroke of ' + char + ' has more than 255 points');
       bytes.push(median.length / 2);
